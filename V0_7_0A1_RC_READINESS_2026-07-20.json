@@ -1,17 +1,18 @@
 {
   "baseline": "0.7.0-alpha.1",
-  "assessment": "RC readiness pass 1",
+  "assessment": "RC readiness pass 2",
   "date": "2026-07-20",
   "release_declared": false,
   "quality": {
     "ruff": "pass: 0 errors",
     "mypy_strict": "pass: 142 source files",
-    "pytest": "pass: 293 tests",
+    "pytest": "pass: 294 tests",
     "architecture_review": "pass: ARC-001 through ARC-004",
     "wheel": "pass",
     "sdist": "pass",
     "isolated_wheel_smoke": "pass",
-    "workbench_smoke": "pass: /health and /api/projects"
+    "workbench_smoke": "pass: /health and /api/projects",
+    "rc_009_e2e": "pass: claim-to-estimate-reference-v1 matched twice and matched committed baseline"
   },
   "changes": [
     "Added explicit 0.7.0 RC criteria against CAF-CMP-001",
@@ -19,10 +20,12 @@
     "Aligned crow review default release with 0.7.0-alpha.1",
     "Added build as a development dependency",
     "Added Workbench health endpoint and regression test",
-    "Added current-baseline header to README"
+    "Added current-baseline header to README",
+    "Added executable deterministic RC-009 verifier",
+    "Added committed golden result and SHA-256 for claim-to-estimate-reference-v1",
+    "Added RC-009 verifier to CI and regression tests"
   ],
   "blockers": [
-    "RC-009 deterministic end-to-end baseline has not been selected and rerun in this pass",
     "RC-010 real-project DXF validation has not been performed"
   ]
 }
