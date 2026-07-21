@@ -1,0 +1,25 @@
+{
+  "criterion": "RC-011",
+  "title": "Configurable Swedish ventilation lexicon",
+  "status": "PASS",
+  "implemented": [
+    "packaged JSON lexicon",
+    "typed duct-string parser",
+    "component lookup",
+    "AF ambiguity resolution by context",
+    "project/SB11/freehand layer fallback"
+  ],
+  "verified_examples": [
+    "T13-250x400-V1",
+    "F-315",
+    "AF01 with avluftsfläkt context",
+    "AF2 with QH avfuktare context",
+    "V-57--",
+    "KANAL_ISO"
+  ],
+  "limitations": [
+    "CoClass decoding is not yet implemented",
+    "BIP TypeID values are not included",
+    "DWG geometry/text extraction is not part of this pass"
+  ]
+}

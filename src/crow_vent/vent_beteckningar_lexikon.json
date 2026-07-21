@@ -1,0 +1,195 @@
+{
+  "meta": {
+    "name": "vent-beteckningar-lexikon",
+    "version": "0.1.0",
+    "language": "sv",
+    "discipline": "VENT",
+    "purpose": "Seed-lexikon för Crow Vent Intelligence DWG/PDF-parser. Matchar system-, medium-, material-, isolerings- och komponentbeteckningar på svenska ventilationsritningar.",
+    "sources": [
+      "AMA VVS & Kyl (radrubriker QAB, QE, QF, QG, QH, QJ, QK, QM, QMC, QMD, QME)",
+      "Region Skåne Regionfastigheter Märkstandard Textdel VVS+SÖ v4.0 (2023), följer AMA/BIP",
+      "BIP - Building Information Properties, bipkoder.se (auktoritativ tabell, JS-app - exportera manuellt vid behov)",
+      "Svensk Ventilation, Standardiserade ritningsbeteckningar (grund för BIP TypeID VVS)"
+    ],
+    "notes": [
+      "Löpnummer skrivs som suffix: TA1, TA01, FF1, SP:101 osv. Regex-fältet 'id_pattern' fångar detta.",
+      "BSAB-mellanbokstav (57Cxx, 57Fxx) används normalt bara för process-/luftvärmesystem, inte allmänventilation.",
+      "Beställare har egna profiler (Göteborg RA-1865, Locum, KFAB, Region Skåne). Detta lexikon är default-profilen; override per projekt."
+    ],
+    "id_pattern": "^(?P<code>[A-ZÅÄÖ]{1,5})(?P<sep>[:\\-]?)(?P<num>\\d{1,3})?$"
+  },
+
+  "system_beteckningar": {
+    "description": "Systemnivå (BSAB-kod + löpnummer, eller bokstavskod + löpnummer beroende på beställarprofil)",
+    "bsab": [
+      { "code": "57", "pattern": "^57\\d{2}$", "label": "Allmänventilation (luftbehandlingssystem)", "example": "5701" },
+      { "code": "57C", "pattern": "^57C\\d{1,2}$", "label": "Processventilationssystem", "example": "57C01" },
+      { "code": "57F", "pattern": "^57F\\d{1,2}$", "label": "Luftvärmesystem", "example": "57F01" }
+    ],
+    "letter_style": [
+      { "code": "LB", "label": "Luftbehandlingssystem (BIP-stil, vanligast)", "example": "LB01" },
+      { "code": "TA", "label": "Tilluftssystem/-aggregat (äldre/företagsintern stil)", "example": "TA01" },
+      { "code": "FA", "label": "Frånluftssystem/-aggregat (äldre/företagsintern stil)", "example": "FA01" }
+    ]
+  },
+
+  "medium": {
+    "description": "Vad kanalen innehåller. Används i kanalsträngar (t.ex. T1-250, F-400x200) och som prefix i donbeteckningar.",
+    "codes": [
+      { "code": "U", "label": "Uteluft" },
+      { "code": "T", "label": "Tilluft" },
+      { "code": "F", "label": "Frånluft" },
+      { "code": "A", "label": "Avluft" },
+      { "code": "Ö", "label": "Överluft", "ascii_alias": "O" },
+      { "code": "C", "label": "Cirkulationsluft" },
+      { "code": "Å", "label": "Återluft", "ascii_alias": "AA" },
+      { "code": "B", "label": "Brandgas" },
+      { "code": "IMK", "label": "Imkanal" }
+    ]
+  },
+
+  "kanal_material": {
+    "description": "Material huvudgrupp i kanalsträng (siffra efter medium, t.ex. T1-250 = tilluft, förzinkad plåt)",
+    "codes": [
+      { "code": "1", "label": "Förzinkad stålplåt" },
+      { "code": "2", "label": "Rostfri stålplåt" },
+      { "code": "3", "label": "Aluzinkplåt" },
+      { "code": "4", "label": "Plastkanal" },
+      { "code": "5", "label": "Enligt särskild beskrivning (löpsiffra)" }
+    ]
+  },
+
+  "kanal_isolering": {
+    "description": "Isolering huvudgrupp i kanalsträng (bokstav efter dimension, t.ex. T1-250-V1)",
+    "codes": [
+      { "code": "B", "label": "Brandisolering" },
+      { "code": "K", "label": "Kondensisolering" },
+      { "code": "V", "label": "Värmeisolering" },
+      { "code": "L", "label": "Ljudisolering" }
+    ]
+  },
+
+  "kanal_strang_pattern": {
+    "description": "Fullständig kanalsträng: Medium + Material(+undergrupp) - Dimension - Isolering(+undergrupp). Cirkulär dim = ett tal, rektangulär = BxH.",
+    "regex": "^(?P<medium>U|T|F|A|Ö|C|Å|B|IMK)(?P<material>[1-5])?(?P<mat_sub>[1-9])?-(?P<dim>\\d{2,4}(x\\d{2,4})?)(-(?P<isol>[BKVL])(?P<isol_sub>[1-9])?)?$",
+    "examples": ["T1-250", "T13-250x400-V1", "F-315", "IMK2-200-B1"]
+  },
+
+  "komponenter": {
+    "description": "Komponentbeteckningar per AMA-radrubrik. 'code' + löpnummer (och ev. dim/storlek) på ritning.",
+    "QAB_luftbehandlingsaggregat": [
+      { "code": "LBA", "label": "Till- och frånluftsaggregat (kombiaggregat)", "note": "textas med systembeteckning, t.ex. 5701-LBA1" },
+      { "code": "LA", "label": "Luftbehandlingsaggregat (BIP-produktkod)", "example": "LA001" },
+      { "code": "TA", "label": "Tilluftsaggregat" },
+      { "code": "FA", "label": "Frånluftsaggregat" },
+      { "code": "CA", "label": "Cirkulationsaggregat" },
+      { "code": "KA", "label": "Kylaggregat" },
+      { "code": "KMK", "label": "Kylmedelkylare" },
+      { "code": "ÅA", "label": "Återluftsaggregat" },
+      { "code": "ÖA", "label": "Överluftsaggregat" },
+      { "code": "RÅ", "label": "Ridåaggregat (luftridå, QAC)" }
+    ],
+    "QE_flaktar": [
+      { "code": "TF", "label": "Tilluftsfläkt" },
+      { "code": "FF", "label": "Frånluftsfläkt" },
+      { "code": "BF", "label": "Brandgasfläkt" },
+      { "code": "CF", "label": "Cirkulationsfläkt" },
+      { "code": "RF", "label": "Rökgasfläkt" },
+      { "code": "ÅF", "label": "Återluftsfläkt" },
+      { "code": "ÖF", "label": "Överluftsfläkt" },
+      { "code": "AF", "label": "Avluftsfläkt (förekommer som företagsintern variant)", "confidence": "alias" }
+    ],
+    "QF_varmevaxlare_batterier": [
+      { "code": "VVX", "label": "Värmeväxlare (roterande/platt/batteri)" },
+      { "code": "LV", "label": "Luftvärmare (batteri)" },
+      { "code": "LK", "label": "Luftkylare (batteri)" },
+      { "code": "LVK", "label": "Kombinerad luftvärmare/-kylare" },
+      { "code": "FLV", "label": "Fläktluftvärmare" },
+      { "code": "FLK", "label": "Fläktluftkylare" },
+      { "code": "FLX", "label": "Kombinerad fläktluftvärmare/-kylare" },
+      { "code": "KBL", "label": "Kylbaffel (passiv/aktiv enligt löpsiffra)" }
+    ],
+    "QG_QH_luftbehandling_ovrigt": [
+      { "code": "LR", "label": "Luftrenare" },
+      { "code": "LF", "label": "Luftfuktare" },
+      { "code": "AF", "label": "Avfuktare (QH)", "confidence": "kollision med avluftsfläkt - avgör via kontext/lager" }
+    ],
+    "QJ_spjall_flodesdon": [
+      { "code": "SP", "label": "Spjäll (injusterings-/VAV- m.fl., typ enligt löpsiffra)", "example": "SP1, SP:101" },
+      { "code": "BS", "label": "Brandspjäll" },
+      { "code": "BGS", "label": "Brandgasspjäll" },
+      { "code": "BBGS", "label": "Brand-/brandgasspjäll" },
+      { "code": "BKS", "label": "Backspjäll" },
+      { "code": "ES", "label": "Evakueringsspjäll" },
+      { "code": "KFD", "label": "Konstantflödesdon, mekaniskt" },
+      { "code": "TASP", "label": "Tryckavlastningsspjäll" }
+    ],
+    "QK_ljuddampare": [
+      { "code": "LD", "label": "Ljuddämpare (typ-dim-längd)", "example": "LD3-160-500", "pattern": "^LD\\d{0,2}-\\d{2,4}-\\d{2,4}$" }
+    ],
+    "QM_luftdon_intag_avkast": [
+      { "code": "TD", "label": "Tilluftsdon (QMC)", "example": "TD1-160" },
+      { "code": "FD", "label": "Frånluftsdon (QME)" },
+      { "code": "ÖD", "label": "Överluftsdon (QMD)" },
+      { "code": "ÅD", "label": "Återluftsdon" },
+      { "code": "TH", "label": "Takhuv" },
+      { "code": "TG", "label": "Takgenomföring" },
+      { "code": "YG", "label": "Ytterväggsgaller (rekt: YG1-1500x1200, cirk: YG2-400)" },
+      { "code": "DS", "label": "Dragskåp" },
+      { "code": "DGB", "label": "Dragbänk ventilerad" },
+      { "code": "LAF", "label": "Laminärflödesbänk" },
+      { "code": "PU", "label": "Punktutsug" }
+    ],
+    "ovrigt_ritningstext": [
+      { "code": "MU", "label": "Mätuttag" },
+      { "code": "IL", "label": "Inspektionslucka" },
+      { "code": "RL", "label": "Renslucka" }
+    ]
+  },
+
+  "textforkortningar": {
+    "description": "Vanlig fritext på V-ritningar som parsern bör känna igen (inte komponenter)",
+    "codes": [
+      { "code": "ANSL", "label": "Anslutning" },
+      { "code": "BEF", "label": "Befintlig" },
+      { "code": "DEM", "label": "Demontering" },
+      { "code": "FORTS", "label": "Fortsätter/fortsättning" },
+      { "code": "INK", "label": "Inkoppling" },
+      { "code": "ISOL", "label": "Isolering" },
+      { "code": "UK", "label": "Underkant" },
+      { "code": "ÖK", "label": "Överkant" },
+      { "code": "UTAK", "label": "Undertak" },
+      { "code": "ÖFG", "label": "Över färdigt golv" },
+      { "code": "ÖG", "label": "Över golv" },
+      { "code": "NS", "label": "Normalt stängd" },
+      { "code": "NÖ", "label": "Normalt öppen" },
+      { "code": "(...)", "label": "Text inom parentes = befintlig installation" }
+    ]
+  },
+
+  "lager_profiler": {
+    "description": "Kandidatprofiler för lagermappning. Parsern matchar mot profil i ordning: projektspecifik > SB11 > CoClass > frihand.",
+    "sb11": {
+      "standard": "SS-ISO 13567:1999 via SB-Rekommendationer 11 utg 3 (2011), BSAB96-baserad",
+      "note": "Fältindelad struktur, ventilation under ansvarig part V och BSAB 57",
+      "example_patterns": ["V-57*", "V57*"]
+    },
+    "coclass": {
+      "standard": "SS-ISO 13567 + CoClass (Eckerberg 2017, 'CAD-lager med CoClass' utg 4)",
+      "note": "Nyare projekt; kravställning ska ange vilket alternativ i boken som avses"
+    },
+    "frihand_exempel": {
+      "note": "Verklighetens småfirmelager - mappas manuellt per avsändare",
+      "layers": {
+        "TFT": "tilluft (text?)",
+        "TFA": "tilluftsaggregat?",
+        "FFT": "frånluft",
+        "KANAL": "kanaler oisolerade",
+        "KANAL_ISO": "kanaler isolerade",
+        "DON": "luftdon",
+        "TEXT": "textning",
+        "MÅTT": "måttsättning"
+      }
+    }
+  }
+}
