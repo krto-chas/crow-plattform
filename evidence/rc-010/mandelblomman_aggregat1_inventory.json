@@ -1,0 +1,44 @@
+{
+  "acceptance": {
+    "losses_reported": true,
+    "parser_completed": true,
+    "silent_loss_detected": false
+  },
+  "result": {
+    "entity_count": 7120,
+    "entity_types": {
+      "3DFACE": 5384,
+      "BLOCK": 7,
+      "ENDBLK": 7,
+      "INSERT": 7,
+      "LINE": 1715
+    },
+    "importer_id": "crow.import.dxf",
+    "layer_count": 1,
+    "layers": [
+      "v-5721-"
+    ],
+    "malformed_or_unparsed_entity_types": {},
+    "normalized_entity_count": 1722,
+    "normalized_entity_types": {
+      "INSERT": 7,
+      "LINE": 1715
+    },
+    "omitted_entity_count": 5384,
+    "preview_entity_count": 1722,
+    "preview_truncated": false,
+    "unsupported_entity_types": {
+      "3DFACE": 5384
+    },
+    "warnings": [
+      "DXF contains entity types without preview support; they were inventoried but not converted to normalized preview geometry: 3DFACE=5384."
+    ]
+  },
+  "schema_version": 1,
+  "source": {
+    "checksum_sha256": "41d46177ac4e93ade674cff10a6258b2621cc995e2deb4dfb24b1b35811e56b7",
+    "filename": "Mandelblomman - Aggregat1_0002.dxf",
+    "format_id": "dxf",
+    "size_bytes": 1886380
+  }
+}

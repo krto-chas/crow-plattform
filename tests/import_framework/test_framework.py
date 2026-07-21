@@ -66,3 +66,21 @@ def test_dxf_preview_extracts_basic_geometry(tmp_path: Path) -> None:
     assert asset.preview["kind"] == "dxf_2d"
     assert len(asset.preview["geometry"]) == 2
     assert asset.metadata["preview_entity_count"] == 2
+
+
+def test_dxf_reports_unsupported_and_unparsed_entities(tmp_path: Path) -> None:
+    source = tmp_path / "losses.dxf"
+    source.write_text(
+        "0\nSECTION\n2\nENTITIES\n"
+        "0\nLINE\n8\nVENT\n10\n0\n20\n0\n11\n100\n21\n50\n"
+        "0\nLINE\n8\nVENT\n10\n0\n20\n0\n"
+        "0\n3DFACE\n8\nVENT\n10\n0\n20\n0\n30\n0\n"
+        "0\nENDSEC\n0\nEOF\n",
+        encoding="utf-8",
+    )
+    asset = ImportManager(create_default_registry()).import_file(source)
+    assert asset.metadata["normalized_entity_count"] == 1
+    assert asset.metadata["unsupported_entity_types"] == {"3DFACE": 1}
+    assert asset.metadata["malformed_or_unparsed_entity_types"] == {"LINE": 1}
+    assert asset.metadata["omitted_entity_count"] == 2
+    assert len(asset.warnings) == 2

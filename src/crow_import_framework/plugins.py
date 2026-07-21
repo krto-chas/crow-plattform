@@ -277,6 +277,18 @@ class DxfPlugin(BasePlugin):
         ImportCapability.GEOMETRY_2D,
     )
 
+    _PREVIEWABLE_TYPES = {
+        "LINE",
+        "CIRCLE",
+        "LWPOLYLINE",
+        "POLYLINE",
+        "ARC",
+        "TEXT",
+        "MTEXT",
+        "INSERT",
+    }
+    _NON_GRAPHICAL_TYPES = {"BLOCK", "ENDBLK"}
+
     def import_asset(self, source: ImportSource) -> ImportedAsset:
         lines = source.path.read_text(encoding="utf-8", errors="replace").splitlines()
         pairs = [(lines[i].strip(), lines[i + 1].strip()) for i in range(0, len(lines) - 1, 2)]
@@ -369,6 +381,7 @@ class DxfPlugin(BasePlugin):
                 if key:
                     current[key] = number
         flush()
+
         clean_geometry = []
         for item in geometry[:20000]:
             if "points" in item:
@@ -377,6 +390,49 @@ class DxfPlugin(BasePlugin):
                     "points": [point for point in item["points"] if point[1] is not None],
                 }
             clean_geometry.append(item)
+
+        parsed_types: dict[str, int] = {}
+        for item in geometry:
+            entity_type = str(item["type"])
+            parsed_types[entity_type] = parsed_types.get(entity_type, 0) + 1
+
+        unsupported_types = {
+            key: value
+            for key, value in entities.items()
+            if key not in self._PREVIEWABLE_TYPES and key not in self._NON_GRAPHICAL_TYPES
+        }
+        malformed_or_unparsed = {
+            key: count - parsed_types.get(key, 0)
+            for key, count in entities.items()
+            if key in self._PREVIEWABLE_TYPES and count > parsed_types.get(key, 0)
+        }
+        omitted_types = {
+            **unsupported_types,
+            **malformed_or_unparsed,
+        }
+        omitted_count = sum(omitted_types.values())
+
+        warnings: list[str] = []
+        if unsupported_types:
+            detail = ", ".join(f"{key}={value}" for key, value in sorted(unsupported_types.items()))
+            warnings.append(
+                "DXF contains entity types without preview support; they were inventoried but "
+                f"not converted to normalized preview geometry: {detail}."
+            )
+        if malformed_or_unparsed:
+            detail = ", ".join(
+                f"{key}={value}" for key, value in sorted(malformed_or_unparsed.items())
+            )
+            warnings.append(
+                "DXF contains supported entity types that could not be normalized because "
+                f"required fields were missing or unsupported encoding was used: {detail}."
+            )
+        if len(geometry) > len(clean_geometry):
+            warnings.append(
+                "Preview was truncated at "
+                f"{len(clean_geometry)} of {len(geometry)} normalized entities."
+            )
+
         structure = [
             {"kind": "layer", "name": key, "entity_count": value}
             for key, value in sorted(layers.items())
@@ -401,11 +457,17 @@ class DxfPlugin(BasePlugin):
                 "layer_count": len(layers),
                 "entity_count": sum(entities.values()),
                 "entity_types": entities,
+                "normalized_entity_count": len(geometry),
+                "normalized_entity_types": parsed_types,
+                "unsupported_entity_types": unsupported_types,
+                "malformed_or_unparsed_entity_types": malformed_or_unparsed,
+                "omitted_entity_count": omitted_count,
                 "preview_entity_count": len(clean_geometry),
             },
             structure=structure,
             observations=obs,
             preview=preview,
+            warnings=warnings,
         )
 
 

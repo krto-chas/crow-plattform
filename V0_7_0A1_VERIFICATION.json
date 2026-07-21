@@ -4,12 +4,25 @@
   "quality": {
     "ruff": "pass",
     "mypy_strict": "pass (142 files)",
-    "pytest": "292 passed, 1 warning in 5.32s",
+    "pytest": "295 passed in 5.54s",
     "architecture_review": "PASS ARC-001..ARC-004"
   },
   "provenance": "docs/PROVENANCE.md",
   "superseded_packages": 28,
   "excluded": [
     "crow-platform-3.0-complete (hollow scaffold, see PROVENANCE)"
-  ]
+  ],
+  "rc_readiness": {
+    "rc_009": {
+      "status": "pass",
+      "evidence": "evidence/rc-009/claim_to_estimate_reference_v1.json"
+    },
+    "rc_010": {
+      "status": "pass",
+      "input_sha256": "41d46177ac4e93ade674cff10a6258b2621cc995e2deb4dfb24b1b35811e56b7",
+      "evidence_json": "evidence/rc-010/mandelblomman_aggregat1_inventory.json",
+      "evidence_markdown": "evidence/rc-010/mandelblomman_aggregat1_acceptance.md",
+      "result": "parser completed; 5,384 unsupported 3DFACE entities explicitly reported"
+    }
+  }
 }

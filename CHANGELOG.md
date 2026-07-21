@@ -1,5 +1,9 @@
 # Unreleased — 0.7.0 RC readiness governance
 
+- Validated the DXF importer against a controlled real-project aggregate DXF.
+- Added explicit reporting for unsupported and malformed/unparsed DXF entities.
+- Added RC-010 inventory and acceptance evidence without committing the source drawing.
+- Added a regression test ensuring DXF losses cannot be silently omitted.
 - Added explicit RC entry criteria for 0.7.0 against CAF-CMP-001.
 - Extended CI with architecture review and distribution build gates.
 - Aligned the default architecture-review release identity with 0.7.0-alpha.1.

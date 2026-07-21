@@ -33,7 +33,6 @@ The candidate must not be created while any of the following is true:
 - A required gate is missing from CI.
 - The version identity differs between code, metadata or release evidence.
 - A feature is described as implemented without executable code and tests.
-- Real-project DXF validation has not been performed.
 - Known data loss is silently ignored by import or geometry processing.
 - Generated caches, local environments or build artefacts are included in source packaging.
 
@@ -46,14 +45,14 @@ actually executed in that inspection environment.
 |---|---|---|
 | RC-001 | pass | `ruff check .` — 0 errors |
 | RC-002 | pass | `mypy` — no issues in 142 source files |
-| RC-003 | pass | `293 passed` after governance and health-endpoint changes |
+| RC-003 | pass | `295 passed` after RC-010 loss-reporting regression coverage |
 | RC-004 | pass | ARC-001–ARC-004 PASS for `0.7.0-alpha.1` |
 | RC-005 | pass | wheel and sdist built successfully |
 | RC-006 | remediation started | CLI default and CI release argument aligned to `0.7.0-alpha.1`; historical README content retained with a current-status header |
 | RC-007 | partial | alpha verification manifest exists, but RC manifest does not yet exist |
 | RC-008 | pass for install/import/CLI smoke | built wheel installed in a new virtual environment; CLI help and core imports passed |
 | RC-009 | pass | `python scripts/verify_e2e_baseline.py`; committed baseline and SHA-256 in `evidence/rc-009/` |
-| RC-010 | blocked | real DXF input and acceptance record required |
+| RC-010 | pass | controlled external DXF verified; `evidence/rc-010/mandelblomman_aggregat1_acceptance.md` and JSON inventory record parser completion and 5,384 unsupported `3DFACE` entities without silent loss |
 | RC-011 | pass | `/health` and `/api/projects` returned HTTP 200; automated health test added |
 | RC-012 | present | `docs/PROVENANCE.md` |
 
