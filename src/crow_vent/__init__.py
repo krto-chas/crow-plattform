@@ -12,7 +12,6 @@ from .models import VentClassification, VentComponentDefinition
 from .quantity import build_quantity_takeoff, quantity_takeoff_csv
 from .registry import component_registry, normalise_symbol, resolve_component
 from .service import build_vent_model
-from .text_interpretation import VentTextInterpretation, VentTextInterpreter
 
 __all__ = [
     "VentClassification",
@@ -33,6 +32,4 @@ __all__ = [
     "build_vent_model",
     "build_quantity_takeoff",
     "quantity_takeoff_csv",
-    "VentTextInterpretation",
-    "VentTextInterpreter",
 ]

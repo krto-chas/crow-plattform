@@ -182,19 +182,8 @@ class VentLexicon:
 
 
 class LayerProfileEngine:
-    def __init__(
-        self,
-        project_layers: Mapping[str, str] | None = None,
-        *,
-        customer_layers: Mapping[str, str] | None = None,
-        coclass_patterns: Mapping[str, str] | None = None,
-        freehand_layers: Mapping[str, str] | None = None,
-    ) -> None:
+    def __init__(self, project_layers: Mapping[str, str] | None = None) -> None:
         self._project_layers = {key.upper(): value for key, value in (project_layers or {}).items()}
-        self._customer_layers = {
-            key.upper(): value for key, value in (customer_layers or {}).items()
-        }
-        self._coclass_patterns = dict(coclass_patterns or {})
         self._freehand = {
             "TFT": "tilluft_text",
             "TFA": "tilluftsaggregat",
@@ -205,9 +194,6 @@ class LayerProfileEngine:
             "TEXT": "text",
             "MÅTT": "måttsättning",
         }
-        self._freehand.update(
-            {key.upper(): value for key, value in (freehand_layers or {}).items()}
-        )
 
     def resolve(self, layer: str) -> LayerMatch | None:
         normalized = layer.strip().upper()
@@ -215,15 +201,8 @@ class LayerProfileEngine:
             return LayerMatch(
                 normalized, "project", self._project_layers[normalized], 1.0, normalized
             )
-        if normalized in self._customer_layers:
-            return LayerMatch(
-                normalized, "customer", self._customer_layers[normalized], 0.98, normalized
-            )
         if re.match(r"^V-?57", normalized):
             return LayerMatch(normalized, "sb11", "ventilation", 0.95, "^V-?57")
-        for pattern, semantic in self._coclass_patterns.items():
-            if re.search(pattern, normalized, re.IGNORECASE):
-                return LayerMatch(normalized, "coclass", semantic, 0.9, pattern)
         if normalized in self._freehand:
             return LayerMatch(normalized, "freehand", self._freehand[normalized], 0.8, normalized)
         return None
