@@ -1,0 +1,3 @@
+[console_scripts]
+crow = crow_module_conformance.cli:main
+crow-workbench = crow_workbench.__main__:main
