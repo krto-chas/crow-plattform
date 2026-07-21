@@ -146,6 +146,11 @@ src/crow_observation_engine/extractors.py
 src/crow_observation_engine/models.py
 src/crow_observation_engine/py.typed
 src/crow_observation_engine/service.py
+src/crow_project_dataset/__init__.py
+src/crow_project_dataset/inspect.py
+src/crow_project_dataset/manifest.py
+src/crow_project_dataset/models.py
+src/crow_project_dataset/py.typed
 src/crow_reasoning/__init__.py
 src/crow_reasoning/default_rules.json
 src/crow_reasoning/engine.py
@@ -185,11 +190,14 @@ src/crow_technical_validation/validator.py
 src/crow_vent/__init__.py
 src/crow_vent/analysis.py
 src/crow_vent/classification.py
+src/crow_vent/lexicon.py
 src/crow_vent/models.py
 src/crow_vent/py.typed
 src/crow_vent/quantity.py
 src/crow_vent/registry.py
 src/crow_vent/service.py
+src/crow_vent/text_interpretation.py
+src/crow_vent/vent_beteckningar_lexikon.json
 src/crow_workbench/__init__.py
 src/crow_workbench/__main__.py
 src/crow_workbench/app.py
@@ -255,6 +263,7 @@ tests/test_observation_extractors.py
 tests/test_observation_service.py
 tests/test_persistence.py
 tests/test_pipeline_golden.py
+tests/test_project_dataset.py
 tests/test_project_model.py
 tests/test_project_persistence.py
 tests/test_project_revision.py
@@ -277,5 +286,7 @@ tests/test_technical_validation.py
 tests/test_technical_validation_service.py
 tests/test_text_extraction.py
 tests/test_trust.py
+tests/test_vent_lexicon.py
+tests/test_vent_text_interpretation.py
 tests/test_versioning.py
 tests/test_workbench.py
