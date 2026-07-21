@@ -1,0 +1,26 @@
+{
+  "baseline": "0.7.0-alpha.1",
+  "pass": 6,
+  "scope": "vent text interpretation and configurable layer profile chain",
+  "verification": {
+    "ruff": "pass",
+    "mypy": {
+      "status": "pass",
+      "source_files": 148,
+      "command": "mypy"
+    },
+    "pytest": {
+      "status": "pass",
+      "tests": 309
+    },
+    "rc_009": "pass",
+    "architecture_review": ["ARC-001", "ARC-002", "ARC-003", "ARC-004"],
+    "build": ["wheel", "sdist"]
+  },
+  "claims_not_made": [
+    "DWG geometry parsing",
+    "complete CoClass decoding",
+    "BIP TypeID support",
+    "geometry-based quantity takeoff"
+  ]
+}
