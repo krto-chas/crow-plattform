@@ -266,7 +266,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     review = commands.add_parser("review")
     review.add_argument("--root", type=Path, default=Path("."))
-    review.add_argument("--release", default="0.5.0")
+    review.add_argument("--release", default="0.7.0-alpha.1")
     return parser
 
 

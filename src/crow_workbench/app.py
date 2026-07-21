@@ -329,6 +329,10 @@ def create_app(data_root: Path | None = None) -> FastAPI:
             raise HTTPException(status_code=404, detail="Projektet finns inte")
         return path
 
+    @app.get("/health")
+    def health() -> dict[str, str]:
+        return {"status": "ok", "version": app.version}
+
     @app.get("/")
     def index() -> FileResponse:
         return FileResponse(static_root / "index.html")

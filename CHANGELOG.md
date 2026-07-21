@@ -1,3 +1,11 @@
+# Unreleased — 0.7.0 RC readiness governance
+
+- Added explicit RC entry criteria for 0.7.0 against CAF-CMP-001.
+- Extended CI with architecture review and distribution build gates.
+- Aligned the default architecture-review release identity with 0.7.0-alpha.1.
+- Added `build` to development dependencies so the packaging gate is reproducible.
+- No release-candidate status is declared by these changes.
+
 # Crow Platform 0.7.0-alpha.1 — Konsoliderad och sanerad
 
 - Versionslinjen omnumrerad ärligt: den tidigare "2.0/2.3/2.4"-numreringen saknade
