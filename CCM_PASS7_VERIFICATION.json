@@ -1,0 +1,24 @@
+{
+  "baseline": "0.7.0-alpha.1",
+  "change": "Crow Canonical Model 0.1 foundation",
+  "implemented": [
+    "typed canonical ventilation object model",
+    "deterministic adapter from VentTextInterpretation",
+    "evidence-preserving Building Graph bridge",
+    "unknown text exclusion from canonical model"
+  ],
+  "verification": {
+    "ruff": "pass",
+    "mypy": "pass (152 configured source files)",
+    "pytest": "313 passed",
+    "rc_009": "pass",
+    "architecture_review": "ARC-001 through ARC-004 pass",
+    "build": "wheel and sdist built"
+  },
+  "not_implemented": [
+    "DWG or IFC geometry normalization",
+    "automatic component relationships",
+    "cross-source deduplication",
+    "complete building-domain canonical model"
+  ]
+}
