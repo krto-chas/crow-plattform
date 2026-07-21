@@ -1,0 +1,7 @@
+{"classes":[
+  {"id":"Component"},
+  {"id":"MechanicalComponent","parent":"Component"},
+  {"id":"AirTerminal","parent":"MechanicalComponent"},
+  {"id":"SupplyAirTerminal","parent":"AirTerminal"},
+  {"id":"ExtractAirTerminal","parent":"AirTerminal"}
+]}
