@@ -2,6 +2,7 @@ crow_accepted_claims
 crow_authority
 crow_authority_discovery
 crow_building_graph
+crow_canonical
 crow_claim_extraction
 crow_commercial_adjustment
 crow_commercial_impact
