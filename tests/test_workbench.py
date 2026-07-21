@@ -268,3 +268,12 @@ def test_import_asset_detail_endpoint_returns_preview(tmp_path: Path) -> None:
     assert detail.json()["preview"]["kind"] == "dxf_2d"
     source = client.get(f"/api/projects/dxf-project/imports/{checksum}/file")
     assert source.status_code == 200
+
+
+def test_health_endpoint_reports_runtime_version(tmp_path: Path) -> None:
+    client = TestClient(create_app(tmp_path))
+
+    response = client.get("/health")
+
+    assert response.status_code == 200
+    assert response.json() == {"status": "ok", "version": "0.7.0-alpha.1"}

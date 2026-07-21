@@ -1,3 +1,10 @@
+# Crow Platform 0.7.0-alpha.1 — Consolidated baseline
+
+> **Current repository status:** This repository is the consolidated 0.7.0-alpha.1 baseline.
+> The externally validated 0.5.0 Foundation remains documented below as historical evidence.
+> Release-candidate status has not been declared; the criteria are defined in
+> [`docs/90_Governance/RC_CRITERIA_0.7.0.md`](docs/90_Governance/RC_CRITERIA_0.7.0.md).
+
 # Crow Backbone — 0.5.0 Foundation Release
 
 **Crow 0.5.0 är den första fungerande och externt validerade versionen av Backbone.**

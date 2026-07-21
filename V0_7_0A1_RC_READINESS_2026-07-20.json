@@ -1,0 +1,28 @@
+{
+  "baseline": "0.7.0-alpha.1",
+  "assessment": "RC readiness pass 1",
+  "date": "2026-07-20",
+  "release_declared": false,
+  "quality": {
+    "ruff": "pass: 0 errors",
+    "mypy_strict": "pass: 142 source files",
+    "pytest": "pass: 293 tests",
+    "architecture_review": "pass: ARC-001 through ARC-004",
+    "wheel": "pass",
+    "sdist": "pass",
+    "isolated_wheel_smoke": "pass",
+    "workbench_smoke": "pass: /health and /api/projects"
+  },
+  "changes": [
+    "Added explicit 0.7.0 RC criteria against CAF-CMP-001",
+    "Added architecture review and package build to CI",
+    "Aligned crow review default release with 0.7.0-alpha.1",
+    "Added build as a development dependency",
+    "Added Workbench health endpoint and regression test",
+    "Added current-baseline header to README"
+  ],
+  "blockers": [
+    "RC-009 deterministic end-to-end baseline has not been selected and rerun in this pass",
+    "RC-010 real-project DXF validation has not been performed"
+  ]
+}
