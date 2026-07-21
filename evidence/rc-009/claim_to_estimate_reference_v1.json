@@ -1,0 +1,39 @@
+{
+  "accepted_claim_id": "spec-size",
+  "ata_opportunity_id": "ata:commercial-impact:technical-delta:spec-size:drawing-size",
+  "authority_decision_id": "authority:conflict:example:COMPONENT-01:size",
+  "baseline_id": "claim-to-estimate-reference-v1",
+  "client_question": {
+    "body": "Projektunderlaget innehåller en motstridighet kopplad till 'Alternativt tekniskt utförande'. Vänligen bekräfta vilket utförande som ska ligga till grund för anbud och produktion.",
+    "id": "question:ata:commercial-impact:technical-delta:spec-size:drawing-size",
+    "source_opportunity_id": "ata:commercial-impact:technical-delta:spec-size:drawing-size",
+    "subject": "Klargörande av motstridiga handlingar"
+  },
+  "commercial_delta_amount": "18420.00",
+  "commercial_impact_id": "commercial-impact:technical-delta:spec-size:drawing-size",
+  "conflict_id": "conflict:example:COMPONENT-01:size",
+  "estimate_line": {
+    "currency": "SEK",
+    "description": "Kostnadsdelta för alternativt utförande",
+    "id": "estimate:ata:commercial-impact:technical-delta:spec-size:drawing-size",
+    "quantity": "1",
+    "source_opportunity_id": "ata:commercial-impact:technical-delta:spec-size:drawing-size",
+    "total": "18420.00",
+    "unit": "st",
+    "unit_price": "18420.00"
+  },
+  "evidence_ids": [
+    "evidence:authority:conflict:example:COMPONENT-01:size",
+    "evidence:commercial-impact:technical-delta:spec-size:drawing-size",
+    "evidence:conflict:example:COMPONENT-01:size",
+    "evidence:technical-delta:spec-size:drawing-size"
+  ],
+  "reservation": {
+    "body": "Reservation görs för 'Alternativt tekniskt utförande' till dess att motstridigheten i projektunderlaget har klarlagts skriftligen.",
+    "id": "reservation:ata:commercial-impact:technical-delta:spec-size:drawing-size",
+    "source_opportunity_id": "ata:commercial-impact:technical-delta:spec-size:drawing-size"
+  },
+  "result_sha256": "31abb74f80b6693ba7e3ffc8c733dcf111baf6a37c6708e597d343eba7764eb5",
+  "technical_absolute_delta": "35",
+  "technical_delta_id": "technical-delta:spec-size:drawing-size"
+}

@@ -52,7 +52,7 @@ actually executed in that inspection environment.
 | RC-006 | remediation started | CLI default and CI release argument aligned to `0.7.0-alpha.1`; historical README content retained with a current-status header |
 | RC-007 | partial | alpha verification manifest exists, but RC manifest does not yet exist |
 | RC-008 | pass for install/import/CLI smoke | built wheel installed in a new virtual environment; CLI help and core imports passed |
-| RC-009 | not verified in this readiness pass | deterministic integration command must be selected and recorded |
+| RC-009 | pass | `python scripts/verify_e2e_baseline.py`; committed baseline and SHA-256 in `evidence/rc-009/` |
 | RC-010 | blocked | real DXF input and acceptance record required |
 | RC-011 | pass | `/health` and `/api/projects` returned HTTP 200; automated health test added |
 | RC-012 | present | `docs/PROVENANCE.md` |
