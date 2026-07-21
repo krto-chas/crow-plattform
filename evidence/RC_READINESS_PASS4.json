@@ -1,0 +1,25 @@
+{
+  "baseline": "0.7.0-alpha.1",
+  "scope": "Project Dataset evidence foundation",
+  "status": "verified locally",
+  "changes": [
+    "Added crow_project_dataset module for immutable source inventory manifests",
+    "Added deterministic manifest writer and format/header inspection",
+    "Added real-project manifests for V-50-1-01 and V57 KFU1",
+    "Recorded DWG header versions, IFC schema, PDF versions, sizes and SHA-256 hashes",
+    "Marked the supplier quotation as a partial quantity reference",
+    "Added tests and operator documentation"
+  ],
+  "non_claims": [
+    "No DWG geometry parsing is claimed",
+    "No IFC-to-DWG equivalence is claimed",
+    "No quantity extraction or offer reconciliation is claimed",
+    "Original customer files are not embedded in the repository package"
+  ],
+  "verification": {
+    "ruff": "PASS",
+    "mypy_strict": "PASS: 146 source files",
+    "pytest": "PASS: 299 tests",
+    "build": "PASS: wheel and sdist"
+  }
+}
