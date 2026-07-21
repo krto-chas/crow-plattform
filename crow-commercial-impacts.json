@@ -1,0 +1,36 @@
+{
+  "project_id": "demo",
+  "baseline_id": "baseline.contract",
+  "price_book_id": "price-book",
+  "currency": "SEK",
+  "impacts": [
+    {
+      "id": "commercial-impact:1",
+      "scope_impact_id": "scope:1",
+      "cost_type": "labour",
+      "description": "Ventilation adjustment",
+      "quantity": 3.0,
+      "unit": "M/S",
+      "unit_rate": 1000.0,
+      "currency": "SEK",
+      "amount": 3000.0,
+      "pricing_status": "priced",
+      "requires_review": false,
+      "confidence": 0.9,
+      "provenance": {
+        "scope_impact_id": "scope:1",
+        "technical_delta_id": "delta:1",
+        "decision_id": "decision:1",
+        "review_event_id": "technical-review:1",
+        "accepted_claim_ids": ["accepted:1"],
+        "authority_decision_ids": ["authority:1"],
+        "document_ids": ["document:1"],
+        "scope_rule_id": "scope-rule:1",
+        "price_book_id": "price-book",
+        "unit_rate_id": "rate:1",
+        "trace": ["priced"]
+      },
+      "fingerprint": "commercial-fingerprint"
+    }
+  ]
+}

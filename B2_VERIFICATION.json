@@ -1,0 +1,29 @@
+{
+  "release": "0.6.0-alpha.3",
+  "sprint": "B2 Document Model",
+  "quality": {
+    "ruff": "pass",
+    "mypy_strict": "pass",
+    "pytest": "..........................................................               [100%]\n58 passed in 0.32s"
+  },
+  "real_trial": {
+    "project_id": "b2-verkligt-underlag",
+    "project_name": "B2 verkligt underlag",
+    "documents_total": 8,
+    "documents_active": 8,
+    "superseded": 0,
+    "import_sessions": 1,
+    "failed_imports": 0,
+    "relations": 0,
+    "pages": 8,
+    "regions": 8,
+    "pages_requiring_ocr": 1,
+    "extracted_characters": 1580,
+    "types": {
+      "drawing": 8
+    },
+    "roles": {
+      "primary": 8
+    }
+  }
+}

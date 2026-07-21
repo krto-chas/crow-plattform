@@ -1,0 +1,40 @@
+{
+  "id": "crow.rules.technical.example",
+  "name": "Example technical decision rules",
+  "version": "1.0.0",
+  "rules": [
+    {
+      "id": "ventilation.airflow.high",
+      "name": "High airflow",
+      "description": "Flags accepted airflow values above a configured threshold.",
+      "priority": 100,
+      "enabled": true,
+      "source": "Project technical rule",
+      "version": "1.0.0",
+      "conditions": [
+        {
+          "field": "predicate",
+          "operator": "equals",
+          "expected": "has_value"
+        },
+        {
+          "field": "unit",
+          "operator": "equals",
+          "expected": "L/S"
+        },
+        {
+          "field": "value",
+          "operator": "greater_than",
+          "expected": 350
+        }
+      ],
+      "output": {
+        "category": "ventilation",
+        "severity": "medium",
+        "title": "High accepted airflow",
+        "conclusion": "The accepted airflow exceeds the configured threshold.",
+        "recommended_action": "Verify sizing and downstream capacity."
+      }
+    }
+  ]
+}

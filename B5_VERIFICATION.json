@@ -1,0 +1,10 @@
+{
+  "release": "0.6.0-alpha.6",
+  "sprint": "B5 Knowledge Fusion",
+  "quality": {
+    "ruff": "pass",
+    "mypy_strict": "pass",
+    "pytest": "78 passed"
+  },
+  "integration_demo": "{'project_id': 'demo', 'clusters': 2, 'singleton': 1, 'consistent': 0, 'conflicting': 1, 'value_variants': 3, 'by_status': {'conflicting': 1, 'singleton': 1}}"
+}

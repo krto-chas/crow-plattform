@@ -1,0 +1,32 @@
+{
+  "id": "crow.adjustments.example",
+  "name": "Example commercial adjustments",
+  "version": "1.0.0",
+  "currency": "SEK",
+  "rules": [
+    {
+      "id": "markup.overhead",
+      "name": "Overhead markup",
+      "kind": "markup",
+      "adjustment_type": "percentage",
+      "base": "net_amount",
+      "value": 8.0,
+      "cost_types": [
+        "labour",
+        "material",
+        "equipment",
+        "subcontract"
+      ],
+      "priority": 100
+    },
+    {
+      "id": "risk.contingency",
+      "name": "Risk contingency",
+      "kind": "risk",
+      "adjustment_type": "percentage",
+      "base": "running_total",
+      "value": 5.0,
+      "priority": 200
+    }
+  ]
+}

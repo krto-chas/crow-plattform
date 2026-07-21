@@ -1,0 +1,28 @@
+{
+  "id": "crow.scope.ventilation.example",
+  "name": "Ventilation scope-impact rules",
+  "version": "1.0.0",
+  "rules": [
+    {
+      "id": "ventilation.air-velocity.changed",
+      "name": "Air velocity change affects duct scope",
+      "categories": [
+        "ventilation"
+      ],
+      "property_names": [
+        "air_velocity"
+      ],
+      "change_directions": [
+        "increase",
+        "decrease"
+      ],
+      "impact_type": "changed_work",
+      "quantity_basis": "delta_quantity",
+      "output_unit": "M/S",
+      "multiplier": 1.0,
+      "description_template": "{object_ref}: {property_name} changed from {baseline_value} to {approved_value} {unit}",
+      "priority": 100,
+      "version": "1.0.0"
+    }
+  ]
+}

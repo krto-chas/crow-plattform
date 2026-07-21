@@ -1,0 +1,64 @@
+{
+  "project_id": "demo",
+  "baseline_id": "baseline.contract",
+  "estimate_id": "EST-2026-002",
+  "structure_id": "STRUCTURE-2026-002",
+  "grouping_profile_id": "default-estimate-structure",
+  "currency": "SEK",
+  "sections": [
+    {
+      "id": "estimate-section:c06af60f549adebafb205438da30a30d4c8e6d7294b5f2710b9c370ce8507e10",
+      "code": "10",
+      "title": "Produktion",
+      "position": "1",
+      "groups": [
+        {
+          "id": "estimate-group:518a96fa502c149651f45b2b0037bb9310e6ae0e3129f158994d84243fe3b809",
+          "code": "10",
+          "title": "Arbete",
+          "position": "1.1",
+          "lines": [
+            {
+              "id": "boq-line:6bcdd0997f5dbeec88730a07d2d96c36ee1978da21ed67730abb20d7c67d3994",
+              "position": "1.1.1",
+              "estimate_line_id": "estimate-line:ventilation-adjustment",
+              "description": "Ventilation adjustment",
+              "quantity": 4.0,
+              "unit": "M/S",
+              "unit_rate": 1000.0,
+              "net_amount": 4000.0,
+              "adjustment_amount": 400.0,
+              "total_amount": 4400.0,
+              "currency": "SEK",
+              "fingerprint": "line-demo-rev2"
+            }
+          ],
+          "estimate_line_ids": [
+            "estimate-line:6dfe6534e7f3b5d153d189bea7f4f8c4ce4d1520cbd532504ff43c1fba6ebac1"
+          ],
+          "document_ids": [
+            "document:1"
+          ],
+          "net_total": 4000.0,
+          "adjustment_total": 400.0,
+          "grand_total": 4400.0,
+          "fingerprint": "518a96fa502c149651f45b2b0037bb9310e6ae0e3129f158994d84243fe3b809"
+        }
+      ],
+      "estimate_line_ids": [
+        "estimate-line:6dfe6534e7f3b5d153d189bea7f4f8c4ce4d1520cbd532504ff43c1fba6ebac1"
+      ],
+      "document_ids": [
+        "document:1"
+      ],
+      "net_total": 4000.0,
+      "adjustment_total": 400.0,
+      "grand_total": 4400.0,
+      "fingerprint": "c06af60f549adebafb205438da30a30d4c8e6d7294b5f2710b9c370ce8507e10"
+    }
+  ],
+  "source_line_ids": [
+    "estimate-line:6dfe6534e7f3b5d153d189bea7f4f8c4ce4d1520cbd532504ff43c1fba6ebac1"
+  ],
+  "fingerprint": "structure-demo-rev2"
+}

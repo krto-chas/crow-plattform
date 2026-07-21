@@ -1,0 +1,12 @@
+{
+  "release": "Crow Platform 2.0 - Building Graph RC1 Sprint 1",
+  "graph_core": "0.1.0-rc1",
+  "based_on": "Crow Vent 0.3",
+  "tests": 243,
+  "status": "passed",
+  "features": [
+    "CrowObject", "CrowRelation", "CrowProperty", "CrowEvidence", "CrowHistory",
+    "atomic JSON persistence", "revision history", "validated relation types",
+    "neighbor query", "Workbench graph API"
+  ]
+}

@@ -1,0 +1,32 @@
+{
+  "release": "0.6.0-alpha.20",
+  "sprint": "B11.1 Estimate Line Foundation",
+  "quality": {
+    "ruff": "pass",
+    "mypy_strict": "pass",
+    "pytest": "185 passed",
+    "wheel": "pass",
+    "sdist": "pass"
+  },
+  "integration_demo": {
+    "project_id": "demo",
+    "estimate_id": "EST-2026-001",
+    "currency": "SEK",
+    "lines": 1,
+    "net_total": 3000.0,
+    "adjustment_total": 300.0,
+    "grand_total": 3300.0
+  },
+  "estimate_line": {
+    "line_number": 1,
+    "description": "Ventilation adjustment",
+    "quantity": 3.0,
+    "unit": "M/S",
+    "unit_rate": 1000.0,
+    "net_amount": 3000.0,
+    "adjustment_amount": 300.0,
+    "total_amount": 3300.0,
+    "currency": "SEK",
+    "commercial_review_event_id": "commercial-review-event:approved"
+  }
+}

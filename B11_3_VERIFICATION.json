@@ -1,0 +1,60 @@
+{
+  "release": "0.6.0-alpha.22",
+  "sprint": "B11.3 Estimate Revision and Versioning",
+  "quality": {
+    "ruff": "pass",
+    "mypy_strict": "pass",
+    "pytest": "190 passed",
+    "wheel": "pass",
+    "sdist": "pass"
+  },
+  "integration_demo": {
+    "revision_id": "REV-2026-002",
+    "previous_estimate_id": "EST-2026-001",
+    "current_estimate_id": "EST-2026-002",
+    "currency": "SEK",
+    "added": 0,
+    "removed": 0,
+    "modified": 1,
+    "unchanged": 0,
+    "previous_total": 3300.0,
+    "current_total": 4400.0,
+    "total_delta": 1100.0
+  },
+  "line_changes": [
+    {
+      "id": "estimate-line-change:7c3aa825e9104c4500f8160094feed4c194fb5d724772a66a0bb19127a5cbe65",
+      "change_type": "modified",
+      "estimate_line_id": "estimate-line:ventilation-adjustment",
+      "previous_position": "1.1.1",
+      "current_position": "1.1.1",
+      "previous_fingerprint": "line-demo-rev1",
+      "current_fingerprint": "line-demo-rev2",
+      "field_changes": [
+        {
+          "field": "quantity",
+          "previous": 3.0,
+          "current": 4.0
+        },
+        {
+          "field": "net_amount",
+          "previous": 3000.0,
+          "current": 4000.0
+        },
+        {
+          "field": "adjustment_amount",
+          "previous": 300.0,
+          "current": 400.0
+        },
+        {
+          "field": "total_amount",
+          "previous": 3300.0,
+          "current": 4400.0
+        }
+      ],
+      "explanation": "Estimate line estimate-line:ventilation-adjustment changed fields: quantity, net_amount, adjustment_amount, total_amount.",
+      "amount_delta": 1100.0,
+      "fingerprint": "7c3aa825e9104c4500f8160094feed4c194fb5d724772a66a0bb19127a5cbe65"
+    }
+  ]
+}

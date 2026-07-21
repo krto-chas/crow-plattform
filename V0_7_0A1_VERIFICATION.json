@@ -1,0 +1,15 @@
+{
+  "release": "0.7.0-alpha.1",
+  "sprint": "Konsolidering och sanering av 0.6.0-RC-samlingen",
+  "quality": {
+    "ruff": "pass",
+    "mypy_strict": "pass (142 files)",
+    "pytest": "292 passed, 1 warning in 5.32s",
+    "architecture_review": "PASS ARC-001..ARC-004"
+  },
+  "provenance": "docs/PROVENANCE.md",
+  "superseded_packages": 28,
+  "excluded": [
+    "crow-platform-3.0-complete (hollow scaffold, see PROVENANCE)"
+  ]
+}

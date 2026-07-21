@@ -1,0 +1,8 @@
+{
+  "product": "Crow Platform",
+  "version": "2.3.0-rc1-sprint1",
+  "milestone": "Reasoning Engine RC1 Sprint 1",
+  "base": "Crow Building Graph 1.0 RC1",
+  "schema": "crow-reasoning-1.0-rc1",
+  "status": "release-candidate"
+}

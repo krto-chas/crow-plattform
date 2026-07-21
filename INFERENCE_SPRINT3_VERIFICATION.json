@@ -1,0 +1,15 @@
+{
+  "release": "Crow Platform 2.4 - Inference Engine RC1 Sprint 3",
+  "schema": "crow-inference-v0.3",
+  "verified_at": "2026-07-20",
+  "tests": {"passed": 287, "failed": 0},
+  "compileall": "passed",
+  "features": [
+    "persistent inference run lifecycle",
+    "graph and rule fingerprints",
+    "stale-result detection and manual invalidation",
+    "deterministic unchanged-run cache",
+    "adjacent-run inference diff",
+    "immutable run metadata history"
+  ]
+}

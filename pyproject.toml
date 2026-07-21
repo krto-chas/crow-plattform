@@ -1,0 +1,71 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "crow-sprint-a"
+version = "0.7.0a1"
+description = "Crow Decision Intelligence Platform with Document Intake"
+requires-python = ">=3.11"
+dependencies = ["pypdf>=5.0", "fastapi>=0.115", "uvicorn>=0.30", "python-multipart>=0.0.9", "httpx>=0.27"]
+
+[project.scripts]
+crow = "crow_module_conformance.cli:main"
+crow-workbench = "crow_workbench.__main__:main"
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=8.0",
+  "ruff>=0.5",
+  "mypy>=1.10"
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+crow_module_sdk = ["py.typed"]
+crow_module_conformance = ["py.typed"]
+crow_document_intelligence = ["py.typed"]
+crow_geometry_framework = ["py.typed"]
+crow_reasoning = ["py.typed", "default_rules.json"]
+crow_observation_engine = ["py.typed"]
+crow_claim_extraction = ["py.typed"]
+crow_knowledge_fusion = ["py.typed"]
+crow_authority = ["py.typed"]
+crow_authority_discovery = ["py.typed"]
+crow_accepted_claims = ["py.typed"]
+crow_decision_engine = ["py.typed"]
+crow_technical_validation = ["py.typed"]
+crow_technical_review = ["py.typed"]
+crow_technical_delta = ["py.typed"]
+crow_scope_impact = ["py.typed"]
+crow_commercial_impact = ["py.typed"]
+crow_commercial_adjustment = ["py.typed"]
+crow_commercial_review = ["py.typed"]
+crow_estimate_line = ["py.typed"]
+crow_estimate_structure = ["py.typed"]
+crow_estimate_revision = ["py.typed"]
+crow_workbench = ["static/*"]
+crow_import_framework = ["py.typed"]
+crow_vent = ["py.typed"]
+crow_building_graph = ["py.typed"]
+crow_knowledge_runtime = ["py.typed"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests", "examples/crow_example_module/tests"]
+pythonpath = ["src", "examples/crow_example_module/src"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+mypy_path = "src"
+explicit_package_bases = true
+packages = ["crow_module_sdk", "crow_module_conformance", "crow_document_intelligence", "crow_observation_engine", "crow_claim_extraction", "crow_knowledge_fusion", "crow_authority", "crow_authority_discovery", "crow_accepted_claims", "crow_decision_engine", "crow_technical_validation", "crow_technical_review", "crow_technical_delta", "crow_scope_impact", "crow_commercial_impact", "crow_commercial_adjustment", "crow_commercial_review", "crow_estimate_line", "crow_estimate_structure", "crow_estimate_revision", "crow_import_framework", "crow_geometry_framework", "crow_vent", "crow_building_graph"]

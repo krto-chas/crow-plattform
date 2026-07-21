@@ -1,0 +1,38 @@
+{
+  "id": "default-estimate-structure",
+  "rules": [
+    {
+      "id": "labour",
+      "section_code": "10",
+      "section_title": "Produktion",
+      "group_code": "10",
+      "group_title": "Arbete",
+      "cost_types": [
+        "labour"
+      ],
+      "priority": 10
+    },
+    {
+      "id": "material",
+      "section_code": "10",
+      "section_title": "Produktion",
+      "group_code": "20",
+      "group_title": "Material",
+      "cost_types": [
+        "material"
+      ],
+      "priority": 20
+    },
+    {
+      "id": "subcontractor",
+      "section_code": "20",
+      "section_title": "Underentreprenad",
+      "group_code": "10",
+      "group_title": "UE",
+      "cost_types": [
+        "subcontractor"
+      ],
+      "priority": 30
+    }
+  ]
+}

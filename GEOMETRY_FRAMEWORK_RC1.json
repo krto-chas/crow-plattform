@@ -1,0 +1,23 @@
+{
+  "component": "Crow Geometry Framework",
+  "release": "1.0.0-rc1",
+  "status": "release_candidate",
+  "frozen_from": "0.9",
+  "created_at": "2026-07-20T00:00:00+02:00",
+  "capabilities": [
+    "normalized_geometry",
+    "object_identity",
+    "layer_state",
+    "selection",
+    "geometry_search",
+    "spatial_queries",
+    "topology",
+    "network_trace",
+    "system_discovery",
+    "observations",
+    "candidate_consolidation",
+    "conflict_detection"
+  ],
+  "domain_semantics": false,
+  "next_module": "Crow Vent 0.1"
+}

@@ -1,0 +1,22 @@
+{
+  "release": "0.6.0-alpha.1",
+  "sprint": "B1 Document Intake",
+  "quality": {
+    "ruff": "pass",
+    "mypy_strict": "pass",
+    "pytest": "\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m                        [100%]\u001b[0m\n\u001b[33m=============================== warnings summary ===============================\u001b[0m\n../.venv/lib/python3.13/site-packages/_pytest/cacheprovider.py:469\n  /mnt/data/crow-b1-work/.venv/lib/python3.13/site-packages/_pytest/cacheprovider.py:469: PytestCacheWarning: cache could not write path /mnt/data/crow-b1-work/crow-sprint-a/.pytest_cache/v/cache/nodeids: [Errno 13] Permission denied: '/mnt/data/crow-b1-work/crow-sprint-a/.pytest_cache/v/cache/nodeids'\n    config.cache.set(\"cache/nodeids\", sorted(self.cached_nodeids))\n\n-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html\n\u001b[33m\u001b[32m49 passed\u001b[0m, \u001b[33m\u001b[1m1 warning\u001b[0m\u001b[33m in 0.24s\u001b[0m\u001b[0m"
+  },
+  "real_pdf_trial": {
+    "project_id": "verkligt-ventilationsunderlag",
+    "project_name": "Verkligt ventilationsunderlag",
+    "documents_total": 8,
+    "documents_active": 8,
+    "superseded": 0,
+    "types": {
+      "drawing": 8
+    },
+    "roles": {
+      "primary": 8
+    }
+  }
+}

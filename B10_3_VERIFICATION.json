@@ -1,0 +1,39 @@
+{
+  "release": "0.6.0-alpha.19",
+  "sprint": "B10.3 Commercial Review and Approval",
+  "quality": {
+    "ruff": "pass",
+    "mypy_strict": "pass",
+    "pytest": "177 passed",
+    "wheel": "pass",
+    "sdist": "pass"
+  },
+  "integration_demo": {
+    "initialized": {
+      "project_id": "demo",
+      "status": "proposed",
+      "currency": "SEK",
+      "grand_total": 1134.0,
+      "unresolved": 0,
+      "events": 0,
+      "approved": false
+    },
+    "approved": {
+      "project_id": "demo",
+      "status": "approved",
+      "currency": "SEK",
+      "grand_total": 1134.0,
+      "unresolved": 0,
+      "events": 1,
+      "approved": true
+    }
+  },
+  "review": {
+    "status": "approved",
+    "grand_total": 1134.0,
+    "currency": "SEK",
+    "unresolved_count": 0,
+    "event_count": 1,
+    "latest_event_id": "commercial-review-event:7c645755cd02bc47aa860c2169c6cdd78b97e6dd14b8f851e87484ae5420e2eb"
+  }
+}

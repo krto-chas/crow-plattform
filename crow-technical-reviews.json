@@ -1,0 +1,12 @@
+{
+  "project_id": "demo",
+  "records": [
+    {
+      "target_id": "decision:1",
+      "target_type": "technical_decision",
+      "status": "approved",
+      "latest_event_id": "review-event:1",
+      "history": []
+    }
+  ]
+}

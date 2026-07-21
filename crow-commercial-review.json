@@ -1,0 +1,23 @@
+{
+  "project_id": "demo",
+  "baseline_id": "baseline.contract",
+  "adjustment_profile_id": "adjustments",
+  "source_price_book_id": "price-book",
+  "currency": "SEK",
+  "grand_total": 3300.0,
+  "unresolved_count": 0,
+  "status": "approved",
+  "latest_event_id": "commercial-review-event:approved",
+  "history": [
+    {
+      "id": "commercial-review-event:approved",
+      "previous_status": "proposed",
+      "new_status": "approved",
+      "reviewer": "Commercial Manager",
+      "reason": "Approved estimate basis.",
+      "created_at": "2026-07-19T12:00:00+00:00",
+      "supersedes_event_id": null,
+      "fingerprint": "review-fingerprint"
+    }
+  ]
+}
