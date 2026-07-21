@@ -1,0 +1,27 @@
+@startuml
+skinparam backgroundColor white
+skinparam shadowing false
+skinparam roundcorner 8
+skinparam defaultFontName Arial
+skinparam packageStyle rectangle
+skinparam componentStyle rectangle
+skinparam ArrowColor #444444
+skinparam BorderColor #333333
+skinparam classAttributeIconSize 0
+title Federated Cognitive and Reasoning Components
+actor "Human Expert" as H
+component "AI Agent" as AI
+component "Simulation Engine" as SE
+component "Reasoning Orchestrator" as RO
+component "Evidence Service" as ES
+component "Knowledge Service" as KS
+component "Trust Evaluation" as TE
+component "Decision Authority" as DA
+H --> RO
+AI --> RO
+SE --> RO
+RO --> ES
+RO --> KS
+RO --> TE
+RO --> DA
+@enduml

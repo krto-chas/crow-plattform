@@ -1,0 +1,26 @@
+@startuml
+skinparam backgroundColor white
+skinparam shadowing false
+skinparam roundcorner 8
+skinparam defaultFontName Arial
+skinparam packageStyle rectangle
+skinparam componentStyle rectangle
+skinparam ArrowColor #444444
+skinparam BorderColor #333333
+skinparam classAttributeIconSize 0
+title Standards Traceability Model
+class StrategicObjective
+class ArchitecturePrinciple
+class StandardRequirement
+class ArchitectureControl
+class EvidenceArtifact
+class ArchitectureDecision
+class ImplementationComponent
+StrategicObjective --> ArchitecturePrinciple
+ArchitecturePrinciple --> StandardRequirement
+StandardRequirement --> ArchitectureControl
+ArchitectureControl --> EvidenceArtifact
+StandardRequirement --> ArchitectureDecision
+ArchitectureDecision --> ImplementationComponent
+EvidenceArtifact --> ArchitectureDecision : supports assurance
+@enduml

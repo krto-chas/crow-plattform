@@ -1,0 +1,21 @@
+@startuml
+skinparam backgroundColor white
+skinparam shadowing false
+skinparam roundcorner 8
+skinparam defaultFontName Arial
+skinparam packageStyle rectangle
+skinparam componentStyle rectangle
+skinparam ArrowColor #444444
+skinparam BorderColor #333333
+skinparam classAttributeIconSize 0
+title CAS Portfolio Package Diagram
+package "Foundation" { [CAF-000] }
+package "Enterprise Architecture" { [CAS-100..499] }
+package "Decision & Governance" { [CAS-700..799] }
+package "Enterprise Intelligence" { [CAS-800..810] }
+package "Federated Ecosystem" { [CAS-900..910] }
+[CAF-000] --> [CAS-100..499]
+[CAS-100..499] --> [CAS-700..799]
+[CAS-700..799] --> [CAS-800..810]
+[CAS-800..810] --> [CAS-900..910]
+@enduml

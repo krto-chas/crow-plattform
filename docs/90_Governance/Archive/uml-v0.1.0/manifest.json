@@ -1,0 +1,104 @@
+{
+  "package": "Crow Architecture Framework UML",
+  "version": "0.1.0",
+  "generated": "2026-07-20",
+  "diagram_count": 15,
+  "formats": [
+    "puml",
+    "svg",
+    "png",
+    "dot"
+  ],
+  "diagrams": [
+    {
+      "id": "01_caf_system_context",
+      "title": "CAF System Context",
+      "purpose": "Shows CAF in relation to enterprises, federations, architects, governance bodies, systems and external standards.",
+      "traceability": "CAF-000; CAS-900\u2013910"
+    },
+    {
+      "id": "02_cas_portfolio_packages",
+      "title": "CAS Portfolio Package Diagram",
+      "purpose": "Organizes the main CAS series as architecture packages and shows their dependencies.",
+      "traceability": "CAF-000; CAS-100\u2013910"
+    },
+    {
+      "id": "03_core_domain_class_model",
+      "title": "Core Domain Class Model",
+      "purpose": "Defines the principal architecture entities and their structural relationships.",
+      "traceability": "CAF-000; CAS-900; CAS-901"
+    },
+    {
+      "id": "04_federation_domain_class_model",
+      "title": "Federation Domain Class Model",
+      "purpose": "Models ecosystem participants, federation agreements, shared capabilities, boundaries and governance.",
+      "traceability": "CAS-900; CAS-901; CAS-902"
+    },
+    {
+      "id": "05_distributed_governance_components",
+      "title": "Distributed Governance Component Diagram",
+      "purpose": "Shows governance boards, policy services, decision-rights registry, exception handling and assurance integration.",
+      "traceability": "CAS-902; CAS-908"
+    },
+    {
+      "id": "06_semantic_knowledge_model",
+      "title": "Semantic and Knowledge Class Model",
+      "purpose": "Combines canonical concepts, local concepts, mappings, knowledge assets, provenance, evidence and stewardship.",
+      "traceability": "CAS-903; CAS-904"
+    },
+    {
+      "id": "07_trust_assurance_model",
+      "title": "Trust and Assurance Class Model",
+      "purpose": "Models evidence-based trust, assurance claims, controls, findings and confidence assessments.",
+      "traceability": "CAS-905; CAS-908"
+    },
+    {
+      "id": "08_cognitive_reasoning_components",
+      "title": "Federated Cognitive and Reasoning Components",
+      "purpose": "Shows human, AI and analytical participants coordinated through reasoning, knowledge, trust and governance services.",
+      "traceability": "CAS-906; CAS-907"
+    },
+    {
+      "id": "09_collective_reasoning_sequence",
+      "title": "Collective Reasoning Sequence Diagram",
+      "purpose": "Illustrates a complete reasoning cycle from observation to decision and knowledge feedback.",
+      "traceability": "CAS-907"
+    },
+    {
+      "id": "10_autonomy_state_machine",
+      "title": "Autonomy Lifecycle State Machine",
+      "purpose": "Defines controlled progression, suspension, rollback and revocation of delegated autonomy.",
+      "traceability": "CAS-909"
+    },
+    {
+      "id": "11_assurance_activity",
+      "title": "Continuous Assurance Activity Diagram",
+      "purpose": "Shows how objectives, evidence, verification, confidence, findings and corrective action form a closed loop.",
+      "traceability": "CAS-908"
+    },
+    {
+      "id": "12_federation_intelligence_pipeline",
+      "title": "Federation Intelligence Pipeline",
+      "purpose": "Shows the transformation from distributed observations into coordinated action, learning and adaptation.",
+      "traceability": "CAS-910"
+    },
+    {
+      "id": "13_deployment_reference",
+      "title": "Federated Reference Deployment",
+      "purpose": "Illustrates a technology-neutral deployment topology for multiple organizations and shared federation services.",
+      "traceability": "CAS-901; CAS-903\u2013910"
+    },
+    {
+      "id": "14_architecture_review_sequence",
+      "title": "Architecture Review and Approval Sequence",
+      "purpose": "Shows proposal, automated conformance, domain review, board decision, exception handling and publication.",
+      "traceability": "CAF-000; CAS-902; CAS-908"
+    },
+    {
+      "id": "15_traceability_model",
+      "title": "Standards Traceability Model",
+      "purpose": "Shows end-to-end traceability from strategic intent through principles, requirements, controls, evidence and architecture decisions.",
+      "traceability": "CAF-000; all CAS"
+    }
+  ]
+}

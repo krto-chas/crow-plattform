@@ -1,0 +1,24 @@
+@startuml
+skinparam backgroundColor white
+skinparam shadowing false
+skinparam roundcorner 8
+skinparam defaultFontName Arial
+skinparam packageStyle rectangle
+skinparam componentStyle rectangle
+skinparam ArrowColor #444444
+skinparam BorderColor #333333
+skinparam classAttributeIconSize 0
+title Distributed Governance Component Diagram
+component "Federation Governance Board" as FGB
+component "Domain Councils" as DC
+component "Policy Registry" as PR
+component "Decision Rights Registry" as DR
+component "Exception & Escalation Service" as EE
+component "Assurance Service" as AS
+FGB --> DC
+FGB --> PR
+DC --> DR
+DR --> EE
+PR --> AS
+EE --> AS
+@enduml

@@ -1,0 +1,21 @@
+@startuml
+skinparam backgroundColor white
+skinparam shadowing false
+skinparam roundcorner 8
+skinparam defaultFontName Arial
+skinparam packageStyle rectangle
+skinparam componentStyle rectangle
+skinparam ArrowColor #444444
+skinparam BorderColor #333333
+skinparam classAttributeIconSize 0
+title Federation Intelligence Pipeline
+component "Observation Sources" as O
+component "Semantic Interpretation" as S
+component "Knowledge Integration" as K
+component "Collective Reasoning" as R
+component "Decision Coordination" as D
+component "Action & Autonomy" as A
+component "Learning & Adaptation" as L
+O --> S --> K --> R --> D --> A --> L
+L --> S : feedback
+@enduml

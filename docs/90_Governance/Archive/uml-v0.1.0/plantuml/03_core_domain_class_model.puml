@@ -1,0 +1,27 @@
+@startuml
+skinparam backgroundColor white
+skinparam shadowing false
+skinparam roundcorner 8
+skinparam defaultFontName Arial
+skinparam packageStyle rectangle
+skinparam componentStyle rectangle
+skinparam ArrowColor #444444
+skinparam BorderColor #333333
+skinparam classAttributeIconSize 0
+title Core Domain Class Model
+class ArchitectureFramework { +name +version +status }
+class Standard { +documentId +title +version +status }
+class ArchitectureDomain { +name +purpose }
+class Principle { +statement +rationale }
+class Requirement { +identifier +modality }
+class Control { +objective +evidenceType }
+class Capability { +name +maturityLevel }
+class ArchitectureView { +viewpoint +stakeholders }
+ArchitectureFramework "1" o-- "*" Standard
+Standard "*" --> "1..*" ArchitectureDomain
+Standard "1" o-- "*" Principle
+Standard "1" o-- "*" Requirement
+Requirement "*" --> "0..*" Control
+ArchitectureDomain "1" o-- "*" Capability
+Standard "1" o-- "*" ArchitectureView
+@enduml

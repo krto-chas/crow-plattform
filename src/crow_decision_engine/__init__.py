@@ -1,0 +1,58 @@
+from .engine import evaluate_claims
+from .models import (
+    ClaimSelector,
+    ConditionEvaluation,
+    ConditionOperator,
+    DecisionEvaluationResult,
+    DecisionOutputTemplate,
+    DecisionSeverity,
+    MultiClaimEvaluation,
+    MultiClaimRule,
+    RuleCondition,
+    RuleEvaluation,
+    RuleEvaluationStatus,
+    RuleSet,
+    TechnicalDecisionCandidate,
+    TechnicalDecisionProvenance,
+    TechnicalDecisionRule,
+)
+from .multi_claim import evaluate_expression, evaluate_multi_claim_rules
+from .operators import evaluate_operator
+from .service import (
+    evaluate_project,
+    load_decision_result,
+    load_rule_set,
+    save_decision_result,
+    save_rule_set,
+    summarize_decisions,
+    write_rule_set_template,
+)
+
+__all__ = [
+    "ClaimSelector",
+    "ConditionEvaluation",
+    "ConditionOperator",
+    "DecisionEvaluationResult",
+    "DecisionOutputTemplate",
+    "DecisionSeverity",
+    "MultiClaimEvaluation",
+    "MultiClaimRule",
+    "RuleCondition",
+    "RuleEvaluation",
+    "RuleEvaluationStatus",
+    "RuleSet",
+    "TechnicalDecisionCandidate",
+    "TechnicalDecisionProvenance",
+    "TechnicalDecisionRule",
+    "evaluate_claims",
+    "evaluate_expression",
+    "evaluate_multi_claim_rules",
+    "evaluate_operator",
+    "evaluate_project",
+    "load_decision_result",
+    "load_rule_set",
+    "save_decision_result",
+    "save_rule_set",
+    "summarize_decisions",
+    "write_rule_set_template",
+]

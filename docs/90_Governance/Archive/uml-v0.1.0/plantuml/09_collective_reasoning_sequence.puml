@@ -1,0 +1,28 @@
+@startuml
+skinparam backgroundColor white
+skinparam shadowing false
+skinparam roundcorner 8
+skinparam defaultFontName Arial
+skinparam packageStyle rectangle
+skinparam componentStyle rectangle
+skinparam ArrowColor #444444
+skinparam BorderColor #333333
+skinparam classAttributeIconSize 0
+title Collective Reasoning Sequence Diagram
+participant Observer
+participant "Reasoning Orchestrator" as RO
+participant "Human Expert" as HE
+participant "AI Analyst" as AI
+participant "Evidence Service" as ES
+participant "Decision Authority" as DA
+participant "Knowledge Repository" as KR
+Observer -> RO : submit observation
+RO -> AI : generate hypotheses
+AI -> ES : request evidence
+ES --> AI : evidence + provenance
+RO -> HE : challenge and review
+HE --> RO : validated analysis
+RO -> DA : recommendation + confidence
+DA --> RO : decision
+RO -> KR : store reasoning and outcome
+@enduml

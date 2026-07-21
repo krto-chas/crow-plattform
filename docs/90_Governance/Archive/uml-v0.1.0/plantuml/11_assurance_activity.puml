@@ -1,0 +1,25 @@
+@startuml
+skinparam backgroundColor white
+skinparam shadowing false
+skinparam roundcorner 8
+skinparam defaultFontName Arial
+skinparam packageStyle rectangle
+skinparam componentStyle rectangle
+skinparam ArrowColor #444444
+skinparam BorderColor #333333
+skinparam classAttributeIconSize 0
+title Continuous Assurance Activity Diagram
+start
+:Define assurance objectives;
+:Collect objective evidence;
+:Verify evidence;
+:Assess confidence;
+if (Confidence acceptable?) then (yes)
+  :Publish assurance statement;
+else (no)
+  :Raise finding and escalate;
+  :Implement corrective action;
+endif
+:Monitor continuously;
+stop
+@enduml
