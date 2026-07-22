@@ -13,21 +13,25 @@ def test_manifest_inventories_sources_and_historical_audits(tmp_path: Path) -> N
     (uploads / "drawing.dxf").write_text("0\nEOF\n", encoding="utf-8")
     (graph_dir / "graph.json").write_text(json.dumps({"objects": []}), encoding="utf-8")
 
-    result = ProjectManifestBuilder().build(
-        project_id="p1",
-        project_version="0.7.0-alpha.1",
-        project_directory=project,
-        upload_directory=uploads,
-        graph_audits=[
-            {
-                "audit_id": "a1",
-                "graph_checksum": "historical",
-                "created_at": "2026-07-20T00:00:00+00:00",
-                "findings": [],
-            }
-        ],
-        evidence_audits=[],
-    ).to_dict()
+    result = (
+        ProjectManifestBuilder()
+        .build(
+            project_id="p1",
+            project_version="0.7.0-alpha.1",
+            project_directory=project,
+            upload_directory=uploads,
+            graph_audits=[
+                {
+                    "audit_id": "a1",
+                    "graph_checksum": "historical",
+                    "created_at": "2026-07-20T00:00:00+00:00",
+                    "findings": [],
+                }
+            ],
+            evidence_audits=[],
+        )
+        .to_dict()
+    )
 
     assert result["sources"][0]["imported_by"] == "crow_cad_text"
     assert result["graph_checksum"]
@@ -45,14 +49,18 @@ def test_manifest_detects_duplicate_source_checksum_conflict(tmp_path: Path) -> 
     (uploads / "one" / "same.pdf").write_bytes(b"one")
     (uploads / "two" / "same.pdf").write_bytes(b"two")
 
-    result = ProjectManifestBuilder().build(
-        project_id="p1",
-        project_version="0.7.0-alpha.1",
-        project_directory=project,
-        upload_directory=uploads,
-        graph_audits=[],
-        evidence_audits=[],
-    ).to_dict()
+    result = (
+        ProjectManifestBuilder()
+        .build(
+            project_id="p1",
+            project_version="0.7.0-alpha.1",
+            project_directory=project,
+            upload_directory=uploads,
+            graph_audits=[],
+            evidence_audits=[],
+        )
+        .to_dict()
+    )
 
     codes = {item["code"] for item in result["validation"]["findings"]}
     assert "MANIFEST-SOURCE-001" in codes

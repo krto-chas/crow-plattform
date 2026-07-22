@@ -766,9 +766,7 @@ def test_evidence_audit_finding_review_is_persistent_and_immutable(tmp_path: Pat
         f"/api/projects/{project_id}/graph/evidence",
         json={"kind": "pdf", "source_id": "unused.pdf", "checksum": "9" * 64},
     )
-    audit = client.post(f"/api/projects/{project_id}/graph/evidence-audit-runs").json()[
-        "audit"
-    ]
+    audit = client.post(f"/api/projects/{project_id}/graph/evidence-audit-runs").json()["audit"]
     finding = audit["findings"][0]
 
     reviewed = client.post(
@@ -806,16 +804,13 @@ def test_evidence_audit_finding_review_is_persistent_and_immutable(tmp_path: Pat
     assert duplicate.status_code == 409
 
     history = client.get(
-        f"/api/projects/{project_id}/graph/evidence-finding-reviews"
-        f"?audit_id={audit['audit_id']}"
+        f"/api/projects/{project_id}/graph/evidence-finding-reviews?audit_id={audit['audit_id']}"
     )
     assert history.status_code == 200
     assert history.json()["count"] == 1
     assert history.json()["items"][0]["finding_id"] == finding["finding_id"]
 
-    stored = client.get(
-        f"/api/projects/{project_id}/graph/evidence-audit-runs/{audit['audit_id']}"
-    )
+    stored = client.get(f"/api/projects/{project_id}/graph/evidence-audit-runs/{audit['audit_id']}")
     assert stored.status_code == 200
     assert stored.json() == audit
 
@@ -828,9 +823,7 @@ def test_evidence_audit_comparison_includes_base_review_context(tmp_path: Path) 
         f"/api/projects/{project_id}/graph/evidence",
         json={"kind": "pdf", "source_id": "unused.pdf", "checksum": "8" * 64},
     ).json()
-    base = client.post(f"/api/projects/{project_id}/graph/evidence-audit-runs").json()[
-        "audit"
-    ]
+    base = client.post(f"/api/projects/{project_id}/graph/evidence-audit-runs").json()["audit"]
     finding = base["findings"][0]
     review = client.post(
         f"/api/projects/{project_id}/graph/evidence-audit-runs/{base['audit_id']}"
@@ -851,9 +844,7 @@ def test_evidence_audit_comparison_includes_base_review_context(tmp_path: Path) 
             "evidence_ids": [evidence["id"]],
         },
     )
-    target = client.post(f"/api/projects/{project_id}/graph/evidence-audit-runs").json()[
-        "audit"
-    ]
+    target = client.post(f"/api/projects/{project_id}/graph/evidence-audit-runs").json()["audit"]
 
     compared = client.get(
         f"/api/projects/{project_id}/graph/evidence-audit-runs/"

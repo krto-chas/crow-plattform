@@ -88,9 +88,7 @@ class EvidenceAuditDiffer:
             "total": len(changes),
             "new": sum(item.lifecycle == "new" for item in changes),
             "persistent": sum(item.lifecycle == "persistent" for item in changes),
-            "no_longer_detected": sum(
-                item.lifecycle == "no_longer_detected" for item in changes
-            ),
+            "no_longer_detected": sum(item.lifecycle == "no_longer_detected" for item in changes),
         }
         return EvidenceAuditDiffResult(
             base_audit_id=base_id,

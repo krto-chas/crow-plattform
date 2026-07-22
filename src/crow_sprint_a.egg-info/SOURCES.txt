@@ -140,6 +140,9 @@ src/crow_import_framework/plugin.py
 src/crow_import_framework/plugins.py
 src/crow_import_framework/py.typed
 src/crow_import_framework/registry.py
+src/crow_import_orchestrator/__init__.py
+src/crow_import_orchestrator/py.typed
+src/crow_import_orchestrator/service.py
 src/crow_inference/__init__.py
 src/crow_inference/engine.py
 src/crow_inference/models.py
@@ -319,6 +322,7 @@ tests/test_graph_explorer.py
 tests/test_graph_rule_engine.py
 tests/test_idempotency_and_invalidation.py
 tests/test_import_guard.py
+tests/test_import_orchestrator.py
 tests/test_import_sessions.py
 tests/test_inference_engine.py
 tests/test_inference_review.py

@@ -89,14 +89,9 @@ def test_rejects_duplicate_review_for_same_finding() -> None:
 
 def test_audit_explorer_endpoint_lists_persisted_domains(tmp_path: Path) -> None:
     client = TestClient(create_app(tmp_path))
-    client.post(
-        "/api/projects", json={"name": "Audit project", "project_id": "audit-project"}
-    )
+    client.post("/api/projects", json={"name": "Audit project", "project_id": "audit-project"})
     assert client.post("/api/projects/audit-project/graph/audit-runs").status_code == 201
-    assert (
-        client.post("/api/projects/audit-project/graph/evidence-audit-runs").status_code
-        == 201
-    )
+    assert client.post("/api/projects/audit-project/graph/evidence-audit-runs").status_code == 201
 
     response = client.get("/api/projects/audit-project/graph/audit-explorer")
 

@@ -178,11 +178,7 @@ class EvidenceIndexBuilder:
                     source_id=source_id,
                     checksums=tuple(sorted(checksum_map)),
                     evidence_ids=tuple(
-                        sorted(
-                            evidence_id
-                            for ids in checksum_map.values()
-                            for evidence_id in ids
-                        )
+                        sorted(evidence_id for ids in checksum_map.values() for evidence_id in ids)
                     ),
                 )
             )

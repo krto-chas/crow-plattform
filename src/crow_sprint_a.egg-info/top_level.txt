@@ -24,6 +24,7 @@ crow_graph_explorer
 crow_graph_rules
 crow_ifc_relations
 crow_import_framework
+crow_import_orchestrator
 crow_inference
 crow_knowledge_fusion
 crow_knowledge_runtime

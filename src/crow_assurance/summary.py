@@ -56,8 +56,7 @@ class ProjectAssuranceSummary:
                 "reviewed": self.graph.reviewed_count + self.evidence.reviewed_count,
                 "unreviewed": self.graph.unreviewed_count + self.evidence.unreviewed_count,
                 "verified_resolutions": (
-                    self.graph.verified_resolution_count
-                    + self.evidence.verified_resolution_count
+                    self.graph.verified_resolution_count + self.evidence.verified_resolution_count
                 ),
             },
             "metadata": self.metadata,
@@ -170,8 +169,7 @@ class ProjectAssuranceSummaryBuilder:
         verified_count = sum(
             1
             for item in verifications
-            if item.get("target_audit_id") == audit_id
-            and item.get("decision") == "verify_resolved"
+            if item.get("target_audit_id") == audit_id and item.get("decision") == "verify_resolved"
         )
         unreviewed_count = len(findings) - len(reviewed_ids)
         if not findings:

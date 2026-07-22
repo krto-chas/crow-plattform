@@ -44,9 +44,7 @@ class SourceExplorerBuilder:
                     "size_bytes": item.get("size_bytes", 0),
                     "imported_by": item.get("imported_by", "unknown"),
                     "status": (
-                        "attention_required"
-                        if source_findings.get(source_id)
-                        else "inventoried"
+                        "attention_required" if source_findings.get(source_id) else "inventoried"
                     ),
                     "findings": source_findings.get(source_id, []),
                 }
