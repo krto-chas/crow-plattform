@@ -104,7 +104,13 @@ from crow_scope_impact import (
     write_rule_set_template,
 )
 from crow_technical_delta import build_project_deltas, load_delta_set, summarize_deltas
-from crow_vent import VentGraphAudit, build_vent_model, component_registry, quantity_takeoff_csv
+from crow_vent import (
+    VentAuditDiffer,
+    VentGraphAudit,
+    build_vent_model,
+    component_registry,
+    quantity_takeoff_csv,
+)
 
 _UPLOAD_FILES = File(...)
 
@@ -1606,6 +1612,26 @@ def create_app(data_root: Path | None = None) -> FastAPI:
         ]
         items.sort(key=lambda item: str(item.get("created_at", "")), reverse=True)
         return {"count": len(items), "items": items}
+
+    @app.get(
+        "/api/projects/{project_id}/graph/audit-runs/{base_audit_id}/compare/{target_audit_id}"
+    )
+    def compare_graph_audit_runs(
+        project_id: str, base_audit_id: str, target_audit_id: str
+    ) -> dict[str, Any]:
+        base = json.loads(
+            graph_audit_path(project_id, base_audit_id).read_text(encoding="utf-8")
+        )
+        target = json.loads(
+            graph_audit_path(project_id, target_audit_id).read_text(encoding="utf-8")
+        )
+        try:
+            result = VentAuditDiffer().compare(
+                base, target, reviews=load_audit_finding_reviews(project_id)
+            )
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+        return _jsonable(asdict(result))
 
     @app.get("/api/projects/{project_id}/graph/audit-finding-reviews")
     def list_audit_finding_reviews(project_id: str, audit_id: str | None = None) -> dict[str, Any]:
