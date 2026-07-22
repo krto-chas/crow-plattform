@@ -1,5 +1,6 @@
 crow_accepted_claims
 crow_assurance
+crow_assurance_explorer
 crow_audit_explorer
 crow_authority
 crow_authority_discovery
@@ -10,6 +11,7 @@ crow_claim_extraction
 crow_commercial_adjustment
 crow_commercial_impact
 crow_commercial_review
+crow_cross_source_linking
 crow_decision_engine
 crow_document_intelligence
 crow_estimate_line
@@ -23,6 +25,7 @@ crow_graph_explorer
 crow_graph_rules
 crow_ifc_relations
 crow_import_framework
+crow_import_orchestrator
 crow_inference
 crow_knowledge_fusion
 crow_knowledge_runtime
@@ -33,7 +36,9 @@ crow_pdf_evidence
 crow_project_dataset
 crow_project_manifest
 crow_reasoning
+crow_rule_explorer
 crow_scope_impact
+crow_source_explorer
 crow_technical_delta
 crow_technical_review
 crow_technical_validation

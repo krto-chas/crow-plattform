@@ -7,8 +7,7 @@ def _audit(audit_id: str, finding_ids: list[str]) -> dict[str, object]:
     return {
         "audit_id": audit_id,
         "findings": [
-            {"finding_id": finding_id, "rule_id": "EVID-DQ-001"}
-            for finding_id in finding_ids
+            {"finding_id": finding_id, "rule_id": "EVID-DQ-001"} for finding_id in finding_ids
         ],
     }
 

@@ -63,9 +63,7 @@ def test_builds_rule_traceability_projection() -> None:
 
 def test_rule_explorer_endpoint_lists_installed_rules(tmp_path: Path) -> None:
     client = TestClient(create_app(tmp_path))
-    client.post(
-        "/api/projects", json={"name": "Rule project", "project_id": "rule-project"}
-    )
+    client.post("/api/projects", json={"name": "Rule project", "project_id": "rule-project"})
 
     response = client.get("/api/projects/rule-project/graph/rule-explorer")
 

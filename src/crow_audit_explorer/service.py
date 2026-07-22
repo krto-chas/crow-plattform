@@ -17,9 +17,7 @@ class AuditExplorerBuilder:
         graph_verifications: list[dict[str, Any]],
         evidence_verifications: list[dict[str, Any]],
     ) -> dict[str, Any]:
-        graph = self._domain(
-            "graph", graph_audits, graph_reviews, graph_verifications
-        )
+        graph = self._domain("graph", graph_audits, graph_reviews, graph_verifications)
         evidence = self._domain(
             "evidence", evidence_audits, evidence_reviews, evidence_verifications
         )
@@ -42,8 +40,7 @@ class AuditExplorerBuilder:
                 "reviewed_findings": lifecycle["reviewed"],
                 "unreviewed_findings": lifecycle["unreviewed"],
                 "verified_resolutions": (
-                    graph["verified_resolution_count"]
-                    + evidence["verified_resolution_count"]
+                    graph["verified_resolution_count"] + evidence["verified_resolution_count"]
                 ),
                 "severity_counts": dict(sorted(severity.items())),
             },
@@ -145,9 +142,7 @@ class AuditExplorerBuilder:
         for verification in verifications:
             if not isinstance(verification, dict):
                 raise ValueError("Audit verification must be an object")
-            finding_id = AuditExplorerBuilder._required_string(
-                verification, "finding_id"
-            )
+            finding_id = AuditExplorerBuilder._required_string(verification, "finding_id")
             result[finding_id] += 1
         return dict(result)
 

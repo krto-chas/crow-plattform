@@ -107,9 +107,7 @@ class RuleExplorerBuilder:
                 "executions": sum(int(item["executions"]) for item in items),
                 "findings": sum(int(item["findings"]) for item in items),
                 "reviewed": sum(int(item["reviewed"]) for item in items),
-                "verified_resolutions": sum(
-                    int(item["verified_resolutions"]) for item in items
-                ),
+                "verified_resolutions": sum(int(item["verified_resolutions"]) for item in items),
                 "discipline_counts": dict(sorted(disciplines.items())),
                 "severity_counts": dict(sorted(severities.items())),
             },

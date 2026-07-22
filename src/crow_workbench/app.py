@@ -20,6 +20,7 @@ from crow_accepted_claims import (
     summarize_accepted_claims,
 )
 from crow_assurance import ProjectAssuranceSummaryBuilder
+from crow_assurance_explorer import AssuranceExplorerBuilder
 from crow_audit_explorer import AuditExplorerBuilder
 from crow_authority import load_resolution, resolve_project, summarize_resolution
 from crow_building_graph import (
@@ -63,6 +64,7 @@ from crow_commercial_review import (
     summarize_review,
     update_project_commercial_review,
 )
+from crow_cross_source_linking import CrossSourceLinkBuilder
 from crow_document_intelligence.repository import load_index
 from crow_document_intelligence.service import (
     create_project,
@@ -109,6 +111,7 @@ from crow_geometry_framework import (
 )
 from crow_graph_explorer import GraphExplorerBuilder
 from crow_import_framework import ImportManager, create_default_registry
+from crow_import_orchestrator import ImportPipelineOrchestrator
 from crow_inference import InferenceService
 from crow_knowledge_fusion import fuse_project, load_fusion_result, summarize_fusion
 from crow_knowledge_runtime import KnowledgePackRuntime
@@ -121,6 +124,7 @@ from crow_scope_impact import (
     summarize_scope_impacts,
     write_rule_set_template,
 )
+from crow_source_explorer import SourceExplorerBuilder
 from crow_technical_delta import build_project_deltas, load_delta_set, summarize_deltas
 from crow_vent import (
     VentAuditDiffer,
@@ -1644,15 +1648,11 @@ def create_app(data_root: Path | None = None) -> FastAPI:
             )
         return raw
 
-    def save_evidence_finding_reviews(
-        project_id: str, reviews: list[dict[str, Any]]
-    ) -> None:
+    def save_evidence_finding_reviews(project_id: str, reviews: list[dict[str, Any]]) -> None:
         path = evidence_finding_review_file(project_id)
         path.parent.mkdir(parents=True, exist_ok=True)
         temp = path.with_suffix(".tmp")
-        temp.write_text(
-            json.dumps(reviews, indent=2, ensure_ascii=False), encoding="utf-8"
-        )
+        temp.write_text(json.dumps(reviews, indent=2, ensure_ascii=False), encoding="utf-8")
         temp.replace(path)
 
     def evidence_resolution_verification_file(project_id: str) -> Path:
@@ -1670,9 +1670,7 @@ def create_app(data_root: Path | None = None) -> FastAPI:
             return []
         raw = json.loads(path.read_text(encoding="utf-8"))
         if not isinstance(raw, list):
-            raise HTTPException(
-                status_code=500, detail="Ogiltigt evidensverifieringsregister"
-            )
+            raise HTTPException(status_code=500, detail="Ogiltigt evidensverifieringsregister")
         return raw
 
     def save_evidence_resolution_verifications(
@@ -1681,9 +1679,7 @@ def create_app(data_root: Path | None = None) -> FastAPI:
         path = evidence_resolution_verification_file(project_id)
         path.parent.mkdir(parents=True, exist_ok=True)
         temp = path.with_suffix(".tmp")
-        temp.write_text(
-            json.dumps(verifications, indent=2, ensure_ascii=False), encoding="utf-8"
-        )
+        temp.write_text(json.dumps(verifications, indent=2, ensure_ascii=False), encoding="utf-8")
         temp.replace(path)
 
     def load_identity_reviews(project_id: str) -> list[dict[str, Any]]:
@@ -1714,8 +1710,7 @@ def create_app(data_root: Path | None = None) -> FastAPI:
         if not directory.exists():
             return []
         items = [
-            json.loads(path.read_text(encoding="utf-8"))
-            for path in sorted(directory.glob(pattern))
+            json.loads(path.read_text(encoding="utf-8")) for path in sorted(directory.glob(pattern))
         ]
         items.sort(key=lambda item: str(item.get("created_at", "")), reverse=True)
         return items
@@ -1740,6 +1735,40 @@ def create_app(data_root: Path | None = None) -> FastAPI:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
         return result.to_dict()
 
+    @app.get("/api/projects/{project_id}/graph/assurance-explorer")
+    def get_graph_assurance_explorer(project_id: str) -> dict[str, Any]:
+        try:
+            graph_audits = load_persisted_audits(
+                graph_audit_directory(project_id), "vent-audit-*.json"
+            )
+            evidence_audits = load_persisted_audits(
+                evidence_audit_directory(project_id), "evidence-audit-*.json"
+            )
+            graph_reviews = load_audit_finding_reviews(project_id)
+            evidence_reviews = load_evidence_finding_reviews(project_id)
+            assurance = (
+                ProjectAssuranceSummaryBuilder()
+                .build(
+                    project_id=_safe_project_id(project_id),
+                    graph_audits=graph_audits,
+                    evidence_audits=evidence_audits,
+                    graph_reviews=graph_reviews,
+                    evidence_reviews=evidence_reviews,
+                    graph_verifications=load_audit_resolution_verifications(project_id),
+                    evidence_verifications=load_evidence_resolution_verifications(project_id),
+                )
+                .to_dict()
+            )
+            return AssuranceExplorerBuilder().build(
+                assurance_summary=assurance,
+                graph_audits=graph_audits,
+                evidence_audits=evidence_audits,
+                graph_reviews=graph_reviews,
+                evidence_reviews=evidence_reviews,
+            )
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+
     @app.get("/api/projects/{project_id}/manifest")
     def get_project_manifest(project_id: str) -> dict[str, Any]:
         require_project(project_id)
@@ -1760,6 +1789,27 @@ def create_app(data_root: Path | None = None) -> FastAPI:
     @app.get("/api/projects/{project_id}/manifest/validation")
     def get_project_manifest_validation(project_id: str) -> dict[str, Any]:
         return get_project_manifest(project_id)["validation"]
+
+    @app.get("/api/projects/{project_id}/manifest/explorer")
+    def get_project_source_explorer(project_id: str) -> dict[str, Any]:
+        try:
+            return SourceExplorerBuilder().build(get_project_manifest(project_id))
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    @app.get("/api/projects/{project_id}/imports/pipeline")
+    def get_import_pipeline(project_id: str) -> dict[str, Any]:
+        try:
+            return ImportPipelineOrchestrator().build_plan(get_project_manifest(project_id))
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    @app.get("/api/projects/{project_id}/graph/cross-source-links")
+    def get_cross_source_links(project_id: str) -> dict[str, Any]:
+        try:
+            return CrossSourceLinkBuilder().build(building_graph_repository(project_id).load())
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
 
     @app.get("/api/projects/{project_id}/graph/evidence-index")
     def get_graph_evidence_index(project_id: str) -> dict[str, Any]:
@@ -1824,9 +1874,7 @@ def create_app(data_root: Path | None = None) -> FastAPI:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
         return _jsonable(asdict(result))
 
-    @app.get(
-        "/api/projects/{project_id}/graph/evidence-resolution-verifications"
-    )
+    @app.get("/api/projects/{project_id}/graph/evidence-resolution-verifications")
     def list_evidence_resolution_verifications(
         project_id: str,
         base_audit_id: str | None = None,
@@ -1863,9 +1911,7 @@ def create_app(data_root: Path | None = None) -> FastAPI:
             )
         except ValueError as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
-        change = next(
-            (item for item in comparison.changes if item.finding_id == finding_id), None
-        )
+        change = next((item for item in comparison.changes if item.finding_id == finding_id), None)
         if change is None:
             raise HTTPException(status_code=404, detail="Finding finns inte i jämförelsen")
         verifications = load_evidence_resolution_verifications(project_id)
@@ -1875,9 +1921,7 @@ def create_app(data_root: Path | None = None) -> FastAPI:
             and item.get("finding_id") == finding_id
             for item in verifications
         ):
-            raise HTTPException(
-                status_code=409, detail="Upplösningskandidaten är redan verifierad"
-            )
+            raise HTTPException(status_code=409, detail="Upplösningskandidaten är redan verifierad")
         try:
             verification = EvidenceResolutionVerificationService().decide(
                 base_audit_id=base_audit_id,
@@ -1896,12 +1940,8 @@ def create_app(data_root: Path | None = None) -> FastAPI:
         record["project_id"] = _safe_project_id(project_id)
         record["base_graph_checksum"] = base.get("graph_checksum")
         record["target_graph_checksum"] = target.get("graph_checksum")
-        record["base_ruleset_version"] = base.get("metadata", {}).get(
-            "ruleset_version"
-        )
-        record["target_ruleset_version"] = target.get("metadata", {}).get(
-            "ruleset_version"
-        )
+        record["base_ruleset_version"] = base.get("metadata", {}).get("ruleset_version")
+        record["target_ruleset_version"] = target.get("metadata", {}).get("ruleset_version")
         verifications.append(record)
         save_evidence_resolution_verifications(project_id, verifications)
         return record
@@ -1926,9 +1966,7 @@ def create_app(data_root: Path | None = None) -> FastAPI:
         finding_id: str,
         payload: AuditFindingReviewRequest,
     ) -> dict[str, Any]:
-        audit = json.loads(
-            evidence_audit_path(project_id, audit_id).read_text(encoding="utf-8")
-        )
+        audit = json.loads(evidence_audit_path(project_id, audit_id).read_text(encoding="utf-8"))
         findings = audit.get("findings", [])
         if not isinstance(findings, list):
             raise HTTPException(status_code=500, detail="Ogiltig findings-lista")
@@ -1937,9 +1975,7 @@ def create_app(data_root: Path | None = None) -> FastAPI:
             None,
         )
         if finding is None:
-            raise HTTPException(
-                status_code=404, detail="Finding finns inte i evidensgranskningen"
-            )
+            raise HTTPException(status_code=404, detail="Finding finns inte i evidensgranskningen")
         reviews = load_evidence_finding_reviews(project_id)
         if any(
             item.get("audit_id") == audit_id and item.get("finding_id") == finding_id

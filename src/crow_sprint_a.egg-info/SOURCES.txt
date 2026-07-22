@@ -9,6 +9,9 @@ src/crow_accepted_claims/service.py
 src/crow_assurance/__init__.py
 src/crow_assurance/py.typed
 src/crow_assurance/summary.py
+src/crow_assurance_explorer/__init__.py
+src/crow_assurance_explorer/py.typed
+src/crow_assurance_explorer/service.py
 src/crow_audit_explorer/__init__.py
 src/crow_audit_explorer/py.typed
 src/crow_audit_explorer/service.py
@@ -64,6 +67,9 @@ src/crow_commercial_review/models.py
 src/crow_commercial_review/py.typed
 src/crow_commercial_review/service.py
 src/crow_commercial_review/workflow.py
+src/crow_cross_source_linking/__init__.py
+src/crow_cross_source_linking/py.typed
+src/crow_cross_source_linking/service.py
 src/crow_decision_engine/__init__.py
 src/crow_decision_engine/engine.py
 src/crow_decision_engine/models.py
@@ -137,6 +143,9 @@ src/crow_import_framework/plugin.py
 src/crow_import_framework/plugins.py
 src/crow_import_framework/py.typed
 src/crow_import_framework/registry.py
+src/crow_import_orchestrator/__init__.py
+src/crow_import_orchestrator/py.typed
+src/crow_import_orchestrator/service.py
 src/crow_inference/__init__.py
 src/crow_inference/engine.py
 src/crow_inference/models.py
@@ -204,11 +213,17 @@ src/crow_reasoning/py.typed
 src/crow_reasoning/rule_service.py
 src/crow_reasoning/rules.py
 src/crow_reasoning/service.py
+src/crow_rule_explorer/__init__.py
+src/crow_rule_explorer/py.typed
+src/crow_rule_explorer/service.py
 src/crow_scope_impact/__init__.py
 src/crow_scope_impact/engine.py
 src/crow_scope_impact/models.py
 src/crow_scope_impact/py.typed
 src/crow_scope_impact/service.py
+src/crow_source_explorer/__init__.py
+src/crow_source_explorer/py.typed
+src/crow_source_explorer/service.py
 src/crow_sprint_a.egg-info/PKG-INFO
 src/crow_sprint_a.egg-info/SOURCES.txt
 src/crow_sprint_a.egg-info/dependency_links.txt
@@ -253,6 +268,7 @@ src/crow_workbench/static/index.html
 src/crow_workbench/static/styles.css
 tests/test_accepted_claims.py
 tests/test_accepted_claims_persistence.py
+tests/test_assurance_explorer.py
 tests/test_assurance_summary.py
 tests/test_audit_events.py
 tests/test_audit_explorer.py
@@ -276,6 +292,7 @@ tests/test_commercial_impact_engine.py
 tests/test_commercial_impact_service.py
 tests/test_commercial_review.py
 tests/test_commercial_review_service.py
+tests/test_cross_source_linking.py
 tests/test_crow_cad_text.py
 tests/test_crow_canonical.py
 tests/test_crow_evidence_explorer.py
@@ -309,6 +326,7 @@ tests/test_graph_explorer.py
 tests/test_graph_rule_engine.py
 tests/test_idempotency_and_invalidation.py
 tests/test_import_guard.py
+tests/test_import_orchestrator.py
 tests/test_import_sessions.py
 tests/test_inference_engine.py
 tests/test_inference_review.py
@@ -335,8 +353,10 @@ tests/test_reasoning_findings.py
 tests/test_reasoning_rules.py
 tests/test_release_review.py
 tests/test_revision_ordering.py
+tests/test_rule_explorer.py
 tests/test_scope_impact_engine.py
 tests/test_scope_impact_service.py
+tests/test_source_explorer.py
 tests/test_system_graph.py
 tests/test_technical_delta.py
 tests/test_technical_delta_semantics.py
