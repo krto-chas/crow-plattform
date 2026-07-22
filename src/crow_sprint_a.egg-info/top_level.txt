@@ -14,6 +14,7 @@ crow_estimate_line
 crow_estimate_revision
 crow_estimate_structure
 crow_evidence_index
+crow_evidence_rules
 crow_geometry_framework
 crow_graph_rules
 crow_ifc_relations

@@ -650,3 +650,21 @@ def test_graph_evidence_index_endpoint_reports_usage_and_gaps(tmp_path: Path) ->
     assert len(payload["unreferenced_evidence_ids"]) == 1
     assert payload["missing_evidence_ids"] == []
     assert payload["graph_mutated"] is False
+
+
+def test_graph_evidence_audit_endpoint_is_read_only(tmp_path: Path) -> None:
+    client = TestClient(create_app(tmp_path))
+    project = client.post("/api/projects", json={"name": "Evidence audit"}).json()
+    project_id = project["project_id"]
+
+    client.post(
+        f"/api/projects/{project_id}/graph/evidence",
+        json={"kind": "pdf", "source_id": "unused.pdf", "checksum": "d" * 64},
+    )
+
+    response = client.get(f"/api/projects/{project_id}/graph/evidence-audit")
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["summary"] == {"total": 1, "data_quality": 0, "evidence_gap": 1}
+    assert payload["findings"][0]["rule_id"] == "EVID-EVID-001"
+    assert payload["metadata"]["automatic_repair_performed"] is False
