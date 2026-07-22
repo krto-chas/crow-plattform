@@ -9,6 +9,9 @@ src/crow_accepted_claims/service.py
 src/crow_assurance/__init__.py
 src/crow_assurance/py.typed
 src/crow_assurance/summary.py
+src/crow_assurance_explorer/__init__.py
+src/crow_assurance_explorer/py.typed
+src/crow_assurance_explorer/service.py
 src/crow_audit_explorer/__init__.py
 src/crow_audit_explorer/py.typed
 src/crow_audit_explorer/service.py
@@ -204,6 +207,9 @@ src/crow_reasoning/py.typed
 src/crow_reasoning/rule_service.py
 src/crow_reasoning/rules.py
 src/crow_reasoning/service.py
+src/crow_rule_explorer/__init__.py
+src/crow_rule_explorer/py.typed
+src/crow_rule_explorer/service.py
 src/crow_scope_impact/__init__.py
 src/crow_scope_impact/engine.py
 src/crow_scope_impact/models.py
@@ -253,6 +259,7 @@ src/crow_workbench/static/index.html
 src/crow_workbench/static/styles.css
 tests/test_accepted_claims.py
 tests/test_accepted_claims_persistence.py
+tests/test_assurance_explorer.py
 tests/test_assurance_summary.py
 tests/test_audit_events.py
 tests/test_audit_explorer.py
@@ -335,6 +342,7 @@ tests/test_reasoning_findings.py
 tests/test_reasoning_rules.py
 tests/test_release_review.py
 tests/test_revision_ordering.py
+tests/test_rule_explorer.py
 tests/test_scope_impact_engine.py
 tests/test_scope_impact_service.py
 tests/test_system_graph.py

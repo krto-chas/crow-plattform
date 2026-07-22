@@ -20,6 +20,7 @@ from crow_accepted_claims import (
     summarize_accepted_claims,
 )
 from crow_assurance import ProjectAssuranceSummaryBuilder
+from crow_assurance_explorer import AssuranceExplorerBuilder
 from crow_audit_explorer import AuditExplorerBuilder
 from crow_authority import load_resolution, resolve_project, summarize_resolution
 from crow_building_graph import (
@@ -78,6 +79,12 @@ from crow_evidence_rules import (
     EvidenceIntegrityAudit,
     EvidenceResolutionVerificationService,
 )
+from crow_evidence_rules.audit import (
+    DuplicateEvidenceIdRule,
+    MissingEvidenceReferenceRule,
+    SourceChecksumConflictRule,
+    UnreferencedEvidenceRule,
+)
 from crow_geometry_framework import (
     BoundingBox2D,
     as_payload,
@@ -125,12 +132,6 @@ from crow_vent import (
     quantity_takeoff_csv,
 )
 from crow_vent.graph_audit import VENT_GRAPH_RULES
-from crow_evidence_rules.audit import (
-    MissingEvidenceReferenceRule,
-    DuplicateEvidenceIdRule,
-    SourceChecksumConflictRule,
-    UnreferencedEvidenceRule,
-)
 
 _UPLOAD_FILES = File(...)
 
@@ -1739,6 +1740,36 @@ def create_app(data_root: Path | None = None) -> FastAPI:
         except ValueError as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
         return result.to_dict()
+
+    @app.get("/api/projects/{project_id}/graph/assurance-explorer")
+    def get_graph_assurance_explorer(project_id: str) -> dict[str, Any]:
+        try:
+            graph_audits = load_persisted_audits(
+                graph_audit_directory(project_id), "vent-audit-*.json"
+            )
+            evidence_audits = load_persisted_audits(
+                evidence_audit_directory(project_id), "evidence-audit-*.json"
+            )
+            graph_reviews = load_audit_finding_reviews(project_id)
+            evidence_reviews = load_evidence_finding_reviews(project_id)
+            assurance = ProjectAssuranceSummaryBuilder().build(
+                project_id=_safe_project_id(project_id),
+                graph_audits=graph_audits,
+                evidence_audits=evidence_audits,
+                graph_reviews=graph_reviews,
+                evidence_reviews=evidence_reviews,
+                graph_verifications=load_audit_resolution_verifications(project_id),
+                evidence_verifications=load_evidence_resolution_verifications(project_id),
+            ).to_dict()
+            return AssuranceExplorerBuilder().build(
+                assurance_summary=assurance,
+                graph_audits=graph_audits,
+                evidence_audits=evidence_audits,
+                graph_reviews=graph_reviews,
+                evidence_reviews=evidence_reviews,
+            )
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
 
     @app.get("/api/projects/{project_id}/manifest")
     def get_project_manifest(project_id: str) -> dict[str, Any]:

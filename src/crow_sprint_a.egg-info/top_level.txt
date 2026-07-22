@@ -1,5 +1,6 @@
 crow_accepted_claims
 crow_assurance
+crow_assurance_explorer
 crow_audit_explorer
 crow_authority
 crow_authority_discovery
@@ -33,6 +34,7 @@ crow_pdf_evidence
 crow_project_dataset
 crow_project_manifest
 crow_reasoning
+crow_rule_explorer
 crow_scope_impact
 crow_technical_delta
 crow_technical_review
