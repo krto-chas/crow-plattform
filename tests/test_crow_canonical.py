@@ -166,3 +166,132 @@ def test_duct_text_is_not_used_as_component_identity_candidate() -> None:
 
     assembly = VentCanonicalAssembler().assemble(rows)
     assert not any(item.relation_type == "same_as_candidate" for item in assembly.relations)
+
+
+def _identity_candidate():
+    from crow_canonical import VentCanonicalAssembler
+
+    interpreter = VentTextInterpreter()
+    assembly = VentCanonicalAssembler().assemble(
+        [
+            interpreter.interpret(
+                "TD1",
+                source_id="drawing-plan-1",
+                layer="DON",
+                entity_handle="D1",
+                system_context="LB01",
+            ),
+            interpreter.interpret(
+                "TD1",
+                source_id="drawing-detail-1",
+                layer="V-57--",
+                entity_handle="D99",
+                system_context="LB01",
+            ),
+        ]
+    )
+    return next(item for item in assembly.relations if item.relation_type == "same_as_candidate")
+
+
+def test_identity_candidate_can_be_confirmed_without_merging_observations() -> None:
+    from crow_canonical import IdentityReviewDecision, IdentityReviewService
+
+    result = IdentityReviewService().decide(
+        _identity_candidate(),
+        decision=IdentityReviewDecision.CONFIRM_SAME,
+        reviewer="reviewer@example.test",
+        rationale="Plan- och detaljritning avser samma märkta don.",
+        decided_at="2026-07-21T06:30:00+00:00",
+    )
+    assert result.resolved_relation.relation_type == "same_as_confirmed"
+    assert result.resolved_relation.metadata["status"] == "reviewed"
+    assert result.resolved_relation.metadata["automatic_merge_performed"] is False
+    assert result.resolved_relation.metadata["source_observations_preserved"] is True
+    assert (
+        result.resolved_relation.metadata["candidate_relation_id"]
+        == _identity_candidate().canonical_id
+    )
+
+
+def test_identity_candidate_can_be_rejected_explicitly() -> None:
+    from crow_canonical import IdentityReviewDecision, IdentityReviewService
+
+    result = IdentityReviewService().decide(
+        _identity_candidate(),
+        decision=IdentityReviewDecision.REJECT_SAME,
+        reviewer="reviewer@example.test",
+        rationale="Beteckningen återanvänds för två separata don.",
+        decided_at="2026-07-21T06:31:00+00:00",
+    )
+    assert result.resolved_relation.relation_type == "not_same_as"
+    assert result.resolved_relation.metadata["decision"] == "reject_same"
+
+
+def test_identity_review_rejects_non_candidate_relation() -> None:
+    import pytest
+
+    from crow_canonical import IdentityReviewDecision, IdentityReviewService
+
+    candidate = _identity_candidate()
+    not_candidate = type(candidate)(
+        canonical_id=candidate.canonical_id,
+        source_id=candidate.source_id,
+        relation_type="belongs_to",
+        target_id=candidate.target_id,
+        confidence=candidate.confidence,
+        evidence=candidate.evidence,
+        metadata=candidate.metadata,
+    )
+    with pytest.raises(ValueError, match="same_as_candidate"):
+        IdentityReviewService().decide(
+            not_candidate,
+            decision=IdentityReviewDecision.CONFIRM_SAME,
+            reviewer="reviewer@example.test",
+            rationale="irrelevant",
+        )
+
+
+def test_reviewed_identity_relation_persists_with_audit_metadata(tmp_path: Path) -> None:
+    from crow_canonical import (
+        IdentityReviewDecision,
+        IdentityReviewService,
+        VentCanonicalAssembler,
+    )
+
+    interpreter = VentTextInterpreter()
+    assembly = VentCanonicalAssembler().assemble(
+        [
+            interpreter.interpret(
+                "TD1",
+                source_id="drawing-plan-1",
+                layer="DON",
+                entity_handle="D1",
+                system_context="LB01",
+            ),
+            interpreter.interpret(
+                "TD1",
+                source_id="drawing-detail-1",
+                layer="V-57--",
+                entity_handle="D99",
+                system_context="LB01",
+            ),
+        ]
+    )
+    candidate = next(
+        item for item in assembly.relations if item.relation_type == "same_as_candidate"
+    )
+    reviewed = IdentityReviewService().decide(
+        candidate,
+        decision=IdentityReviewDecision.CONFIRM_SAME,
+        reviewer="reviewer@example.test",
+        rationale="Verifierad mot båda ritningarna.",
+        decided_at="2026-07-21T06:32:00+00:00",
+    )
+    graph = BuildingGraphService(GraphRepository(tmp_path / "reviewed-identity.json"))
+    bridge = CanonicalGraphBridge(graph)
+    for item in assembly.objects:
+        bridge.persist(item)
+    persisted = bridge.persist_relation(reviewed.resolved_relation)
+    assert persisted["relation"]["relation_type"] == "same_as_confirmed"
+    assert persisted["relation"]["metadata"]["reviewer"] == "reviewer@example.test"
+    assert persisted["relation"]["metadata"]["automatic_merge_performed"] is False

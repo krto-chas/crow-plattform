@@ -32,6 +32,9 @@ ALLOWED_RELATIONS = {
     "indirectly_served_by",
     "indirectly_located_in",
     "indirectly_depends_on",
+    "same_as_candidate",
+    "same_as_confirmed",
+    "not_same_as",
 }
 
 
