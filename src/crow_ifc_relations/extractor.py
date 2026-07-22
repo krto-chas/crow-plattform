@@ -176,9 +176,7 @@ class IfcRelationExtractor:
                     relation_type=CanonicalRelationType.LOCATED_IN,
                     source_ifc_id=element,
                     target_ifc_id=structure,
-                    metadata={
-                        "ifc_semantics": "RelatedElements located in RelatingStructure"
-                    },
+                    metadata={"ifc_semantics": "RelatedElements located in RelatingStructure"},
                 )
                 for element in elements
             ]
@@ -242,9 +240,7 @@ class IfcRelationExtractor:
                     relation_type=CanonicalRelationType.ASSOCIATED_WITH_MATERIAL,
                     source_ifc_id=object_id,
                     target_ifc_id=material,
-                    metadata={
-                        "ifc_semantics": "RelatedObjects associated with RelatingMaterial"
-                    },
+                    metadata={"ifc_semantics": "RelatedObjects associated with RelatingMaterial"},
                 )
                 for object_id in objects
             ]

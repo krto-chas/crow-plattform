@@ -23,6 +23,7 @@ crow_knowledge_runtime
 crow_module_conformance
 crow_module_sdk
 crow_observation_engine
+crow_pdf_evidence
 crow_project_dataset
 crow_reasoning
 crow_scope_impact
