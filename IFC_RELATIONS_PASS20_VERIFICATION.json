@@ -1,0 +1,49 @@
+{
+  "acceptance": {
+    "all_inventory_relationship_types_supported": true,
+    "inference_performed": false,
+    "malformed_supported_relationships": 0,
+    "parser_completed": true,
+    "supported_relationships_extracted": true
+  },
+  "canonical_relation_counts": {
+    "assigned_to": 892,
+    "associated_with_material": 19,
+    "contains": 3,
+    "covers": 19,
+    "located_in": 889,
+    "serves": 9,
+    "typed_by": 885
+  },
+  "explicit_relations_extracted": 2716,
+  "malformed_supported_entities": [],
+  "metadata": {
+    "explicit_relations_extracted": 2716,
+    "geometry_used": false,
+    "inference_performed": false,
+    "schema": "crow-ifc-explicit-relations-v0.2",
+    "unsupported_relationships_reported": true
+  },
+  "relation_entity_counts": {
+    "IFCRELAGGREGATES": 3,
+    "IFCRELASSIGNSTOGROUP": 9,
+    "IFCRELASSOCIATESMATERIAL": 2,
+    "IFCRELCONTAINEDINSPATIALSTRUCTURE": 1,
+    "IFCRELCOVERSBLDGELEMENTS": 19,
+    "IFCRELDEFINESBYTYPE": 104,
+    "IFCRELSERVICESBUILDINGS": 9
+  },
+  "schema": "crow-rc-012-ifc-explicit-relations-v0.2",
+  "source_checksum_sha256": "752d7797b844b91e0bee1e8a1344a7ccb3d7915fb7afc0d6e2f3ae6a6456f3a9",
+  "source_id": "V-50-1-01.ifc",
+  "supported_relation_entity_counts": {
+    "IFCRELAGGREGATES": 3,
+    "IFCRELASSIGNSTOGROUP": 9,
+    "IFCRELASSOCIATESMATERIAL": 2,
+    "IFCRELCONTAINEDINSPATIALSTRUCTURE": 1,
+    "IFCRELCOVERSBLDGELEMENTS": 19,
+    "IFCRELDEFINESBYTYPE": 104,
+    "IFCRELSERVICESBUILDINGS": 9
+  },
+  "unsupported_relation_entity_counts": {}
+}

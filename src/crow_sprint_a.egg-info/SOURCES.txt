@@ -103,6 +103,9 @@ src/crow_geometry_framework/tracing.py
 src/crow_graph_rules/__init__.py
 src/crow_graph_rules/engine.py
 src/crow_graph_rules/py.typed
+src/crow_ifc_relations/__init__.py
+src/crow_ifc_relations/extractor.py
+src/crow_ifc_relations/py.typed
 src/crow_import_framework/__init__.py
 src/crow_import_framework/base.py
 src/crow_import_framework/manager.py
@@ -243,6 +246,7 @@ tests/test_commercial_impact_service.py
 tests/test_commercial_review.py
 tests/test_commercial_review_service.py
 tests/test_crow_canonical.py
+tests/test_crow_ifc_relations.py
 tests/test_crow_vent.py
 tests/test_decision_engine.py
 tests/test_decision_graph.py

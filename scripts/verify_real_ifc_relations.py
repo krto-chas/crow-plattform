@@ -16,7 +16,7 @@ def main() -> int:
 
     extraction = IfcRelationExtractor().extract_path(args.ifc)
     payload = {
-        "schema": "crow-rc-011-ifc-explicit-relations-v0.1",
+        "schema": "crow-rc-012-ifc-explicit-relations-v0.2",
         "source_id": extraction.source_id,
         "source_checksum_sha256": extraction.source_checksum_sha256,
         "relation_entity_counts": extraction.relation_entity_counts,
@@ -31,7 +31,7 @@ def main() -> int:
         "acceptance": {
             "parser_completed": True,
             "supported_relationships_extracted": len(extraction.relations) > 0,
-            "unsupported_relationships_reported": bool(
+            "all_inventory_relationship_types_supported": not bool(
                 extraction.unsupported_relation_entity_counts
             ),
             "malformed_supported_relationships": len(

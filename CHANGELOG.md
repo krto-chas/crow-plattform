@@ -401,3 +401,17 @@
 - Added provenance metadata linking promoted graph relations to inference run, rule and reviewer.
 - Added automatic inference invalidation after promotion.
 - Added review listing, decision and promotion REST APIs.
+
+## RC-readiness pass 20 — explicit IFC relationship expansion
+
+- Extended `crow_ifc_relations` with explicit mappings for:
+  - `IfcRelDefinesByType` → `typed_by`
+  - `IfcRelAssignsToGroup` → `assigned_to`
+  - `IfcRelServicesBuildings` → `serves`
+  - `IfcRelAssociatesMaterial` → `associated_with_material`
+  - `IfcRelCoversBldgElements` → `covers`
+- Added the corresponding canonical relation types.
+- Preserved the existing two-stage mapping requirement: both IFC endpoints must already
+  have explicit IFC-to-CCM identifiers before an assertion is created.
+- No geometry, proximity, inferred flow direction, object creation, or automatic correction
+  is performed.
