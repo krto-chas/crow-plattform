@@ -26,6 +26,9 @@ src/crow_building_graph/py.typed
 src/crow_building_graph/repository.py
 src/crow_building_graph/service.py
 src/crow_building_graph/system.py
+src/crow_cad_text/__init__.py
+src/crow_cad_text/extractor.py
+src/crow_cad_text/py.typed
 src/crow_canonical/__init__.py
 src/crow_canonical/assembly.py
 src/crow_canonical/graph_bridge.py
@@ -245,6 +248,7 @@ tests/test_commercial_impact_engine.py
 tests/test_commercial_impact_service.py
 tests/test_commercial_review.py
 tests/test_commercial_review_service.py
+tests/test_crow_cad_text.py
 tests/test_crow_canonical.py
 tests/test_crow_ifc_relations.py
 tests/test_crow_vent.py
