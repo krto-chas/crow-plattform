@@ -27,6 +27,7 @@ src/crow_building_graph/repository.py
 src/crow_building_graph/service.py
 src/crow_building_graph/system.py
 src/crow_canonical/__init__.py
+src/crow_canonical/assembly.py
 src/crow_canonical/graph_bridge.py
 src/crow_canonical/models.py
 src/crow_canonical/py.typed

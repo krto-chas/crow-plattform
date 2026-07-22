@@ -55,3 +55,48 @@ def test_canonical_object_persists_with_shared_evidence(tmp_path: Path) -> None:
     assert result["properties"]
     assert all(item["evidence_ids"] == (evidence_id,) for item in result["properties"])
     assert graph.graph()["summary"]["objects"] == 1
+
+
+def test_assembler_creates_system_and_explicit_membership() -> None:
+    interpreter = VentTextInterpreter()
+    rows = [
+        interpreter.interpret(
+            "TD1", source_id="drawing-1", layer="DON", entity_handle="D1", system_context="LB01"
+        ),
+        interpreter.interpret(
+            "SP1", source_id="drawing-1", layer="V-57--", entity_handle="S1", system_context="LB01"
+        ),
+    ]
+    from crow_canonical import VentCanonicalAssembler
+
+    assembly = VentCanonicalAssembler().assemble(rows)
+    systems = [
+        item
+        for item in assembly.objects
+        if item.object_type is CanonicalObjectType.VENTILATION_SYSTEM
+    ]
+    assert len(systems) == 1
+    assert systems[0].name == "LB01"
+    assert len(assembly.relations) == 2
+    assert all(item.relation_type == "belongs_to" for item in assembly.relations)
+    assert all(item.target_id == systems[0].canonical_id for item in assembly.relations)
+
+
+def test_assembly_persists_objects_before_relations(tmp_path: Path) -> None:
+    interpreter = VentTextInterpreter()
+    rows = [
+        interpreter.interpret(
+            "TD1", source_id="drawing-1", layer="DON", entity_handle="D1", system_context="LB01"
+        )
+    ]
+    from crow_canonical import VentCanonicalAssembler
+
+    assembly = VentCanonicalAssembler().assemble(rows)
+    graph = BuildingGraphService(GraphRepository(tmp_path / "assembly-graph.json"))
+    result = CanonicalGraphBridge(graph).persist_assembly(assembly)
+    assert len(result["objects"]) == 2
+    assert len(result["relations"]) == 1
+    snapshot = graph.graph()
+    assert snapshot["summary"]["objects"] == 2
+    assert snapshot["summary"]["relations"] == 1
+    assert snapshot["relations"][0]["relation_type"] == "belongs_to"
