@@ -1,0 +1,30 @@
+{
+  "baseline": "Crow Platform 0.7.0-alpha.1",
+  "pass": 21,
+  "module": "crow_cad_text",
+  "implemented": [
+    "explicit ASCII DXF TEXT extraction",
+    "explicit ASCII DXF MTEXT extraction",
+    "explicit ASCII DXF ATTRIB extraction",
+    "explicit ASCII DXF ATTDEF extraction",
+    "source SHA-256 evidence",
+    "entity handle, layer and insertion-point evidence",
+    "vent text interpretation bridge",
+    "canonical object adapter bridge",
+    "unknown text retained for review",
+    "explicit unsupported result for binary DWG"
+  ],
+  "not_implemented": [
+    "binary DWG decoding",
+    "geometric text-to-object association",
+    "automatic object merging",
+    "AI text interpretation",
+    "automatic system inference"
+  ],
+  "verification": {
+    "ruff": "pass",
+    "mypy": "pass: 165 source files",
+    "pytest": "pass: 356 tests",
+    "build": "pass: wheel and sdist"
+  }
+}
