@@ -355,3 +355,69 @@ def test_workbench_identity_review_flow_is_persistent_and_auditable(tmp_path: Pa
         },
     )
     assert duplicate.status_code == 409
+
+
+def test_workbench_graph_audit_is_live_persistable_and_deduplicated(tmp_path: Path) -> None:
+    client = TestClient(create_app(tmp_path))
+    created_project = client.post("/api/projects", json={"name": "Graph Audit"})
+    assert created_project.status_code == 201
+
+    object_response = client.post(
+        "/api/projects/graph-audit/graph/objects",
+        json={
+            "object_type": "air_terminal",
+            "discipline": "ventilation",
+            "name": "TD1",
+            "object_id": "ccm:object:td1",
+        },
+    )
+    assert object_response.status_code == 201
+
+    live = client.get("/api/projects/graph-audit/graph/audit")
+    assert live.status_code == 200
+    assert live.json()["summary"]["evidence_gap"] == 2
+    assert {item["rule_id"] for item in live.json()["findings"]} == {
+        "VENT-EVID-001",
+        "VENT-EVID-002",
+    }
+    assert live.json()["metadata"]["inference_performed"] is False
+
+    first = client.post("/api/projects/graph-audit/graph/audit-runs")
+    assert first.status_code == 201
+    assert first.json()["created"] is True
+    audit_id = first.json()["audit"]["audit_id"]
+
+    duplicate = client.post("/api/projects/graph-audit/graph/audit-runs")
+    assert duplicate.status_code == 200
+    assert duplicate.json()["created"] is False
+    assert duplicate.json()["audit"]["audit_id"] == audit_id
+
+    history = client.get("/api/projects/graph-audit/graph/audit-runs")
+    assert history.status_code == 200
+    assert history.json()["count"] == 1
+    assert history.json()["items"][0]["audit_id"] == audit_id
+    assert history.json()["items"][0]["graph_checksum"] == live.json()["graph_checksum"]
+
+
+def test_workbench_graph_audit_creates_new_run_after_graph_change(tmp_path: Path) -> None:
+    client = TestClient(create_app(tmp_path))
+    client.post("/api/projects", json={"name": "Audit History"})
+    first = client.post("/api/projects/audit-history/graph/audit-runs")
+    assert first.status_code == 201
+
+    object_response = client.post(
+        "/api/projects/audit-history/graph/objects",
+        json={
+            "object_type": "duct",
+            "discipline": "ventilation",
+            "object_id": "ccm:object:duct1",
+        },
+    )
+    assert object_response.status_code == 201
+
+    second = client.post("/api/projects/audit-history/graph/audit-runs")
+    assert second.status_code == 201
+    assert second.json()["audit"]["audit_id"] != first.json()["audit"]["audit_id"]
+
+    history = client.get("/api/projects/audit-history/graph/audit-runs")
+    assert history.json()["count"] == 2
