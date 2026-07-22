@@ -70,7 +70,11 @@ from crow_document_intelligence.service import (
 )
 from crow_estimate_line import build_project_estimate, load_estimate, summarize_estimate
 from crow_evidence_index import EvidenceIndexBuilder
-from crow_evidence_rules import EvidenceAuditDiffer, EvidenceIntegrityAudit
+from crow_evidence_rules import (
+    EvidenceAuditDiffer,
+    EvidenceIntegrityAudit,
+    EvidenceResolutionVerificationService,
+)
 from crow_geometry_framework import (
     BoundingBox2D,
     as_payload,
@@ -1607,6 +1611,37 @@ def create_app(data_root: Path | None = None) -> FastAPI:
         temp.write_text(json.dumps(verifications, indent=2, ensure_ascii=False), encoding="utf-8")
         temp.replace(path)
 
+    def evidence_resolution_verification_file(project_id: str) -> Path:
+        require_project(project_id)
+        return (
+            projects_root
+            / _safe_project_id(project_id)
+            / "building-graph"
+            / "evidence-resolution-verifications.json"
+        )
+
+    def load_evidence_resolution_verifications(project_id: str) -> list[dict[str, Any]]:
+        path = evidence_resolution_verification_file(project_id)
+        if not path.exists():
+            return []
+        raw = json.loads(path.read_text(encoding="utf-8"))
+        if not isinstance(raw, list):
+            raise HTTPException(
+                status_code=500, detail="Ogiltigt evidensverifieringsregister"
+            )
+        return raw
+
+    def save_evidence_resolution_verifications(
+        project_id: str, verifications: list[dict[str, Any]]
+    ) -> None:
+        path = evidence_resolution_verification_file(project_id)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        temp = path.with_suffix(".tmp")
+        temp.write_text(
+            json.dumps(verifications, indent=2, ensure_ascii=False), encoding="utf-8"
+        )
+        temp.replace(path)
+
     def load_identity_reviews(project_id: str) -> list[dict[str, Any]]:
         path = identity_review_file(project_id)
         if not path.exists():
@@ -1691,6 +1726,86 @@ def create_app(data_root: Path | None = None) -> FastAPI:
         except ValueError as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
         return _jsonable(asdict(result))
+
+    @app.get(
+        "/api/projects/{project_id}/graph/evidence-resolution-verifications"
+    )
+    def list_evidence_resolution_verifications(
+        project_id: str,
+        base_audit_id: str | None = None,
+        target_audit_id: str | None = None,
+    ) -> dict[str, Any]:
+        items = load_evidence_resolution_verifications(project_id)
+        if base_audit_id is not None:
+            items = [item for item in items if item.get("base_audit_id") == base_audit_id]
+        if target_audit_id is not None:
+            items = [item for item in items if item.get("target_audit_id") == target_audit_id]
+        return {"count": len(items), "items": items}
+
+    @app.post(
+        "/api/projects/{project_id}/graph/evidence-audit-runs/{base_audit_id}"
+        "/compare/{target_audit_id}/findings/{finding_id}/verify",
+        status_code=201,
+    )
+    def verify_evidence_audit_resolution(
+        project_id: str,
+        base_audit_id: str,
+        target_audit_id: str,
+        finding_id: str,
+        payload: AuditResolutionVerificationRequest,
+    ) -> dict[str, Any]:
+        base = json.loads(
+            evidence_audit_path(project_id, base_audit_id).read_text(encoding="utf-8")
+        )
+        target = json.loads(
+            evidence_audit_path(project_id, target_audit_id).read_text(encoding="utf-8")
+        )
+        try:
+            comparison = EvidenceAuditDiffer().compare(base, target)
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+        change = next(
+            (item for item in comparison.changes if item.finding_id == finding_id), None
+        )
+        if change is None:
+            raise HTTPException(status_code=404, detail="Finding finns inte i jämförelsen")
+        verifications = load_evidence_resolution_verifications(project_id)
+        if any(
+            item.get("base_audit_id") == base_audit_id
+            and item.get("target_audit_id") == target_audit_id
+            and item.get("finding_id") == finding_id
+            for item in verifications
+        ):
+            raise HTTPException(
+                status_code=409, detail="Upplösningskandidaten är redan verifierad"
+            )
+        try:
+            verification = EvidenceResolutionVerificationService().decide(
+                base_audit_id=base_audit_id,
+                target_audit_id=target_audit_id,
+                finding_id=finding_id,
+                lifecycle=change.lifecycle,
+                previous_finding=change.previous,
+                decision=payload.decision,
+                reviewer=payload.reviewer,
+                rationale=payload.rationale,
+                decided_at=payload.decided_at,
+            )
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+        record = _jsonable(asdict(verification))
+        record["project_id"] = _safe_project_id(project_id)
+        record["base_graph_checksum"] = base.get("graph_checksum")
+        record["target_graph_checksum"] = target.get("graph_checksum")
+        record["base_ruleset_version"] = base.get("metadata", {}).get(
+            "ruleset_version"
+        )
+        record["target_ruleset_version"] = target.get("metadata", {}).get(
+            "ruleset_version"
+        )
+        verifications.append(record)
+        save_evidence_resolution_verifications(project_id, verifications)
+        return record
 
     @app.post("/api/projects/{project_id}/graph/evidence", status_code=201)
     def create_graph_evidence(project_id: str, payload: GraphEvidenceInput) -> dict[str, Any]:

@@ -19,10 +19,18 @@ __all__ = [
     "EvidenceAuditDiffer",
     "EvidenceAuditDiffResult",
     "EvidenceAuditFindingChange",
+    "EvidenceResolutionVerification",
+    "EvidenceResolutionVerificationDecision",
+    "EvidenceResolutionVerificationService",
 ]
 
 from .audit_diff import (
     EvidenceAuditDiffer,
     EvidenceAuditDiffResult,
     EvidenceAuditFindingChange,
+)
+from .audit_verification import (
+    EvidenceResolutionVerification,
+    EvidenceResolutionVerificationDecision,
+    EvidenceResolutionVerificationService,
 )
