@@ -69,6 +69,7 @@ from crow_document_intelligence.service import (
     summarize,
 )
 from crow_estimate_line import build_project_estimate, load_estimate, summarize_estimate
+from crow_evidence_index import EvidenceIndexBuilder
 from crow_geometry_framework import (
     BoundingBox2D,
     as_payload,
@@ -1585,6 +1586,15 @@ def create_app(data_root: Path | None = None) -> FastAPI:
     @app.get("/api/projects/{project_id}/graph")
     def get_building_graph(project_id: str) -> dict[str, Any]:
         return building_graph_service(project_id).graph()
+
+
+    @app.get("/api/projects/{project_id}/graph/evidence-index")
+    def get_graph_evidence_index(project_id: str) -> dict[str, Any]:
+        try:
+            graph = building_graph_service(project_id).graph()
+            return EvidenceIndexBuilder().build(graph).to_dict()
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
 
     @app.post("/api/projects/{project_id}/graph/evidence", status_code=201)
     def create_graph_evidence(project_id: str, payload: GraphEvidenceInput) -> dict[str, Any]:

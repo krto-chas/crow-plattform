@@ -618,3 +618,35 @@ def test_workbench_requires_human_verification_before_resolution_is_confirmed(
     )
     assert history.status_code == 200
     assert history.json()["count"] == 1
+
+
+def test_graph_evidence_index_endpoint_reports_usage_and_gaps(tmp_path: Path) -> None:
+    client = TestClient(create_app(tmp_path))
+    project = client.post("/api/projects", json={"name": "Evidence index"}).json()
+    project_id = project["project_id"]
+
+    ev1 = client.post(
+        f"/api/projects/{project_id}/graph/evidence",
+        json={"kind": "dxf", "source_id": "drawing.dxf", "checksum": "a" * 64},
+    ).json()
+    client.post(
+        f"/api/projects/{project_id}/graph/evidence",
+        json={"kind": "pdf", "source_id": "description.pdf", "checksum": "b" * 64},
+    )
+    client.post(
+        f"/api/projects/{project_id}/graph/objects",
+        json={
+            "object_type": "air_terminal",
+            "discipline": "ventilation",
+            "evidence_ids": [ev1["id"]],
+        },
+    )
+
+    response = client.get(f"/api/projects/{project_id}/graph/evidence-index")
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["evidence_count"] == 2
+    assert payload["reference_count"] == 1
+    assert len(payload["unreferenced_evidence_ids"]) == 1
+    assert payload["missing_evidence_ids"] == []
+    assert payload["graph_mutated"] is False
