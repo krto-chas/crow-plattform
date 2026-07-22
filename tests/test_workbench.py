@@ -893,3 +893,22 @@ def test_graph_assurance_summary_aggregates_persisted_audits(tmp_path: Path) -> 
     assert payload["domains"]["evidence"]["audit_id"] == evidence_run.json()["audit"]["audit_id"]
     assert payload["metadata"]["read_only"] is True
     assert payload["metadata"]["technical_correctness_asserted"] is False
+
+
+def test_project_manifest_endpoints_are_read_only(tmp_path: Path) -> None:
+    client = TestClient(create_app(tmp_path))
+    created = client.post("/api/projects", json={"name": "Manifestprojekt"})
+    assert created.status_code == 201
+    project_id = created.json()["project_id"]
+
+    response = client.get(f"/api/projects/{project_id}/manifest")
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["project_id"] == project_id
+    assert payload["project_version"] == "0.7.0-alpha.1"
+    assert payload["metadata"]["read_only"] is True
+    assert payload["metadata"]["project_structure_modified"] is False
+
+    validation = client.get(f"/api/projects/{project_id}/manifest/validation")
+    assert validation.status_code == 200
+    assert validation.json() == payload["validation"]

@@ -183,6 +183,9 @@ src/crow_project_dataset/inspect.py
 src/crow_project_dataset/manifest.py
 src/crow_project_dataset/models.py
 src/crow_project_dataset/py.typed
+src/crow_project_manifest/__init__.py
+src/crow_project_manifest/manifest.py
+src/crow_project_manifest/py.typed
 src/crow_reasoning/__init__.py
 src/crow_reasoning/default_rules.json
 src/crow_reasoning/engine.py
@@ -309,6 +312,7 @@ tests/test_observation_service.py
 tests/test_persistence.py
 tests/test_pipeline_golden.py
 tests/test_project_dataset.py
+tests/test_project_manifest.py
 tests/test_project_model.py
 tests/test_project_persistence.py
 tests/test_project_revision.py

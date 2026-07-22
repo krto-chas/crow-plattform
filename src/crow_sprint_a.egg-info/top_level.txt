@@ -28,6 +28,7 @@ crow_module_sdk
 crow_observation_engine
 crow_pdf_evidence
 crow_project_dataset
+crow_project_manifest
 crow_reasoning
 crow_scope_impact
 crow_technical_delta
