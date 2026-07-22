@@ -15,6 +15,11 @@ class CanonicalRelationType(StrEnum):
     PASSES_THROUGH = "passes_through"
     CONTAINS = "contains"
     LOCATED_IN = "located_in"
+    TYPED_BY = "typed_by"
+    ASSIGNED_TO = "assigned_to"
+    SERVES = "serves"
+    ASSOCIATED_WITH_MATERIAL = "associated_with_material"
+    COVERS = "covers"
 
 
 @dataclass(frozen=True)

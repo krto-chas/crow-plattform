@@ -37,8 +37,9 @@ ENDSEC;
     assert relation_tuples == [
         ("contains", "#10", "#20"),
         ("located_in", "#30", "#20"),
+        ("typed_by", "#30", "#999"),
     ]
-    assert extraction.unsupported_relation_entity_counts == {"IFCRELDEFINESBYTYPE": 1}
+    assert extraction.unsupported_relation_entity_counts == {}
     assert extraction.metadata["inference_performed"] is False
 
 
@@ -99,7 +100,62 @@ def test_real_ifc_relation_inventory_is_reproducible() -> None:
     assert extraction.relation_entity_counts["IFCRELCONTAINEDINSPATIALSTRUCTURE"] == 1
     assert extraction.supported_relation_entity_counts == {
         "IFCRELAGGREGATES": 3,
+        "IFCRELASSIGNSTOGROUP": 9,
+        "IFCRELASSOCIATESMATERIAL": 2,
         "IFCRELCONTAINEDINSPATIALSTRUCTURE": 1,
+        "IFCRELCOVERSBLDGELEMENTS": 19,
+        "IFCRELDEFINESBYTYPE": 104,
+        "IFCRELSERVICESBUILDINGS": 9,
     }
+    assert extraction.unsupported_relation_entity_counts == {}
     assert not extraction.malformed_supported_entities
     assert len(extraction.relations) >= 4
+
+
+def test_extracts_extended_explicit_ifc_relationships() -> None:
+    text = """
+#200=IFCRELDEFINESBYTYPE('d',$,$,$,(#30,#31),#900);
+#201=IFCRELASSIGNSTOGROUP('g',$,$,$,(#30,#31),$,#901);
+#202=IFCRELSERVICESBUILDINGS('s',$,$,$,#902,(#10,#11));
+#203=IFCRELASSOCIATESMATERIAL('m',$,$,$,(#30,#31),#903);
+#204=IFCRELCOVERSBLDGELEMENTS('c',$,$,$,#40,(#41,#42));
+"""
+    extraction = IfcRelationExtractor().extract_text(text, source_id="fixture.ifc")
+
+    relation_tuples = [
+        (item.relation_type.value, item.source_ifc_id, item.target_ifc_id)
+        for item in extraction.relations
+    ]
+    assert relation_tuples == [
+        ("typed_by", "#30", "#900"),
+        ("typed_by", "#31", "#900"),
+        ("assigned_to", "#30", "#901"),
+        ("assigned_to", "#31", "#901"),
+        ("serves", "#902", "#10"),
+        ("serves", "#902", "#11"),
+        ("associated_with_material", "#30", "#903"),
+        ("associated_with_material", "#31", "#903"),
+        ("covers", "#40", "#41"),
+        ("covers", "#40", "#42"),
+    ]
+    assert extraction.unsupported_relation_entity_counts == {}
+    assert extraction.metadata["schema"] == "crow-ifc-explicit-relations-v0.2"
+
+
+def test_extended_ifc_relation_mapping_remains_explicit_and_evidence_bound() -> None:
+    extraction = IfcRelationExtractor().extract_text(
+        "#200=IFCRELDEFINESBYTYPE('d',$,$,$,(#30),#900);",
+        source_id="fixture.ifc",
+    )
+    mapped = IfcRelationExtractor().map_to_assertions(
+        extraction,
+        {"#30": "ccm:terminal", "#900": "ccm:terminal-type"},
+    )
+
+    assert len(mapped.assertions) == 1
+    assertion = mapped.assertions[0]
+    assert assertion.relation_type.value == "typed_by"
+    assert assertion.source_id == "ccm:terminal"
+    assert assertion.target_id == "ccm:terminal-type"
+    assert assertion.evidence.locator == "#200"
+    assert mapped.metadata["automatic_object_creation_performed"] is False

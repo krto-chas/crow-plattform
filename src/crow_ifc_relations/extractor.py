@@ -53,15 +53,28 @@ class IfcRelationMappingResult:
 class IfcRelationExtractor:
     """Extract only explicit IFC relationship semantics from STEP text.
 
-    Supported IFC relationships are deliberately narrow:
+    Supported IFC relationships are deliberately explicit and non-geometric:
     - IfcRelAggregates -> ``contains``
     - IfcRelContainedInSpatialStructure -> ``located_in``
+    - IfcRelDefinesByType -> ``typed_by``
+    - IfcRelAssignsToGroup -> ``assigned_to``
+    - IfcRelServicesBuildings -> ``serves``
+    - IfcRelAssociatesMaterial -> ``associated_with_material``
+    - IfcRelCoversBldgElements -> ``covers``
 
     No geometry, proximity, flow direction or AI inference is performed.
     """
 
     supported_entity_types = frozenset(
-        {"IFCRELAGGREGATES", "IFCRELCONTAINEDINSPATIALSTRUCTURE"}
+        {
+            "IFCRELAGGREGATES",
+            "IFCRELCONTAINEDINSPATIALSTRUCTURE",
+            "IFCRELDEFINESBYTYPE",
+            "IFCRELASSIGNSTOGROUP",
+            "IFCRELSERVICESBUILDINGS",
+            "IFCRELASSOCIATESMATERIAL",
+            "IFCRELCOVERSBLDGELEMENTS",
+        }
     )
 
     def extract_path(self, path: Path, *, source_id: str | None = None) -> IfcRelationExtraction:
@@ -119,7 +132,7 @@ class IfcRelationExtractor:
             unsupported_relation_entity_counts=dict(sorted(unsupported_counts.items())),
             malformed_supported_entities=tuple(sorted(malformed)),
             metadata={
-                "schema": "crow-ifc-explicit-relations-v0.1",
+                "schema": "crow-ifc-explicit-relations-v0.2",
                 "explicit_relations_extracted": len(relations),
                 "inference_performed": False,
                 "geometry_used": False,
@@ -168,6 +181,90 @@ class IfcRelationExtractor:
                     },
                 )
                 for element in elements
+            ]
+        if entity_type == "IFCRELDEFINESBYTYPE":
+            objects = _all_refs(args[4])
+            relating_type = _single_ref(args[5])
+            if relating_type is None or not objects:
+                return None
+            return [
+                IfcExplicitRelation(
+                    relation_entity_id=entity_id,
+                    relation_entity_type=entity_type,
+                    relation_type=CanonicalRelationType.TYPED_BY,
+                    source_ifc_id=object_id,
+                    target_ifc_id=relating_type,
+                    metadata={"ifc_semantics": "RelatedObjects typed by RelatingType"},
+                )
+                for object_id in objects
+            ]
+        if entity_type == "IFCRELASSIGNSTOGROUP":
+            objects = _all_refs(args[4])
+            group = _single_ref(args[6]) if len(args) > 6 else None
+            if group is None or not objects:
+                return None
+            return [
+                IfcExplicitRelation(
+                    relation_entity_id=entity_id,
+                    relation_entity_type=entity_type,
+                    relation_type=CanonicalRelationType.ASSIGNED_TO,
+                    source_ifc_id=object_id,
+                    target_ifc_id=group,
+                    metadata={"ifc_semantics": "RelatedObjects assigned to RelatingGroup"},
+                )
+                for object_id in objects
+            ]
+        if entity_type == "IFCRELSERVICESBUILDINGS":
+            system = _single_ref(args[4])
+            buildings = _all_refs(args[5])
+            if system is None or not buildings:
+                return None
+            return [
+                IfcExplicitRelation(
+                    relation_entity_id=entity_id,
+                    relation_entity_type=entity_type,
+                    relation_type=CanonicalRelationType.SERVES,
+                    source_ifc_id=system,
+                    target_ifc_id=building,
+                    metadata={"ifc_semantics": "RelatingSystem serves RelatedBuildings"},
+                )
+                for building in buildings
+            ]
+        if entity_type == "IFCRELASSOCIATESMATERIAL":
+            objects = _all_refs(args[4])
+            material = _single_ref(args[5])
+            if material is None or not objects:
+                return None
+            return [
+                IfcExplicitRelation(
+                    relation_entity_id=entity_id,
+                    relation_entity_type=entity_type,
+                    relation_type=CanonicalRelationType.ASSOCIATED_WITH_MATERIAL,
+                    source_ifc_id=object_id,
+                    target_ifc_id=material,
+                    metadata={
+                        "ifc_semantics": "RelatedObjects associated with RelatingMaterial"
+                    },
+                )
+                for object_id in objects
+            ]
+        if entity_type == "IFCRELCOVERSBLDGELEMENTS":
+            element = _single_ref(args[4])
+            coverings = _all_refs(args[5])
+            if element is None or not coverings:
+                return None
+            return [
+                IfcExplicitRelation(
+                    relation_entity_id=entity_id,
+                    relation_entity_type=entity_type,
+                    relation_type=CanonicalRelationType.COVERS,
+                    source_ifc_id=element,
+                    target_ifc_id=covering,
+                    metadata={
+                        "ifc_semantics": "RelatingBuildingElement covered by RelatedCoverings"
+                    },
+                )
+                for covering in coverings
             ]
         return None
 
@@ -225,7 +322,7 @@ class IfcRelationExtractor:
             unmapped_ifc_ids=tuple(sorted(unmapped)),
             skipped_relation_entity_ids=tuple(sorted(set(skipped))),
             metadata={
-                "schema": "crow-ifc-relation-mapping-v0.1",
+                "schema": "crow-ifc-relation-mapping-v0.2",
                 "assertion_count": len(assertions),
                 "skipped_relation_count": len(set(skipped)),
                 "inference_performed": False,
