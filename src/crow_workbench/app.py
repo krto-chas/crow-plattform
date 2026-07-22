@@ -29,6 +29,13 @@ from crow_building_graph import (
     GraphRepository,
     SystemGraphService,
 )
+from crow_canonical import (
+    CanonicalEvidence,
+    CanonicalGraphBridge,
+    CanonicalRelation,
+    IdentityReviewDecision,
+    IdentityReviewService,
+)
 from crow_claim_extraction import (
     extract_project_claims,
     load_claim_candidates,
@@ -129,6 +136,13 @@ class CommercialReviewRequest(BaseModel):
     status: str
     reviewer: str = Field(min_length=1, max_length=120)
     reason: str = Field(min_length=1, max_length=1000)
+
+
+class IdentityReviewRequest(BaseModel):
+    decision: str = Field(pattern="^(confirm_same|reject_same)$")
+    reviewer: str = Field(min_length=1, max_length=120)
+    rationale: str = Field(min_length=1, max_length=2000)
+    decided_at: str | None = None
 
 
 class LayerStateInput(BaseModel):
@@ -1419,6 +1433,36 @@ def create_app(data_root: Path | None = None) -> FastAPI:
         path = projects_root / _safe_project_id(project_id) / "building-graph" / "graph.json"
         return BuildingGraphService(GraphRepository(path))
 
+    def building_graph_repository(project_id: str) -> GraphRepository:
+        require_project(project_id)
+        path = projects_root / _safe_project_id(project_id) / "building-graph" / "graph.json"
+        return GraphRepository(path)
+
+    def identity_review_file(project_id: str) -> Path:
+        require_project(project_id)
+        return (
+            projects_root
+            / _safe_project_id(project_id)
+            / "building-graph"
+            / "identity-reviews.json"
+        )
+
+    def load_identity_reviews(project_id: str) -> list[dict[str, Any]]:
+        path = identity_review_file(project_id)
+        if not path.exists():
+            return []
+        raw = json.loads(path.read_text(encoding="utf-8"))
+        if not isinstance(raw, list):
+            raise HTTPException(status_code=500, detail="Ogiltigt granskningsregister")
+        return raw
+
+    def save_identity_reviews(project_id: str, reviews: list[dict[str, Any]]) -> None:
+        path = identity_review_file(project_id)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        temp = path.with_suffix(".tmp")
+        temp.write_text(json.dumps(reviews, indent=2, ensure_ascii=False), encoding="utf-8")
+        temp.replace(path)
+
     @app.get("/api/graph/relation-types")
     def graph_relation_types() -> dict[str, Any]:
         return {"count": len(ALLOWED_RELATIONS), "items": sorted(ALLOWED_RELATIONS)}
@@ -1462,6 +1506,92 @@ def create_app(data_root: Path | None = None) -> FastAPI:
             ) from exc
         except ValueError as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+    @app.get("/api/projects/{project_id}/graph/identity-candidates")
+    def list_identity_candidates(project_id: str) -> dict[str, Any]:
+        graph = building_graph_repository(project_id).load()
+        reviews = load_identity_reviews(project_id)
+        reviewed_candidate_ids = {item["candidate_relation_id"] for item in reviews}
+        candidates = [
+            item
+            for item in graph["relations"]
+            if item.get("relation_type") == "same_as_candidate"
+            and item.get("metadata", {}).get("status") == "review_required"
+        ]
+        pending = [item for item in candidates if item.get("id") not in reviewed_candidate_ids]
+        return {
+            "count": len(candidates),
+            "pending_count": len(pending),
+            "reviewed_count": len(candidates) - len(pending),
+            "items": pending,
+        }
+
+    @app.get("/api/projects/{project_id}/graph/identity-reviews")
+    def list_identity_reviews(project_id: str) -> dict[str, Any]:
+        reviews = load_identity_reviews(project_id)
+        return {"count": len(reviews), "items": reviews}
+
+    @app.post(
+        "/api/projects/{project_id}/graph/identity-candidates/{relation_id}/review",
+        status_code=201,
+    )
+    def review_identity_candidate(
+        project_id: str, relation_id: str, payload: IdentityReviewRequest
+    ) -> dict[str, Any]:
+        repository = building_graph_repository(project_id)
+        graph = repository.load()
+        relation = next(
+            (item for item in graph["relations"] if item.get("id") == relation_id),
+            None,
+        )
+        if relation is None:
+            raise HTTPException(status_code=404, detail="Kandidatrelationen finns inte")
+        reviews = load_identity_reviews(project_id)
+        if any(item["candidate_relation_id"] == relation_id for item in reviews):
+            raise HTTPException(status_code=409, detail="Kandidatrelationen är redan granskad")
+        evidence_ids = relation.get("evidence_ids", [])
+        evidence_record = next(
+            (item for item in graph["evidence"] if item.get("id") in evidence_ids),
+            None,
+        )
+        if evidence_record is None:
+            raise HTTPException(status_code=409, detail="Kandidatrelationen saknar evidens")
+        evidence_metadata = evidence_record.get("metadata", {})
+        candidate = CanonicalRelation(
+            canonical_id=relation["id"],
+            source_id=relation["source_id"],
+            relation_type=relation["relation_type"],
+            target_id=relation["target_id"],
+            confidence=float(relation.get("confidence", 1.0)),
+            evidence=CanonicalEvidence(
+                source_id=evidence_record["source_id"],
+                source_kind=str(evidence_metadata.get("source_kind", "drawing_text")),
+                locator=evidence_record.get("locator"),
+                confidence=float(evidence_record.get("confidence", 1.0)),
+                metadata=dict(evidence_metadata),
+            ),
+            metadata=dict(relation.get("metadata", {})),
+        )
+        try:
+            result = IdentityReviewService().decide(
+                candidate,
+                decision=IdentityReviewDecision(payload.decision),
+                reviewer=payload.reviewer,
+                rationale=payload.rationale,
+                decided_at=payload.decided_at,
+            )
+            persisted = CanonicalGraphBridge(building_graph_service(project_id)).persist_relation(
+                result.resolved_relation
+            )
+        except (ValueError, KeyError) as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+        review_payload = asdict(result.review)
+        review_payload["decision"] = result.review.decision.value
+        review_payload["resolved_relation_id"] = persisted["relation"]["id"]
+        reviews.append(review_payload)
+        save_identity_reviews(project_id, reviews)
+        return {"review": review_payload, "resolved_relation": persisted["relation"]}
 
     @app.post("/api/projects/{project_id}/graph/properties", status_code=201)
     def create_graph_property(project_id: str, payload: GraphPropertyInput) -> dict[str, Any]:

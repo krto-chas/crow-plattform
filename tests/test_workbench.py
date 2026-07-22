@@ -277,3 +277,81 @@ def test_health_endpoint_reports_runtime_version(tmp_path: Path) -> None:
 
     assert response.status_code == 200
     assert response.json() == {"status": "ok", "version": "0.7.0-alpha.1"}
+
+
+def _seed_identity_candidate(client: TestClient, project_id: str) -> str:
+    for object_id in ("ccm:object:a", "ccm:object:b"):
+        response = client.post(
+            f"/api/projects/{project_id}/graph/objects",
+            json={
+                "object_type": "air_terminal",
+                "discipline": "ventilation",
+                "name": "TD1",
+                "object_id": object_id,
+            },
+        )
+        assert response.status_code == 201
+    evidence = client.post(
+        f"/api/projects/{project_id}/graph/evidence",
+        json={
+            "kind": "text",
+            "source_id": "drawing-plan",
+            "locator": "V-57--/D1",
+            "metadata": {"source_kind": "drawing_text"},
+            "evidence_id": "evidence:identity-candidate",
+        },
+    )
+    assert evidence.status_code == 201
+    relation = client.post(
+        f"/api/projects/{project_id}/graph/relations",
+        json={
+            "source_id": "ccm:object:a",
+            "relation_type": "same_as_candidate",
+            "target_id": "ccm:object:b",
+            "evidence_ids": ["evidence:identity-candidate"],
+            "metadata": {"status": "review_required"},
+            "relation_id": "ccm:relation:candidate-1",
+        },
+    )
+    assert relation.status_code == 201
+    return relation.json()["id"]
+
+
+def test_workbench_identity_review_flow_is_persistent_and_auditable(tmp_path: Path) -> None:
+    client = TestClient(create_app(tmp_path))
+    client.post("/api/projects", json={"name": "Identity Review"})
+    relation_id = _seed_identity_candidate(client, "identity-review")
+
+    pending = client.get("/api/projects/identity-review/graph/identity-candidates")
+    assert pending.status_code == 200
+    assert pending.json()["pending_count"] == 1
+
+    reviewed = client.post(
+        f"/api/projects/identity-review/graph/identity-candidates/{relation_id}/review",
+        json={
+            "decision": "confirm_same",
+            "reviewer": "reviewer@example.test",
+            "rationale": "Kontrollerad mot plan- och detaljritning.",
+            "decided_at": "2026-07-21T07:45:00+00:00",
+        },
+    )
+    assert reviewed.status_code == 201
+    assert reviewed.json()["resolved_relation"]["relation_type"] == "same_as_confirmed"
+    assert reviewed.json()["review"]["candidate_relation_id"] == relation_id
+
+    pending_after = client.get("/api/projects/identity-review/graph/identity-candidates").json()
+    assert pending_after["pending_count"] == 0
+    assert pending_after["reviewed_count"] == 1
+    history = client.get("/api/projects/identity-review/graph/identity-reviews").json()
+    assert history["count"] == 1
+    assert history["items"][0]["reviewer"] == "reviewer@example.test"
+
+    duplicate = client.post(
+        f"/api/projects/identity-review/graph/identity-candidates/{relation_id}/review",
+        json={
+            "decision": "reject_same",
+            "reviewer": "second@example.test",
+            "rationale": "Försök till nytt beslut.",
+        },
+    )
+    assert duplicate.status_code == 409
