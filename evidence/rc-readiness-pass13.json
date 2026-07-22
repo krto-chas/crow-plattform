@@ -1,0 +1,27 @@
+{
+  "baseline": "0.7.0-alpha.1",
+  "pass": 13,
+  "scope": "Evidence-first ventilation graph audit",
+  "implemented": [
+    "Typed ventilation graph findings and audit result",
+    "Evidence-gap rule for air terminals without explicit feeds relation",
+    "Evidence-gap rule for ventilation objects without explicit system membership",
+    "Data-quality rule for dangling relations",
+    "Data-quality rule for explicit ventilation relations without evidence references",
+    "Deterministic finding identifiers and rule version metadata"
+  ],
+  "safety_constraints": {
+    "inference_performed": false,
+    "missing_information_treated_as_design_defect": false,
+    "automatic_graph_mutation": false
+  },
+  "verification": {
+    "ruff": "pass",
+    "mypy_strict": "pass: 157 source files",
+    "pytest": "pass: 332 tests",
+    "rc_009": "pass",
+    "rc_010_real_dxf": "pass",
+    "architecture_review": "pass: ARC-001 through ARC-004",
+    "build": "wheel and sdist built"
+  }
+}
