@@ -478,3 +478,38 @@ def test_workbench_audit_finding_review_is_separate_immutable_decision(tmp_path:
 
     original = client.get("/api/projects/finding-review/graph/audit-runs").json()["items"][0]
     assert original["findings"][0] == finding
+
+
+def test_workbench_compares_immutable_audit_runs_without_auto_resolution(
+    tmp_path: Path,
+) -> None:
+    client = TestClient(create_app(tmp_path))
+    client.post("/api/projects", json={"name": "Audit Diff"})
+    base = client.post("/api/projects/audit-diff/graph/audit-runs").json()["audit"]
+
+    created = client.post(
+        "/api/projects/audit-diff/graph/objects",
+        json={
+            "object_type": "duct",
+            "discipline": "ventilation",
+            "object_id": "ccm:object:duct1",
+        },
+    )
+    assert created.status_code == 201
+    target = client.post("/api/projects/audit-diff/graph/audit-runs").json()["audit"]
+
+    compared = client.get(
+        f"/api/projects/audit-diff/graph/audit-runs/{base['audit_id']}"
+        f"/compare/{target['audit_id']}"
+    )
+    assert compared.status_code == 200
+    body = compared.json()
+    assert body["summary"] == {
+        "total": 1,
+        "new": 1,
+        "persistent": 0,
+        "no_longer_detected": 0,
+    }
+    assert body["changes"][0]["lifecycle"] == "new"
+    assert body["metadata"]["comparison_only"] is True
+    assert body["metadata"]["automatic_resolution_performed"] is False

@@ -1,4 +1,5 @@
 from .analysis import analyse_system, build_relations, infer_system_kind
+from .audit_diff import VentAuditDiffer, VentAuditDiffResult, VentAuditFindingChange
 from .classification import classify_candidates
 from .graph_audit import VentGraphAudit, VentGraphAuditResult, VentGraphFinding
 from .lexicon import (
@@ -28,6 +29,9 @@ __all__ = [
     "build_relations",
     "infer_system_kind",
     "classify_candidates",
+    "VentAuditDiffer",
+    "VentAuditDiffResult",
+    "VentAuditFindingChange",
     "VentGraphAudit",
     "VentGraphAuditResult",
     "VentGraphFinding",
