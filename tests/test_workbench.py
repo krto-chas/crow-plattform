@@ -869,3 +869,27 @@ def test_evidence_audit_comparison_includes_base_review_context(tmp_path: Path) 
         "reviewer": "reviewer@example.test",
         "decided_at": "2026-07-21T11:30:00+00:00",
     }
+
+
+def test_graph_assurance_summary_aggregates_persisted_audits(tmp_path: Path) -> None:
+    client = TestClient(create_app(tmp_path))
+    created = client.post("/api/projects", json={"name": "Assuranceprojekt"})
+    assert created.status_code == 201
+    project_id = created.json()["project_id"]
+
+    initial = client.get(f"/api/projects/{project_id}/graph/assurance-summary")
+    assert initial.status_code == 200
+    assert initial.json()["status"] == "incomplete_audit_coverage"
+
+    graph_run = client.post(f"/api/projects/{project_id}/graph/audit-runs")
+    assert graph_run.status_code in {200, 201}
+    evidence_run = client.post(f"/api/projects/{project_id}/graph/evidence-audit-runs")
+    assert evidence_run.status_code in {200, 201}
+
+    response = client.get(f"/api/projects/{project_id}/graph/assurance-summary")
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["domains"]["graph"]["audit_id"] == graph_run.json()["audit"]["audit_id"]
+    assert payload["domains"]["evidence"]["audit_id"] == evidence_run.json()["audit"]["audit_id"]
+    assert payload["metadata"]["read_only"] is True
+    assert payload["metadata"]["technical_correctness_asserted"] is False

@@ -1,4 +1,5 @@
 crow_accepted_claims
+crow_assurance
 crow_authority
 crow_authority_discovery
 crow_building_graph
