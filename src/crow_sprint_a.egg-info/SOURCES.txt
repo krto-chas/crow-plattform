@@ -199,6 +199,7 @@ src/crow_technical_validation/validator.py
 src/crow_vent/__init__.py
 src/crow_vent/analysis.py
 src/crow_vent/classification.py
+src/crow_vent/graph_audit.py
 src/crow_vent/lexicon.py
 src/crow_vent/models.py
 src/crow_vent/py.typed
@@ -296,6 +297,7 @@ tests/test_technical_validation.py
 tests/test_technical_validation_service.py
 tests/test_text_extraction.py
 tests/test_trust.py
+tests/test_vent_graph_audit.py
 tests/test_vent_lexicon.py
 tests/test_vent_text_interpretation.py
 tests/test_versioning.py

@@ -1,5 +1,6 @@
 from .analysis import analyse_system, build_relations, infer_system_kind
 from .classification import classify_candidates
+from .graph_audit import VentGraphAudit, VentGraphAuditResult, VentGraphFinding
 from .lexicon import (
     ComponentMatch,
     DuctDimension,
@@ -27,6 +28,9 @@ __all__ = [
     "build_relations",
     "infer_system_kind",
     "classify_candidates",
+    "VentGraphAudit",
+    "VentGraphAuditResult",
+    "VentGraphFinding",
     "component_registry",
     "normalise_symbol",
     "resolve_component",
