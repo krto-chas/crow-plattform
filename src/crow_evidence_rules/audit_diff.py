@@ -29,6 +29,8 @@ class EvidenceAuditDiffer:
         self,
         base: dict[str, Any],
         target: dict[str, Any],
+        *,
+        reviews: list[dict[str, Any]] | None = None,
     ) -> EvidenceAuditDiffResult:
         base_id = str(base.get("audit_id", ""))
         target_id = str(target.get("audit_id", ""))
@@ -39,6 +41,11 @@ class EvidenceAuditDiffer:
 
         base_findings = self._index_findings(base)
         target_findings = self._index_findings(target)
+        review_index = {
+            str(item.get("finding_id")): item
+            for item in (reviews or [])
+            if item.get("audit_id") == base_id and item.get("finding_id")
+        }
         changes: list[EvidenceAuditFindingChange] = []
 
         for finding_id in sorted(set(base_findings) | set(target_findings)):
@@ -56,6 +63,14 @@ class EvidenceAuditDiffer:
                 "graph_mutated": False,
                 "evidence_mutated": False,
             }
+            review = review_index.get(finding_id)
+            if review is not None:
+                metadata["base_review"] = {
+                    "review_id": review.get("review_id"),
+                    "decision": review.get("decision"),
+                    "reviewer": review.get("reviewer"),
+                    "decided_at": review.get("decided_at"),
+                }
             if lifecycle == "no_longer_detected":
                 metadata["resolution_status"] = "candidate_for_verification"
 
