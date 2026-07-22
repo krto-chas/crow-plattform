@@ -1,0 +1,27 @@
+{
+  "baseline": "0.7.0-alpha.1",
+  "pass": 9,
+  "scope": "CCM cross-source identity candidates",
+  "implemented": [
+    "same_as_candidate relations for exact component designation and explicit system context",
+    "review_required status on identity candidates",
+    "identity metadata preserving object type, code, number and system context",
+    "negative guards for different systems and duct strings",
+    "Building Graph persistence through existing canonical relation bridge"
+  ],
+  "not_implemented": [
+    "automatic object merge",
+    "geometry-based identity resolution",
+    "spatial proximity matching",
+    "confirmed physical identity across sources"
+  ],
+  "verification": {
+    "ruff": "pass",
+    "mypy": "pass: 153 source files",
+    "pytest": "pass: 318 tests",
+    "rc_009": "pass",
+    "rc_010_real_dxf": "pass",
+    "architecture_review": "ARC-001 through ARC-004 pass",
+    "build": "wheel and sdist built"
+  }
+}
