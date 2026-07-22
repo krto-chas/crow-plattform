@@ -1,0 +1,17 @@
+{
+  "pass": 36,
+  "baseline": "Crow Platform 0.7.0-alpha.1",
+  "implemented": [
+    "crow_source_explorer read-only provenance projection",
+    "Workbench Source Explorer API endpoint",
+    "Workbench Source Explorer view",
+    "source type and import-module facets",
+    "manifest finding linkage per source"
+  ],
+  "not_implemented": [
+    "automatic import",
+    "source file mutation",
+    "checksum repair",
+    "automatic adapter selection"
+  ]
+}

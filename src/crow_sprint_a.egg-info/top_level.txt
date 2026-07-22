@@ -36,6 +36,7 @@ crow_project_manifest
 crow_reasoning
 crow_rule_explorer
 crow_scope_impact
+crow_source_explorer
 crow_technical_delta
 crow_technical_review
 crow_technical_validation

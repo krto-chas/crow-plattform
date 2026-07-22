@@ -122,6 +122,7 @@ from crow_scope_impact import (
     summarize_scope_impacts,
     write_rule_set_template,
 )
+from crow_source_explorer import SourceExplorerBuilder
 from crow_technical_delta import build_project_deltas, load_delta_set, summarize_deltas
 from crow_vent import (
     VentAuditDiffer,
@@ -1791,6 +1792,13 @@ def create_app(data_root: Path | None = None) -> FastAPI:
     @app.get("/api/projects/{project_id}/manifest/validation")
     def get_project_manifest_validation(project_id: str) -> dict[str, Any]:
         return get_project_manifest(project_id)["validation"]
+
+    @app.get("/api/projects/{project_id}/manifest/explorer")
+    def get_project_source_explorer(project_id: str) -> dict[str, Any]:
+        try:
+            return SourceExplorerBuilder().build(get_project_manifest(project_id))
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
 
     @app.get("/api/projects/{project_id}/graph/evidence-index")
     def get_graph_evidence_index(project_id: str) -> dict[str, Any]:
