@@ -103,6 +103,7 @@ from crow_import_framework import ImportManager, create_default_registry
 from crow_inference import InferenceService
 from crow_knowledge_fusion import fuse_project, load_fusion_result, summarize_fusion
 from crow_knowledge_runtime import KnowledgePackRuntime
+from crow_project_manifest import ProjectManifestBuilder
 from crow_reasoning import FindingRepository, FindingService, ReasoningService, RuleService
 from crow_scope_impact import (
     build_project_scope_impacts,
@@ -1727,6 +1728,27 @@ def create_app(data_root: Path | None = None) -> FastAPI:
         except ValueError as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
         return result.to_dict()
+
+    @app.get("/api/projects/{project_id}/manifest")
+    def get_project_manifest(project_id: str) -> dict[str, Any]:
+        require_project(project_id)
+        result = ProjectManifestBuilder().build(
+            project_id=_safe_project_id(project_id),
+            project_version=app.version,
+            project_directory=projects_root / _safe_project_id(project_id),
+            upload_directory=uploads_root / _safe_project_id(project_id),
+            graph_audits=load_persisted_audits(
+                graph_audit_directory(project_id), "vent-audit-*.json"
+            ),
+            evidence_audits=load_persisted_audits(
+                evidence_audit_directory(project_id), "evidence-audit-*.json"
+            ),
+        )
+        return result.to_dict()
+
+    @app.get("/api/projects/{project_id}/manifest/validation")
+    def get_project_manifest_validation(project_id: str) -> dict[str, Any]:
+        return get_project_manifest(project_id)["validation"]
 
     @app.get("/api/projects/{project_id}/graph/evidence-index")
     def get_graph_evidence_index(project_id: str) -> dict[str, Any]:
