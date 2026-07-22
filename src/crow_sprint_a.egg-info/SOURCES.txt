@@ -207,6 +207,9 @@ src/crow_project_dataset/py.typed
 src/crow_project_manifest/__init__.py
 src/crow_project_manifest/manifest.py
 src/crow_project_manifest/py.typed
+src/crow_rc1_workbench/__init__.py
+src/crow_rc1_workbench/py.typed
+src/crow_rc1_workbench/service.py
 src/crow_reasoning/__init__.py
 src/crow_reasoning/default_rules.json
 src/crow_reasoning/engine.py
@@ -352,6 +355,7 @@ tests/test_project_persistence.py
 tests/test_project_revision.py
 tests/test_project_transaction.py
 tests/test_rc009_e2e_baseline.py
+tests/test_rc1_workbench.py
 tests/test_reasoning_engine.py
 tests/test_reasoning_findings.py
 tests/test_reasoning_rules.py

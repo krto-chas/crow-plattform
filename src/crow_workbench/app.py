@@ -117,6 +117,7 @@ from crow_inference import InferenceService
 from crow_knowledge_fusion import fuse_project, load_fusion_result, summarize_fusion
 from crow_knowledge_runtime import KnowledgePackRuntime
 from crow_project_manifest import ProjectManifestBuilder
+from crow_rc1_workbench import Rc1WorkbenchBuilder
 from crow_reasoning import FindingRepository, FindingService, ReasoningService, RuleService
 from crow_rule_explorer import RuleExplorerBuilder
 from crow_scope_impact import (
@@ -1824,6 +1825,33 @@ def create_app(data_root: Path | None = None) -> FastAPI:
             )
         except ValueError as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    @app.get("/api/projects/{project_id}/rc1-workbench")
+    def get_rc1_workbench(project_id: str) -> dict[str, Any]:
+        graph = building_graph_repository(project_id).load()
+        graph_audits = load_persisted_audits(graph_audit_directory(project_id), "vent-audit-*.json")
+        evidence_audits = load_persisted_audits(
+            evidence_audit_directory(project_id), "evidence-audit-*.json"
+        )
+        capabilities = {
+            "graph": GraphExplorerBuilder().build(graph),
+            "evidence": EvidenceExplorerBuilder().build(graph),
+            "audit": AuditExplorerBuilder().build(
+                graph_audits=graph_audits,
+                evidence_audits=evidence_audits,
+                graph_reviews=load_audit_finding_reviews(project_id),
+                evidence_reviews=load_evidence_finding_reviews(project_id),
+                graph_verifications=load_audit_resolution_verifications(project_id),
+                evidence_verifications=load_evidence_resolution_verifications(project_id),
+            ),
+            "rules": {"summary": {"registered": len(VENT_GRAPH_RULES) + 4}},
+            "assurance": get_graph_assurance_explorer(project_id),
+            "sources": get_project_source_explorer(project_id),
+            "pipeline": ImportPipelineOrchestrator().build_plan(get_project_manifest(project_id)),
+            "cross_source_links": CrossSourceLinkBuilder().build(graph),
+            "timeline": GraphTimelineBuilder().build(graph, graph_audits, evidence_audits),
+        }
+        return Rc1WorkbenchBuilder().build(_safe_project_id(project_id), capabilities)
 
     @app.get("/api/projects/{project_id}/graph/evidence-index")
     def get_graph_evidence_index(project_id: str) -> dict[str, Any]:

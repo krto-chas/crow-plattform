@@ -36,6 +36,7 @@ crow_observation_engine
 crow_pdf_evidence
 crow_project_dataset
 crow_project_manifest
+crow_rc1_workbench
 crow_reasoning
 crow_rule_explorer
 crow_scope_impact
