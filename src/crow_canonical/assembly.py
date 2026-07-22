@@ -30,6 +30,7 @@ class VentCanonicalAssembler:
         objects: list[CanonicalObject] = []
         relations: list[CanonicalRelation] = []
         systems: dict[str, CanonicalObject] = {}
+        identity_anchors: dict[tuple[str, str, str, str], CanonicalObject] = {}
 
         for interpretation in interpretations:
             canonical = self._adapter.convert(interpretation)
@@ -40,6 +41,45 @@ class VentCanonicalAssembler:
             if not isinstance(raw_system, str) or not raw_system.strip():
                 continue
             system_name = raw_system.strip().upper()
+
+            component = interpretation.component
+            if component is not None and component.number is not None:
+                identity_key = (
+                    canonical.object_type.value,
+                    component.code,
+                    component.number,
+                    system_name,
+                )
+                anchor = identity_anchors.get(identity_key)
+                if anchor is None:
+                    identity_anchors[identity_key] = canonical
+                elif anchor.canonical_id != canonical.canonical_id:
+                    relations.append(
+                        CanonicalRelation(
+                            canonical_id=_stable_id(
+                                "relation",
+                                canonical.canonical_id,
+                                "same_as_candidate",
+                                anchor.canonical_id,
+                            ),
+                            source_id=canonical.canonical_id,
+                            relation_type="same_as_candidate",
+                            target_id=anchor.canonical_id,
+                            confidence=min(canonical.confidence, anchor.confidence),
+                            evidence=canonical.evidence,
+                            metadata={
+                                "derivation": "exact_designation_and_system_context",
+                                "identity_key": {
+                                    "object_type": canonical.object_type.value,
+                                    "code": component.code,
+                                    "number": component.number,
+                                    "system_context": system_name,
+                                },
+                                "status": "review_required",
+                            },
+                        )
+                    )
+
             system = systems.get(system_name)
             if system is None:
                 evidence = CanonicalEvidence(
