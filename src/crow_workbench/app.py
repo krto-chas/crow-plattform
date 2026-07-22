@@ -146,6 +146,13 @@ class IdentityReviewRequest(BaseModel):
     decided_at: str | None = None
 
 
+class AuditFindingReviewRequest(BaseModel):
+    decision: str = Field(pattern="^(acknowledge|mark_resolved|dismiss)$")
+    reviewer: str = Field(min_length=1, max_length=120)
+    rationale: str = Field(min_length=1, max_length=2000)
+    decided_at: str | None = None
+
+
 class LayerStateInput(BaseModel):
     visible: bool | None = None
     locked: bool | None = None
@@ -1484,6 +1491,38 @@ def create_app(data_root: Path | None = None) -> FastAPI:
         temp.replace(path)
         return payload, True
 
+    def graph_audit_path(project_id: str, audit_id: str) -> Path:
+        safe_audit_id = audit_id.replace(":", "-")
+        path = graph_audit_directory(project_id) / f"{safe_audit_id}.json"
+        if not path.exists():
+            raise HTTPException(status_code=404, detail="Granskningskörningen finns inte")
+        return path
+
+    def audit_finding_review_file(project_id: str) -> Path:
+        require_project(project_id)
+        return (
+            projects_root
+            / _safe_project_id(project_id)
+            / "building-graph"
+            / "audit-finding-reviews.json"
+        )
+
+    def load_audit_finding_reviews(project_id: str) -> list[dict[str, Any]]:
+        path = audit_finding_review_file(project_id)
+        if not path.exists():
+            return []
+        raw = json.loads(path.read_text(encoding="utf-8"))
+        if not isinstance(raw, list):
+            raise HTTPException(status_code=500, detail="Ogiltigt finding-granskningsregister")
+        return raw
+
+    def save_audit_finding_reviews(project_id: str, reviews: list[dict[str, Any]]) -> None:
+        path = audit_finding_review_file(project_id)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        temp = path.with_suffix(".tmp")
+        temp.write_text(json.dumps(reviews, indent=2, ensure_ascii=False), encoding="utf-8")
+        temp.replace(path)
+
     def load_identity_reviews(project_id: str) -> list[dict[str, Any]]:
         path = identity_review_file(project_id)
         if not path.exists():
@@ -1567,6 +1606,63 @@ def create_app(data_root: Path | None = None) -> FastAPI:
         ]
         items.sort(key=lambda item: str(item.get("created_at", "")), reverse=True)
         return {"count": len(items), "items": items}
+
+    @app.get("/api/projects/{project_id}/graph/audit-finding-reviews")
+    def list_audit_finding_reviews(project_id: str, audit_id: str | None = None) -> dict[str, Any]:
+        reviews = load_audit_finding_reviews(project_id)
+        if audit_id is not None:
+            reviews = [item for item in reviews if item.get("audit_id") == audit_id]
+        return {"count": len(reviews), "items": reviews}
+
+    @app.post(
+        "/api/projects/{project_id}/graph/audit-runs/{audit_id}/findings/{finding_id}/review",
+        status_code=201,
+    )
+    def review_audit_finding(
+        project_id: str,
+        audit_id: str,
+        finding_id: str,
+        payload: AuditFindingReviewRequest,
+    ) -> dict[str, Any]:
+        audit = json.loads(graph_audit_path(project_id, audit_id).read_text(encoding="utf-8"))
+        finding = next(
+            (item for item in audit.get("findings", []) if item.get("finding_id") == finding_id),
+            None,
+        )
+        if finding is None:
+            raise HTTPException(status_code=404, detail="Finding finns inte i granskningskörningen")
+        reviews = load_audit_finding_reviews(project_id)
+        if any(
+            item.get("audit_id") == audit_id and item.get("finding_id") == finding_id
+            for item in reviews
+        ):
+            raise HTTPException(status_code=409, detail="Finding är redan granskad")
+        decided_at = payload.decided_at or datetime.now(UTC).isoformat()
+        review_key = "|".join(
+            (audit_id, finding_id, payload.decision, payload.reviewer, decided_at)
+        )
+        review_digest = sha256(review_key.encode("utf-8")).hexdigest()[:20]
+        review = {
+            "review_id": f"vent:finding-review:{review_digest}",
+            "project_id": _safe_project_id(project_id),
+            "audit_id": audit_id,
+            "graph_checksum": audit.get("graph_checksum"),
+            "finding_id": finding_id,
+            "rule_id": finding.get("rule_id"),
+            "decision": payload.decision,
+            "reviewer": payload.reviewer,
+            "rationale": payload.rationale,
+            "decided_at": decided_at,
+            "finding_snapshot": finding,
+            "metadata": {
+                "audit_mutated": False,
+                "graph_mutated": False,
+                "automatic_correction_performed": False,
+            },
+        }
+        reviews.append(review)
+        save_audit_finding_reviews(project_id, reviews)
+        return review
 
     @app.get("/api/projects/{project_id}/graph/identity-candidates")
     def list_identity_candidates(project_id: str) -> dict[str, Any]:

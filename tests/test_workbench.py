@@ -421,3 +421,60 @@ def test_workbench_graph_audit_creates_new_run_after_graph_change(tmp_path: Path
 
     history = client.get("/api/projects/audit-history/graph/audit-runs")
     assert history.json()["count"] == 2
+
+
+def test_workbench_audit_finding_review_is_separate_immutable_decision(tmp_path: Path) -> None:
+    client = TestClient(create_app(tmp_path))
+    client.post("/api/projects", json={"name": "Finding Review"})
+    client.post(
+        "/api/projects/finding-review/graph/objects",
+        json={
+            "object_type": "air_terminal",
+            "discipline": "ventilation",
+            "name": "TD1",
+            "object_id": "ccm:object:td1",
+        },
+    )
+    audit_response = client.post("/api/projects/finding-review/graph/audit-runs")
+    audit = audit_response.json()["audit"]
+    finding = audit["findings"][0]
+
+    reviewed = client.post(
+        f"/api/projects/finding-review/graph/audit-runs/{audit['audit_id']}"
+        f"/findings/{finding['finding_id']}/review",
+        json={
+            "decision": "acknowledge",
+            "reviewer": "reviewer@example.test",
+            "rationale": "Informationsluckan är känd och ska följas upp.",
+            "decided_at": "2026-07-21T09:30:00+00:00",
+        },
+    )
+    assert reviewed.status_code == 201
+    body = reviewed.json()
+    assert body["audit_id"] == audit["audit_id"]
+    assert body["finding_id"] == finding["finding_id"]
+    assert body["finding_snapshot"] == finding
+    assert body["metadata"]["audit_mutated"] is False
+    assert body["metadata"]["graph_mutated"] is False
+
+    duplicate = client.post(
+        f"/api/projects/finding-review/graph/audit-runs/{audit['audit_id']}"
+        f"/findings/{finding['finding_id']}/review",
+        json={
+            "decision": "dismiss",
+            "reviewer": "second@example.test",
+            "rationale": "Försök till nytt beslut.",
+        },
+    )
+    assert duplicate.status_code == 409
+
+    history = client.get(
+        f"/api/projects/finding-review/graph/audit-finding-reviews"
+        f"?audit_id={audit['audit_id']}"
+    )
+    assert history.status_code == 200
+    assert history.json()["count"] == 1
+    assert history.json()["items"][0]["reviewer"] == "reviewer@example.test"
+
+    original = client.get("/api/projects/finding-review/graph/audit-runs").json()["items"][0]
+    assert original["findings"][0] == finding
