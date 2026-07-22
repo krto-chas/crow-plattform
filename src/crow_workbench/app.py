@@ -19,6 +19,7 @@ from crow_accepted_claims import (
     load_accepted_claims,
     summarize_accepted_claims,
 )
+from crow_assurance import ProjectAssuranceSummaryBuilder
 from crow_authority import load_resolution, resolve_project, summarize_resolution
 from crow_building_graph import (
     ALLOWED_RELATIONS,
@@ -1696,6 +1697,36 @@ def create_app(data_root: Path | None = None) -> FastAPI:
     @app.get("/api/projects/{project_id}/graph")
     def get_building_graph(project_id: str) -> dict[str, Any]:
         return building_graph_service(project_id).graph()
+
+    def load_persisted_audits(directory: Path, pattern: str) -> list[dict[str, Any]]:
+        if not directory.exists():
+            return []
+        items = [
+            json.loads(path.read_text(encoding="utf-8"))
+            for path in sorted(directory.glob(pattern))
+        ]
+        items.sort(key=lambda item: str(item.get("created_at", "")), reverse=True)
+        return items
+
+    @app.get("/api/projects/{project_id}/graph/assurance-summary")
+    def get_graph_assurance_summary(project_id: str) -> dict[str, Any]:
+        try:
+            result = ProjectAssuranceSummaryBuilder().build(
+                project_id=_safe_project_id(project_id),
+                graph_audits=load_persisted_audits(
+                    graph_audit_directory(project_id), "vent-audit-*.json"
+                ),
+                evidence_audits=load_persisted_audits(
+                    evidence_audit_directory(project_id), "evidence-audit-*.json"
+                ),
+                graph_reviews=load_audit_finding_reviews(project_id),
+                evidence_reviews=load_evidence_finding_reviews(project_id),
+                graph_verifications=load_audit_resolution_verifications(project_id),
+                evidence_verifications=load_evidence_resolution_verifications(project_id),
+            )
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+        return result.to_dict()
 
     @app.get("/api/projects/{project_id}/graph/evidence-index")
     def get_graph_evidence_index(project_id: str) -> dict[str, Any]:
