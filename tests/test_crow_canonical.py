@@ -139,12 +139,8 @@ def test_exact_designation_in_same_system_creates_identity_candidate() -> None:
 def test_same_designation_in_different_systems_is_not_linked() -> None:
     interpreter = VentTextInterpreter()
     rows = [
-        interpreter.interpret(
-            "TD1", source_id="drawing-1", layer="DON", system_context="LB01"
-        ),
-        interpreter.interpret(
-            "TD1", source_id="drawing-2", layer="DON", system_context="LB02"
-        ),
+        interpreter.interpret("TD1", source_id="drawing-1", layer="DON", system_context="LB01"),
+        interpreter.interpret("TD1", source_id="drawing-2", layer="DON", system_context="LB02"),
     ]
     from crow_canonical import VentCanonicalAssembler
 
@@ -309,12 +305,8 @@ def test_explicit_relationship_assertion_creates_evidence_bearing_relation() -> 
     interpreter = VentTextInterpreter()
     assembly = VentCanonicalAssembler().assemble(
         [
-            interpreter.interpret(
-                "TA1", source_id="drawing-1", layer="V-57--", entity_handle="A1"
-            ),
-            interpreter.interpret(
-                "TD1", source_id="drawing-1", layer="DON", entity_handle="D1"
-            ),
+            interpreter.interpret("TA1", source_id="drawing-1", layer="V-57--", entity_handle="A1"),
+            interpreter.interpret("TD1", source_id="drawing-1", layer="DON", entity_handle="D1"),
         ]
     )
     source, target = assembly.objects

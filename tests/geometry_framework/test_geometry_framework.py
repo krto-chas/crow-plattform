@@ -87,8 +87,6 @@ def test_layer_state_is_applied_without_changing_objects():
     assert len(doc.objects) == 1
 
 
-
-
 def test_geometry_search_filters_text_kind_and_layer():
     manifest = {
         "checksum_sha256": "d" * 64,
@@ -128,8 +126,6 @@ def test_object_payload_contains_bounds_and_measurements():
     payload = object_payload(item)
     assert payload["measurements"]["length"] == 5.0
     assert payload["bounds"]["max_x"] == 3.0
-
-
 
 
 def test_spatial_queries_find_nearest_and_bbox_objects():
@@ -174,8 +170,6 @@ def test_related_objects_classifies_text_near_block():
     assert result["items"][0]["relation"] == "text-near-block"
 
 
-
-
 def test_topology_builds_nodes_edges_components_and_dangling_ends():
     manifest = {
         "checksum_sha256": "2" * 64,
@@ -215,8 +209,6 @@ def test_connected_objects_uses_shared_endpoints_with_tolerance():
     doc = geometry_from_import_manifest(manifest)
     result = connected_objects(doc, doc.objects[0].object_id, tolerance=0.001)
     assert result["items"][0]["object_id"] == doc.objects[1].object_id
-
-
 
 
 def test_trace_network_follows_connected_objects_and_respects_depth():
@@ -262,8 +254,6 @@ def test_segment_network_splits_at_junctions():
     assert sorted(segment["length"] for segment in result["segments"]) == [10.0, 10.0, 10.0]
 
 
-
-
 def test_system_identification_classifies_branched_network_and_segments():
     manifest = {
         "checksum_sha256": "6" * 64,
@@ -306,8 +296,6 @@ def test_object_system_returns_stable_membership():
     assert result["connected_system"] is True
     assert result["system"]["network_class"] == "linear"
     assert result["membership"]["system_id"].startswith("system-")
-
-
 
 
 def test_observations_link_text_and_block_candidates_to_network():
@@ -356,8 +344,6 @@ def test_system_observations_filters_to_requested_system_and_is_stable():
     assert first == second
     assert first["observation_count"] == 1
     assert first["observations"][0]["candidate_value"] == "A1"
-
-
 
 
 def test_consolidation_merges_duplicate_candidates_and_ranks_them():

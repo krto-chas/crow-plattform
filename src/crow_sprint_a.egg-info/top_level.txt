@@ -13,6 +13,7 @@ crow_estimate_line
 crow_estimate_revision
 crow_estimate_structure
 crow_geometry_framework
+crow_graph_rules
 crow_import_framework
 crow_inference
 crow_knowledge_fusion

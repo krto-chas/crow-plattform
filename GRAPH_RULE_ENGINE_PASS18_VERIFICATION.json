@@ -1,0 +1,25 @@
+{
+  "baseline": "0.7.0-alpha.1",
+  "pass": 18,
+  "module": "crow_graph_rules",
+  "implemented": [
+    "typed graph rule metadata and context",
+    "deterministic graph rule engine",
+    "duplicate rule id validation",
+    "vent audit migrated to four independent graph rules"
+  ],
+  "claims_not_made": [
+    "external JSON/YAML rule loading",
+    "automatic inference",
+    "automatic graph correction",
+    "new non-ventilation discipline rules"
+  ],
+  "verification": {
+    "ruff": "pass",
+    "mypy_strict": "pass",
+    "pytest": "346 passed",
+    "build": "pass",
+    "rc_009": "pass",
+    "architecture_review": "ARC-001..ARC-004 pass"
+  }
+}

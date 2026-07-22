@@ -100,6 +100,9 @@ src/crow_geometry_framework/spatial.py
 src/crow_geometry_framework/systems.py
 src/crow_geometry_framework/topology.py
 src/crow_geometry_framework/tracing.py
+src/crow_graph_rules/__init__.py
+src/crow_graph_rules/engine.py
+src/crow_graph_rules/py.typed
 src/crow_import_framework/__init__.py
 src/crow_import_framework/base.py
 src/crow_import_framework/manager.py
@@ -199,6 +202,7 @@ src/crow_technical_validation/validator.py
 src/crow_vent/__init__.py
 src/crow_vent/analysis.py
 src/crow_vent/audit_diff.py
+src/crow_vent/audit_verification.py
 src/crow_vent/classification.py
 src/crow_vent/graph_audit.py
 src/crow_vent/lexicon.py
@@ -259,6 +263,7 @@ tests/test_export_snapshots.py
 tests/test_fusion_cli.py
 tests/test_fusion_persistence.py
 tests/test_graph_builder.py
+tests/test_graph_rule_engine.py
 tests/test_idempotency_and_invalidation.py
 tests/test_import_guard.py
 tests/test_import_sessions.py
@@ -299,6 +304,7 @@ tests/test_technical_validation_service.py
 tests/test_text_extraction.py
 tests/test_trust.py
 tests/test_vent_audit_diff.py
+tests/test_vent_audit_verification.py
 tests/test_vent_graph_audit.py
 tests/test_vent_lexicon.py
 tests/test_vent_text_interpretation.py

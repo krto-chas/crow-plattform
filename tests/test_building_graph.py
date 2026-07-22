@@ -105,8 +105,6 @@ def test_building_graph_api_persists_per_project(tmp_path: Path) -> None:
     assert client.get("/api/graph/relation-types").json()["count"] >= 10
 
 
-
-
 def test_building_structure_creates_hierarchy_and_area(tmp_path: Path) -> None:
     graph = service(tmp_path)
     building = BuildingStructureService(graph)
@@ -166,8 +164,6 @@ def test_building_structure_api(tmp_path: Path) -> None:
     structure = client.get("/api/projects/building-test/building-graph/structure")
     assert structure.status_code == 200
     assert structure.json()["summary"]["space"] == 1
-
-
 
 
 def test_component_graph_creates_component_with_system_and_location(tmp_path: Path) -> None:
