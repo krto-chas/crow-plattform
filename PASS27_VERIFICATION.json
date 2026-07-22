@@ -1,0 +1,25 @@
+{
+  "pass": 27,
+  "baseline": "0.7.0-alpha.1",
+  "module": "evidence audit resolution verification",
+  "implemented": [
+    "human verification decisions for evidence findings no longer detected",
+    "verify_resolved and reject_resolution decisions",
+    "immutable verification records with audit and graph checksums",
+    "persistent evidence verification history",
+    "duplicate verification prevention",
+    "Workbench API for decision and history retrieval"
+  ],
+  "invariants": {
+    "automatic_resolution_performed": false,
+    "audit_runs_mutated": false,
+    "graph_mutated": false,
+    "evidence_mutated": false
+  },
+  "verification": {
+    "ruff": "pass",
+    "mypy": "pass: 173 configured source files",
+    "pytest": "pass: 374 tests",
+    "build": "pass: wheel and sdist"
+  }
+}
