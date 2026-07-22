@@ -23,6 +23,7 @@ crow_evidence_rules
 crow_geometry_framework
 crow_graph_explorer
 crow_graph_rules
+crow_graph_timeline
 crow_ifc_relations
 crow_import_framework
 crow_import_orchestrator
