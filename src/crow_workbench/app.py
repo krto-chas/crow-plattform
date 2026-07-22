@@ -5,6 +5,7 @@ import shutil
 from dataclasses import asdict
 from datetime import UTC, datetime
 from enum import Enum
+from hashlib import sha256
 from pathlib import Path
 from typing import Any
 
@@ -103,7 +104,7 @@ from crow_scope_impact import (
     write_rule_set_template,
 )
 from crow_technical_delta import build_project_deltas, load_delta_set, summarize_deltas
-from crow_vent import build_vent_model, component_registry, quantity_takeoff_csv
+from crow_vent import VentGraphAudit, build_vent_model, component_registry, quantity_takeoff_csv
 
 _UPLOAD_FILES = File(...)
 
@@ -1447,6 +1448,42 @@ def create_app(data_root: Path | None = None) -> FastAPI:
             / "identity-reviews.json"
         )
 
+    def graph_audit_directory(project_id: str) -> Path:
+        require_project(project_id)
+        return projects_root / _safe_project_id(project_id) / "building-graph" / "audits"
+
+    def serialize_graph_audit(project_id: str) -> dict[str, Any]:
+        graph = building_graph_repository(project_id).load()
+        result = VentGraphAudit().audit(graph)
+        graph_payload = json.dumps(graph, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
+        graph_checksum = sha256(graph_payload.encode("utf-8")).hexdigest()
+        return {
+            "project_id": _safe_project_id(project_id),
+            "graph_checksum": graph_checksum,
+            "summary": result.summary,
+            "metadata": result.metadata,
+            "findings": [_jsonable(asdict(item)) for item in result.findings],
+        }
+
+    def persist_graph_audit(project_id: str) -> tuple[dict[str, Any], bool]:
+        payload = serialize_graph_audit(project_id)
+        audit_key = "|".join(
+            (payload["graph_checksum"], str(payload["metadata"]["rule_version"]))
+        )
+        audit_id = f"vent:audit:{sha256(audit_key.encode('utf-8')).hexdigest()[:20]}"
+        payload["audit_id"] = audit_id
+        payload["created_at"] = datetime.now(UTC).isoformat()
+        directory = graph_audit_directory(project_id)
+        directory.mkdir(parents=True, exist_ok=True)
+        path = directory / f"{audit_id.replace(':', '-')}.json"
+        if path.exists():
+            existing = json.loads(path.read_text(encoding="utf-8"))
+            return existing, False
+        temp = path.with_suffix(".tmp")
+        temp.write_text(json.dumps(payload, indent=2, ensure_ascii=False), encoding="utf-8")
+        temp.replace(path)
+        return payload, True
+
     def load_identity_reviews(project_id: str) -> list[dict[str, Any]]:
         path = identity_review_file(project_id)
         if not path.exists():
@@ -1507,6 +1544,29 @@ def create_app(data_root: Path | None = None) -> FastAPI:
         except ValueError as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
 
+
+    @app.get("/api/projects/{project_id}/graph/audit")
+    def get_graph_audit(project_id: str) -> dict[str, Any]:
+        return serialize_graph_audit(project_id)
+
+    @app.post("/api/projects/{project_id}/graph/audit-runs", status_code=201)
+    def create_graph_audit_run(project_id: str, response: Response) -> dict[str, Any]:
+        payload, created = persist_graph_audit(project_id)
+        if not created:
+            response.status_code = 200
+        return {"created": created, "audit": payload}
+
+    @app.get("/api/projects/{project_id}/graph/audit-runs")
+    def list_graph_audit_runs(project_id: str) -> dict[str, Any]:
+        directory = graph_audit_directory(project_id)
+        if not directory.exists():
+            return {"count": 0, "items": []}
+        items = [
+            json.loads(path.read_text(encoding="utf-8"))
+            for path in sorted(directory.glob("vent-audit-*.json"))
+        ]
+        items.sort(key=lambda item: str(item.get("created_at", "")), reverse=True)
+        return {"count": len(items), "items": items}
 
     @app.get("/api/projects/{project_id}/graph/identity-candidates")
     def list_identity_candidates(project_id: str) -> dict[str, Any]:
