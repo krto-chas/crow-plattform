@@ -27,9 +27,7 @@ def _relation(
 
 
 def test_missing_feed_is_evidence_gap_not_design_defect() -> None:
-    result = VentGraphAudit().audit(
-        {"objects": [_object("td1", "air_terminal")], "relations": []}
-    )
+    result = VentGraphAudit().audit({"objects": [_object("td1", "air_terminal")], "relations": []})
 
     finding = next(item for item in result.findings if item.rule_id == "VENT-EVID-001")
     assert finding.category == "evidence_gap"

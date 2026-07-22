@@ -1488,9 +1488,7 @@ def create_app(data_root: Path | None = None) -> FastAPI:
 
     def persist_graph_audit(project_id: str) -> tuple[dict[str, Any], bool]:
         payload = serialize_graph_audit(project_id)
-        audit_key = "|".join(
-            (payload["graph_checksum"], str(payload["metadata"]["rule_version"]))
-        )
+        audit_key = "|".join((payload["graph_checksum"], str(payload["metadata"]["rule_version"])))
         audit_id = f"vent:audit:{sha256(audit_key.encode('utf-8')).hexdigest()[:20]}"
         payload["audit_id"] = audit_id
         payload["created_at"] = datetime.now(UTC).isoformat()
@@ -1561,9 +1559,7 @@ def create_app(data_root: Path | None = None) -> FastAPI:
         path = audit_resolution_verification_file(project_id)
         path.parent.mkdir(parents=True, exist_ok=True)
         temp = path.with_suffix(".tmp")
-        temp.write_text(
-            json.dumps(verifications, indent=2, ensure_ascii=False), encoding="utf-8"
-        )
+        temp.write_text(json.dumps(verifications, indent=2, ensure_ascii=False), encoding="utf-8")
         temp.replace(path)
 
     def load_identity_reviews(project_id: str) -> list[dict[str, Any]]:
@@ -1626,7 +1622,6 @@ def create_app(data_root: Path | None = None) -> FastAPI:
         except ValueError as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
 
-
     @app.get("/api/projects/{project_id}/graph/audit")
     def get_graph_audit(project_id: str) -> dict[str, Any]:
         return serialize_graph_audit(project_id)
@@ -1656,9 +1651,7 @@ def create_app(data_root: Path | None = None) -> FastAPI:
     def compare_graph_audit_runs(
         project_id: str, base_audit_id: str, target_audit_id: str
     ) -> dict[str, Any]:
-        base = json.loads(
-            graph_audit_path(project_id, base_audit_id).read_text(encoding="utf-8")
-        )
+        base = json.loads(graph_audit_path(project_id, base_audit_id).read_text(encoding="utf-8"))
         target = json.loads(
             graph_audit_path(project_id, target_audit_id).read_text(encoding="utf-8")
         )
@@ -1695,9 +1688,7 @@ def create_app(data_root: Path | None = None) -> FastAPI:
         finding_id: str,
         payload: AuditResolutionVerificationRequest,
     ) -> dict[str, Any]:
-        base = json.loads(
-            graph_audit_path(project_id, base_audit_id).read_text(encoding="utf-8")
-        )
+        base = json.loads(graph_audit_path(project_id, base_audit_id).read_text(encoding="utf-8"))
         target = json.loads(
             graph_audit_path(project_id, target_audit_id).read_text(encoding="utf-8")
         )
@@ -1707,9 +1698,7 @@ def create_app(data_root: Path | None = None) -> FastAPI:
             )
         except ValueError as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
-        change = next(
-            (item for item in comparison.changes if item.finding_id == finding_id), None
-        )
+        change = next((item for item in comparison.changes if item.finding_id == finding_id), None)
         if change is None:
             raise HTTPException(status_code=404, detail="Finding finns inte i jämförelsen")
         verifications = load_audit_resolution_verifications(project_id)

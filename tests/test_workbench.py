@@ -469,8 +469,7 @@ def test_workbench_audit_finding_review_is_separate_immutable_decision(tmp_path:
     assert duplicate.status_code == 409
 
     history = client.get(
-        f"/api/projects/finding-review/graph/audit-finding-reviews"
-        f"?audit_id={audit['audit_id']}"
+        f"/api/projects/finding-review/graph/audit-finding-reviews?audit_id={audit['audit_id']}"
     )
     assert history.status_code == 200
     assert history.json()["count"] == 1
@@ -499,8 +498,7 @@ def test_workbench_compares_immutable_audit_runs_without_auto_resolution(
     target = client.post("/api/projects/audit-diff/graph/audit-runs").json()["audit"]
 
     compared = client.get(
-        f"/api/projects/audit-diff/graph/audit-runs/{base['audit_id']}"
-        f"/compare/{target['audit_id']}"
+        f"/api/projects/audit-diff/graph/audit-runs/{base['audit_id']}/compare/{target['audit_id']}"
     )
     assert compared.status_code == 200
     body = compared.json()
@@ -533,9 +531,7 @@ def test_workbench_requires_human_verification_before_resolution_is_confirmed(
     )
     assert terminal.status_code == 201
     base = client.post(f"/api/projects/{project}/graph/audit-runs").json()["audit"]
-    feeds_finding = next(
-        item for item in base["findings"] if item["rule_id"] == "VENT-EVID-001"
-    )
+    feeds_finding = next(item for item in base["findings"] if item["rule_id"] == "VENT-EVID-001")
 
     for object_id, object_type in (
         ("ccm:object:duct1", "duct"),
@@ -579,12 +575,10 @@ def test_workbench_requires_human_verification_before_resolution_is_confirmed(
 
     target = client.post(f"/api/projects/{project}/graph/audit-runs").json()["audit"]
     comparison = client.get(
-        f"/api/projects/{project}/graph/audit-runs/{base['audit_id']}"
-        f"/compare/{target['audit_id']}"
+        f"/api/projects/{project}/graph/audit-runs/{base['audit_id']}/compare/{target['audit_id']}"
     ).json()
     change = next(
-        item for item in comparison["changes"]
-        if item["finding_id"] == feeds_finding["finding_id"]
+        item for item in comparison["changes"] if item["finding_id"] == feeds_finding["finding_id"]
     )
     assert change["lifecycle"] == "no_longer_detected"
     assert change["metadata"]["resolution_status"] == "candidate_for_verification"
