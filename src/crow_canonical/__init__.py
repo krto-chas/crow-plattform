@@ -7,6 +7,12 @@ from .identity_review import (
     IdentityReviewService,
 )
 from .models import CanonicalEvidence, CanonicalObject, CanonicalObjectType, CanonicalRelation
+from .provenance import CanonicalProvenanceService, ProvenanceStep, ProvenanceTrace
+from .relations import (
+    CanonicalRelationshipEngine,
+    CanonicalRelationType,
+    ExplicitRelationAssertion,
+)
 from .vent_adapter import VentCanonicalAdapter
 
 __all__ = [
@@ -16,6 +22,12 @@ __all__ = [
     "CanonicalObject",
     "CanonicalObjectType",
     "CanonicalRelation",
+    "CanonicalRelationshipEngine",
+    "CanonicalRelationType",
+    "ExplicitRelationAssertion",
+    "CanonicalProvenanceService",
+    "ProvenanceStep",
+    "ProvenanceTrace",
     "IdentityReview",
     "IdentityReviewDecision",
     "IdentityReviewResult",

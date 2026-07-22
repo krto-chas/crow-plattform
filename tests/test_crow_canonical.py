@@ -295,3 +295,138 @@ def test_reviewed_identity_relation_persists_with_audit_metadata(tmp_path: Path)
     assert persisted["relation"]["relation_type"] == "same_as_confirmed"
     assert persisted["relation"]["metadata"]["reviewer"] == "reviewer@example.test"
     assert persisted["relation"]["metadata"]["automatic_merge_performed"] is False
+
+
+def test_explicit_relationship_assertion_creates_evidence_bearing_relation() -> None:
+    from crow_canonical import (
+        CanonicalEvidence,
+        CanonicalRelationshipEngine,
+        CanonicalRelationType,
+        ExplicitRelationAssertion,
+        VentCanonicalAssembler,
+    )
+
+    interpreter = VentTextInterpreter()
+    assembly = VentCanonicalAssembler().assemble(
+        [
+            interpreter.interpret(
+                "TA1", source_id="drawing-1", layer="V-57--", entity_handle="A1"
+            ),
+            interpreter.interpret(
+                "TD1", source_id="drawing-1", layer="DON", entity_handle="D1"
+            ),
+        ]
+    )
+    source, target = assembly.objects
+    evidence = CanonicalEvidence(
+        source_id="ifc-1",
+        source_kind="ifc",
+        locator="#4242",
+        confidence=1.0,
+        metadata={"ifc_relation": "IfcRelConnectsElements"},
+    )
+    result = CanonicalRelationshipEngine().apply(
+        assembly,
+        [
+            ExplicitRelationAssertion(
+                source_id=source.canonical_id,
+                relation_type=CanonicalRelationType.FEEDS,
+                target_id=target.canonical_id,
+                evidence=evidence,
+                metadata={"source_semantics": "explicit_ifc_relation"},
+            )
+        ],
+    )
+    relation = next(item for item in result.relations if item.relation_type == "feeds")
+    assert relation.evidence.source_kind == "ifc"
+    assert relation.metadata["derivation"] == "explicit_relation_assertion"
+    assert relation.metadata["inference_performed"] is False
+
+
+def test_relationship_engine_rejects_unknown_endpoint() -> None:
+    import pytest
+
+    from crow_canonical import (
+        CanonicalEvidence,
+        CanonicalRelationshipEngine,
+        CanonicalRelationType,
+        ExplicitRelationAssertion,
+        VentCanonicalAssembler,
+    )
+
+    assembly = VentCanonicalAssembler().assemble(
+        [VentTextInterpreter().interpret("TD1", source_id="drawing-1", layer="DON")]
+    )
+    with pytest.raises(KeyError, match="missing-object"):
+        CanonicalRelationshipEngine().apply(
+            assembly,
+            [
+                ExplicitRelationAssertion(
+                    source_id=assembly.objects[0].canonical_id,
+                    relation_type=CanonicalRelationType.LOCATED_IN,
+                    target_id="missing-object",
+                    evidence=CanonicalEvidence(
+                        source_id="manual-1",
+                        source_kind="manual",
+                        locator=None,
+                        confidence=1.0,
+                    ),
+                )
+            ],
+        )
+
+
+def test_explicit_relation_persists_in_building_graph(tmp_path: Path) -> None:
+    from crow_canonical import (
+        CanonicalEvidence,
+        CanonicalRelationshipEngine,
+        CanonicalRelationType,
+        ExplicitRelationAssertion,
+        VentCanonicalAssembler,
+    )
+
+    interpreter = VentTextInterpreter()
+    assembly = VentCanonicalAssembler().assemble(
+        [
+            interpreter.interpret("FF1", source_id="drawing-1", layer="V-57--"),
+            interpreter.interpret("FD1", source_id="drawing-1", layer="DON"),
+        ]
+    )
+    source, target = assembly.objects
+    assembly = CanonicalRelationshipEngine().apply(
+        assembly,
+        [
+            ExplicitRelationAssertion(
+                source_id=target.canonical_id,
+                relation_type=CanonicalRelationType.RETURNS_FROM,
+                target_id=source.canonical_id,
+                evidence=CanonicalEvidence(
+                    source_id="ifc-1",
+                    source_kind="ifc",
+                    locator="#500",
+                    confidence=0.98,
+                ),
+            )
+        ],
+    )
+    graph = BuildingGraphService(GraphRepository(tmp_path / "relations.json"))
+    result = CanonicalGraphBridge(graph).persist_assembly(assembly)
+    assert any(item["relation"]["relation_type"] == "returns_from" for item in result["relations"])
+
+
+def test_provenance_trace_exposes_source_and_canonical_stages() -> None:
+    from crow_canonical import CanonicalProvenanceService, VentCanonicalAdapter
+
+    interpretation = VentTextInterpreter().interpret(
+        "TD1", source_id="drawing-1", layer="DON", entity_handle="D1"
+    )
+    canonical = VentCanonicalAdapter().convert(interpretation)
+    assert canonical is not None
+    trace = CanonicalProvenanceService().for_object(canonical)
+    assert [step.stage for step in trace.steps] == [
+        "source",
+        "interpretation",
+        "canonical_object",
+    ]
+    assert trace.steps[0].reference == "drawing-1"
+    assert trace.steps[-1].reference == canonical.canonical_id

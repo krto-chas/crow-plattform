@@ -1,0 +1,23 @@
+{
+  "baseline": "0.7.0-alpha.1",
+  "pass": 12,
+  "implemented": [
+    "explicit canonical relation assertions",
+    "canonical provenance traces",
+    "Building Graph returns_from and passes_through"
+  ],
+  "verification": {
+    "ruff": "pass",
+    "mypy_source_files": 156,
+    "pytest_passed": 327,
+    "e2e_baseline": "pass",
+    "architecture_review": "pass",
+    "build": "pass"
+  },
+  "not_claimed": [
+    "geometric inference",
+    "automatic IFC/DWG relation extraction",
+    "Workbench relation UI",
+    "domain rules"
+  ]
+}

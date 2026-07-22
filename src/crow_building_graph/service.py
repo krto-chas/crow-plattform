@@ -21,6 +21,8 @@ ALLOWED_RELATIONS = {
     "serves",
     "feeds",
     "returns_to",
+    "returns_from",
+    "passes_through",
     "connects_to",
     "references",
     "protects",
