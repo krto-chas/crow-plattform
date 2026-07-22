@@ -64,6 +64,7 @@ from crow_commercial_review import (
     summarize_review,
     update_project_commercial_review,
 )
+from crow_cross_source_linking import CrossSourceLinkBuilder
 from crow_document_intelligence.repository import load_index
 from crow_document_intelligence.service import (
     create_project,
@@ -1800,6 +1801,13 @@ def create_app(data_root: Path | None = None) -> FastAPI:
     def get_import_pipeline(project_id: str) -> dict[str, Any]:
         try:
             return ImportPipelineOrchestrator().build_plan(get_project_manifest(project_id))
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    @app.get("/api/projects/{project_id}/graph/cross-source-links")
+    def get_cross_source_links(project_id: str) -> dict[str, Any]:
+        try:
+            return CrossSourceLinkBuilder().build(building_graph_repository(project_id).load())
         except ValueError as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
 

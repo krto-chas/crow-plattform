@@ -67,6 +67,9 @@ src/crow_commercial_review/models.py
 src/crow_commercial_review/py.typed
 src/crow_commercial_review/service.py
 src/crow_commercial_review/workflow.py
+src/crow_cross_source_linking/__init__.py
+src/crow_cross_source_linking/py.typed
+src/crow_cross_source_linking/service.py
 src/crow_decision_engine/__init__.py
 src/crow_decision_engine/engine.py
 src/crow_decision_engine/models.py
@@ -289,6 +292,7 @@ tests/test_commercial_impact_engine.py
 tests/test_commercial_impact_service.py
 tests/test_commercial_review.py
 tests/test_commercial_review_service.py
+tests/test_cross_source_linking.py
 tests/test_crow_cad_text.py
 tests/test_crow_canonical.py
 tests/test_crow_evidence_explorer.py

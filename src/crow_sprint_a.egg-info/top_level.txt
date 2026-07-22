@@ -11,6 +11,7 @@ crow_claim_extraction
 crow_commercial_adjustment
 crow_commercial_impact
 crow_commercial_review
+crow_cross_source_linking
 crow_decision_engine
 crow_document_intelligence
 crow_estimate_line
