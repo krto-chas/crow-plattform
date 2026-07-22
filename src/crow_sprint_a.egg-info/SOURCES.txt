@@ -92,6 +92,9 @@ src/crow_estimate_structure/engine.py
 src/crow_estimate_structure/models.py
 src/crow_estimate_structure/py.typed
 src/crow_estimate_structure/service.py
+src/crow_evidence_index/__init__.py
+src/crow_evidence_index/index.py
+src/crow_evidence_index/py.typed
 src/crow_geometry_framework/__init__.py
 src/crow_geometry_framework/adapters.py
 src/crow_geometry_framework/consolidation.py
@@ -253,6 +256,7 @@ tests/test_commercial_review.py
 tests/test_commercial_review_service.py
 tests/test_crow_cad_text.py
 tests/test_crow_canonical.py
+tests/test_crow_evidence_index.py
 tests/test_crow_ifc_relations.py
 tests/test_crow_pdf_evidence.py
 tests/test_crow_vent.py
