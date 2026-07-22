@@ -99,6 +99,7 @@ from crow_geometry_framework import (
     system_observations,
     trace_network,
 )
+from crow_graph_explorer import GraphExplorerBuilder
 from crow_import_framework import ImportManager, create_default_registry
 from crow_inference import InferenceService
 from crow_knowledge_fusion import fuse_project, load_fusion_result, summarize_fusion
@@ -2000,6 +2001,14 @@ def create_app(data_root: Path | None = None) -> FastAPI:
             ) from exc
         except ValueError as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    @app.get("/api/projects/{project_id}/graph/explorer")
+    def get_graph_explorer(project_id: str) -> dict[str, Any]:
+        try:
+            graph = building_graph_repository(project_id).load()
+            return GraphExplorerBuilder().build(graph)
+        except ValueError as exc:
+            raise HTTPException(status_code=500, detail=str(exc)) from exc
 
     @app.get("/api/projects/{project_id}/graph/audit")
     def get_graph_audit(project_id: str) -> dict[str, Any]:
