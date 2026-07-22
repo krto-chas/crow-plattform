@@ -16,4 +16,13 @@ __all__ = [
     "MissingEvidenceReferenceRule",
     "SourceChecksumConflictRule",
     "UnreferencedEvidenceRule",
+    "EvidenceAuditDiffer",
+    "EvidenceAuditDiffResult",
+    "EvidenceAuditFindingChange",
 ]
+
+from .audit_diff import (
+    EvidenceAuditDiffer,
+    EvidenceAuditDiffResult,
+    EvidenceAuditFindingChange,
+)

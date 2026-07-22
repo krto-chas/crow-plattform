@@ -70,7 +70,7 @@ from crow_document_intelligence.service import (
 )
 from crow_estimate_line import build_project_estimate, load_estimate, summarize_estimate
 from crow_evidence_index import EvidenceIndexBuilder
-from crow_evidence_rules import EvidenceIntegrityAudit
+from crow_evidence_rules import EvidenceAuditDiffer, EvidenceIntegrityAudit
 from crow_geometry_framework import (
     BoundingBox2D,
     as_payload,
@@ -1672,6 +1672,25 @@ def create_app(data_root: Path | None = None) -> FastAPI:
     def get_evidence_audit_run(project_id: str, audit_id: str) -> dict[str, Any]:
         path = evidence_audit_path(project_id, audit_id)
         return json.loads(path.read_text(encoding="utf-8"))
+
+    @app.get(
+        "/api/projects/{project_id}/graph/evidence-audit-runs/"
+        "{base_audit_id}/compare/{target_audit_id}"
+    )
+    def compare_evidence_audit_runs(
+        project_id: str, base_audit_id: str, target_audit_id: str
+    ) -> dict[str, Any]:
+        base = json.loads(
+            evidence_audit_path(project_id, base_audit_id).read_text(encoding="utf-8")
+        )
+        target = json.loads(
+            evidence_audit_path(project_id, target_audit_id).read_text(encoding="utf-8")
+        )
+        try:
+            result = EvidenceAuditDiffer().compare(base, target)
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+        return _jsonable(asdict(result))
 
     @app.post("/api/projects/{project_id}/graph/evidence", status_code=201)
     def create_graph_evidence(project_id: str, payload: GraphEvidenceInput) -> dict[str, Any]:
