@@ -108,6 +108,7 @@ from crow_knowledge_fusion import fuse_project, load_fusion_result, summarize_fu
 from crow_knowledge_runtime import KnowledgePackRuntime
 from crow_project_manifest import ProjectManifestBuilder
 from crow_reasoning import FindingRepository, FindingService, ReasoningService, RuleService
+from crow_rule_explorer import RuleExplorerBuilder
 from crow_scope_impact import (
     build_project_scope_impacts,
     load_scope_impacts,
@@ -122,6 +123,13 @@ from crow_vent import (
     build_vent_model,
     component_registry,
     quantity_takeoff_csv,
+)
+from crow_vent.graph_audit import VENT_GRAPH_RULES
+from crow_evidence_rules.audit import (
+    MissingEvidenceReferenceRule,
+    DuplicateEvidenceIdRule,
+    SourceChecksumConflictRule,
+    UnreferencedEvidenceRule,
 )
 
 _UPLOAD_FILES = File(...)
@@ -2017,6 +2025,50 @@ def create_app(data_root: Path | None = None) -> FastAPI:
         try:
             graph = building_graph_repository(project_id).load()
             return EvidenceExplorerBuilder().build(graph)
+        except ValueError as exc:
+            raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+    @app.get("/api/projects/{project_id}/graph/rule-explorer")
+    def get_rule_explorer(project_id: str) -> dict[str, Any]:
+        try:
+            graph = building_graph_repository(project_id).load()
+            index = EvidenceIndexBuilder().build(graph)
+            evidence_rules = (
+                MissingEvidenceReferenceRule(index),
+                DuplicateEvidenceIdRule(index),
+                SourceChecksumConflictRule(index),
+                UnreferencedEvidenceRule(index),
+            )
+            rules = []
+            for rule in (*VENT_GRAPH_RULES, *evidence_rules):
+                metadata = rule.metadata
+                rules.append(
+                    {
+                        "rule_id": metadata.rule_id,
+                        "title": metadata.title,
+                        "description": metadata.description,
+                        "discipline": metadata.discipline,
+                        "version": metadata.version,
+                        "severity": metadata.severity,
+                        "enabled": metadata.enabled,
+                        "evidence_required": metadata.evidence_required,
+                        "supports_auto_inference": metadata.supports_auto_inference,
+                        "tags": list(metadata.tags),
+                    }
+                )
+            return RuleExplorerBuilder().build(
+                rules=rules,
+                graph_audits=load_persisted_audits(
+                    graph_audit_directory(project_id), "vent-audit-*.json"
+                ),
+                evidence_audits=load_persisted_audits(
+                    evidence_audit_directory(project_id), "evidence-audit-*.json"
+                ),
+                graph_reviews=load_audit_finding_reviews(project_id),
+                evidence_reviews=load_evidence_finding_reviews(project_id),
+                graph_verifications=load_audit_resolution_verifications(project_id),
+                evidence_verifications=load_evidence_resolution_verifications(project_id),
+            )
         except ValueError as exc:
             raise HTTPException(status_code=500, detail=str(exc)) from exc
 
