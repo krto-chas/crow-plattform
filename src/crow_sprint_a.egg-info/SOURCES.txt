@@ -132,6 +132,9 @@ src/crow_graph_explorer/service.py
 src/crow_graph_rules/__init__.py
 src/crow_graph_rules/engine.py
 src/crow_graph_rules/py.typed
+src/crow_graph_timeline/__init__.py
+src/crow_graph_timeline/py.typed
+src/crow_graph_timeline/service.py
 src/crow_ifc_relations/__init__.py
 src/crow_ifc_relations/extractor.py
 src/crow_ifc_relations/py.typed
@@ -324,6 +327,7 @@ tests/test_fusion_persistence.py
 tests/test_graph_builder.py
 tests/test_graph_explorer.py
 tests/test_graph_rule_engine.py
+tests/test_graph_timeline.py
 tests/test_idempotency_and_invalidation.py
 tests/test_import_guard.py
 tests/test_import_orchestrator.py

@@ -110,6 +110,7 @@ from crow_geometry_framework import (
     trace_network,
 )
 from crow_graph_explorer import GraphExplorerBuilder
+from crow_graph_timeline import GraphTimelineBuilder
 from crow_import_framework import ImportManager, create_default_registry
 from crow_import_orchestrator import ImportPipelineOrchestrator
 from crow_inference import InferenceService
@@ -1808,6 +1809,19 @@ def create_app(data_root: Path | None = None) -> FastAPI:
     def get_cross_source_links(project_id: str) -> dict[str, Any]:
         try:
             return CrossSourceLinkBuilder().build(building_graph_repository(project_id).load())
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    @app.get("/api/projects/{project_id}/graph/timeline")
+    def get_graph_timeline(project_id: str) -> dict[str, Any]:
+        try:
+            return GraphTimelineBuilder().build(
+                building_graph_repository(project_id).load(),
+                load_persisted_audits(graph_audit_directory(project_id), "vent-audit-*.json"),
+                load_persisted_audits(
+                    evidence_audit_directory(project_id), "evidence-audit-*.json"
+                ),
+            )
         except ValueError as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
 
