@@ -513,3 +513,114 @@ def test_workbench_compares_immutable_audit_runs_without_auto_resolution(
     assert body["changes"][0]["lifecycle"] == "new"
     assert body["metadata"]["comparison_only"] is True
     assert body["metadata"]["automatic_resolution_performed"] is False
+
+
+def test_workbench_requires_human_verification_before_resolution_is_confirmed(
+    tmp_path: Path,
+) -> None:
+    client = TestClient(create_app(tmp_path))
+    client.post("/api/projects", json={"name": "Resolution Verification"})
+    project = "resolution-verification"
+
+    terminal = client.post(
+        f"/api/projects/{project}/graph/objects",
+        json={
+            "object_type": "air_terminal",
+            "discipline": "ventilation",
+            "name": "TD1",
+            "object_id": "ccm:object:td1",
+        },
+    )
+    assert terminal.status_code == 201
+    base = client.post(f"/api/projects/{project}/graph/audit-runs").json()["audit"]
+    feeds_finding = next(
+        item for item in base["findings"] if item["rule_id"] == "VENT-EVID-001"
+    )
+
+    for object_id, object_type in (
+        ("ccm:object:duct1", "duct"),
+        ("ccm:object:lb01", "ventilation_system"),
+    ):
+        response = client.post(
+            f"/api/projects/{project}/graph/objects",
+            json={
+                "object_type": object_type,
+                "discipline": "ventilation",
+                "object_id": object_id,
+            },
+        )
+        assert response.status_code == 201
+    evidence = client.post(
+        f"/api/projects/{project}/graph/evidence",
+        json={
+            "kind": "text",
+            "source_id": "ifc-model",
+            "locator": "#4242",
+            "evidence_id": "evidence:relation:1",
+        },
+    )
+    assert evidence.status_code == 201
+    for source_id, relation_type, target_id, relation_id in (
+        ("ccm:object:duct1", "feeds", "ccm:object:td1", "relation:feeds:td1"),
+        ("ccm:object:td1", "belongs_to", "ccm:object:lb01", "relation:system:td1"),
+        ("ccm:object:duct1", "belongs_to", "ccm:object:lb01", "relation:system:duct1"),
+    ):
+        relation = client.post(
+            f"/api/projects/{project}/graph/relations",
+            json={
+                "source_id": source_id,
+                "relation_type": relation_type,
+                "target_id": target_id,
+                "evidence_ids": ["evidence:relation:1"],
+                "relation_id": relation_id,
+            },
+        )
+        assert relation.status_code == 201
+
+    target = client.post(f"/api/projects/{project}/graph/audit-runs").json()["audit"]
+    comparison = client.get(
+        f"/api/projects/{project}/graph/audit-runs/{base['audit_id']}"
+        f"/compare/{target['audit_id']}"
+    ).json()
+    change = next(
+        item for item in comparison["changes"]
+        if item["finding_id"] == feeds_finding["finding_id"]
+    )
+    assert change["lifecycle"] == "no_longer_detected"
+    assert change["metadata"]["resolution_status"] == "candidate_for_verification"
+
+    verified = client.post(
+        f"/api/projects/{project}/graph/audit-runs/{base['audit_id']}"
+        f"/compare/{target['audit_id']}/findings/{feeds_finding['finding_id']}/verify",
+        json={
+            "decision": "verify_resolved",
+            "reviewer": "reviewer@example.test",
+            "rationale": "Försörjande relation är nu explicit och verifierad mot IFC.",
+            "decided_at": "2026-07-21T10:45:00+00:00",
+        },
+    )
+    assert verified.status_code == 201
+    body = verified.json()
+    assert body["decision"] == "verify_resolved"
+    assert body["previous_finding"] == feeds_finding
+    assert body["base_graph_checksum"] == base["graph_checksum"]
+    assert body["target_graph_checksum"] == target["graph_checksum"]
+    assert body["metadata"]["graph_mutated"] is False
+
+    duplicate = client.post(
+        f"/api/projects/{project}/graph/audit-runs/{base['audit_id']}"
+        f"/compare/{target['audit_id']}/findings/{feeds_finding['finding_id']}/verify",
+        json={
+            "decision": "reject_resolution",
+            "reviewer": "second@example.test",
+            "rationale": "Försök till nytt beslut.",
+        },
+    )
+    assert duplicate.status_code == 409
+
+    history = client.get(
+        f"/api/projects/{project}/graph/audit-resolution-verifications"
+        f"?base_audit_id={base['audit_id']}&target_audit_id={target['audit_id']}"
+    )
+    assert history.status_code == 200
+    assert history.json()["count"] == 1
