@@ -1,0 +1,26 @@
+{
+  "pass": 33,
+  "baseline": "0.7.0-alpha.1",
+  "module": "crow_audit_explorer",
+  "implemented": [
+    "read-only combined projection of persisted graph and evidence audit runs",
+    "finding review context in audit projection",
+    "resolution verification counts",
+    "Workbench Audit Explorer API endpoint",
+    "Workbench Audit Explorer view"
+  ],
+  "verification": {
+    "ruff": "pass",
+    "mypy": "pass: 183 source files",
+    "pytest": "pass: 391 tests",
+    "javascript_syntax": "pass",
+    "build": "pass: wheel and sdist"
+  },
+  "non_claims": [
+    "no automatic audit creation",
+    "no automatic finding review",
+    "no automatic resolution",
+    "no graph or evidence mutation",
+    "no technical correctness assertion"
+  ]
+}

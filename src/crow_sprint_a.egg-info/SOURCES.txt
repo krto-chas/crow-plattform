@@ -9,6 +9,9 @@ src/crow_accepted_claims/service.py
 src/crow_assurance/__init__.py
 src/crow_assurance/py.typed
 src/crow_assurance/summary.py
+src/crow_audit_explorer/__init__.py
+src/crow_audit_explorer/py.typed
+src/crow_audit_explorer/service.py
 src/crow_authority/__init__.py
 src/crow_authority/frameworks.py
 src/crow_authority/models.py
@@ -252,6 +255,7 @@ tests/test_accepted_claims.py
 tests/test_accepted_claims_persistence.py
 tests/test_assurance_summary.py
 tests/test_audit_events.py
+tests/test_audit_explorer.py
 tests/test_authority_discovery.py
 tests/test_authority_discovery_service.py
 tests/test_authority_framework.py

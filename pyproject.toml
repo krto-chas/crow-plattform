@@ -63,6 +63,7 @@ crow_evidence_rules = ["py.typed"]
 crow_assurance = ["py.typed"]
 crow_project_manifest = ["py.typed"]
 crow_evidence_explorer = ["py.typed"]
+crow_audit_explorer = ["py.typed"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests", "examples/crow_example_module/tests"]
@@ -80,4 +81,4 @@ python_version = "3.11"
 strict = true
 mypy_path = "src"
 explicit_package_bases = true
-packages = ["crow_module_sdk", "crow_module_conformance", "crow_document_intelligence", "crow_observation_engine", "crow_claim_extraction", "crow_knowledge_fusion", "crow_authority", "crow_authority_discovery", "crow_accepted_claims", "crow_decision_engine", "crow_technical_validation", "crow_technical_review", "crow_technical_delta", "crow_scope_impact", "crow_commercial_impact", "crow_commercial_adjustment", "crow_commercial_review", "crow_estimate_line", "crow_estimate_structure", "crow_estimate_revision", "crow_import_framework", "crow_geometry_framework", "crow_vent", "crow_building_graph", "crow_project_dataset", "crow_canonical", "crow_graph_rules", "crow_ifc_relations", "crow_cad_text", "crow_pdf_evidence", "crow_evidence_index", "crow_evidence_rules", "crow_assurance", "crow_project_manifest", "crow_graph_explorer", "crow_evidence_explorer"]
+packages = ["crow_module_sdk", "crow_module_conformance", "crow_document_intelligence", "crow_observation_engine", "crow_claim_extraction", "crow_knowledge_fusion", "crow_authority", "crow_authority_discovery", "crow_accepted_claims", "crow_decision_engine", "crow_technical_validation", "crow_technical_review", "crow_technical_delta", "crow_scope_impact", "crow_commercial_impact", "crow_commercial_adjustment", "crow_commercial_review", "crow_estimate_line", "crow_estimate_structure", "crow_estimate_revision", "crow_import_framework", "crow_geometry_framework", "crow_vent", "crow_building_graph", "crow_project_dataset", "crow_canonical", "crow_graph_rules", "crow_ifc_relations", "crow_cad_text", "crow_pdf_evidence", "crow_evidence_index", "crow_evidence_rules", "crow_assurance", "crow_project_manifest", "crow_graph_explorer", "crow_evidence_explorer", "crow_audit_explorer"]
