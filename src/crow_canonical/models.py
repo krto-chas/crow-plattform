@@ -15,6 +15,7 @@ class CanonicalObjectType(StrEnum):
     HEAT_EXCHANGER = "heat_exchanger"
     AIR_TREATMENT_COMPONENT = "air_treatment_component"
     ACCESSORY = "accessory"
+    VENTILATION_SYSTEM = "ventilation_system"
 
 
 @dataclass(frozen=True)
@@ -37,3 +38,14 @@ class CanonicalObject:
     evidence: CanonicalEvidence
     status: str = "interpreted"
     review_reasons: tuple[str, ...] = ()
+
+
+@dataclass(frozen=True)
+class CanonicalRelation:
+    canonical_id: str
+    source_id: str
+    relation_type: str
+    target_id: str
+    confidence: float
+    evidence: CanonicalEvidence
+    metadata: dict[str, Any] = field(default_factory=dict)
