@@ -14,6 +14,7 @@ crow_document_intelligence
 crow_estimate_line
 crow_estimate_revision
 crow_estimate_structure
+crow_evidence_explorer
 crow_evidence_index
 crow_evidence_rules
 crow_geometry_framework

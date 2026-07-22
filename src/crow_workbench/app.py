@@ -70,6 +70,7 @@ from crow_document_intelligence.service import (
     summarize,
 )
 from crow_estimate_line import build_project_estimate, load_estimate, summarize_estimate
+from crow_evidence_explorer import EvidenceExplorerBuilder
 from crow_evidence_index import EvidenceIndexBuilder
 from crow_evidence_rules import (
     EvidenceAuditDiffer,
@@ -2007,6 +2008,14 @@ def create_app(data_root: Path | None = None) -> FastAPI:
         try:
             graph = building_graph_repository(project_id).load()
             return GraphExplorerBuilder().build(graph)
+        except ValueError as exc:
+            raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+    @app.get("/api/projects/{project_id}/graph/evidence-explorer")
+    def get_evidence_explorer(project_id: str) -> dict[str, Any]:
+        try:
+            graph = building_graph_repository(project_id).load()
+            return EvidenceExplorerBuilder().build(graph)
         except ValueError as exc:
             raise HTTPException(status_code=500, detail=str(exc)) from exc
 
