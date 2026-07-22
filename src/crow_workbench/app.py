@@ -1475,6 +1475,49 @@ def create_app(data_root: Path | None = None) -> FastAPI:
         require_project(project_id)
         return projects_root / _safe_project_id(project_id) / "building-graph" / "audits"
 
+    def evidence_audit_directory(project_id: str) -> Path:
+        require_project(project_id)
+        return projects_root / _safe_project_id(project_id) / "building-graph" / "evidence-audits"
+
+    def serialize_evidence_audit(project_id: str) -> dict[str, Any]:
+        graph = building_graph_repository(project_id).load()
+        result = EvidenceIntegrityAudit().audit(graph)
+        graph_payload = json.dumps(graph, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
+        graph_checksum = sha256(graph_payload.encode("utf-8")).hexdigest()
+        return {
+            "project_id": _safe_project_id(project_id),
+            "graph_checksum": graph_checksum,
+            "summary": result.summary,
+            "metadata": result.metadata,
+            "findings": [_jsonable(asdict(item)) for item in result.findings],
+        }
+
+    def persist_evidence_audit(project_id: str) -> tuple[dict[str, Any], bool]:
+        payload = serialize_evidence_audit(project_id)
+        audit_key = "|".join(
+            (payload["graph_checksum"], str(payload["metadata"]["ruleset_version"]))
+        )
+        audit_id = f"evidence:audit:{sha256(audit_key.encode('utf-8')).hexdigest()[:20]}"
+        payload["audit_id"] = audit_id
+        payload["created_at"] = datetime.now(UTC).isoformat()
+        directory = evidence_audit_directory(project_id)
+        directory.mkdir(parents=True, exist_ok=True)
+        path = directory / f"{audit_id.replace(':', '-')}.json"
+        if path.exists():
+            existing = json.loads(path.read_text(encoding="utf-8"))
+            return existing, False
+        temp = path.with_suffix(".tmp")
+        temp.write_text(json.dumps(payload, indent=2, ensure_ascii=False), encoding="utf-8")
+        temp.replace(path)
+        return payload, True
+
+    def evidence_audit_path(project_id: str, audit_id: str) -> Path:
+        safe_audit_id = audit_id.replace(":", "-")
+        path = evidence_audit_directory(project_id) / f"{safe_audit_id}.json"
+        if not path.exists():
+            raise HTTPException(status_code=404, detail="Evidensgranskningen finns inte")
+        return path
+
     def serialize_graph_audit(project_id: str) -> dict[str, Any]:
         graph = building_graph_repository(project_id).load()
         result = VentGraphAudit().audit(graph)
@@ -1588,7 +1631,6 @@ def create_app(data_root: Path | None = None) -> FastAPI:
     def get_building_graph(project_id: str) -> dict[str, Any]:
         return building_graph_service(project_id).graph()
 
-
     @app.get("/api/projects/{project_id}/graph/evidence-index")
     def get_graph_evidence_index(project_id: str) -> dict[str, Any]:
         try:
@@ -1597,14 +1639,39 @@ def create_app(data_root: Path | None = None) -> FastAPI:
         except ValueError as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
 
-
     @app.get("/api/projects/{project_id}/graph/evidence-audit")
     def get_graph_evidence_audit(project_id: str) -> dict[str, Any]:
         try:
-            graph = building_graph_service(project_id).graph()
-            return EvidenceIntegrityAudit().audit(graph).to_dict()
+            return serialize_evidence_audit(project_id)
         except ValueError as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    @app.post("/api/projects/{project_id}/graph/evidence-audit-runs", status_code=201)
+    def create_evidence_audit_run(project_id: str, response: Response) -> dict[str, Any]:
+        try:
+            payload, created = persist_evidence_audit(project_id)
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+        if not created:
+            response.status_code = 200
+        return {"created": created, "audit": payload}
+
+    @app.get("/api/projects/{project_id}/graph/evidence-audit-runs")
+    def list_evidence_audit_runs(project_id: str) -> dict[str, Any]:
+        directory = evidence_audit_directory(project_id)
+        if not directory.exists():
+            return {"count": 0, "items": []}
+        items = [
+            json.loads(path.read_text(encoding="utf-8"))
+            for path in sorted(directory.glob("evidence-audit-*.json"))
+        ]
+        items.sort(key=lambda item: str(item.get("created_at", "")), reverse=True)
+        return {"count": len(items), "items": items}
+
+    @app.get("/api/projects/{project_id}/graph/evidence-audit-runs/{audit_id}")
+    def get_evidence_audit_run(project_id: str, audit_id: str) -> dict[str, Any]:
+        path = evidence_audit_path(project_id, audit_id)
+        return json.loads(path.read_text(encoding="utf-8"))
 
     @app.post("/api/projects/{project_id}/graph/evidence", status_code=201)
     def create_graph_evidence(project_id: str, payload: GraphEvidenceInput) -> dict[str, Any]:

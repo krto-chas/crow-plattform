@@ -668,3 +668,56 @@ def test_graph_evidence_audit_endpoint_is_read_only(tmp_path: Path) -> None:
     assert payload["summary"] == {"total": 1, "data_quality": 0, "evidence_gap": 1}
     assert payload["findings"][0]["rule_id"] == "EVID-EVID-001"
     assert payload["metadata"]["automatic_repair_performed"] is False
+
+
+def test_evidence_audit_runs_are_immutable_and_deduplicated(tmp_path: Path) -> None:
+    client = TestClient(create_app(tmp_path))
+    project = client.post("/api/projects", json={"name": "Evidence history"}).json()
+    project_id = project["project_id"]
+    client.post(
+        f"/api/projects/{project_id}/graph/evidence",
+        json={"kind": "pdf", "source_id": "unused.pdf", "checksum": "e" * 64},
+    )
+
+    first = client.post(f"/api/projects/{project_id}/graph/evidence-audit-runs")
+    assert first.status_code == 201
+    first_payload = first.json()
+    assert first_payload["created"] is True
+    audit = first_payload["audit"]
+    assert audit["audit_id"].startswith("evidence:audit:")
+    assert len(audit["graph_checksum"]) == 64
+    assert audit["summary"]["evidence_gap"] == 1
+
+    duplicate = client.post(f"/api/projects/{project_id}/graph/evidence-audit-runs")
+    assert duplicate.status_code == 200
+    assert duplicate.json()["created"] is False
+    assert duplicate.json()["audit"]["audit_id"] == audit["audit_id"]
+    assert duplicate.json()["audit"]["created_at"] == audit["created_at"]
+
+    history = client.get(f"/api/projects/{project_id}/graph/evidence-audit-runs")
+    assert history.status_code == 200
+    assert history.json()["count"] == 1
+
+    stored = client.get(f"/api/projects/{project_id}/graph/evidence-audit-runs/{audit['audit_id']}")
+    assert stored.status_code == 200
+    assert stored.json() == audit
+
+
+def test_new_graph_checksum_creates_new_evidence_audit_run(tmp_path: Path) -> None:
+    client = TestClient(create_app(tmp_path))
+    project = client.post("/api/projects", json={"name": "Evidence snapshots"}).json()
+    project_id = project["project_id"]
+
+    first = client.post(f"/api/projects/{project_id}/graph/evidence-audit-runs").json()["audit"]
+    client.post(
+        f"/api/projects/{project_id}/graph/evidence",
+        json={"kind": "dxf", "source_id": "new.dxf", "checksum": "f" * 64},
+    )
+    second_response = client.post(f"/api/projects/{project_id}/graph/evidence-audit-runs")
+    assert second_response.status_code == 201
+    second = second_response.json()["audit"]
+
+    assert second["audit_id"] != first["audit_id"]
+    assert second["graph_checksum"] != first["graph_checksum"]
+    history = client.get(f"/api/projects/{project_id}/graph/evidence-audit-runs").json()
+    assert history["count"] == 2
