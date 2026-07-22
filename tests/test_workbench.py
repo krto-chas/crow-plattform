@@ -721,3 +721,38 @@ def test_new_graph_checksum_creates_new_evidence_audit_run(tmp_path: Path) -> No
     assert second["graph_checksum"] != first["graph_checksum"]
     history = client.get(f"/api/projects/{project_id}/graph/evidence-audit-runs").json()
     assert history["count"] == 2
+
+
+def test_compare_evidence_audit_runs_reports_finding_lifecycle(tmp_path: Path) -> None:
+    client = TestClient(create_app(tmp_path))
+    project = client.post("/api/projects", json={"name": "Evidence comparison"}).json()
+    project_id = project["project_id"]
+
+    base = client.post(f"/api/projects/{project_id}/graph/evidence-audit-runs").json()["audit"]
+    client.post(
+        f"/api/projects/{project_id}/graph/evidence",
+        json={"kind": "pdf", "source_id": "unused.pdf", "checksum": "a" * 64},
+    )
+    target = client.post(f"/api/projects/{project_id}/graph/evidence-audit-runs").json()["audit"]
+
+    response = client.get(
+        f"/api/projects/{project_id}/graph/evidence-audit-runs/"
+        f"{base['audit_id']}/compare/{target['audit_id']}"
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["summary"] == {
+        "total": 1,
+        "new": 1,
+        "persistent": 0,
+        "no_longer_detected": 0,
+    }
+    assert payload["changes"][0]["lifecycle"] == "new"
+    assert payload["metadata"] == {
+        "comparison_only": True,
+        "automatic_resolution_performed": False,
+        "audit_runs_mutated": False,
+        "graph_mutated": False,
+        "evidence_mutated": False,
+    }

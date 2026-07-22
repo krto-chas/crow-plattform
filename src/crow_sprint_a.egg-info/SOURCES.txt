@@ -97,6 +97,7 @@ src/crow_evidence_index/index.py
 src/crow_evidence_index/py.typed
 src/crow_evidence_rules/__init__.py
 src/crow_evidence_rules/audit.py
+src/crow_evidence_rules/audit_diff.py
 src/crow_evidence_rules/py.typed
 src/crow_geometry_framework/__init__.py
 src/crow_geometry_framework/adapters.py
@@ -276,6 +277,7 @@ tests/test_estimate_line_generator.py
 tests/test_estimate_line_service.py
 tests/test_estimate_revision.py
 tests/test_estimate_structure.py
+tests/test_evidence_audit_diff.py
 tests/test_evidence_graph.py
 tests/test_evidence_rules.py
 tests/test_explain.py
