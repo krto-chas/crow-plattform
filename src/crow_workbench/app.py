@@ -1611,6 +1611,37 @@ def create_app(data_root: Path | None = None) -> FastAPI:
         temp.write_text(json.dumps(verifications, indent=2, ensure_ascii=False), encoding="utf-8")
         temp.replace(path)
 
+    def evidence_finding_review_file(project_id: str) -> Path:
+        require_project(project_id)
+        return (
+            projects_root
+            / _safe_project_id(project_id)
+            / "building-graph"
+            / "evidence-finding-reviews.json"
+        )
+
+    def load_evidence_finding_reviews(project_id: str) -> list[dict[str, Any]]:
+        path = evidence_finding_review_file(project_id)
+        if not path.exists():
+            return []
+        raw = json.loads(path.read_text(encoding="utf-8"))
+        if not isinstance(raw, list):
+            raise HTTPException(
+                status_code=500, detail="Ogiltigt evidensfinding-granskningsregister"
+            )
+        return raw
+
+    def save_evidence_finding_reviews(
+        project_id: str, reviews: list[dict[str, Any]]
+    ) -> None:
+        path = evidence_finding_review_file(project_id)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        temp = path.with_suffix(".tmp")
+        temp.write_text(
+            json.dumps(reviews, indent=2, ensure_ascii=False), encoding="utf-8"
+        )
+        temp.replace(path)
+
     def evidence_resolution_verification_file(project_id: str) -> Path:
         require_project(project_id)
         return (
@@ -1722,7 +1753,9 @@ def create_app(data_root: Path | None = None) -> FastAPI:
             evidence_audit_path(project_id, target_audit_id).read_text(encoding="utf-8")
         )
         try:
-            result = EvidenceAuditDiffer().compare(base, target)
+            result = EvidenceAuditDiffer().compare(
+                base, target, reviews=load_evidence_finding_reviews(project_id)
+            )
         except ValueError as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
         return _jsonable(asdict(result))
@@ -1761,7 +1794,9 @@ def create_app(data_root: Path | None = None) -> FastAPI:
             evidence_audit_path(project_id, target_audit_id).read_text(encoding="utf-8")
         )
         try:
-            comparison = EvidenceAuditDiffer().compare(base, target)
+            comparison = EvidenceAuditDiffer().compare(
+                base, target, reviews=load_evidence_finding_reviews(project_id)
+            )
         except ValueError as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
         change = next(
@@ -1806,6 +1841,76 @@ def create_app(data_root: Path | None = None) -> FastAPI:
         verifications.append(record)
         save_evidence_resolution_verifications(project_id, verifications)
         return record
+
+    @app.get("/api/projects/{project_id}/graph/evidence-finding-reviews")
+    def list_evidence_finding_reviews(
+        project_id: str, audit_id: str | None = None
+    ) -> dict[str, Any]:
+        reviews = load_evidence_finding_reviews(project_id)
+        if audit_id is not None:
+            reviews = [item for item in reviews if item.get("audit_id") == audit_id]
+        return {"count": len(reviews), "items": reviews}
+
+    @app.post(
+        "/api/projects/{project_id}/graph/evidence-audit-runs/"
+        "{audit_id}/findings/{finding_id}/review",
+        status_code=201,
+    )
+    def review_evidence_audit_finding(
+        project_id: str,
+        audit_id: str,
+        finding_id: str,
+        payload: AuditFindingReviewRequest,
+    ) -> dict[str, Any]:
+        audit = json.loads(
+            evidence_audit_path(project_id, audit_id).read_text(encoding="utf-8")
+        )
+        findings = audit.get("findings", [])
+        if not isinstance(findings, list):
+            raise HTTPException(status_code=500, detail="Ogiltig findings-lista")
+        finding = next(
+            (item for item in findings if item.get("finding_id") == finding_id),
+            None,
+        )
+        if finding is None:
+            raise HTTPException(
+                status_code=404, detail="Finding finns inte i evidensgranskningen"
+            )
+        reviews = load_evidence_finding_reviews(project_id)
+        if any(
+            item.get("audit_id") == audit_id and item.get("finding_id") == finding_id
+            for item in reviews
+        ):
+            raise HTTPException(status_code=409, detail="Finding är redan granskad")
+        decided_at = payload.decided_at or datetime.now(UTC).isoformat()
+        review_key = "|".join(
+            (audit_id, finding_id, payload.decision, payload.reviewer, decided_at)
+        )
+        review_digest = sha256(review_key.encode("utf-8")).hexdigest()[:20]
+        review = {
+            "review_id": f"evidence:finding-review:{review_digest}",
+            "project_id": _safe_project_id(project_id),
+            "audit_id": audit_id,
+            "graph_checksum": audit.get("graph_checksum"),
+            "ruleset_version": audit.get("metadata", {}).get("ruleset_version"),
+            "finding_id": finding_id,
+            "rule_id": finding.get("rule_id"),
+            "decision": payload.decision,
+            "reviewer": payload.reviewer,
+            "rationale": payload.rationale,
+            "decided_at": decided_at,
+            "finding_snapshot": finding,
+            "metadata": {
+                "human_review": True,
+                "audit_mutated": False,
+                "graph_mutated": False,
+                "evidence_mutated": False,
+                "automatic_repair_performed": False,
+            },
+        }
+        reviews.append(review)
+        save_evidence_finding_reviews(project_id, reviews)
+        return review
 
     @app.post("/api/projects/{project_id}/graph/evidence", status_code=201)
     def create_graph_evidence(project_id: str, payload: GraphEvidenceInput) -> dict[str, Any]:

@@ -422,3 +422,12 @@
 - Added deterministic findings for missing references, duplicate evidence IDs, checksum conflicts and unreferenced evidence.
 - Added the read-only Workbench endpoint `GET /api/projects/{project_id}/graph/evidence-audit`.
 - No automatic repair, checksum selection, graph mutation or evidence mutation is performed.
+
+## RC-readiness pass 28
+
+- Added persistent manual review of findings in immutable evidence-audit runs.
+- Added `acknowledge`, `mark_resolved`, and `dismiss` decisions with reviewer, rationale,
+  timestamp, graph checksum, ruleset version, and an immutable finding snapshot.
+- Added review history and duplicate-decision protection.
+- Evidence-audit comparisons now expose prior base-audit review context without mutating
+  either audit, the Building Graph, or the evidence registry.

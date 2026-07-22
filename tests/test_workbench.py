@@ -756,3 +756,116 @@ def test_compare_evidence_audit_runs_reports_finding_lifecycle(tmp_path: Path) -
         "graph_mutated": False,
         "evidence_mutated": False,
     }
+
+
+def test_evidence_audit_finding_review_is_persistent_and_immutable(tmp_path: Path) -> None:
+    client = TestClient(create_app(tmp_path))
+    project = client.post("/api/projects", json={"name": "Evidence finding review"}).json()
+    project_id = project["project_id"]
+    client.post(
+        f"/api/projects/{project_id}/graph/evidence",
+        json={"kind": "pdf", "source_id": "unused.pdf", "checksum": "9" * 64},
+    )
+    audit = client.post(f"/api/projects/{project_id}/graph/evidence-audit-runs").json()[
+        "audit"
+    ]
+    finding = audit["findings"][0]
+
+    reviewed = client.post(
+        f"/api/projects/{project_id}/graph/evidence-audit-runs/{audit['audit_id']}"
+        f"/findings/{finding['finding_id']}/review",
+        json={
+            "decision": "acknowledge",
+            "reviewer": "evidence-reviewer@example.test",
+            "rationale": "Evidensposten ska kopplas till objekt efter manuell kontroll.",
+            "decided_at": "2026-07-21T11:00:00+00:00",
+        },
+    )
+    assert reviewed.status_code == 201
+    body = reviewed.json()
+    assert body["review_id"].startswith("evidence:finding-review:")
+    assert body["finding_snapshot"] == finding
+    assert body["ruleset_version"] == audit["metadata"]["ruleset_version"]
+    assert body["metadata"] == {
+        "human_review": True,
+        "audit_mutated": False,
+        "graph_mutated": False,
+        "evidence_mutated": False,
+        "automatic_repair_performed": False,
+    }
+
+    duplicate = client.post(
+        f"/api/projects/{project_id}/graph/evidence-audit-runs/{audit['audit_id']}"
+        f"/findings/{finding['finding_id']}/review",
+        json={
+            "decision": "dismiss",
+            "reviewer": "second@example.test",
+            "rationale": "Försök till ett andra beslut.",
+        },
+    )
+    assert duplicate.status_code == 409
+
+    history = client.get(
+        f"/api/projects/{project_id}/graph/evidence-finding-reviews"
+        f"?audit_id={audit['audit_id']}"
+    )
+    assert history.status_code == 200
+    assert history.json()["count"] == 1
+    assert history.json()["items"][0]["finding_id"] == finding["finding_id"]
+
+    stored = client.get(
+        f"/api/projects/{project_id}/graph/evidence-audit-runs/{audit['audit_id']}"
+    )
+    assert stored.status_code == 200
+    assert stored.json() == audit
+
+
+def test_evidence_audit_comparison_includes_base_review_context(tmp_path: Path) -> None:
+    client = TestClient(create_app(tmp_path))
+    project = client.post("/api/projects", json={"name": "Evidence review comparison"}).json()
+    project_id = project["project_id"]
+    evidence = client.post(
+        f"/api/projects/{project_id}/graph/evidence",
+        json={"kind": "pdf", "source_id": "unused.pdf", "checksum": "8" * 64},
+    ).json()
+    base = client.post(f"/api/projects/{project_id}/graph/evidence-audit-runs").json()[
+        "audit"
+    ]
+    finding = base["findings"][0]
+    review = client.post(
+        f"/api/projects/{project_id}/graph/evidence-audit-runs/{base['audit_id']}"
+        f"/findings/{finding['finding_id']}/review",
+        json={
+            "decision": "mark_resolved",
+            "reviewer": "reviewer@example.test",
+            "rationale": "Kopplingen är kontrollerad och införs i nästa graf-snapshot.",
+            "decided_at": "2026-07-21T11:30:00+00:00",
+        },
+    ).json()
+    client.post(
+        f"/api/projects/{project_id}/graph/objects",
+        json={
+            "object_type": "document_reference",
+            "discipline": "general",
+            "object_id": "ccm:object:evidence-owner",
+            "evidence_ids": [evidence["id"]],
+        },
+    )
+    target = client.post(f"/api/projects/{project_id}/graph/evidence-audit-runs").json()[
+        "audit"
+    ]
+
+    compared = client.get(
+        f"/api/projects/{project_id}/graph/evidence-audit-runs/"
+        f"{base['audit_id']}/compare/{target['audit_id']}"
+    )
+    assert compared.status_code == 200
+    change = compared.json()["changes"][0]
+    assert change["lifecycle"] == "no_longer_detected"
+    assert change["metadata"]["resolution_status"] == "candidate_for_verification"
+    assert change["metadata"]["base_review"] == {
+        "review_id": review["review_id"],
+        "decision": "mark_resolved",
+        "reviewer": "reviewer@example.test",
+        "decided_at": "2026-07-21T11:30:00+00:00",
+    }
