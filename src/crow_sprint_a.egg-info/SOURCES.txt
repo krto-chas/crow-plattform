@@ -164,6 +164,9 @@ src/crow_observation_engine/extractors.py
 src/crow_observation_engine/models.py
 src/crow_observation_engine/py.typed
 src/crow_observation_engine/service.py
+src/crow_pdf_evidence/__init__.py
+src/crow_pdf_evidence/extractor.py
+src/crow_pdf_evidence/py.typed
 src/crow_project_dataset/__init__.py
 src/crow_project_dataset/inspect.py
 src/crow_project_dataset/manifest.py
@@ -251,6 +254,7 @@ tests/test_commercial_review_service.py
 tests/test_crow_cad_text.py
 tests/test_crow_canonical.py
 tests/test_crow_ifc_relations.py
+tests/test_crow_pdf_evidence.py
 tests/test_crow_vent.py
 tests/test_decision_engine.py
 tests/test_decision_graph.py

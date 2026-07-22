@@ -34,9 +34,7 @@ def main() -> int:
             "all_inventory_relationship_types_supported": not bool(
                 extraction.unsupported_relation_entity_counts
             ),
-            "malformed_supported_relationships": len(
-                extraction.malformed_supported_entities
-            ),
+            "malformed_supported_relationships": len(extraction.malformed_supported_entities),
             "inference_performed": False,
         },
     }

@@ -27,9 +27,7 @@ def build_inventory(path: Path) -> dict[str, Any]:
             "normalized_entity_count": metadata["normalized_entity_count"],
             "normalized_entity_types": metadata["normalized_entity_types"],
             "unsupported_entity_types": metadata["unsupported_entity_types"],
-            "malformed_or_unparsed_entity_types": metadata[
-                "malformed_or_unparsed_entity_types"
-            ],
+            "malformed_or_unparsed_entity_types": metadata["malformed_or_unparsed_entity_types"],
             "omitted_entity_count": metadata["omitted_entity_count"],
             "preview_entity_count": metadata["preview_entity_count"],
             "preview_truncated": asset.preview["truncated"],
@@ -62,22 +60,22 @@ def render_markdown(inventory: dict[str, Any]) -> str:
 
 ## Source
 
-- File: `{source['filename']}`
-- Size: `{source['size_bytes']}` bytes
-- SHA-256: `{source['checksum_sha256']}`
-- Format: `{source['format_id']}`
+- File: `{source["filename"]}`
+- Size: `{source["size_bytes"]}` bytes
+- SHA-256: `{source["checksum_sha256"]}`
+- Format: `{source["format_id"]}`
 
 ## Import result
 
-- Importer: `{result['importer_id']}`
-- Layers: `{result['layer_count']}`
-- Total inventoried entities: `{result['entity_count']}`
-- Normalized entities: `{result['normalized_entity_count']}`
-- Preview entities: `{result['preview_entity_count']}`
-- Preview truncated: `{result['preview_truncated']}`
+- Importer: `{result["importer_id"]}`
+- Layers: `{result["layer_count"]}`
+- Total inventoried entities: `{result["entity_count"]}`
+- Normalized entities: `{result["normalized_entity_count"]}`
+- Preview entities: `{result["preview_entity_count"]}`
+- Preview truncated: `{result["preview_truncated"]}`
 - Unsupported entity types: `{unsupported}`
 - Malformed or unparsed supported types: `{malformed}`
-- Omitted from normalized preview: `{result['omitted_entity_count']}`
+- Omitted from normalized preview: `{result["omitted_entity_count"]}`
 
 ## Entity inventory
 
@@ -91,9 +89,9 @@ def render_markdown(inventory: dict[str, Any]) -> str:
 
 ## Acceptance
 
-- Parser completed: **{str(acceptance['parser_completed']).upper()}**
-- Known losses reported: **{str(acceptance['losses_reported']).upper()}**
-- Silent loss detected: **{str(acceptance['silent_loss_detected']).upper()}**
+- Parser completed: **{str(acceptance["parser_completed"]).upper()}**
+- Known losses reported: **{str(acceptance["losses_reported"]).upper()}**
+- Silent loss detected: **{str(acceptance["silent_loss_detected"]).upper()}**
 
 This record verifies parser completion and explicit loss reporting. It does not claim
 that unsupported 3D entities have been normalized or rendered.
