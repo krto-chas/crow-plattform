@@ -78,6 +78,12 @@ from crow_evidence_rules import (
     EvidenceIntegrityAudit,
     EvidenceResolutionVerificationService,
 )
+from crow_evidence_rules.audit import (
+    DuplicateEvidenceIdRule,
+    MissingEvidenceReferenceRule,
+    SourceChecksumConflictRule,
+    UnreferencedEvidenceRule,
+)
 from crow_geometry_framework import (
     BoundingBox2D,
     as_payload,
@@ -125,12 +131,6 @@ from crow_vent import (
     quantity_takeoff_csv,
 )
 from crow_vent.graph_audit import VENT_GRAPH_RULES
-from crow_evidence_rules.audit import (
-    MissingEvidenceReferenceRule,
-    DuplicateEvidenceIdRule,
-    SourceChecksumConflictRule,
-    UnreferencedEvidenceRule,
-)
 
 _UPLOAD_FILES = File(...)
 
