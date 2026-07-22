@@ -70,6 +70,7 @@ from crow_document_intelligence.service import (
 )
 from crow_estimate_line import build_project_estimate, load_estimate, summarize_estimate
 from crow_evidence_index import EvidenceIndexBuilder
+from crow_evidence_rules import EvidenceIntegrityAudit
 from crow_geometry_framework import (
     BoundingBox2D,
     as_payload,
@@ -1593,6 +1594,15 @@ def create_app(data_root: Path | None = None) -> FastAPI:
         try:
             graph = building_graph_service(project_id).graph()
             return EvidenceIndexBuilder().build(graph).to_dict()
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+    @app.get("/api/projects/{project_id}/graph/evidence-audit")
+    def get_graph_evidence_audit(project_id: str) -> dict[str, Any]:
+        try:
+            graph = building_graph_service(project_id).graph()
+            return EvidenceIntegrityAudit().audit(graph).to_dict()
         except ValueError as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
 

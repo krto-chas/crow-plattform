@@ -415,3 +415,10 @@
   have explicit IFC-to-CCM identifiers before an assertion is created.
 - No geometry, proximity, inferred flow direction, object creation, or automatic correction
   is performed.
+
+## RC-readiness pass 24
+
+- Added a general evidence-integrity rules package on top of `crow_evidence_index` and `crow_graph_rules`.
+- Added deterministic findings for missing references, duplicate evidence IDs, checksum conflicts and unreferenced evidence.
+- Added the read-only Workbench endpoint `GET /api/projects/{project_id}/graph/evidence-audit`.
+- No automatic repair, checksum selection, graph mutation or evidence mutation is performed.
