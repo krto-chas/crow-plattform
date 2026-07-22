@@ -20,6 +20,7 @@ from crow_accepted_claims import (
     summarize_accepted_claims,
 )
 from crow_assurance import ProjectAssuranceSummaryBuilder
+from crow_audit_explorer import AuditExplorerBuilder
 from crow_authority import load_resolution, resolve_project, summarize_resolution
 from crow_building_graph import (
     ALLOWED_RELATIONS,
@@ -2016,6 +2017,24 @@ def create_app(data_root: Path | None = None) -> FastAPI:
         try:
             graph = building_graph_repository(project_id).load()
             return EvidenceExplorerBuilder().build(graph)
+        except ValueError as exc:
+            raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+    @app.get("/api/projects/{project_id}/graph/audit-explorer")
+    def get_audit_explorer(project_id: str) -> dict[str, Any]:
+        try:
+            return AuditExplorerBuilder().build(
+                graph_audits=load_persisted_audits(
+                    graph_audit_directory(project_id), "vent-audit-*.json"
+                ),
+                evidence_audits=load_persisted_audits(
+                    evidence_audit_directory(project_id), "evidence-audit-*.json"
+                ),
+                graph_reviews=load_audit_finding_reviews(project_id),
+                evidence_reviews=load_evidence_finding_reviews(project_id),
+                graph_verifications=load_audit_resolution_verifications(project_id),
+                evidence_verifications=load_evidence_resolution_verifications(project_id),
+            )
         except ValueError as exc:
             raise HTTPException(status_code=500, detail=str(exc)) from exc
 
