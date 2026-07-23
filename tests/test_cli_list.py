@@ -15,14 +15,14 @@ def test_cli_list_handles_no_installed_modules(capsys, monkeypatch) -> None:
 
 def test_cli_list_reports_discovered_module(capsys, monkeypatch) -> None:
     """Discovery reports modules found via crow.modules entry points."""
-    class _Candidate:
+    class _MockEntryPoint:
         name = "example"
 
         @staticmethod
         def load():
             return ExamplePlugin
 
-    monkeypatch.setattr(module_registry, "entry_points", lambda group: (_Candidate(),))
+    monkeypatch.setattr(module_registry, "entry_points", lambda group: (_MockEntryPoint(),))
     exit_code = main(["module", "list"])
 
     assert exit_code == 0
