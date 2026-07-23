@@ -2948,6 +2948,78 @@ def create_app(data_root: Path | None = None) -> FastAPI:
         )
         return _jsonable(build_vent_model(candidates))
 
+    @app.post("/api/projects/{project_id}/takeoff")
+    def run_takeoff(project_id: str, body: dict[str, Any]) -> dict[str, Any]:
+        """Multi-source kalkyl: konsolidera mängder och prissätt mot prisbok.
+
+        Body: geometry_checksums, table_rows, text_segments, price_book,
+        length_tolerance. Alla delar är valfria; minst en källa krävs.
+        """
+        from crow_takeoff_consolidation import (
+            PriceBook,
+            PriceBookEntry,
+            consolidate_takeoffs,
+            price_consolidated_takeoff,
+            takeoff_from_geometry,
+            takeoff_from_table,
+            takeoff_from_text,
+        )
+        from crow_vent.lexicon import VentLexicon
+
+        lexicon = VentLexicon.default()
+        takeoffs = []
+        for checksum in body.get("geometry_checksums", []):
+            model = get_vent_model(project_id, str(checksum))
+            takeoffs.append(
+                takeoff_from_geometry(
+                    model["quantity_takeoff"], source_id=f"dxf:{str(checksum)[:12]}"
+                )
+            )
+        table_rows = body.get("table_rows") or []
+        if table_rows:
+            takeoffs.append(
+                takeoff_from_table(
+                    table_rows, source_id="tabell:mangdforteckning", lexicon=lexicon
+                )
+            )
+        text_segments = body.get("text_segments") or []
+        if text_segments:
+            takeoffs.append(
+                takeoff_from_text(
+                    text_segments, source_id="text:beskrivning", lexicon=lexicon
+                )
+            )
+        if not takeoffs:
+            raise HTTPException(
+                status_code=422,
+                detail="Minst en källa krävs: geometri, tabellrader eller text.",
+            )
+        tolerance = float(body.get("length_tolerance") or 0.02)
+        consolidated = consolidate_takeoffs(takeoffs, length_tolerance=tolerance)
+
+        priced: dict[str, Any] | None = None
+        raw_book = body.get("price_book")
+        if raw_book:
+            book = PriceBook(
+                price_book_id=str(raw_book.get("price_book_id", "prisbok")),
+                currency=str(raw_book.get("currency", "SEK")),
+                labour_rate_per_hour=float(raw_book.get("labour_rate_per_hour", 0.0)),
+                entries=tuple(
+                    PriceBookEntry(
+                        kind=str(entry["kind"]),
+                        code=str(entry["code"]),
+                        dimension=str(entry.get("dimension", "*")),
+                        unit=str(entry["unit"]),
+                        material_unit_price=float(entry.get("material_unit_price", 0.0)),
+                        labour_hours_per_unit=float(entry.get("labour_hours_per_unit", 0.0)),
+                        article=entry.get("article"),
+                    )
+                    for entry in raw_book.get("entries", [])
+                ),
+            )
+            priced = price_consolidated_takeoff(consolidated, book)
+        return {"consolidated": consolidated, "priced": priced}
+
     @app.get("/api/projects/{project_id}/vent/{checksum}/quantity.csv")
     def get_vent_quantity_csv(project_id: str, checksum: str) -> Response:
         model = get_vent_model(project_id, checksum)
