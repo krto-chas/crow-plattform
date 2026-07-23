@@ -140,3 +140,8 @@ $('kalkylTemplate').onclick=()=>{$('kalkylPriceBook').value=JSON.stringify(PRICE
 $('kalkylRun').onclick=()=>runKalkyl();
 $('kalkylCsv').onclick=()=>downloadKalkylCsv();
 const _renderImportsOrig=renderImports;renderImports=function(){_renderImportsOrig();renderKalkylAssets()};
+
+// ---- Pipeline-körning (Pass 48) ----
+const PIPELINE_STEPS=[["Claim Extraction","analysis/claims"],["Authority","authority/resolve"],["Technical Delta","technical-deltas/build"],["Commercial-profil","commercial/profile/example"],["Commercial Impact","commercial/build"],["Commercial Review","commercial/review"]];
+async function runPipeline(){if(!state.projectId){toast('Öppna ett projekt först.',true);return}const btn=$('runPipeline');btn.disabled=true;btn.textContent='Kör…';try{for(const[label,endpoint]of PIPELINE_STEPS){btn.textContent=label+'…';try{await api(`/api/projects/${state.projectId}/${endpoint}`,{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'})}catch(e){toast(`${label}: ${e.message}`,true);break}}await openProject(state.projectId);toast('Analysen är klar — se pipeline och nästa åtgärder.')}finally{btn.disabled=false;btn.textContent='Kör analys'}}
+$('runPipeline').onclick=()=>runPipeline();

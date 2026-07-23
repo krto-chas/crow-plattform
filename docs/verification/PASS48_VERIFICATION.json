@@ -1,0 +1,14 @@
+{
+  "release": "0.7.0-alpha.1+pass48",
+  "sprint": "Pass 48 Document path healing and pipeline run button",
+  "quality": {
+    "ruff": "pass",
+    "mypy_strict": "pass (205 files)",
+    "pytest": "427 passed, 1 warning in 10.00s"
+  },
+  "field_findings_addressed": [
+    "stale absolute document paths heal on load (rename/move safe)",
+    "dashboard button runs claims->authority->delta->commercial chain"
+  ],
+  "release_declared": false
+}
