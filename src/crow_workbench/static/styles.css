@@ -8,3 +8,12 @@
 .related-list{display:grid;gap:.35rem;margin:.5rem 0 1rem}.search-result.compact{padding:.45rem .55rem;text-align:left;width:100%}.search-result.compact small{display:block;opacity:.72;margin-top:.15rem}
 
 .graph-summary{padding:12px 14px;margin-bottom:20px;border:1px solid var(--line);background:rgba(10,16,13,.8);color:var(--muted)}.graph-summary strong{color:var(--accent)}.graph-node.vent{border-left:4px solid var(--cyan)}.graph-node.building{border-left:4px solid var(--green)}
+
+.view textarea{width:100%;box-sizing:border-box;background:rgba(255,255,255,.04);color:inherit;border:1px solid rgba(255,255,255,.14);border-radius:8px;padding:8px;font:inherit;font-size:.85rem;margin:4px 0 10px}
+.badge{display:inline-block;padding:1px 8px;border-radius:999px;font-size:.72rem;font-weight:600}
+.badge.corroborated{background:rgba(52,199,123,.18);color:#4fe0a0}
+.badge.single_source{background:rgba(255,255,255,.10);color:inherit}
+.badge.discrepant{background:rgba(255,176,32,.18);color:#ffc85e}
+.badge.unit_mismatch,.badge.unpriced{background:rgba(255,92,92,.18);color:#ff8b8b}
+.kalkyl-row{display:flex;justify-content:space-between;gap:8px;padding:6px 4px;border-bottom:1px solid rgba(255,255,255,.07);font-size:.85rem;align-items:baseline}
+.kalkyl-row small{opacity:.65}

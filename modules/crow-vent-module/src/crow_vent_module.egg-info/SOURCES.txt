@@ -1,0 +1,11 @@
+pyproject.toml
+src/crow_vent_module/__init__.py
+src/crow_vent_module/plugin.py
+src/crow_vent_module/py.typed
+src/crow_vent_module.egg-info/PKG-INFO
+src/crow_vent_module.egg-info/SOURCES.txt
+src/crow_vent_module.egg-info/dependency_links.txt
+src/crow_vent_module.egg-info/entry_points.txt
+src/crow_vent_module.egg-info/requires.txt
+src/crow_vent_module.egg-info/top_level.txt
+tests/test_module_contract.py
