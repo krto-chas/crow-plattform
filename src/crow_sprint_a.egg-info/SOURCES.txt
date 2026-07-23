@@ -89,6 +89,9 @@ src/crow_document_intelligence/relations.py
 src/crow_document_intelligence/repository.py
 src/crow_document_intelligence/revision.py
 src/crow_document_intelligence/service.py
+src/crow_dwg_conversion/__init__.py
+src/crow_dwg_conversion/converter.py
+src/crow_dwg_conversion/py.typed
 src/crow_estimate_line/__init__.py
 src/crow_estimate_line/generator.py
 src/crow_estimate_line/models.py
@@ -236,6 +239,12 @@ src/crow_sprint_a.egg-info/dependency_links.txt
 src/crow_sprint_a.egg-info/entry_points.txt
 src/crow_sprint_a.egg-info/requires.txt
 src/crow_sprint_a.egg-info/top_level.txt
+src/crow_takeoff_consolidation/__init__.py
+src/crow_takeoff_consolidation/consolidate.py
+src/crow_takeoff_consolidation/extractors.py
+src/crow_takeoff_consolidation/models.py
+src/crow_takeoff_consolidation/pricing.py
+src/crow_takeoff_consolidation/py.typed
 src/crow_technical_delta/__init__.py
 src/crow_technical_delta/compare.py
 src/crow_technical_delta/models.py
@@ -315,6 +324,7 @@ tests/test_document_cli.py
 tests/test_document_intake.py
 tests/test_document_model.py
 tests/test_document_relations.py
+tests/test_dwg_conversion.py
 tests/test_estimate_line_generator.py
 tests/test_estimate_line_service.py
 tests/test_estimate_revision.py
@@ -366,6 +376,8 @@ tests/test_scope_impact_engine.py
 tests/test_scope_impact_service.py
 tests/test_source_explorer.py
 tests/test_system_graph.py
+tests/test_takeoff_consolidation.py
+tests/test_takeoff_pricing.py
 tests/test_technical_delta.py
 tests/test_technical_delta_semantics.py
 tests/test_technical_delta_service.py
@@ -382,3 +394,4 @@ tests/test_vent_lexicon.py
 tests/test_vent_text_interpretation.py
 tests/test_versioning.py
 tests/test_workbench.py
+tests/test_workbench_takeoff.py

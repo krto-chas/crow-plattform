@@ -1,0 +1,6 @@
+Metadata-Version: 2.4
+Name: crow-vent-module
+Version: 1.0.0
+Summary: Crow Vent — first production domain module on the Crow Backbone
+Requires-Python: >=3.11
+Requires-Dist: crow-sprint-a<0.8,>=0.7.0a1
