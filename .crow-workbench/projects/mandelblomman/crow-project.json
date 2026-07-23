@@ -1,0 +1,159 @@
+{
+  "project_id": "mandelblomman",
+  "project_name": "Mandelblomman",
+  "documents": [
+    {
+      "id": "doc:cec2f396-1c9a-4d02-9aa5-9cff1224cce2",
+      "filename": "Mandelblomman pl1-A3.pdf",
+      "source_path": "C:\\Users\\ÄGARE\\Desktop\\CROW Plattform\\.crow-workbench\\uploads\\mandelblomman\\Mandelblomman pl1-A3.pdf",
+      "fingerprint": {
+        "sha256": "98ef46b3e6ed58a8cc63b122f631d593d8496850bbfe78cc55d5bdfe3e783816",
+        "size_bytes": 160449,
+        "filename_key": "mandelblommanpl1a3",
+        "document_number": null,
+        "revision": null,
+        "page_count": 1,
+        "metadata_signature": "8611c437dc4e5669d4d87b5b8649c4c88db9fd6b2cf6e4d6c6730cc8bb7b1db4"
+      },
+      "metadata": {
+        "title": "A3",
+        "author": null,
+        "subject": null,
+        "creator": "AutoCAD 2010 2010 (18.0s (LMS Tech))",
+        "producer": "pdfplot10.hdi 10.0.55.0",
+        "document_number": null,
+        "revision": null,
+        "discipline": null,
+        "language": "und"
+      },
+      "document_type": "unknown",
+      "role": "unknown",
+      "status": "indexed",
+      "imported_at": "2026-07-23T14:19:52.258320+00:00",
+      "supersedes_document_id": null,
+      "import_session_id": "import:0de7802f-058a-4d00-90f4-6c38756332c6"
+    },
+    {
+      "id": "doc:b8c6f30e-c126-4667-9cc3-59b9004b9a56",
+      "filename": "Mandelblomman pl2-A3.pdf",
+      "source_path": "C:\\Users\\ÄGARE\\Desktop\\CROW Plattform\\.crow-workbench\\uploads\\mandelblomman\\Mandelblomman pl2-A3.pdf",
+      "fingerprint": {
+        "sha256": "ea0ffdf35c2de9381c0e304131d8028f34deef7515bf84f7115ca2ad947071eb",
+        "size_bytes": 150661,
+        "filename_key": "mandelblommanpl2a3",
+        "document_number": null,
+        "revision": null,
+        "page_count": 1,
+        "metadata_signature": "8611c437dc4e5669d4d87b5b8649c4c88db9fd6b2cf6e4d6c6730cc8bb7b1db4"
+      },
+      "metadata": {
+        "title": "A3",
+        "author": null,
+        "subject": null,
+        "creator": "AutoCAD 2010 2010 (18.0s (LMS Tech))",
+        "producer": "pdfplot10.hdi 10.0.55.0",
+        "document_number": null,
+        "revision": null,
+        "discipline": null,
+        "language": "und"
+      },
+      "document_type": "unknown",
+      "role": "unknown",
+      "status": "indexed",
+      "imported_at": "2026-07-23T14:19:53.678211+00:00",
+      "supersedes_document_id": null,
+      "import_session_id": "import:0de7802f-058a-4d00-90f4-6c38756332c6"
+    }
+  ],
+  "relations": [],
+  "import_sessions": [
+    {
+      "id": "import:0de7802f-058a-4d00-90f4-6c38756332c6",
+      "started_at": "2026-07-23T14:19:52.254694+00:00",
+      "completed_at": "2026-07-23T14:19:55.350879+00:00",
+      "status": "completed",
+      "requested_paths": [
+        "C:\\Users\\ÄGARE\\Desktop\\CROW Plattform\\.crow-workbench\\uploads\\mandelblomman\\Mandelblomman pl1-A3.pdf",
+        "C:\\Users\\ÄGARE\\Desktop\\CROW Plattform\\.crow-workbench\\uploads\\mandelblomman\\Mandelblomman pl2-A3.pdf"
+      ],
+      "results": [
+        {
+          "path": "C:\\Users\\ÄGARE\\Desktop\\CROW Plattform\\.crow-workbench\\uploads\\mandelblomman\\Mandelblomman pl1-A3.pdf",
+          "outcome": "imported",
+          "document_id": "doc:cec2f396-1c9a-4d02-9aa5-9cff1224cce2",
+          "related_document_id": null,
+          "message": "Mandelblomman pl1-A3.pdf: unknown/unknown, 1 pages",
+          "error_type": null
+        },
+        {
+          "path": "C:\\Users\\ÄGARE\\Desktop\\CROW Plattform\\.crow-workbench\\uploads\\mandelblomman\\Mandelblomman pl2-A3.pdf",
+          "outcome": "imported",
+          "document_id": "doc:b8c6f30e-c126-4667-9cc3-59b9004b9a56",
+          "related_document_id": null,
+          "message": "Mandelblomman pl2-A3.pdf: unknown/unknown, 1 pages",
+          "error_type": null
+        }
+      ]
+    }
+  ],
+  "pages": [
+    {
+      "id": "doc:cec2f396-1c9a-4d02-9aa5-9cff1224cce2:page:1",
+      "document_id": "doc:cec2f396-1c9a-4d02-9aa5-9cff1224cce2",
+      "page_number": 1,
+      "width_points": 1191.0,
+      "height_points": 842.0,
+      "rotation_degrees": 0,
+      "content_status": "text_available",
+      "text": "(175e+$//\nTRAPPHUS\n7-(-*<0\u0003\u001b\u001a\u0003Pð\n6b.7kvmKONDITION\nFRIA VIKTER\u0014\u0015\u0013\u0003Pð\nREC\nEL\n1g'\u0003\t\nGYM\n1g'\n(175e\nKLINKERGOLV\n1g'\n1g'\nRULLSTOL\nTRAPPHUS\nTRAPPAST\nAUTOMATER\nRWC/D/omkl.\u0003\u0019\u000f\u0013\u0003Pð\nDATUMBET SIGNb1'5,1*(1\u0003$96(5ANT\nTEL\nTELTELTELTELTEL\nSIGNATUR+$1'/b**$5(RITAD AVUPPDRAG NUMMERDATUMARKIVNUMMER\nNUMMERSKALA\nFAXFAXFAXFAXFAXFAX\nBET\nKONSTRUERAD AV\nRELATIONSRITNING\u0015\u0017\u0012\u001a\u0003),71(66\u000363c1*$kv MANDELBLOMMANXQGHUYnQLQJ\nKTKT/LP2014-02-12V:57:11:50\nAKV.UcV\u00039HQWLODWLRQ\u0003$%08-5003714508-50037110EMI",
+      "text_sha256": "a75d5250dffa13eaa955b269ddf955680f14fe8d57eb5d9b42c747a4f2feae00"
+    },
+    {
+      "id": "doc:b8c6f30e-c126-4667-9cc3-59b9004b9a56:page:1",
+      "document_id": "doc:b8c6f30e-c126-4667-9cc3-59b9004b9a56",
+      "page_number": 1,
+      "width_points": 1191.0,
+      "height_points": 842.0,
+      "rotation_degrees": 0,
+      "content_status": "text_available",
+      "text": "TRAPPHUS\nPASSAGE\nFRD FD\u0003\u0018\u000f\u0016\u0003Pð\nOMKL. DAMFD\u0003\u0016\u001a\u0003PðOMKL. HERRFD\u0003\u0016\u001c\u0003Pð\nPASSAGE1g'\n1g'\nDUSCHTORKTORK\n)5,$\u00039,.7(5\u0003\u0010\u0003g95(\u0003'(/\n*<0\u0003\u0010\u0003g95(\u0003'(/\n7-(-*<0\u0003g95(\u0003'(/\n5(&(37,21\u0003\u0010\u0003g95(\u0003'(/\nBEF.WCBEF.ST\nWCWC\nDUSCH\nDATUMBET SIGNb1'5,1*(1\u0003$96(5ANT\nTEL\nTELTELTELTELTEL\nSIGNATUR+$1'/b**$5(RITAD AVUPPDRAG NUMMERDATUMARKIVNUMMER\nNUMMERSKALA\nFAXFAXFAXFAXFAXFAX\nBET\nKONSTRUERAD AV\nRELATIONSRITNING\u0015\u0017\u0012\u001a\u0003),71(66\u000363c1*$kv MANDELBLOMMANgYHUYnQLQJ\nKTKT/LP2014-02-12V:57:21:50\nAKV.UcV\u00039HQWLODWLRQ\u0003$%08-5003714508-50037110EMI",
+      "text_sha256": "fc1619a23cab1e5345ad5b3c43d057892fc5848e6bd271267c8cdf338d253394"
+    }
+  ],
+  "regions": [
+    {
+      "id": "doc:cec2f396-1c9a-4d02-9aa5-9cff1224cce2:page:1:region:page",
+      "document_id": "doc:cec2f396-1c9a-4d02-9aa5-9cff1224cce2",
+      "page_id": "doc:cec2f396-1c9a-4d02-9aa5-9cff1224cce2:page:1",
+      "page_number": 1,
+      "kind": "page",
+      "bounds": {
+        "x": 0.0,
+        "y": 0.0,
+        "width": 1.0,
+        "height": 1.0
+      },
+      "text": "(175e+$//\nTRAPPHUS\n7-(-*<0\u0003\u001b\u001a\u0003Pð\n6b.7kvmKONDITION\nFRIA VIKTER\u0014\u0015\u0013\u0003Pð\nREC\nEL\n1g'\u0003\t\nGYM\n1g'\n(175e\nKLINKERGOLV\n1g'\n1g'\nRULLSTOL\nTRAPPHUS\nTRAPPAST\nAUTOMATER\nRWC/D/omkl.\u0003\u0019\u000f\u0013\u0003Pð\nDATUMBET SIGNb1'5,1*(1\u0003$96(5ANT\nTEL\nTELTELTELTELTEL\nSIGNATUR+$1'/b**$5(RITAD AVUPPDRAG NUMMERDATUMARKIVNUMMER\nNUMMERSKALA\nFAXFAXFAXFAXFAXFAX\nBET\nKONSTRUERAD AV\nRELATIONSRITNING\u0015\u0017\u0012\u001a\u0003),71(66\u000363c1*$kv MANDELBLOMMANXQGHUYnQLQJ\nKTKT/LP2014-02-12V:57:11:50\nAKV.UcV\u00039HQWLODWLRQ\u0003$%08-5003714508-50037110EMI",
+      "confidence": 1.0,
+      "extraction_method": "embedded_pdf_text"
+    },
+    {
+      "id": "doc:b8c6f30e-c126-4667-9cc3-59b9004b9a56:page:1:region:page",
+      "document_id": "doc:b8c6f30e-c126-4667-9cc3-59b9004b9a56",
+      "page_id": "doc:b8c6f30e-c126-4667-9cc3-59b9004b9a56:page:1",
+      "page_number": 1,
+      "kind": "page",
+      "bounds": {
+        "x": 0.0,
+        "y": 0.0,
+        "width": 1.0,
+        "height": 1.0
+      },
+      "text": "TRAPPHUS\nPASSAGE\nFRD FD\u0003\u0018\u000f\u0016\u0003Pð\nOMKL. DAMFD\u0003\u0016\u001a\u0003PðOMKL. HERRFD\u0003\u0016\u001c\u0003Pð\nPASSAGE1g'\n1g'\nDUSCHTORKTORK\n)5,$\u00039,.7(5\u0003\u0010\u0003g95(\u0003'(/\n*<0\u0003\u0010\u0003g95(\u0003'(/\n7-(-*<0\u0003g95(\u0003'(/\n5(&(37,21\u0003\u0010\u0003g95(\u0003'(/\nBEF.WCBEF.ST\nWCWC\nDUSCH\nDATUMBET SIGNb1'5,1*(1\u0003$96(5ANT\nTEL\nTELTELTELTELTEL\nSIGNATUR+$1'/b**$5(RITAD AVUPPDRAG NUMMERDATUMARKIVNUMMER\nNUMMERSKALA\nFAXFAXFAXFAXFAXFAX\nBET\nKONSTRUERAD AV\nRELATIONSRITNING\u0015\u0017\u0012\u001a\u0003),71(66\u000363c1*$kv MANDELBLOMMANgYHUYnQLQJ\nKTKT/LP2014-02-12V:57:21:50\nAKV.UcV\u00039HQWLODWLRQ\u0003$%08-5003714508-50037110EMI",
+      "confidence": 1.0,
+      "extraction_method": "embedded_pdf_text"
+    }
+  ],
+  "created_at": "2026-07-23T14:18:59.513268+00:00",
+  "updated_at": "2026-07-23T14:19:55.350879+00:00"
+}

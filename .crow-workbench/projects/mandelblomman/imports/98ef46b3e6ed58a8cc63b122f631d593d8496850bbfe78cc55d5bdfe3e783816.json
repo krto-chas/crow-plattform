@@ -1,0 +1,40 @@
+{
+  "importer_id": "crow.import.pdf",
+  "format_id": "pdf",
+  "filename": "Mandelblomman pl1-A3.pdf",
+  "media_type": "application/pdf",
+  "size_bytes": 160449,
+  "checksum_sha256": "98ef46b3e6ed58a8cc63b122f631d593d8496850bbfe78cc55d5bdfe3e783816",
+  "capabilities": [
+    "metadata",
+    "text",
+    "structure",
+    "preview"
+  ],
+  "metadata": {
+    "page_count": 1
+  },
+  "structure": [
+    {
+      "kind": "page",
+      "index": 1,
+      "text_length": 469
+    }
+  ],
+  "observations": [
+    {
+      "observation_type": "text",
+      "value": "(175e+$//\nTRAPPHUS\n7-(-*<0\u0003\u001b\u001a\u0003Pð\n6b.7kvmKONDITION\nFRIA VIKTER\u0014\u0015\u0013\u0003Pð\nREC\nEL\n1g'\u0003\t\nGYM\n1g'\n(175e\nKLINKERGOLV\n1g'\n1g'\nRULLSTOL\nTRAPPHUS\nTRAPPAST\nAUTOMATER\nRWC/D/omkl.\u0003\u0019\u000f\u0013\u0003Pð\nDATUMBET SIGNb1'5,1*(1\u0003$96(5ANT\nTEL\nTELTELTELTELTEL\nSIGNATUR+$1'/b**$5(RITAD AVUPPDRAG NUMMERDATUMARKIVNUMMER\nNUMMERSKALA\nFAXFAXFAXFAXFAXFAX\nBET\nKONSTRUERAD AV\nRELATIONSRITNING\u0015\u0017\u0012\u001a\u0003),71(66\u000363c1*$kv MANDELBLOMMANXQGHUYnQLQJ\nKTKT/LP2014-02-12V:57:11:50\nAKV.UcV\u00039HQWLODWLRQ\u0003$%08-5003714508-50037110EMI",
+      "locator": {
+        "kind": "pdf_page",
+        "value": {
+          "page": 1
+        }
+      },
+      "confidence": 1.0,
+      "metadata": {}
+    }
+  ],
+  "preview": {},
+  "warnings": []
+}

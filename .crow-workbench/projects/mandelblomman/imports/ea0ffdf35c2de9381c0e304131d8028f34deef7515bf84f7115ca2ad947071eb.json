@@ -1,0 +1,40 @@
+{
+  "importer_id": "crow.import.pdf",
+  "format_id": "pdf",
+  "filename": "Mandelblomman pl2-A3.pdf",
+  "media_type": "application/pdf",
+  "size_bytes": 150661,
+  "checksum_sha256": "ea0ffdf35c2de9381c0e304131d8028f34deef7515bf84f7115ca2ad947071eb",
+  "capabilities": [
+    "metadata",
+    "text",
+    "structure",
+    "preview"
+  ],
+  "metadata": {
+    "page_count": 1
+  },
+  "structure": [
+    {
+      "kind": "page",
+      "index": 1,
+      "text_length": 493
+    }
+  ],
+  "observations": [
+    {
+      "observation_type": "text",
+      "value": "TRAPPHUS\nPASSAGE\nFRD FD\u0003\u0018\u000f\u0016\u0003Pð\nOMKL. DAMFD\u0003\u0016\u001a\u0003PðOMKL. HERRFD\u0003\u0016\u001c\u0003Pð\nPASSAGE1g'\n1g'\nDUSCHTORKTORK\n)5,$\u00039,.7(5\u0003\u0010\u0003g95(\u0003'(/\n*<0\u0003\u0010\u0003g95(\u0003'(/\n7-(-*<0\u0003g95(\u0003'(/\n5(&(37,21\u0003\u0010\u0003g95(\u0003'(/\nBEF.WCBEF.ST\nWCWC\nDUSCH\nDATUMBET SIGNb1'5,1*(1\u0003$96(5ANT\nTEL\nTELTELTELTELTEL\nSIGNATUR+$1'/b**$5(RITAD AVUPPDRAG NUMMERDATUMARKIVNUMMER\nNUMMERSKALA\nFAXFAXFAXFAXFAXFAX\nBET\nKONSTRUERAD AV\nRELATIONSRITNING\u0015\u0017\u0012\u001a\u0003),71(66\u000363c1*$kv MANDELBLOMMANgYHUYnQLQJ\nKTKT/LP2014-02-12V:57:21:50\nAKV.UcV\u00039HQWLODWLRQ\u0003$%08-5003714508-50037110EMI",
+      "locator": {
+        "kind": "pdf_page",
+        "value": {
+          "page": 1
+        }
+      },
+      "confidence": 1.0,
+      "metadata": {}
+    }
+  ],
+  "preview": {},
+  "warnings": []
+}
