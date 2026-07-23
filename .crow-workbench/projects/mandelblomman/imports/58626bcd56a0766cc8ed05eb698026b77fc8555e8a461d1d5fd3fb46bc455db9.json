@@ -1,0 +1,20 @@
+{
+  "importer_id": "crow.import.dwg",
+  "format_id": "dwg",
+  "filename": "Mandelblomman pl2.dwg",
+  "media_type": "application/octet-stream",
+  "size_bytes": 429707,
+  "checksum_sha256": "58626bcd56a0766cc8ed05eb698026b77fc8555e8a461d1d5fd3fb46bc455db9",
+  "capabilities": [
+    "metadata"
+  ],
+  "metadata": {
+    "dwg_version_code": "AC1024"
+  },
+  "structure": [],
+  "observations": [],
+  "preview": {},
+  "warnings": [
+    "DWG är binärt och kräver en licensierad eller extern konverteringsadapter för geometri och lager. Filen är registrerad utan semantisk tolkning."
+  ]
+}
