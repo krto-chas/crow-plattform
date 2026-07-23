@@ -236,6 +236,11 @@ src/crow_sprint_a.egg-info/dependency_links.txt
 src/crow_sprint_a.egg-info/entry_points.txt
 src/crow_sprint_a.egg-info/requires.txt
 src/crow_sprint_a.egg-info/top_level.txt
+src/crow_takeoff_consolidation/__init__.py
+src/crow_takeoff_consolidation/consolidate.py
+src/crow_takeoff_consolidation/extractors.py
+src/crow_takeoff_consolidation/models.py
+src/crow_takeoff_consolidation/py.typed
 src/crow_technical_delta/__init__.py
 src/crow_technical_delta/compare.py
 src/crow_technical_delta/models.py
@@ -366,6 +371,7 @@ tests/test_scope_impact_engine.py
 tests/test_scope_impact_service.py
 tests/test_source_explorer.py
 tests/test_system_graph.py
+tests/test_takeoff_consolidation.py
 tests/test_technical_delta.py
 tests/test_technical_delta_semantics.py
 tests/test_technical_delta_service.py
