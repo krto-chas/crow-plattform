@@ -94,6 +94,25 @@
           "error_type": null
         }
       ]
+    },
+    {
+      "id": "import:25946b6c-9216-4e7f-aa31-3b51e13fc59e",
+      "started_at": "2026-07-23T14:45:59.902946+00:00",
+      "completed_at": "2026-07-23T14:45:59.906957+00:00",
+      "status": "completed",
+      "requested_paths": [
+        "C:\\Users\\ÄGARE\\Desktop\\crow-plattform\\.crow-workbench\\uploads\\mandelblomman\\Mandelblomman pl1-A3.pdf"
+      ],
+      "results": [
+        {
+          "path": "C:\\Users\\ÄGARE\\Desktop\\crow-plattform\\.crow-workbench\\uploads\\mandelblomman\\Mandelblomman pl1-A3.pdf",
+          "outcome": "duplicate",
+          "document_id": null,
+          "related_document_id": "doc:cec2f396-1c9a-4d02-9aa5-9cff1224cce2",
+          "message": "Duplicate skipped: Mandelblomman pl1-A3.pdf matches Mandelblomman pl1-A3.pdf",
+          "error_type": null
+        }
+      ]
     }
   ],
   "pages": [
@@ -155,5 +174,5 @@
     }
   ],
   "created_at": "2026-07-23T14:18:59.513268+00:00",
-  "updated_at": "2026-07-23T14:19:55.350879+00:00"
+  "updated_at": "2026-07-23T14:45:59.906957+00:00"
 }

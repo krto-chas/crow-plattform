@@ -482,14 +482,32 @@ class DwgPlugin(BasePlugin):
         return header.startswith(b"AC10")
 
     def import_asset(self, source: ImportSource) -> ImportedAsset:
+        from crow_dwg_conversion import ConversionStatus, convert_dwg
+
         header = source.path.read_bytes()[:6].decode("ascii", errors="replace")
+        conversion = convert_dwg(source.path)
+        metadata: dict[str, Any] = {
+            "dwg_version_code": header,
+            "conversion": conversion.as_payload(),
+        }
+        if conversion.status is ConversionStatus.CONVERTED:
+            return self.build(
+                source,
+                metadata=metadata,
+                warnings=[
+                    "DWG konverterad till härledd DXF via ODA File Converter; "
+                    "originalet förblir auktoritativ evidens. Importera den "
+                    "härledda DXF-filen för geometri och lager."
+                ],
+            )
         return self.build(
             source,
-            metadata={"dwg_version_code": header},
+            metadata=metadata,
             warnings=[
                 "DWG är binärt och kräver en licensierad eller extern "
                 "konverteringsadapter för geometri och lager. "
-                "Filen är registrerad utan semantisk tolkning."
+                "Filen är registrerad utan semantisk tolkning. "
+                f"Konverteringsstatus: {conversion.status.value}."
             ],
         )
 
