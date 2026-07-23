@@ -1,0 +1,21 @@
+{
+  "release": "0.7.0-alpha.1+pass43",
+  "sprint": "Pass 43 Isolated DWG conversion via ODA File Converter",
+  "quality": {
+    "ruff": "pass",
+    "mypy_strict": "pass (203 files)",
+    "pytest": "414 passed, 1 warning in 11.00s"
+  },
+  "new_package": "crow_dwg_conversion",
+  "integration": "DwgPlugin converts when converter present, structured fallback otherwise",
+  "hardening": [
+    "signature",
+    "extension",
+    "empty",
+    "size_limit",
+    "timeout",
+    "sanitized_names",
+    "scratch_isolation"
+  ],
+  "release_declared": false
+}
