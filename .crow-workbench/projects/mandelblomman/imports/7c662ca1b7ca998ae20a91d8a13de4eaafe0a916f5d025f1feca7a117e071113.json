@@ -1,19 +1,19 @@
 {
   "importer_id": "crow.import.dwg",
   "format_id": "dwg",
-  "filename": "Mandelblomman.dwg",
+  "filename": "V-50-1-01.dwg",
   "media_type": "application/octet-stream",
-  "size_bytes": 435212,
-  "checksum_sha256": "cfacbc4f6d479d84a74d2a64429f057d11d3b96848caa9c56bc5ab1d3990e632",
+  "size_bytes": 1085241,
+  "checksum_sha256": "7c662ca1b7ca998ae20a91d8a13de4eaafe0a916f5d025f1feca7a117e071113",
   "capabilities": [
     "metadata"
   ],
   "metadata": {
-    "dwg_version_code": "AC1024",
+    "dwg_version_code": "AC1032",
     "conversion": {
       "schema_version": "crow-dwg-conversion-v0.1",
       "status": "converter_unavailable",
-      "source": "C:\\Users\\ÄGARE\\Desktop\\crow-plattform\\.crow-workbench\\uploads\\mandelblomman\\Mandelblomman.dwg",
+      "source": "C:\\Users\\ÄGARE\\Desktop\\crow-plattform\\.crow-workbench\\uploads\\mandelblomman\\V-50-1-01.dwg",
       "source_sha256": null,
       "derived": null,
       "derived_sha256": null,

@@ -120,8 +120,37 @@ def _load_region(item: dict[str, Any]) -> DocumentRegion:
     )
 
 
+def _heal_document_path(document_path: str, project_file: Path) -> str:
+    """Resolve stored document paths against the current tree.
+
+    Paths are stored absolute at import time, which breaks when the data
+    root is renamed or moved. Healing: a relative path resolves against
+    the data root; a stale absolute path is remapped to the project's
+    upload directory when a file with the same name exists there. The
+    original string is kept whenever no better candidate exists.
+    """
+    from pathlib import PurePosixPath, PureWindowsPath
+
+    stored = Path(document_path)
+    parents = project_file.parents
+    data_root = parents[2] if len(parents) > 2 else project_file.parent
+    is_absolute = PurePosixPath(document_path).is_absolute() or PureWindowsPath(
+        document_path
+    ).is_absolute()
+    if not is_absolute:
+        return str((data_root / stored).resolve())
+    if stored.exists():
+        return document_path
+    candidate = data_root / "uploads" / project_file.parent.name / stored.name
+    if candidate.exists():
+        return str(candidate.resolve())
+    return document_path
+
+
 def load_index(path: Path) -> DocumentIndex:
     raw: dict[str, Any] = json.loads(path.read_text(encoding="utf-8"))
+    for item in raw["documents"]:
+        item["source_path"] = _heal_document_path(item["source_path"], path)
     documents = tuple(_load_document(item) for item in raw["documents"])
     relations = tuple(DocumentRelation(**item) for item in raw.get("relations", []))
     sessions = tuple(_load_session(item) for item in raw.get("import_sessions", []))
