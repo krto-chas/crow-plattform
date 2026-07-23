@@ -1,0 +1,11 @@
+{
+  "release": "0.7.0-alpha.1+pass44",
+  "sprint": "Pass 44 Takeoff pricing — base estimate from consolidated quantities",
+  "quality": {
+    "ruff": "pass",
+    "mypy_strict": "pass (204 files)",
+    "pytest": "418 passed, 1 warning in 10.18s"
+  },
+  "chain_closed": "handling -> delmängd -> kalkylrad (SEK, material + arbete)",
+  "release_declared": false
+}

@@ -9,6 +9,7 @@ from .models import (
     SourceLine,
     SourceTakeoff,
 )
+from .pricing import PriceBook, PriceBookEntry, price_consolidated_takeoff
 
 __all__ = [
     "DEFAULT_LENGTH_TOLERANCE",
@@ -19,6 +20,9 @@ __all__ = [
     "SourceKind",
     "SourceLine",
     "SourceTakeoff",
+    "PriceBook",
+    "PriceBookEntry",
+    "price_consolidated_takeoff",
     "consolidate_takeoffs",
     "takeoff_from_geometry",
     "takeoff_from_table",
