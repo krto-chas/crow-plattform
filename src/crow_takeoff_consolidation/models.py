@@ -15,7 +15,7 @@ from __future__ import annotations
 import hashlib
 from dataclasses import dataclass, field
 from enum import StrEnum
-from typing import Any
+from typing import Any, Protocol
 
 SCHEMA_VERSION = "crow-takeoff-consolidation-v0.1"
 
@@ -79,3 +79,17 @@ def dimension_text(
     if shape == "rectangular" and width_mm is not None and height_mm is not None:
         return f"{width_mm}x{height_mm}"
     return "Ej angiven"
+
+
+class DesignationLexicon(Protocol):
+    """Domain lexicon contract the consolidation depends on.
+
+    Provided by domain modules (e.g. crow-vent-module); the Backbone never
+    imports a domain package to obtain one.
+    """
+
+    def parse_duct_string(self, value: str, *, layer: str | None = None) -> Any | None: ...
+
+    def lookup_component(
+        self, value: str, *, layer_semantic: str | None = None, system_context: str | None = None
+    ) -> Any | None: ...

@@ -5,6 +5,7 @@ from crow_takeoff_consolidation import (
     takeoff_from_table,
     takeoff_from_text,
 )
+from crow_vent.lexicon import VentLexicon
 
 
 def geometry_payload() -> dict:
@@ -46,7 +47,9 @@ def test_table_extractor_reads_duct_rows_with_units() -> None:
         ["TD1", "24", "st"],
         ["Anteckning utan mängd", "", ""],
     ]
-    takeoff = takeoff_from_table(rows, source_id="xlsx:mangdforteckning")
+    takeoff = takeoff_from_table(
+        rows, source_id="xlsx:mangdforteckning", lexicon=VentLexicon.default()
+    )
     assert len(takeoff.lines) == 2
     duct = takeoff.lines[0]
     assert duct.dimension == "Ø125"
@@ -60,7 +63,9 @@ def test_text_extractor_counts_components_and_reports_duct_mentions() -> None:
         "I entréplan monteras 24 st TD1 jämnt fördelade.",
         "T-125",
     ]
-    takeoff = takeoff_from_text(segments, source_id="pdf:beskrivning")
+    takeoff = takeoff_from_text(
+        segments, source_id="pdf:beskrivning", lexicon=VentLexicon.default()
+    )
     assert len(takeoff.lines) == 1
     assert takeoff.lines[0].quantity == 24.0
     assert any(item["reason"] == "duct_mention_without_length" for item in takeoff.skipped)
@@ -71,10 +76,12 @@ def test_consolidation_flags_discrepancy_and_corroborates_counts() -> None:
     table = takeoff_from_table(
         [["T-125", "132", "m"], ["TD1", "24", "st"]],
         source_id="xlsx:mangdforteckning",
+        lexicon=VentLexicon.default(),
     )
     text = takeoff_from_text(
         ["I entréplan monteras 24 st TD1 jämnt fördelade."],
         source_id="pdf:beskrivning",
+        lexicon=VentLexicon.default(),
     )
     result = consolidate_takeoffs([geometry, table, text])
 
@@ -111,7 +118,9 @@ def test_consolidation_within_tolerance_is_corroborated() -> None:
         },
         source_id="dxf:V-57-1-01",
     )
-    table = takeoff_from_table([["T-125", "119,5", "m"]], source_id="xlsx:mangd")
+    table = takeoff_from_table(
+        [["T-125", "119,5", "m"]], source_id="xlsx:mangd", lexicon=VentLexicon.default()
+    )
     result = consolidate_takeoffs([geometry, table])
     line = result["lines"][0]
     assert line["status"] == LineStatus.CORROBORATED.value
@@ -135,7 +144,9 @@ def test_unit_mismatch_is_never_averaged() -> None:
         },
         source_id="dxf:V-57-1-01",
     )
-    table = takeoff_from_table([["T-125", "118", "st"]], source_id="xlsx:fel-enhet")
+    table = takeoff_from_table(
+        [["T-125", "118", "st"]], source_id="xlsx:fel-enhet", lexicon=VentLexicon.default()
+    )
     result = consolidate_takeoffs([geometry, table])
     line = result["lines"][0]
     assert line["status"] == LineStatus.UNIT_MISMATCH.value

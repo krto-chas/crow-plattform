@@ -1,0 +1,14 @@
+{
+  "release": "0.7.0-alpha.1+pass42",
+  "sprint": "Pass 42 Crow Vent as first production module",
+  "quality": {
+    "ruff": "pass",
+    "mypy_strict": "pass (201 files)",
+    "pytest": "408 passed, 1 warning in 23.43s",
+    "module_validate": "PASS: crow.vent 1.0.0 is Crow-compatible",
+    "module_discovery": "crow.vent 1.0.0 [entrypoint:vent]",
+    "module_wheel": "crow_vent_module-1.0.0-py3-none-any.whl built"
+  },
+  "adr_003_backbone_to_domain_imports": 0,
+  "release_declared": false
+}

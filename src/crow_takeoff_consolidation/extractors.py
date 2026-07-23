@@ -10,9 +10,8 @@ from __future__ import annotations
 import re
 from typing import Any
 
-from crow_vent.lexicon import VentLexicon
-
 from .models import (
+    DesignationLexicon,
     LineKind,
     SourceKind,
     SourceLine,
@@ -61,7 +60,7 @@ def takeoff_from_geometry(payload: dict[str, Any], *, source_id: str) -> SourceT
 
 
 def takeoff_from_table(
-    rows: list[list[Any]], *, source_id: str, lexicon: VentLexicon | None = None
+    rows: list[list[Any]], *, source_id: str, lexicon: DesignationLexicon
 ) -> SourceTakeoff:
     """Extract lines from spreadsheet rows (XLSX/CSV via the import framework).
 
@@ -69,7 +68,7 @@ def takeoff_from_table(
     duct string or component identity, then take the nearest numeric cell to
     its right as the quantity and any unit-looking cell as the unit.
     """
-    lex = lexicon or VentLexicon.default()
+    lex = lexicon
     lines: list[SourceLine] = []
     skipped: list[dict[str, Any]] = []
     for row_index, row in enumerate(rows):
@@ -136,7 +135,7 @@ def takeoff_from_table(
 
 
 def takeoff_from_text(
-    segments: list[str], *, source_id: str, lexicon: VentLexicon | None = None
+    segments: list[str], *, source_id: str, lexicon: DesignationLexicon
 ) -> SourceTakeoff:
     """Extract component counts from specification text (PDF/DOCX segments).
 
@@ -144,7 +143,7 @@ def takeoff_from_text(
     identity against the lexicon. Duct strings without adjacent lengths in
     prose are recorded as skipped mentions rather than quantities.
     """
-    lex = lexicon or VentLexicon.default()
+    lex = lexicon
     lines: list[SourceLine] = []
     skipped: list[dict[str, Any]] = []
     for segment_index, segment in enumerate(segments):

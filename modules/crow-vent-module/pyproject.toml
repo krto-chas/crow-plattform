@@ -1,0 +1,19 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "crow-vent-module"
+version = "1.0.0"
+description = "Crow Vent — first production domain module on the Crow Backbone"
+requires-python = ">=3.11"
+dependencies = ["crow-sprint-a>=0.7.0a1,<0.8"]
+
+[project.entry-points."crow.modules"]
+vent = "crow_vent_module.plugin:CrowVentModulePlugin"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+crow_vent_module = ["py.typed"]
