@@ -65,6 +65,7 @@ from crow_commercial_review import (
     update_project_commercial_review,
 )
 from crow_cross_source_linking import CrossSourceLinkBuilder
+from crow_document_intelligence.cad_pdf_text import repair_cad_pdf_text
 from crow_document_intelligence.repository import load_index
 from crow_document_intelligence.service import (
     create_project,
@@ -1231,9 +1232,20 @@ def create_app(data_root: Path | None = None) -> FastAPI:
             raise HTTPException(status_code=404, detail="Dokumentet finns inte")
         pages = [page for page in index_data.pages if page.document_id == document_id]
         regions = [region for region in index_data.regions if region.document_id == document_id]
+        page_payloads = []
+        for page in pages:
+            payload = _jsonable(asdict(page))
+            raw_text = payload.get("text") or ""
+            if raw_text:
+                repaired = repair_cad_pdf_text(raw_text)
+                if repaired.was_remapped:
+                    payload["text"] = repaired.text
+                    payload["raw_text"] = repaired.raw
+                    payload["cad_text_remapped_tokens"] = repaired.remapped_tokens
+            page_payloads.append(payload)
         return {
             "document": _jsonable(asdict(document)),
-            "pages": [_jsonable(asdict(page)) for page in pages],
+            "pages": page_payloads,
             "regions": [_jsonable(asdict(region)) for region in regions],
         }
 

@@ -1,0 +1,15 @@
+{
+  "release": "0.7.0-alpha.1+pass47",
+  "sprint": "Pass 47 CAD-PDF text repair and inline preview",
+  "quality": {
+    "ruff": "pass",
+    "mypy_strict": "pass (205 files)",
+    "pytest": "423 passed, 1 warning in 15.13s"
+  },
+  "field_findings_addressed": [
+    "shifted CAD font encoding (+0x1D) repaired with raw preserved",
+    "PDF preview inline (was attachment)",
+    "DWG converter diagnosis path documented"
+  ],
+  "release_declared": false
+}
