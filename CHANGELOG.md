@@ -1,3 +1,15 @@
+# Unreleased — Pass 49–50: Berghällen golden dataset och provtryckningsdomän
+
+- Pass 49: Berghällen-förfrågningspaketet registrerat som golden dataset
+  (32 källor med SHA-256, kundfiler utanför repot) med facit för täthetskrav,
+  B/C-konflikten, omfattning 100/10/10/100, 33 lgh, 99 schaktsträngar och
+  längder per trapphus (tolerans 20 %), plus regenereringsskript och tester.
+- Pass 50: nytt paket `crow_pressure_test` — täthetsklasslexikon med
+  läckagefaktorer/ATC/standarder, q_max-beräkning (Decimal), STATED-extraktion
+  av täthetskrav och provningsomfattning ur klartext, konfliktdetektering
+  (klass B vs C) samt ClaimOrigin-separation klartext/härlett.
+- Grindar: Ruff 0, mypy strict 0 i 209 filer, 447 tester + 1 env-gated skip.
+
 # Unreleased — 0.7.0 RC readiness governance
 
 - Validated the DXF importer against a controlled real-project aggregate DXF.
