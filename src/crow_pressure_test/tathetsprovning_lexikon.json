@@ -1,0 +1,44 @@
+{
+  "meta": {
+    "name": "tathetsprovning-lexikon",
+    "version": "0.1.0",
+    "language": "sv",
+    "discipline": "VENT",
+    "purpose": "Kunskapskälla för täthetsklasser, läckagefaktorer, standarder och extraktionsmönster för täthetsprovning av luftkanalsystem.",
+    "sources": [
+      "SS-EN 1507:2006 — Rektangulära plåtkanaler, hållfasthet och täthet",
+      "SS-EN 12237:2003 — Cirkulära plåtkanaler, hållfasthet och täthet",
+      "SS-EN 14239:2004 — Mätning av kanalyta",
+      "SS-EN 16798-3:2017 — Klassning av lufttäthet (ATC)",
+      "SS-EN 12599:2012 — Provning vid avlämnande",
+      "AMA VVS & Kyla 19 — QAB, QL, YHB, YHC"
+    ]
+  },
+  "formula": {
+    "expression": "f_max = c * p^0.65",
+    "pressure_unit": "Pa",
+    "flow_unit": "l/(s*m2)",
+    "note": "Tillåtet läckflöde per m2 omslutande kanalyta enligt SS-EN 14239, vid provtryck p (absolutbelopp)."
+  },
+  "tightness_classes": {
+    "A": {"leakage_factor": "0.027", "atc": "ATC 6"},
+    "B": {"leakage_factor": "0.009", "atc": "ATC 5"},
+    "C": {"leakage_factor": "0.003", "atc": "ATC 4"},
+    "D": {"leakage_factor": "0.001", "atc": "ATC 3"}
+  },
+  "duct_families": {
+    "cirkular": ["cirkulär", "cirkulära", "cirkulart", "spirokanal", "spirorör"],
+    "rektangular": ["rektangulär", "rektangulära", "rektangulart"],
+    "imkanal": ["imkanal", "imkanaler"],
+    "schakt": ["schakt", "schaktkanal", "schaktkanaler"],
+    "platsbyggd": ["platsbyggd", "platsbyggda", "ej typgodkänd", "ej typgodkända", "samlingslåda", "samlingslådor"]
+  },
+  "standards": [
+    {"id": "SS-EN 1507", "title": "Rektangulära plåtkanaler — krav på hållfasthet och täthet"},
+    {"id": "SS-EN 12237", "title": "Cirkulära plåtkanaler — krav på hållfasthet och täthet"},
+    {"id": "SS-EN 14239", "title": "Kanalsystem — mätning av kanalyta"},
+    {"id": "SS-EN 16798-3", "title": "Ventilation — klassning av lufttäthet (ATC-klasser)"},
+    {"id": "SS-EN 12599", "title": "Avlämnande av luftbehandlingsentreprenader — provning och mätmetoder"},
+    {"id": "AMA VVS & Kyla 19", "title": "QAB utförandekrav täthetsklass; YHB/YHC kontroll och provning"}
+  ]
+}

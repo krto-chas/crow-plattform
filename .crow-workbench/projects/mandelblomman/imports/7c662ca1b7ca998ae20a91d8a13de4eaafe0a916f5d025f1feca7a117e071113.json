@@ -9,24 +9,12 @@
     "metadata"
   ],
   "metadata": {
-    "dwg_version_code": "AC1032",
-    "conversion": {
-      "schema_version": "crow-dwg-conversion-v0.1",
-      "status": "converter_unavailable",
-      "source": "C:\\Users\\ÄGARE\\Desktop\\crow-plattform\\.crow-workbench\\uploads\\mandelblomman\\V-50-1-01.dwg",
-      "source_sha256": null,
-      "derived": null,
-      "derived_sha256": null,
-      "converter": null,
-      "output_version": "ACAD2018",
-      "reason": "ODA File Converter hittades inte. Installera den och sätt CROW_ODA_CONVERTER eller lägg ODAFileConverter i PATH; tills dess registreras DWG utan semantisk tolkning.",
-      "policy": "Original DWG bevaras oförändrad och förblir auktoritativ evidens; härledd DXF länkas med checksumma och konverterarversion."
-    }
+    "dwg_version_code": "AC1032"
   },
   "structure": [],
   "observations": [],
   "preview": {},
   "warnings": [
-    "DWG är binärt och kräver en licensierad eller extern konverteringsadapter för geometri och lager. Filen är registrerad utan semantisk tolkning. Konverteringsstatus: converter_unavailable."
+    "DWG är binärt och kräver en licensierad eller extern konverteringsadapter för geometri och lager. Filen är registrerad utan semantisk tolkning."
   ]
 }
