@@ -1,0 +1,19 @@
+from __future__ import annotations
+
+from pathlib import Path
+
+from fastapi import FastAPI
+
+from crow_entitlements.api import configure_entitlement_shell
+
+from .app import create_app as create_core_app
+
+
+def create_app(data_root: Path | None = None) -> FastAPI:
+    app = create_core_app(data_root)
+    root = data_root or Path.cwd() / ".crow-workbench"
+    configure_entitlement_shell(app, config_root=root / "config")
+    return app
+
+
+app = create_app()
