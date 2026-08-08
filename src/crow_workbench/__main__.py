@@ -4,7 +4,7 @@ import uvicorn
 
 
 def main() -> None:
-    uvicorn.run("crow_workbench.app:app", host="127.0.0.1", port=8080, reload=False)
+    uvicorn.run("crow_workbench.shell:app", host="127.0.0.1", port=8080, reload=False)
 
 
 if __name__ == "__main__":
