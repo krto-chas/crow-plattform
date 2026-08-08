@@ -36,7 +36,9 @@ class ProductModuleCatalog:
         raise KeyError(f"Unknown product module: {module_id}")
 
     def active_modules(self) -> tuple[ProductModule, ...]:
-        return tuple(module for module in self.modules if module.status is ProductModuleStatus.ACTIVE)
+        return tuple(
+            module for module in self.modules if module.status is ProductModuleStatus.ACTIVE
+        )
 
     def module_for_api_path(self, path: str) -> ProductModule | None:
         matches = [module for module in self.modules if module.matches_api_path(path)]
