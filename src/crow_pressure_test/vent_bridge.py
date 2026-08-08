@@ -1,9 +1,10 @@
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass
 from decimal import ROUND_HALF_UP, Decimal
 from math import pi
-from typing import Any, Mapping
+from typing import Any
 
 from crow_riser_model.models import RiserString
 
