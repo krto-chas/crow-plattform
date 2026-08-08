@@ -1,1 +1,0 @@
-Pass 51–54, 57 och 58 har konsoliderats i PR #49. Den fullständiga snapshot-genererade CHANGELOG.md-ersättningen ingick inte i connectoröverföringen; runtimekod, passdokumentation, tester, lexikon, datasetrevisioner och pyproject.toml ingår. CHANGELOG.md ska uppdateras från det konsoliderade källpaketet innan nästa releasekandidat.
