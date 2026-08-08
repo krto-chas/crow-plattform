@@ -48,7 +48,7 @@ class CrowPressureTestModulePlugin:
 
     def healthcheck(self) -> ModuleHealth:
         knowledge = load_knowledge()
-        ok = bool(knowledge.standards)
+        ok = bool(knowledge.standards())
         return ModuleHealth(
             HealthStatus.OK if ok else HealthStatus.FAILED,
             {"knowledge": ok, "web": True},
