@@ -7,7 +7,12 @@ from typing import Any
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import HTMLResponse
 
-from crow_ovk_workflow import OvkWorkflowRepository, protocol_html, record_from_payload, record_to_payload
+from crow_ovk_workflow import (
+    OvkWorkflowRepository,
+    protocol_html,
+    record_from_payload,
+    record_to_payload,
+)
 
 
 def ovk_workflow_router(data_root: Path) -> APIRouter:
