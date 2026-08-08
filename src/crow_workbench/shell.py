@@ -8,6 +8,7 @@ from crow_entitlements.api import configure_entitlement_shell
 
 from .app import create_app as create_core_app
 from .ovk_surface import ovk_router
+from .ovk_workflow_surface import ovk_workflow_router
 from .pressure_test_integration_surface import pressure_test_integration_router
 from .pressure_test_surface import pressure_test_router
 from .vent_quote_surface import vent_quote_router
@@ -22,6 +23,7 @@ def create_app(data_root: Path | None = None) -> FastAPI:
     app.include_router(pressure_test_router())
     app.include_router(pressure_test_integration_router())
     app.include_router(ovk_router())
+    app.include_router(ovk_workflow_router(root))
     configure_entitlement_shell(app, config_root=root / "config")
     return app
 
