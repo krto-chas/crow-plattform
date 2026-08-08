@@ -47,12 +47,16 @@ def derive_conclusion(
     findings: tuple[OvkFinding, ...],
     actions: tuple[OvkAction, ...],
 ) -> InspectionConclusion:
-    if any(item.status is CheckStatus.NOT_CHECKED for item in checkpoints):
+    if any(checkpoint.status is CheckStatus.NOT_CHECKED for checkpoint in checkpoints):
         return InspectionConclusion.PENDING
-    open_action_ids = {item.finding_id for item in actions if item.status is ActionStatus.OPEN}
-    if any(item.status is CheckStatus.FAIL for item in checkpoints):
+    open_action_ids = {
+        action.finding_id for action in actions if action.status is ActionStatus.OPEN
+    }
+    if any(checkpoint.status is CheckStatus.FAIL for checkpoint in checkpoints):
         return InspectionConclusion.DEFICIENCIES
-    if any(item.action_required and item.finding_id in open_action_ids for item in findings):
+    if any(
+        finding.action_required and finding.finding_id in open_action_ids for finding in findings
+    ):
         return InspectionConclusion.DEFICIENCIES
     return InspectionConclusion.APPROVED
 
@@ -70,65 +74,69 @@ def inspection_to_payload(inspection: OvkInspection) -> dict[str, Any]:
         },
         "systems": [
             {
-                "system_id": item.system_id,
-                "system_type": item.system_type,
-                "label": item.label,
-                "source_ref": item.source_ref,
+                "system_id": system.system_id,
+                "system_type": system.system_type,
+                "label": system.label,
+                "source_ref": system.source_ref,
             }
-            for item in inspection.systems
+            for system in inspection.systems
         ],
         "checkpoints": [
             {
-                "checkpoint_id": item.checkpoint_id,
-                "label": item.label,
-                "status": item.status.value,
-                "system_id": item.system_id,
-                "note": item.note,
-                "origin": item.origin.value,
-                "evidence_ref": item.evidence_ref,
+                "checkpoint_id": checkpoint.checkpoint_id,
+                "label": checkpoint.label,
+                "status": checkpoint.status.value,
+                "system_id": checkpoint.system_id,
+                "note": checkpoint.note,
+                "origin": checkpoint.origin.value,
+                "evidence_ref": checkpoint.evidence_ref,
             }
-            for item in inspection.checkpoints
+            for checkpoint in inspection.checkpoints
         ],
-        "measurements": [_measurement_payload(item) for item in inspection.measurements],
+        "measurements": [
+            _measurement_payload(measurement) for measurement in inspection.measurements
+        ],
         "findings": [
             {
-                "finding_id": item.finding_id,
-                "description": item.description,
-                "severity": item.severity.value,
-                "checkpoint_id": item.checkpoint_id,
-                "system_id": item.system_id,
-                "action_required": item.action_required,
-                "origin": item.origin.value,
-                "evidence_ref": item.evidence_ref,
+                "finding_id": finding.finding_id,
+                "description": finding.description,
+                "severity": finding.severity.value,
+                "checkpoint_id": finding.checkpoint_id,
+                "system_id": finding.system_id,
+                "action_required": finding.action_required,
+                "origin": finding.origin.value,
+                "evidence_ref": finding.evidence_ref,
             }
-            for item in inspection.findings
+            for finding in inspection.findings
         ],
         "actions": [
             {
-                "action_id": item.action_id,
-                "finding_id": item.finding_id,
-                "description": item.description,
-                "status": item.status.value,
+                "action_id": action.action_id,
+                "finding_id": action.finding_id,
+                "description": action.description,
+                "status": action.status.value,
             }
-            for item in inspection.actions
+            for action in inspection.actions
         ],
         "conclusion": inspection.conclusion.value,
     }
 
 
-def _measurement_payload(item: OvkMeasurement) -> dict[str, Any]:
-    deviation = item.deviation_percent
+def _measurement_payload(measurement: OvkMeasurement) -> dict[str, Any]:
+    deviation = measurement.deviation_percent
     return {
-        "measurement_id": item.measurement_id,
-        "metric": item.metric,
-        "measured_value": str(item.measured_value),
-        "designed_value": None if item.designed_value is None else str(item.designed_value),
+        "measurement_id": measurement.measurement_id,
+        "metric": measurement.metric,
+        "measured_value": str(measurement.measured_value),
+        "designed_value": (
+            None if measurement.designed_value is None else str(measurement.designed_value)
+        ),
         "deviation_percent": None if deviation is None else str(deviation),
-        "unit": item.unit,
-        "system_id": item.system_id,
-        "point_id": item.point_id,
-        "origin": item.origin.value,
-        "evidence_ref": item.evidence_ref,
+        "unit": measurement.unit,
+        "system_id": measurement.system_id,
+        "point_id": measurement.point_id,
+        "origin": measurement.origin.value,
+        "evidence_ref": measurement.evidence_ref,
     }
 
 
@@ -139,28 +147,28 @@ def _validate_references(
     findings: tuple[OvkFinding, ...],
     actions: tuple[OvkAction, ...],
 ) -> None:
-    system_ids = {item.system_id for item in systems}
-    checkpoint_ids = {item.checkpoint_id for item in checkpoints}
-    finding_ids = {item.finding_id for item in findings}
+    system_ids = {system.system_id for system in systems}
+    checkpoint_ids = {checkpoint.checkpoint_id for checkpoint in checkpoints}
+    finding_ids = {finding.finding_id for finding in findings}
 
     _ensure_unique("system_id", len(system_ids), len(systems))
     _ensure_unique("checkpoint_id", len(checkpoint_ids), len(checkpoints))
-    measurement_ids = {item.measurement_id for item in measurements}
+    measurement_ids = {measurement.measurement_id for measurement in measurements}
     _ensure_unique("measurement_id", len(measurement_ids), len(measurements))
     _ensure_unique("finding_id", len(finding_ids), len(findings))
-    _ensure_unique("action_id", len({item.action_id for item in actions}), len(actions))
+    _ensure_unique("action_id", len({action.action_id for action in actions}), len(actions))
 
-    for item in checkpoints:
-        _validate_system_ref(item.system_id, system_ids)
-    for item in measurements:
-        _validate_system_ref(item.system_id, system_ids)
-    for item in findings:
-        _validate_system_ref(item.system_id, system_ids)
-        if item.checkpoint_id is not None and item.checkpoint_id not in checkpoint_ids:
-            raise ValueError(f"unknown checkpoint_id: {item.checkpoint_id}")
-    for item in actions:
-        if item.finding_id not in finding_ids:
-            raise ValueError(f"unknown finding_id: {item.finding_id}")
+    for checkpoint in checkpoints:
+        _validate_system_ref(checkpoint.system_id, system_ids)
+    for measurement in measurements:
+        _validate_system_ref(measurement.system_id, system_ids)
+    for finding in findings:
+        _validate_system_ref(finding.system_id, system_ids)
+        if finding.checkpoint_id is not None and finding.checkpoint_id not in checkpoint_ids:
+            raise ValueError(f"unknown checkpoint_id: {finding.checkpoint_id}")
+    for action in actions:
+        if action.finding_id not in finding_ids:
+            raise ValueError(f"unknown finding_id: {action.finding_id}")
 
 
 def _validate_system_ref(system_id: str | None, system_ids: set[str]) -> None:
