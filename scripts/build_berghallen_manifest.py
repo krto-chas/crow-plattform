@@ -32,10 +32,11 @@ _ROLES: dict[str, tuple[SourceRole, ReferenceQuality]] = {
 }
 
 _LIMITATIONS = (
-    "Planritningarna för trapphus 3 och 4 (V-57-1-4xx03/4xx04) saknar vektortextlager "
-    "för planinnehållet; lägenhetsdata där kräver rasterläsning eller DWG-original.",
-    "Beskrivningen anger 35 lgh medan ritningarna redovisar 30 lgh + 3 radhus; "
-    "avvikelsen är en känd beställarfråga, inte ett datasetfel.",
+    "Vindsplanens rektangulära stråk är bedömda ur etikettkoordinater, inte uppmätt "
+    "geometri; DWG-original förbättrar precisionen.",
+    "Lägenhetsinventering kräver flera textextraktorer: pdftotext missar delar av "
+    "textlagret på V-57-1-4xx04-serien (trapphus 4) som pypdf läser komplett; "
+    "enkälleläsning undervärderade trh 4 med 5 lgh i det manuella anbudsarbetet.",
     "Kanallängder i facit är bedömningar från plushöjder och etikettkoordinater "
     "(tolerans 20 %), inte uppmätt verklighet.",
 )
