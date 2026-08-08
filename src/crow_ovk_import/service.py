@@ -23,6 +23,7 @@ _DESIGNED_RE = re.compile(
     r"(?:projekterat|börvärde|dimensionerande)\s*[:=]?\s*(-?\d+(?:[.,]\d+)?)\s*(l/s|m3/s|m³/s)",
     re.IGNORECASE,
 )
+_AIRFLOW_VALUE_RE = re.compile(r"-?\d+(?:[.,]\d+)?\s*(?:l/s|m3/s|m³/s)", re.IGNORECASE)
 _POINT_RE = re.compile(r"\b([BCLKD]\d{1,3})\b", re.IGNORECASE)
 _FINDING_RE = re.compile(r"\b(anmärkning|brist)\b\s*[:\-]?\s*(.+)", re.IGNORECASE)
 
@@ -37,6 +38,7 @@ def import_observations(collection: ObservationCollection) -> OvkImportResult:
         text = observation.evidence.source_text.strip()
         evidence_ref = observation.evidence.locator.value
         matched = False
+        review_added = False
 
         for system_id in _system_ids(text):
             matched = True
@@ -54,13 +56,23 @@ def import_observations(collection: ObservationCollection) -> OvkImportResult:
         if measurement is not None:
             matched = True
             measurements.append(measurement)
+        elif _AIRFLOW_VALUE_RE.search(text) is not None:
+            unmapped.append(
+                UnmappedObservation(
+                    observation_id=observation.id,
+                    source_text=text,
+                    evidence_ref=evidence_ref,
+                    reason="unlabelled_airflow_value",
+                )
+            )
+            review_added = True
 
         finding = _finding_from(observation, evidence_ref)
         if finding is not None:
             matched = True
             findings.append(finding)
 
-        if not matched:
+        if not matched and not review_added:
             unmapped.append(
                 UnmappedObservation(
                     observation_id=observation.id,

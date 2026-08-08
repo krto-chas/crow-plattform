@@ -60,6 +60,8 @@ def test_does_not_guess_unlabelled_values() -> None:
 
     assert [item.system_id for item in result.systems] == ["FTX01"]
     assert result.measurements == ()
+    assert len(result.unmapped) == 1
+    assert result.unmapped[0].reason == "unlabelled_airflow_value"
 
 
 def test_imports_explicit_finding_conservatively() -> None:
