@@ -62,7 +62,9 @@ def test_range_ordering_is_validated() -> None:
 def test_comparison_within_range() -> None:
     book = load_benchmarks()
     benchmark = book.lookup("vent", "flerbostadshus_ftx_lgh")
-    comparison = compare_detailed_total(benchmark, Decimal(30), detailed_total=Decimal(2_100_000), currency=book.currency)
+    comparison = compare_detailed_total(
+        benchmark, Decimal(30), detailed_total=Decimal(2_100_000), currency=book.currency
+    )
     assert comparison.verdict is ComparisonVerdict.WITHIN_RANGE
     assert not comparison.flagged
     assert comparison.deviation_percent == Decimal("0.0")
@@ -71,7 +73,9 @@ def test_comparison_within_range() -> None:
 def test_comparison_flags_above_range() -> None:
     book = load_benchmarks()
     benchmark = book.lookup("vent", "flerbostadshus_ftx_lgh")
-    comparison = compare_detailed_total(benchmark, Decimal(30), detailed_total=Decimal(3_000_000), currency=book.currency)
+    comparison = compare_detailed_total(
+        benchmark, Decimal(30), detailed_total=Decimal(3_000_000), currency=book.currency
+    )
     assert comparison.verdict is ComparisonVerdict.ABOVE_RANGE
     assert comparison.flagged
     assert comparison.deviation_percent > 0
@@ -80,7 +84,9 @@ def test_comparison_flags_above_range() -> None:
 def test_comparison_flags_below_range() -> None:
     book = load_benchmarks()
     benchmark = book.lookup("vent", "flerbostadshus_ftx_lgh")
-    comparison = compare_detailed_total(benchmark, Decimal(30), detailed_total=Decimal(1_000_000), currency=book.currency)
+    comparison = compare_detailed_total(
+        benchmark, Decimal(30), detailed_total=Decimal(1_000_000), currency=book.currency
+    )
     assert comparison.verdict is ComparisonVerdict.BELOW_RANGE
     assert comparison.flagged
     assert comparison.deviation_percent < 0
@@ -89,7 +95,13 @@ def test_comparison_flags_below_range() -> None:
 def test_takeoff_pricing_adapter_reads_grand_total() -> None:
     book = load_benchmarks()
     benchmark = book.lookup("vent", "flerbostadshus_ftx_lgh")
-    payload = {"schema_version":"crow-takeoff-pricing-v0.1","currency":"SEK","grand_total":2050000.0,"unpriced_line_count":0,"reservation_count":0}
+    payload = {
+        "schema_version": "crow-takeoff-pricing-v0.1",
+        "currency": "SEK",
+        "grand_total": 2_050_000.0,
+        "unpriced_line_count": 0,
+        "reservation_count": 0,
+    }
     comparison = compare_takeoff_pricing(benchmark, Decimal(30), payload)
     assert comparison.detailed_total == Decimal("2050000.00")
     assert comparison.verdict is ComparisonVerdict.WITHIN_RANGE
@@ -99,7 +111,13 @@ def test_takeoff_pricing_adapter_reads_grand_total() -> None:
 def test_takeoff_pricing_adapter_carries_incompleteness_caveats() -> None:
     book = load_benchmarks()
     benchmark = book.lookup("vent", "flerbostadshus_ftx_lgh")
-    payload = {"schema_version":"crow-takeoff-pricing-v0.1","currency":"SEK","grand_total":1200000.0,"unpriced_line_count":4,"reservation_count":2}
+    payload = {
+        "schema_version": "crow-takeoff-pricing-v0.1",
+        "currency": "SEK",
+        "grand_total": 1_200_000.0,
+        "unpriced_line_count": 4,
+        "reservation_count": 2,
+    }
     comparison = compare_takeoff_pricing(benchmark, Decimal(30), payload)
     assert comparison.verdict is ComparisonVerdict.BELOW_RANGE
     assert len(comparison.caveats) == 2
@@ -112,7 +130,7 @@ def test_takeoff_pricing_adapter_rejects_wrong_schema() -> None:
     book = load_benchmarks()
     benchmark = book.lookup("vent", "flerbostadshus_ftx_lgh")
     with pytest.raises(ValueError, match="crow-takeoff-pricing"):
-        compare_takeoff_pricing(benchmark, Decimal(30), {"schema_version":"crow-ovk-pricing-v0.2"})
+        compare_takeoff_pricing(benchmark, Decimal(30), {"schema_version": "crow-ovk-pricing-v0.2"})
 
 
 def test_quantities_and_totals_are_validated() -> None:
