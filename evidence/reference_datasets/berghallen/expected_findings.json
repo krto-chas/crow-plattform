@@ -11,7 +11,10 @@
     "aggregate_casing_class": "L2",
     "known_conflict": {
       "duct_family": "rektangular",
-      "classes": ["B", "C"],
+      "classes": [
+        "B",
+        "C"
+      ],
       "note": "QL anger klass B för rektangulära kanaler medan kravtabellen anger klass C."
     }
   },
@@ -22,7 +25,11 @@
     "platsbyggd": 100
   },
   "strings_per_apartment": 3,
-  "string_kinds": ["tilluft", "franluft", "imkanal"],
+  "string_kinds": [
+    "tilluft",
+    "franluft",
+    "imkanal"
+  ],
   "levels_fg": {
     "plan_09": 14.65,
     "plan_10": 17.27,
@@ -63,9 +70,9 @@
       "id": "trh-4",
       "building": "hus-d",
       "system": "LB02",
-      "apartments": 5,
-      "shaft_strings": 15,
-      "shaft_length_m": 109,
+      "apartments": 10,
+      "shaft_strings": 30,
+      "shaft_length_m": 248,
       "rectangular_length_m": 36
     },
     {
@@ -79,9 +86,9 @@
     }
   ],
   "totals": {
-    "apartments": 33,
-    "shaft_strings": 99,
-    "shaft_length_m": 808,
+    "apartments": 38,
+    "shaft_strings": 114,
+    "shaft_length_m": 947,
     "rectangular_length_m": 137
   },
   "specification_apartment_count": 35,
@@ -89,8 +96,11 @@
     "length_relative": 0.2
   },
   "buyer_questions": [
-    "Ritningarna redovisar 33 lgh (30 + 3 radhus) mot beskrivningens 35 — vilket gäller?",
     "QL anger täthetsklass B för rektangulära kanaler, kravtabellen klass C — vilket gäller?",
     "Ska provning av ingjutna kanaler före gjutning ingå som kontraktskrav?"
+  ],
+  "revision": 2,
+  "revision_notes": [
+    "Rev 2 (Pass 51): trapphus 4 korrigerat från 5 till 10 lgh (44-1001-44-1302, plan 10-13). Rev 1 byggde på manuell rasterläsning av flödestabellen som undervärderade trh 4; pypdf-textlagret på V-57-1-40904/41104/41204/41304 redovisar samtliga. Beskrivningens 35 lgh (hus C+D) stämmer därmed med ritningarna."
   ]
 }

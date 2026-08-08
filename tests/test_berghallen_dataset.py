@@ -35,7 +35,7 @@ def test_manifest_declares_raster_limitation() -> None:
     manifest = _load("manifest.json")
     limitations = manifest["known_limitations"]
     assert isinstance(limitations, list)
-    assert any("vektortext" in str(item) for item in limitations)
+    assert any("textextraktorer" in str(item) for item in limitations)
 
 
 def test_expected_findings_totals_are_internally_consistent() -> None:
@@ -48,8 +48,8 @@ def test_expected_findings_totals_are_internally_consistent() -> None:
     strings = sum(int(item["shaft_strings"]) for item in stairwells)
     shaft_length = sum(int(item["shaft_length_m"]) for item in stairwells)
     rectangular = sum(int(item["rectangular_length_m"]) for item in stairwells)
-    assert apartments == totals["apartments"] == 33
-    assert strings == totals["shaft_strings"] == 99
+    assert apartments == totals["apartments"] == 38
+    assert strings == totals["shaft_strings"] == 114
     assert shaft_length == totals["shaft_length_m"]
     assert rectangular == totals["rectangular_length_m"]
 
@@ -64,7 +64,7 @@ def test_strings_follow_three_per_apartment_rule() -> None:
         assert int(stairwell["shaft_strings"]) == per_apartment * int(stairwell["apartments"])
 
 
-def test_known_conflict_and_specification_gap_are_recorded() -> None:
+def test_known_conflict_and_revision_history_are_recorded() -> None:
     facit = _load("expected_findings.json")
     tightness = facit["tightness"]
     assert isinstance(tightness, dict)
@@ -73,6 +73,15 @@ def test_known_conflict_and_specification_gap_are_recorded() -> None:
     assert conflict["duct_family"] == "rektangular"
     assert sorted(conflict["classes"]) == ["B", "C"]
     assert facit["specification_apartment_count"] == 35
+    stairwells = facit["stairwells"]
+    assert isinstance(stairwells, list)
+    hus_cd = sum(
+        int(item["apartments"]) for item in stairwells if item["building"] in {"hus-c", "hus-d"}
+    )
+    assert hus_cd == 35
+    revision_notes = facit["revision_notes"]
+    assert isinstance(revision_notes, list)
+    assert any("trapphus 4" in str(item) for item in revision_notes)
     questions = facit["buyer_questions"]
     assert isinstance(questions, list)
     assert len(questions) >= 2
