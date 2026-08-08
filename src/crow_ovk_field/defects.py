@@ -14,7 +14,8 @@ class DefectType:
 
 
 def load_defect_types() -> tuple[DefectType, ...]:
-    text = resources.files("crow_ovk_field").joinpath("defect_types.json").read_text(encoding="utf-8")
+    resource = resources.files("crow_ovk_field").joinpath("defect_types.json")
+    text = resource.read_text(encoding="utf-8")
     payload = json.loads(text)
     items = payload.get("defect_types", [])
     result = tuple(
