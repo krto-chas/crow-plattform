@@ -109,7 +109,10 @@ class OvkPhotoEvidence:
         empty = [name for name, value in required.items() if not value.strip()]
         if empty:
             raise ValueError(f"photo evidence requires non-empty fields: {', '.join(empty)}")
-        if len(self.sha256) != 64 or any(char not in "0123456789abcdefABCDEF" for char in self.sha256):
+        valid_digest = len(self.sha256) == 64 and all(
+            char in "0123456789abcdefABCDEF" for char in self.sha256
+        )
+        if not valid_digest:
             raise ValueError("sha256 must be a 64 character hexadecimal digest")
         if not self.mime_type.startswith("image/"):
             raise ValueError("mime_type must be an image media type")
