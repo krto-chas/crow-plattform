@@ -15,11 +15,14 @@ jobs:
           python-version: "3.11"
       - run: python -m pip install --upgrade pip
       - run: python -m pip install -e ".[dev]"
-      - name: Install first-party modules (if present)
+      - name: Install first-party modules
         run: |
-          if [ -d modules/crow-vent-module ]; then
-            python -m pip install -e ./modules/crow-vent-module
-          fi
+          set -euo pipefail
+          for module in modules/*; do
+            if [ -f "$module/pyproject.toml" ]; then
+              python -m pip install -e "$module"
+            fi
+          done
       - run: ruff check .
       - run: mypy
       - run: pytest -q
