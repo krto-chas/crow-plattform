@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from html import escape
 
+from crow_ovk import OvkMeasurement
+
 from .models import OvkWorkflowRecord
 
 
@@ -73,17 +75,13 @@ th,td{{border:1px solid #bbb;padding:6px;text-align:left;vertical-align:top}}
 <table><thead><tr><th>Punkt</th><th>System</th><th>Mätetal</th><th>Uppmätt</th>
 <th>Projekterat</th><th>Avvikelse %</th></tr></thead><tbody>{measurement_rows}</tbody></table>
 <h2>Findings</h2>
-<table><thead><tr><th>System</th><th>Allvar</th><th>Beskrivning</th><th>Åtgärd krävs</th></tr></thead>
-<tbody>{finding_rows}</tbody></table>
+<table><thead><tr><th>System</th><th>Allvar</th><th>Beskrivning</th>
+<th>Åtgärd krävs</th></tr></thead><tbody>{finding_rows}</tbody></table>
 <p><strong>Senast sparad:</strong> {escape(record.updated_at)}</p>
 </body></html>"""
 
 
-def _measurement_row(item: object) -> str:
-    from crow_ovk import OvkMeasurement
-
-    if not isinstance(item, OvkMeasurement):
-        raise TypeError("expected OvkMeasurement")
+def _measurement_row(item: OvkMeasurement) -> str:
     designed = str(item.designed_value) if item.designed_value is not None else "—"
     deviation = str(item.deviation_percent) if item.deviation_percent is not None else "—"
     return (
