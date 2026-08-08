@@ -18,7 +18,11 @@ def _write_entitlements(root: Path, modules: list[dict[str, object]]) -> None:
     )
 
 
-def _client(tmp_path: Path, monkeypatch: MonkeyPatch, modules: list[dict[str, object]]) -> TestClient:
+def _client(
+    tmp_path: Path,
+    monkeypatch: MonkeyPatch,
+    modules: list[dict[str, object]],
+) -> TestClient:
     monkeypatch.setenv("CROW_MODE", "local")
     monkeypatch.setenv("CROW_CUSTOMER_ID", "acme")
     _write_entitlements(tmp_path, modules)
