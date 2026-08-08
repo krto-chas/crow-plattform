@@ -30,17 +30,9 @@ def protocol_html(record: OvkWorkflowRecord) -> str:
         for item in inspection.checkpoints
     )
 
-    measurement_rows = "".join(
-        "<tr>"
-        f"<td>{escape(item.point_id or '—')}</td>"
-        f"<td>{escape(item.system_id or '—')}</td>"
-        f"<td>{escape(item.metric)}</td>"
-        f"<td>{escape(str(item.measured_value))} {escape(item.unit)}</td>"
-        f"<td>{escape(str(item.designed_value) if item.designed_value is not None else '—')}</td>"
-        f"<td>{escape(str(item.deviation_percent) if item.deviation_percent is not None else '—')}</td>"
-        "</tr>"
-        for item in inspection.measurements
-    ) or '<tr><td colspan="6">Inga mätningar registrerade.</td></tr>'
+    measurement_rows = "".join(_measurement_row(item) for item in inspection.measurements) or (
+        '<tr><td colspan="6">Inga mätningar registrerade.</td></tr>'
+    )
 
     finding_rows = "".join(
         "<tr>"
@@ -71,9 +63,36 @@ th,td{{border:1px solid #bbb;padding:6px;text-align:left;vertical-align:top}}
 <div><strong>Byggnad:</strong> {escape(ovk_object.building_id)}</div>
 <div><strong>Slutsats:</strong> {escape(inspection.conclusion.value)}</div>
 </div>
-<h2>Ventilationssystem</h2><table><thead><tr><th>ID</th><th>Typ</th><th>Namn</th></tr></thead><tbody>{system_rows}</tbody></table>
-<h2>Kontrollpunkter</h2><table><thead><tr><th>Kontroll</th><th>System</th><th>Status</th><th>Notering</th></tr></thead><tbody>{checkpoint_rows}</tbody></table>
-<h2>Mätningar</h2><table><thead><tr><th>Punkt</th><th>System</th><th>Mätetal</th><th>Uppmätt</th><th>Projekterat</th><th>Avvikelse %</th></tr></thead><tbody>{measurement_rows}</tbody></table>
-<h2>Findings</h2><table><thead><tr><th>System</th><th>Allvar</th><th>Beskrivning</th><th>Åtgärd krävs</th></tr></thead><tbody>{finding_rows}</tbody></table>
+<h2>Ventilationssystem</h2>
+<table><thead><tr><th>ID</th><th>Typ</th><th>Namn</th></tr></thead>
+<tbody>{system_rows}</tbody></table>
+<h2>Kontrollpunkter</h2>
+<table><thead><tr><th>Kontroll</th><th>System</th><th>Status</th><th>Notering</th></tr></thead>
+<tbody>{checkpoint_rows}</tbody></table>
+<h2>Mätningar</h2>
+<table><thead><tr><th>Punkt</th><th>System</th><th>Mätetal</th><th>Uppmätt</th>
+<th>Projekterat</th><th>Avvikelse %</th></tr></thead><tbody>{measurement_rows}</tbody></table>
+<h2>Findings</h2>
+<table><thead><tr><th>System</th><th>Allvar</th><th>Beskrivning</th><th>Åtgärd krävs</th></tr></thead>
+<tbody>{finding_rows}</tbody></table>
 <p><strong>Senast sparad:</strong> {escape(record.updated_at)}</p>
 </body></html>"""
+
+
+def _measurement_row(item: object) -> str:
+    from crow_ovk import OvkMeasurement
+
+    if not isinstance(item, OvkMeasurement):
+        raise TypeError("expected OvkMeasurement")
+    designed = str(item.designed_value) if item.designed_value is not None else "—"
+    deviation = str(item.deviation_percent) if item.deviation_percent is not None else "—"
+    return (
+        "<tr>"
+        f"<td>{escape(item.point_id or '—')}</td>"
+        f"<td>{escape(item.system_id or '—')}</td>"
+        f"<td>{escape(item.metric)}</td>"
+        f"<td>{escape(str(item.measured_value))} {escape(item.unit)}</td>"
+        f"<td>{escape(designed)}</td>"
+        f"<td>{escape(deviation)}</td>"
+        "</tr>"
+    )
