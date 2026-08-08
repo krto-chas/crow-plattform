@@ -1,14 +1,11 @@
-"""Crow Vent — the first production domain module on the Crow Backbone.
-
-Implements the 0.5 plugin contract (ModuleManifest, ModuleCapabilities,
-claim schemas, claim validation, healthcheck) and is discovered via the
-``crow.modules`` entry point. Domain knowledge is delegated to the vent
-lexicon; the Backbone never imports this package.
-"""
+"""Crow Vent — the first production domain module on the Crow Backbone."""
 
 from __future__ import annotations
 
 from decimal import Decimal
+from pathlib import Path
+
+from fastapi import APIRouter
 
 from crow_module_sdk.models import (
     Claim,
@@ -20,6 +17,8 @@ from crow_module_sdk.models import (
     ValidationResult,
 )
 from crow_vent.lexicon import VentLexicon
+from crow_workbench.vent_quote_surface import vent_quote_router
+from crow_workbench.vent_surface import vent_router
 
 NAMESPACE = "vent"
 
@@ -76,10 +75,7 @@ class CrowVentModulePlugin:
         if claim.property == "count":
             if claim.unit != "st":
                 errors.append("Count unit must be st")
-            elif (
-                isinstance(claim.value, Decimal)
-                and claim.value != claim.value.to_integral_value()
-            ):
+            elif isinstance(claim.value, Decimal) and claim.value != claim.value.to_integral_value():
                 errors.append("Count must be integral")
         subject = claim.subject.strip()
         if (
@@ -97,6 +93,10 @@ class CrowVentModulePlugin:
         status = HealthStatus.OK if lexicon_ok else HealthStatus.FAILED
         return ModuleHealth(
             status,
-            {"manifest": True, "schemas": True, "lexicon": lexicon_ok},
+            {"manifest": True, "schemas": True, "lexicon": lexicon_ok, "web": True},
             "Vent module is ready" if lexicon_ok else "Lexicon failed self-test",
         )
+
+    def routers(self, data_root: Path) -> tuple[APIRouter, ...]:
+        del data_root
+        return (vent_router(), vent_quote_router())
