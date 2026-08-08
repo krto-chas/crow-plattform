@@ -19,5 +19,6 @@ def current_customer_from_env() -> CustomerContext:
     if not _CUSTOMER_ID.fullmatch(customer_id):
         raise RuntimeError("CROW_CUSTOMER_ID contains invalid characters")
     user_id = os.getenv("CROW_USER_ID") or None
-    roles = tuple(sorted({item.strip() for item in os.getenv("CROW_ROLES", "").split(",") if item.strip()}))
+    raw_roles = os.getenv("CROW_ROLES", "").split(",")
+    roles = tuple(sorted({item.strip() for item in raw_roles if item.strip()}))
     return CustomerContext(customer_id=customer_id, user_id=user_id, roles=roles)
