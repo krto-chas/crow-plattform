@@ -25,6 +25,12 @@ jobs:
           done
       - run: ruff check .
       - run: mypy
+      - name: Type-check first-party modules
+        run: |
+          mypy --strict \
+            modules/crow-vent-module/src \
+            modules/crow-pressure-test-module/src \
+            modules/crow-ovk-module/src
       - run: pytest -q
       - name: Architecture review
         run: python -m crow_module_conformance.cli review --root .
