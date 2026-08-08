@@ -14,6 +14,7 @@ from crow_ovk import (
 )
 from crow_ovk_workflow import (
     OvkReviewDecision,
+    OvkWorkflowRecord,
     OvkWorkflowRepository,
     ReviewStatus,
     build_record,
@@ -22,7 +23,7 @@ from crow_ovk_workflow import (
 from crow_workbench.shell import create_app
 
 
-def _record(*, review_status: ReviewStatus = ReviewStatus.ACCEPTED):
+def _record(*, review_status: ReviewStatus = ReviewStatus.ACCEPTED) -> OvkWorkflowRecord:
     return build_record(
         inspection_id="ovk-001",
         ovk_object=OvkObject(
@@ -108,7 +109,11 @@ def _client(tmp_path: Path, monkeypatch: MonkeyPatch) -> TestClient:
     return TestClient(create_app(tmp_path))
 
 
-def _workflow_payload(*, status: str = "pass", review_status: str = "accepted") -> dict[str, object]:
+def _workflow_payload(
+    *,
+    status: str = "pass",
+    review_status: str = "accepted",
+) -> dict[str, object]:
     return {
         "inspection": {
             "object": {
