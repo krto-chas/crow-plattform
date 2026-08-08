@@ -61,7 +61,7 @@ def _router(
 ) -> APIRouter:
     router = APIRouter()
 
-    @router.get("/api/me/modules")
+    @router.get("/api/me/modules", response_model=None)
     def my_modules() -> dict[str, Any] | JSONResponse:
         customer = _customer_or_error()
         if isinstance(customer, JSONResponse):
