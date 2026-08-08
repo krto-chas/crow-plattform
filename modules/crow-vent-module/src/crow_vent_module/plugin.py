@@ -75,7 +75,10 @@ class CrowVentModulePlugin:
         if claim.property == "count":
             if claim.unit != "st":
                 errors.append("Count unit must be st")
-            elif isinstance(claim.value, Decimal) and claim.value != claim.value.to_integral_value():
+            elif (
+                isinstance(claim.value, Decimal)
+                and claim.value != claim.value.to_integral_value()
+            ):
                 errors.append("Count must be integral")
         subject = claim.subject.strip()
         if (
