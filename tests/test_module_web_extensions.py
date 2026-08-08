@@ -17,11 +17,7 @@ def test_first_party_domain_modules_are_discoverable() -> None:
 
 def test_workbench_mounts_module_routes_from_registry(tmp_path: Path) -> None:
     app = create_app(tmp_path)
-    paths = {
-        path
-        for route in app.routes
-        if (path := getattr(route, "path", None)) is not None
-    }
+    paths = set(app.openapi()["paths"])
 
     assert "/vent" in paths
     assert "/provtryckning" in paths
