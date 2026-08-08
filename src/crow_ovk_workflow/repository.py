@@ -6,6 +6,10 @@ from pathlib import Path
 from .models import OvkWorkflowRecord
 from .service import record_from_payload, record_to_payload
 
+_ALLOWED_ID_CHARS = set(
+    "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_"
+)
+
 
 class OvkWorkflowRepository:
     def __init__(self, root: Path) -> None:
@@ -34,6 +38,7 @@ class OvkWorkflowRepository:
         return record_from_payload(payload)
 
     def list(self, project_id: str) -> tuple[OvkWorkflowRecord, ...]:
+        _safe_identifier(project_id, "project_id")
         directory = self.root / "projects" / project_id / "ovk"
         if not directory.exists():
             return ()
@@ -50,5 +55,5 @@ class OvkWorkflowRepository:
 
 
 def _safe_identifier(value: str, field: str) -> None:
-    if not value or any(char not in "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_" for char in value):
+    if not value or any(char not in _ALLOWED_ID_CHARS for char in value):
         raise ValueError(f"invalid {field}")
