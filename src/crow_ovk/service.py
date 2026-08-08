@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from decimal import Decimal
 from typing import Any
 
 from .models import (
@@ -146,7 +145,8 @@ def _validate_references(
 
     _ensure_unique("system_id", len(system_ids), len(systems))
     _ensure_unique("checkpoint_id", len(checkpoint_ids), len(checkpoints))
-    _ensure_unique("measurement_id", len({item.measurement_id for item in measurements}), len(measurements))
+    measurement_ids = {item.measurement_id for item in measurements}
+    _ensure_unique("measurement_id", len(measurement_ids), len(measurements))
     _ensure_unique("finding_id", len(finding_ids), len(findings))
     _ensure_unique("action_id", len({item.action_id for item in actions}), len(actions))
 
