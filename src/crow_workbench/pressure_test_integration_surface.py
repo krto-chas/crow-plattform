@@ -49,7 +49,10 @@ def pressure_test_integration_router() -> APIRouter:
     async def protocol_xlsx(project_id: str, request: Request) -> Response:
         payload: Any = await request.json()
         transport = httpx.ASGITransport(app=request.app)
-        async with httpx.AsyncClient(transport=transport, base_url="http://crow.internal") as client:
+        async with httpx.AsyncClient(
+            transport=transport,
+            base_url="http://crow.internal",
+        ) as client:
             evaluated = await client.post(
                 f"/api/provtryckning/projects/{project_id}/evaluate",
                 json=payload,
