@@ -1,21 +1,4 @@
-"""Bygger ett deterministiskt OVK-prisförslag ur förfrågan och taxa.
-
-Principer:
-
-- En förfrågan har en eller flera delposter; varje delpost prissätts på
-  sin egen prisgrund (lgh, rum, hus, m²) och blir en egen kvotrad.
-- Storlek valideras endast där prisgrunden kräver den: lägenhetsantal
-  för flerbostadshus, rumsantal för hotell, area och systemtyp för
-  lokaler. För småhus är storlek frivillig och ignoreras i priset.
-- Småhus omfattas endast av förstagångsbesiktning enligt BFS 2011:16;
-  en begäran om återkommande besiktning avvisas i stället för att
-  prissättas fel.
-- Grundavgiften (etablering, protokoll, intygshantering) adderas en
-  gång per uppdrag oavsett antal delposter. Om totalen understiger
-  taxans minimidebitering lyfts den till golvet och flaggas — kvoten
-  döljer aldrig att golvet slagit till.
-- Alla belopp är Decimal och kvantiseras till ören (ROUND_HALF_UP).
-"""
+"""Bygger ett deterministiskt OVK-prisförslag ur förfrågan och taxa."""
 
 from __future__ import annotations
 

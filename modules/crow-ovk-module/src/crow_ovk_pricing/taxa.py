@@ -1,11 +1,4 @@
-"""OVK-taxa: à-priser, grundavgift, minimidebitering och intervallregler.
-
-Taxan paketeras som JSON med en enda källa: samma lexikon driver
-prissättning, validering och intervallupplysning. Beloppen i det
-medföljande lexikonet är exempeltaxa (installationsdata); regelverket —
-prisgrunder per kategori, systemtypsberoendet för lokaler och
-intervalltabellen ur BFS 2011:16 — är kunskap.
-"""
+"""OVK-taxa: à-priser, grundavgift, minimidebitering och intervallregler."""
 
 from __future__ import annotations
 
@@ -21,8 +14,6 @@ _FT_FTX = frozenset({VentilationSystemType.FT, VentilationSystemType.FTX})
 
 
 class OvkTaxa:
-    """Uppslagsyta över taxelexikonet med Decimal hela vägen."""
-
     def __init__(self, payload: Mapping[str, Any]) -> None:
         self._payload = payload
         self._currency = str(payload["currency"])
@@ -67,7 +58,6 @@ class OvkTaxa:
         inspection_type: InspectionType,
         system_type: VentilationSystemType | None = None,
     ) -> Decimal:
-        """À-pris för kategorin; för lokaler slås taxan upp per systemtyp."""
         entry = self._category(category)
         if self.basis(category) is PricingBasis.PER_AREA:
             if system_type is None:
@@ -100,13 +90,6 @@ class OvkTaxa:
         *,
         school_or_care: bool = False,
     ) -> int | None:
-        """Besiktningsintervall enligt BFS 2011:16, ``None`` = ingen återkommande.
-
-        Förskolor, skolor och vårdlokaler: 3 år oavsett systemtyp.
-        Flerbostadshus, kontor och övriga lokaler: FT/FTX 3 år, S/F/FX 6 år.
-        En- och tvåbostadshus: endast förstagångsbesiktning. Utan känd
-        systemtyp returneras ``None`` — Crow gissar inte intervall.
-        """
         if category is BuildingCategory.SMAHUS:
             return None
         if school_or_care:

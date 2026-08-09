@@ -15,28 +15,11 @@
   "base_fee": "950",
   "minimum_total": "3500",
   "categories": {
-    "flerbostadshus": {
-      "basis": "per_apartment",
-      "unit": "lgh",
-      "label": "Flerbostadshus",
-      "rates": {"forstagang": "550", "aterkommande": "395"}
-    },
-    "smahus": {
-      "basis": "flat_per_unit",
-      "unit": "st",
-      "label": "En- och tvåbostadshus",
-      "rates": {"forstagang": "2900"}
-    },
-    "hotell": {
-      "basis": "per_room",
-      "unit": "rum",
-      "label": "Hotell, vandrarhem och liknande",
-      "rates": {"forstagang": "375", "aterkommande": "295"}
-    },
+    "flerbostadshus": {"basis": "per_apartment", "unit": "lgh", "label": "Flerbostadshus", "rates": {"forstagang": "550", "aterkommande": "395"}},
+    "smahus": {"basis": "flat_per_unit", "unit": "st", "label": "En- och tvåbostadshus", "rates": {"forstagang": "2900"}},
+    "hotell": {"basis": "per_room", "unit": "rum", "label": "Hotell, vandrarhem och liknande", "rates": {"forstagang": "375", "aterkommande": "295"}},
     "lokal": {
-      "basis": "per_area",
-      "unit": "m2",
-      "label": "Lokaler, kontor, industri, skolor, vård m.m.",
+      "basis": "per_area", "unit": "m2", "label": "Lokaler, kontor, industri, skolor, vård m.m.",
       "rates_per_system": {
         "S": {"forstagang": "5.00", "aterkommande": "3.50"},
         "F": {"forstagang": "5.50", "aterkommande": "4.00"},
