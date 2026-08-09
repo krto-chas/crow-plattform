@@ -52,12 +52,6 @@ def extract_tightness_requirements(
     document_id: str,
     knowledge: PressureTestKnowledge,
 ) -> tuple[TightnessRequirement, ...]:
-    """Hittar 'täthetsklass X' i klartext och binder klassen till närmaste kanalfamilj.
-
-    Varje träff blir ett STATED-krav med citat och radnummer. Sammansatta
-    meningar ('klass C för cirkulära ... och klass B för rektangulära') ger
-    ett krav per klassförekomst.
-    """
     requirements: list[TightnessRequirement] = []
     for line_number, line in enumerate(text.splitlines(), start=1):
         matches = list(_CLASS_PATTERN.finditer(line))
@@ -90,7 +84,6 @@ def extract_test_scope(
     document_id: str,
     knowledge: PressureTestKnowledge,
 ) -> tuple[TestScopeRequirement, ...]:
-    """Hittar omfattningsrader ('Schakt: 100 %', 'Cirkulära kanaler 10 %')."""
     scopes: list[TestScopeRequirement] = []
     seen: set[tuple[str, int]] = set()
     for line_number, line in enumerate(text.splitlines(), start=1):
@@ -124,7 +117,6 @@ def extract_test_scope(
 def find_conflicts(
     requirements: tuple[TightnessRequirement, ...],
 ) -> tuple[TightnessConflict, ...]:
-    """Grupperar krav per kanalfamilj; fler än en distinkt klass = konflikt."""
     grouped: dict[str, list[TightnessRequirement]] = defaultdict(list)
     for requirement in requirements:
         grouped[requirement.duct_family].append(requirement)

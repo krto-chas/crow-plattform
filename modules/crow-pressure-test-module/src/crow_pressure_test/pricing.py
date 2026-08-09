@@ -69,11 +69,6 @@ def price_pressure_test_offer(
     establishments: int = 0,
     risk_factor: Decimal = Decimal("0.05"),
 ) -> dict[str, Any]:
-    """Prissätter provtryckningsmängder + manuella poster till offertunderlag.
-
-    Poster utan prisbokspost blir reservationer, aldrig tyst nollade.
-    Fast pris = totalsumma × (1 + risk), avrundad till närmaste tusenlapp.
-    """
     schema = str(service_quantities.get("schema_version", ""))
     if not schema.startswith("crow-riser-service"):
         raise ValueError(f"Expected crow-riser-service payload, got {schema!r}")

@@ -20,12 +20,6 @@ class StandardReference:
 
 
 class PressureTestKnowledge:
-    """Läckagefaktorer, standarder och kanalfamiljstermer för täthetsprovning.
-
-    Kunskapen paketeras som JSON med en enda källa: samma faktorer driver
-    extraktion, kalkyl och framtida protokollgenerering.
-    """
-
     def __init__(self, payload: Mapping[str, Any]) -> None:
         self._payload = payload
         raw_classes = payload["tightness_classes"]
@@ -63,11 +57,6 @@ class PressureTestKnowledge:
         pressure_pa: int,
         duct_area_m2: Decimal,
     ) -> Decimal:
-        """q_max = c * |p|^0,65 * A i l/s, kvantiserad till 6 decimaler.
-
-        Exponenten beräknas i float (IEEE 754, deterministiskt för samma
-        indata) och resultatet låses till Decimal enligt ADR-0009-andan.
-        """
         if pressure_pa == 0:
             raise ValueError("pressure_pa must be non-zero")
         if duct_area_m2 <= 0:
