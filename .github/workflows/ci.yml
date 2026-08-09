@@ -1,8 +1,5 @@
 name: CI
 
-permissions:
-  contents: write
-
 on:
   push:
     branches: [main]
@@ -13,8 +10,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event.pull_request.head.ref || github.ref }}
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
@@ -28,17 +23,6 @@ jobs:
               python -m pip install -e "$module"
             fi
           done
-      - name: Pass 96 apply formatter migration
-        if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'agent/pass96-full-gate-alignment'
-        run: |
-          ruff format .
-          if ! git diff --quiet; then
-            git config user.name "github-actions[bot]"
-            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-            git add -A
-            git commit -m "Pass 96 apply Ruff formatting"
-            git push origin HEAD:agent/pass96-full-gate-alignment
-          fi
       - run: ruff format --check .
       - run: ruff check .
       - run: mypy
