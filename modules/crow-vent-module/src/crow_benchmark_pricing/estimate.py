@@ -107,6 +107,12 @@ def compare_detailed_total(
 def compare_takeoff_pricing(
     benchmark: Benchmark, quantity: Decimal, pricing_payload: dict[str, Any]
 ) -> BenchmarkComparison:
+    """Rimlighetskontroll av en Pass 44-kalkyl (crow-takeoff-pricing).
+
+    Läser ``grand_total`` och lägger förbehåll när kalkylen har
+    oprissatta rader eller reservationer — då är totalsumman en
+    undre gräns, inte ett facit.
+    """
     schema = str(pricing_payload.get("schema_version", ""))
     if not schema.startswith("crow-takeoff-pricing"):
         raise ValueError(f"expected a crow-takeoff-pricing payload, got schema_version={schema!r}")
@@ -129,6 +135,7 @@ def compare_takeoff_pricing(
 
 
 def estimate_to_payload(estimate: QuickEstimate) -> dict[str, Any]:
+    """JSON-vänlig payload; belopp serialiseras som strängar (ADR-0009-andan)."""
     return {
         "schema_version": estimate.schema_version,
         "benchmark_id": estimate.benchmark_id,
