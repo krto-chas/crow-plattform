@@ -1,6 +1,7 @@
 # ruff: noqa: B008
 from __future__ import annotations
 
+from importlib import resources
 from pathlib import Path
 from typing import Any
 
@@ -10,11 +11,20 @@ from crow_ovk_legacy import (
     preview_legacy_file,
 )
 from fastapi import APIRouter, File, Form, HTTPException, UploadFile
+from fastapi.responses import HTMLResponse, Response
 
 
 def ovk_legacy_router(data_root: Path) -> APIRouter:
     router = APIRouter()
     repository = LegacyHistoryCommitRepository(data_root)
+
+    @router.get("/ovk/legacy", response_class=HTMLResponse)
+    def legacy_page() -> str:
+        return _asset_text("legacy.html")
+
+    @router.get("/ovk/legacy/app.js", response_class=Response)
+    def legacy_app() -> Response:
+        return Response(_asset_text("legacy.js"), media_type="application/javascript")
 
     @router.post("/api/ovk/legacy/preview", response_model=None)
     async def preview_legacy(
@@ -90,3 +100,7 @@ def ovk_legacy_router(data_root: Path) -> APIRouter:
         }
 
     return router
+
+
+def _asset_text(name: str) -> str:
+    return resources.files("crow_ovk_module").joinpath("assets", name).read_text(encoding="utf-8")
