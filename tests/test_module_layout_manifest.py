@@ -104,7 +104,9 @@ def test_module_owned_packages_do_not_silently_live_in_backbone() -> None:
                 assert not root_has_source, (
                     f"{module_id}: {package_name} leaked back into backbone src/"
                 )
-                assert module_has_source, f"{module_id}: {package_name} missing from its module root"
+                assert module_has_source, (
+                    f"{module_id}: {package_name} missing from its module root"
+                )
             else:
                 message = f"{module_id}: pending package {package_name} is missing"
                 assert root_has_source or module_has_source, message
