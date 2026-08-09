@@ -1,2 +1,0 @@
-[crow.modules]
-vent = crow_vent_module.plugin:CrowVentModulePlugin
