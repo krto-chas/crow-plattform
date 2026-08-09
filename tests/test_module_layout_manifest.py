@@ -75,14 +75,21 @@ def test_module_owned_packages_do_not_silently_live_in_backbone() -> None:
         pending = bool(entry.get("migration_pending_from_root_src", False))
         packages = entry["owned_packages"]
         assert isinstance(packages, list)
+        migrated = entry.get("migrated_packages", [])
+        pending_packages = entry.get("migration_pending_packages", [])
+        assert isinstance(migrated, list)
+        assert isinstance(pending_packages, list)
+        assert set(map(str, migrated)).isdisjoint(set(map(str, pending_packages)))
+        assert set(map(str, migrated)) | set(map(str, pending_packages)) == set(map(str, packages))
+        assert pending is bool(pending_packages)
 
         for package in packages:
             package_name = str(package)
             in_root = (ROOT / "src" / package_name).exists()
             in_module = (module_root / package_name).exists()
-            if pending:
-                message = f"{module_id}: declared package {package_name} is missing"
-                assert in_root or in_module, message
-            else:
+            if package_name in migrated:
                 assert not in_root, f"{module_id}: {package_name} leaked back into backbone src/"
                 assert in_module, f"{module_id}: {package_name} missing from its module root"
+            else:
+                message = f"{module_id}: pending package {package_name} is missing"
+                assert in_root or in_module, message
