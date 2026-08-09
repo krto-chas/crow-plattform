@@ -21,7 +21,10 @@ def _enable_pressure_test(root: Path) -> None:
         json.dumps(
             {
                 "customer_id": "acme",
-                "modules": [{"id": "provtryckning", "active": True}],
+                "modules": [
+                    {"id": "vent", "active": True},
+                    {"id": "provtryckning", "active": True},
+                ],
             }
         ),
         encoding="utf-8",
