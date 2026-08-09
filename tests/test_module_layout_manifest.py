@@ -13,6 +13,17 @@ def _manifest() -> dict[str, object]:
     return payload
 
 
+def _has_source_artifacts(package_root: Path) -> bool:
+    if not package_root.exists():
+        return False
+    return any(
+        path.is_file()
+        and "__pycache__" not in path.parts
+        and path.suffix not in {".pyc", ".pyo"}
+        for path in package_root.rglob("*")
+    )
+
+
 def test_first_party_modules_must_live_under_modules() -> None:
     manifest = _manifest()
     meta = manifest["meta"]
@@ -85,11 +96,15 @@ def test_module_owned_packages_do_not_silently_live_in_backbone() -> None:
 
         for package in packages:
             package_name = str(package)
-            in_root = (ROOT / "src" / package_name).exists()
-            in_module = (module_root / package_name).exists()
+            root_package = ROOT / "src" / package_name
+            module_package = module_root / package_name
+            root_has_source = _has_source_artifacts(root_package)
+            module_has_source = _has_source_artifacts(module_package)
             if package_name in migrated:
-                assert not in_root, f"{module_id}: {package_name} leaked back into backbone src/"
-                assert in_module, f"{module_id}: {package_name} missing from its module root"
+                assert not root_has_source, (
+                    f"{module_id}: {package_name} leaked back into backbone src/"
+                )
+                assert module_has_source, f"{module_id}: {package_name} missing from its module root"
             else:
                 message = f"{module_id}: pending package {package_name} is missing"
-                assert in_root or in_module, message
+                assert root_has_source or module_has_source, message
