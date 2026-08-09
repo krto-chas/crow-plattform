@@ -11,6 +11,18 @@ def _package_origin(package: str) -> Path:
     return Path(spec.origin).resolve()
 
 
+def _source_artifacts(package_root: Path) -> tuple[Path, ...]:
+    if not package_root.exists():
+        return ()
+    return tuple(
+        path
+        for path in package_root.rglob("*")
+        if path.is_file()
+        and "__pycache__" not in path.parts
+        and path.suffix not in {".pyc", ".pyo"}
+    )
+
+
 def test_vent_core_packages_are_owned_by_vent_module() -> None:
     for package in ("crow_vent", "crow_vent_drawing"):
         origin = _package_origin(package).as_posix()
@@ -19,7 +31,8 @@ def test_vent_core_packages_are_owned_by_vent_module() -> None:
         )
 
 
-def test_vent_core_packages_do_not_exist_in_backbone_src() -> None:
+def test_vent_core_has_no_source_artifacts_in_backbone_src() -> None:
     repository_root = Path(__file__).resolve().parents[1]
-    assert not (repository_root / "src" / "crow_vent").exists()
-    assert not (repository_root / "src" / "crow_vent_drawing").exists()
+    for package in ("crow_vent", "crow_vent_drawing"):
+        artifacts = _source_artifacts(repository_root / "src" / package)
+        assert not artifacts, f"{package} leaked source artifacts into backbone: {artifacts}"
