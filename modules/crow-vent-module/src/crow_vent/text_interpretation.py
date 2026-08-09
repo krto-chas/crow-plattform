@@ -84,7 +84,6 @@ class VentTextInterpreter:
         if layer and layer_match is None:
             review_reasons.append("unknown_layer")
         if layer_match and kind != "unknown":
-            # Layer context strengthens traceability, but never overrides lexical ambiguity.
             confidence = min(1.0, round(confidence + (0.02 * layer_match.confidence), 4))
         status = "interpreted" if kind != "unknown" and confidence >= 0.75 else "needs_review"
 

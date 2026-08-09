@@ -17,3 +17,5 @@ where = ["src"]
 
 [tool.setuptools.package-data]
 crow_vent_module = ["py.typed"]
+crow_vent = ["py.typed", "vent_beteckningar_lexikon.json"]
+crow_vent_drawing = ["py.typed"]

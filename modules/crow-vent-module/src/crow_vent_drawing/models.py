@@ -6,8 +6,6 @@ from decimal import Decimal
 
 @dataclass(frozen=True, slots=True)
 class DrawingRef:
-    """Tolkat ritningsnummer, t.ex. V-57-1-41103 → plan 11, del 03."""
-
     number: str
     series: str
     plan: str

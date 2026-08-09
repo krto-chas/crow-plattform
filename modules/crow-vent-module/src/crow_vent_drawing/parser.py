@@ -38,12 +38,6 @@ def stairwell_label(stairwell_code: str) -> str:
 
 
 def extract_apartments(text: str, document_id: str) -> tuple[ApartmentRecord, ...]:
-    """Hittar lägenhets-id (4T-PPNN) med RoK och area ur ritningens textlager.
-
-    Arean markeras auktoritativ endast när ritningens plan matchar
-    lägenhetens plan: förteckningar på andra plan (t.ex. förrådstabeller på
-    plan 09) listar samma id men med annan yta.
-    """
     drawing = parse_drawing_number(document_id)
     flattened = " ".join(text.split())
     matches = list(_APARTMENT_ID.finditer(flattened))
