@@ -23,6 +23,14 @@ jobs:
               python -m pip install -e "$module"
             fi
           done
+      - name: Pass 96 formatter migration
+        run: |
+          ruff format .
+          git diff --binary > ruff-format.patch
+      - uses: actions/upload-artifact@v4
+        with:
+          name: pass96-ruff-format-patch
+          path: ruff-format.patch
       - run: ruff format --check .
       - run: ruff check .
       - run: mypy
