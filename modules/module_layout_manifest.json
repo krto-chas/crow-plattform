@@ -1,6 +1,6 @@
 {
   "meta": {
-    "version": "1.8",
+    "version": "1.9",
     "description": "Kanoniskt repository-layoutkontrakt för first-party Crow-moduler",
     "new_modules_must_live_under": "modules/",
     "root_src_policy": "Backbone src/ får endast innehålla delade plattformskapabiliteter och värdskal; verksamhetsdomäner ägs av first-party-moduler under modules/.",
@@ -96,13 +96,30 @@
         "crow_ovk_reporting",
         "crow_ovk_module"
       ],
-      "owned_tests": [],
+      "owned_tests": [
+        "test_ovk_domain.py",
+        "test_ovk_field.py",
+        "test_ovk_field_history.py",
+        "test_ovk_field_media.py",
+        "test_ovk_field_surface.py",
+        "test_ovk_field_workbench.py",
+        "test_ovk_import.py",
+        "test_ovk_legacy.py",
+        "test_ovk_legacy_commit.py",
+        "test_ovk_module_ownership.py",
+        "test_ovk_pricing.py",
+        "test_ovk_reporting.py",
+        "test_ovk_surface.py",
+        "test_ovk_time_capture.py",
+        "test_ovk_web_ownership.py",
+        "test_ovk_workflow.py"
+      ],
       "migration_pending_packages": [],
       "migration_pending_surfaces": [],
       "migration_pending_from_root_src": false,
       "source_migration_complete": true,
-      "test_migration_complete": false,
-      "repository_ownership_complete": false
+      "test_migration_complete": true,
+      "repository_ownership_complete": true
     }
   ],
   "shared_backbone_examples": [
