@@ -7,7 +7,7 @@ from hmac import compare_digest
 from pathlib import Path
 from typing import Any
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
 
 _SAFE_ID = re.compile(r"^[A-Za-z0-9._-]+$")
 
@@ -15,6 +15,22 @@ _SAFE_ID = re.compile(r"^[A-Za-z0-9._-]+$")
 def ovk_field_workbench_router(data_root: Path) -> APIRouter:
     router = APIRouter()
     repository = _FieldWorkbenchRepository(data_root)
+
+    @router.put("/api/ovk/field/context/{inspection_id}", response_model=None)
+    async def save_field_context(inspection_id: str, request: Request) -> dict[str, Any]:
+        _validate_identifier(inspection_id)
+        payload: Any = await request.json()
+        if not isinstance(payload, dict):
+            raise HTTPException(status_code=422, detail={"code": "INVALID_OVK_FIELD_CONTEXT"})
+        project_id = _optional_text(payload.get("project_id"))
+        inspector = _optional_text(payload.get("inspector"))
+        if project_id is None or inspector is None:
+            raise HTTPException(status_code=422, detail={"code": "INVALID_OVK_FIELD_CONTEXT"})
+        repository.save_context(
+            inspection_id,
+            {"inspection_id": inspection_id, "project_id": project_id, "inspector": inspector},
+        )
+        return {"inspection_id": inspection_id, "project_id": project_id, "inspector": inspector}
 
     @router.get("/api/ovk/field/workbench/{inspection_id}", response_model=None)
     def field_workbench(inspection_id: str) -> dict[str, Any]:
@@ -37,8 +53,7 @@ def _project_snapshot(
     snapshot_sha256: str,
 ) -> dict[str, Any]:
     inspection_id = str(snapshot.get("inspection_id", ""))
-    context = snapshot.get("field_context")
-    context_map = context if isinstance(context, dict) else {}
+    context_map = repository.load_context_optional(inspection_id) or {}
     rooms = _object_list(snapshot.get("rooms"))
     findings = _object_list(snapshot.get("findings"))
     photos = _object_list(snapshot.get("photos"))
@@ -94,7 +109,10 @@ def _project_snapshot(
         "orphan_photos": [
             photo
             for photo in all_projected_photos
-            if not any(str(finding.get("finding_id", "")) == str(photo.get("finding_id", "")) for finding in findings)
+            if not any(
+                str(finding.get("finding_id", "")) == str(photo.get("finding_id", ""))
+                for finding in findings
+            )
         ],
     }
 
@@ -147,6 +165,7 @@ class _FieldWorkbenchRepository:
     def __init__(self, data_root: Path) -> None:
         self._snapshot_root = data_root / "ovk-field-sync"
         self._media_root = data_root / "ovk-field-media"
+        self._context_root = data_root / "ovk-field-context"
 
     def load_snapshot(self, inspection_id: str) -> tuple[dict[str, Any], str]:
         target = self._snapshot_root / f"{inspection_id}.json"
@@ -156,12 +175,35 @@ class _FieldWorkbenchRepository:
             raise ValueError("OVK field snapshot must contain an object")
         return payload, sha256(canonical.encode()).hexdigest()
 
+    def save_context(self, inspection_id: str, payload: dict[str, Any]) -> None:
+        self._context_root.mkdir(parents=True, exist_ok=True)
+        target = self._context_root / f"{inspection_id}.json"
+        self._write_json(target, payload)
+
+    def load_context_optional(self, inspection_id: str) -> dict[str, Any] | None:
+        target = self._context_root / f"{inspection_id}.json"
+        try:
+            payload: Any = json.loads(target.read_text(encoding="utf-8"))
+        except FileNotFoundError:
+            return None
+        return payload if isinstance(payload, dict) else None
+
     def load_receipt_optional(self, inspection_id: str, photo_id: str) -> dict[str, Any] | None:
         target = self._media_root / inspection_id / f"{photo_id}.json"
         try:
             payload: Any = json.loads(target.read_text(encoding="utf-8"))
         except FileNotFoundError:
             return None
-        if not isinstance(payload, dict):
-            return None
-        return payload
+        return payload if isinstance(payload, dict) else None
+
+    @staticmethod
+    def _write_json(target: Path, payload: dict[str, Any]) -> None:
+        canonical = json.dumps(
+            payload,
+            ensure_ascii=False,
+            sort_keys=True,
+            separators=(",", ":"),
+        )
+        temporary = target.with_name(f".{target.name}.tmp")
+        temporary.write_text(canonical + "\n", encoding="utf-8")
+        temporary.replace(target)
