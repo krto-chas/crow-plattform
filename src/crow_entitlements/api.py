@@ -11,7 +11,7 @@ from fastapi.responses import JSONResponse, Response
 from .catalog import load_product_module_catalog
 from .context import current_customer_from_env
 from .entitlements import load_customer_entitlements
-from .models import CustomerContext, ProductModuleCatalog
+from .models import CustomerContext, ProductModule, ProductModuleCatalog
 
 
 def configure_entitlement_shell(
@@ -43,12 +43,18 @@ def configure_entitlement_shell(
                 status_code=500,
                 content={"detail": {"code": "ENTITLEMENT_CONFIG_INVALID", "message": str(error)}},
             )
-        if module.status.value != "active" or not entitlements.has_active_module(
-            module.id, today=today_provider()
-        ):
+        today = today_provider()
+        active_ids = entitlements.active_module_ids(today=today)
+        if module.status.value != "active" or not _module_is_effectively_active(module, active_ids):
             return JSONResponse(
                 status_code=403,
-                content={"detail": {"code": "MODULE_NOT_ACTIVE", "module": module.id}},
+                content={
+                    "detail": {
+                        "code": "MODULE_NOT_ACTIVE",
+                        "module": module.id,
+                        "requires_modules": list(module.requires_modules),
+                    }
+                },
             )
         request.state.customer = customer
         return await call_next(request)
@@ -84,10 +90,11 @@ def _router(
                 "route": module.route,
                 "api_prefixes": list(module.api_prefixes),
                 "data_dependencies": list(module.data_dependencies),
+                "requires_modules": list(module.requires_modules),
                 "runtime_module_id": module.runtime_module_id,
             }
             for module in catalog.active_modules()
-            if module.id in active_ids
+            if _module_is_effectively_active(module, active_ids)
         ]
         return {
             "customer_id": customer.customer_id,
@@ -98,6 +105,10 @@ def _router(
         }
 
     return router
+
+
+def _module_is_effectively_active(module: ProductModule, active_ids: frozenset[str]) -> bool:
+    return module.id in active_ids and set(module.requires_modules).issubset(active_ids)
 
 
 def _customer_or_error() -> CustomerContext | JSONResponse:
