@@ -61,7 +61,8 @@ def test_module_owned_packages_do_not_silently_live_in_backbone() -> None:
             in_root = (ROOT / "src" / package_name).exists()
             in_module = (module_root / package_name).exists()
             if pending:
-                assert in_root or in_module, f"{module_id}: declared package {package_name} is missing"
+                message = f"{module_id}: declared package {package_name} is missing"
+                assert in_root or in_module, message
             else:
                 assert not in_root, f"{module_id}: {package_name} leaked back into backbone src/"
                 assert in_module, f"{module_id}: {package_name} missing from its module root"
