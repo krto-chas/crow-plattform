@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from decimal import Decimal
 from pathlib import Path
 from typing import Any
 
@@ -25,7 +26,10 @@ def ovk_reporting_router(data_root: Path) -> APIRouter:
             ledger = ledger_from_payload({**payload, "inspection_id": inspection_id})
             repository.save_ledger(ledger)
         except (KeyError, ValueError) as exc:
-            raise HTTPException(status_code=422, detail={"code": "INVALID_TIME_LEDGER"}) from exc
+            raise HTTPException(
+                status_code=422,
+                detail={"code": "INVALID_TIME_LEDGER"},
+            ) from exc
         return {
             "inspection_id": ledger.inspection_id,
             "calculated_hours": str(calculated_hours(ledger)),
@@ -37,7 +41,10 @@ def ovk_reporting_router(data_root: Path) -> APIRouter:
         try:
             ledger = repository.load_ledger(inspection_id)
         except (FileNotFoundError, ValueError) as exc:
-            raise HTTPException(status_code=404, detail={"code": "TIME_LEDGER_NOT_FOUND"}) from exc
+            raise HTTPException(
+                status_code=404,
+                detail={"code": "TIME_LEDGER_NOT_FOUND"},
+            ) from exc
         return {
             "inspection_id": ledger.inspection_id,
             "project_id": ledger.project_id,
@@ -79,7 +86,10 @@ def ovk_reporting_router(data_root: Path) -> APIRouter:
             )
             repository.save_profile(profile)
         except (KeyError, ValueError) as exc:
-            raise HTTPException(status_code=422, detail={"code": "INVALID_CERTIFICATION_PROFILE"}) from exc
+            raise HTTPException(
+                status_code=422,
+                detail={"code": "INVALID_CERTIFICATION_PROFILE"},
+            ) from exc
         return {"profile_id": profile.profile_id, "saved": True}
 
     @router.get("/api/ovk/reporting/annual/{profile_id}", response_model=None)
@@ -87,14 +97,18 @@ def ovk_reporting_router(data_root: Path) -> APIRouter:
         try:
             profile = repository.load_profile(profile_id)
         except (FileNotFoundError, ValueError) as exc:
-            raise HTTPException(status_code=404, detail={"code": "CERTIFICATION_PROFILE_NOT_FOUND"}) from exc
+            raise HTTPException(
+                status_code=404,
+                detail={"code": "CERTIFICATION_PROFILE_NOT_FOUND"},
+            ) from exc
         rows = build_report_rows(profile, repository.list_ledgers())
+        total = sum((item.reported_hours for item in rows), Decimal("0"))
         return {
             "profile_id": profile.profile_id,
             "certification_body": profile.certification_body,
             "period_start": profile.reporting_period_start,
             "period_end": profile.reporting_period_end,
-            "total_hours": str(sum((item.reported_hours for item in rows), start=0)),
+            "total_hours": str(total),
             "inspections": [
                 {
                     "inspection_id": item.inspection_id,
@@ -113,12 +127,17 @@ def ovk_reporting_router(data_root: Path) -> APIRouter:
         try:
             profile = repository.load_profile(profile_id)
         except (FileNotFoundError, ValueError) as exc:
-            raise HTTPException(status_code=404, detail={"code": "CERTIFICATION_PROFILE_NOT_FOUND"}) from exc
+            raise HTTPException(
+                status_code=404,
+                detail={"code": "CERTIFICATION_PROFILE_NOT_FOUND"},
+            ) from exc
         rows = build_report_rows(profile, repository.list_ledgers())
         return Response(
             content=report_to_csv(profile, rows),
             media_type="text/csv; charset=utf-8",
-            headers={"Content-Disposition": f'attachment; filename="ovk-annual-{profile_id}.csv"'},
+            headers={
+                "Content-Disposition": f'attachment; filename="ovk-annual-{profile_id}.csv"'
+            },
         )
 
     return router
