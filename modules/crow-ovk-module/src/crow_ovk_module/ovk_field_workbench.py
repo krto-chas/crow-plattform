@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import re
+from datetime import UTC, datetime
 from hashlib import sha256
 from hmac import compare_digest
 from pathlib import Path
@@ -24,13 +25,25 @@ def ovk_field_workbench_router(data_root: Path) -> APIRouter:
             raise HTTPException(status_code=422, detail={"code": "INVALID_OVK_FIELD_CONTEXT"})
         project_id = _optional_text(payload.get("project_id"))
         inspector = _optional_text(payload.get("inspector"))
+        previous_inspection_id = _optional_text(payload.get("previous_inspection_id"))
         if project_id is None or inspector is None:
             raise HTTPException(status_code=422, detail={"code": "INVALID_OVK_FIELD_CONTEXT"})
-        repository.save_context(
-            inspection_id,
-            {"inspection_id": inspection_id, "project_id": project_id, "inspector": inspector},
-        )
-        return {"inspection_id": inspection_id, "project_id": project_id, "inspector": inspector}
+        if previous_inspection_id is not None:
+            _validate_identifier(previous_inspection_id)
+            if previous_inspection_id == inspection_id:
+                raise HTTPException(
+                    status_code=409,
+                    detail={"code": "OVK_FIELD_SELF_PREDECESSOR"},
+                )
+        context = {
+            "inspection_id": inspection_id,
+            "project_id": project_id,
+            "inspector": inspector,
+            "previous_inspection_id": previous_inspection_id,
+            "saved_at": datetime.now(UTC).isoformat(),
+        }
+        repository.save_context(inspection_id, context)
+        return context
 
     @router.get("/api/ovk/field/workbench/{inspection_id}", response_model=None)
     def field_workbench(inspection_id: str) -> dict[str, Any]:
@@ -97,6 +110,8 @@ def _project_snapshot(
         "inspection_id": inspection_id,
         "project_id": _optional_text(context_map.get("project_id")),
         "inspector": _optional_text(context_map.get("inspector")),
+        "previous_inspection_id": _optional_text(context_map.get("previous_inspection_id")),
+        "saved_at": _optional_text(context_map.get("saved_at")),
         "snapshot_sha256": snapshot_sha256,
         "counts": {
             "units": len(units),
