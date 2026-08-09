@@ -26,11 +26,11 @@ jobs:
       - name: Pass 96 formatter migration
         run: |
           ruff format .
-          git diff --binary > ruff-format.patch
+          git diff --name-only -z | tar --null -T - -czf pass96-formatted-files.tar.gz
       - uses: actions/upload-artifact@v4
         with:
-          name: pass96-ruff-format-patch
-          path: ruff-format.patch
+          name: pass96-formatted-files
+          path: pass96-formatted-files.tar.gz
       - run: ruff format --check .
       - run: ruff check .
       - run: mypy
