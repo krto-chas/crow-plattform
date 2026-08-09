@@ -89,8 +89,9 @@ def report_to_csv(profile: CertificationProfile, rows: tuple[AnnualReportRow, ..
                 str(row.reported_hours),
             ]
         )
+    total = sum((row.reported_hours for row in rows), Decimal("0"))
     writer.writerow([])
-    writer.writerow(["total_reported_hours", str(sum((row.reported_hours for row in rows), Decimal("0")))])
+    writer.writerow(["total_reported_hours", str(total)])
     return target.getvalue()
 
 
@@ -109,7 +110,8 @@ class ReportingRepository:
 
     def load_ledger(self, inspection_id: str) -> InspectionTimeLedger:
         _validate_id(inspection_id)
-        return _ledger_from_payload(_read_object(self._ledger_root / f"{inspection_id}.json"))
+        target = self._ledger_root / f"{inspection_id}.json"
+        return _ledger_from_payload(_read_object(target))
 
     def list_ledgers(self) -> tuple[InspectionTimeLedger, ...]:
         if not self._ledger_root.exists():
@@ -138,7 +140,15 @@ class ReportingRepository:
     def load_profile(self, profile_id: str) -> CertificationProfile:
         _validate_id(profile_id)
         item = _read_object(self._profile_root / f"{profile_id}.json")
-        return CertificationProfile(**{key: str(value) for key, value in item.items()})
+        return CertificationProfile(
+            profile_id=str(item["profile_id"]),
+            inspector_name=str(item["inspector_name"]),
+            certification_body=str(item["certification_body"]),
+            certificate_number=str(item["certificate_number"]),
+            authorization=str(item["authorization"]),
+            reporting_period_start=str(item["reporting_period_start"]),
+            reporting_period_end=str(item["reporting_period_end"]),
+        )
 
 
 def ledger_from_payload(payload: dict[str, Any]) -> InspectionTimeLedger:
