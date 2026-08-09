@@ -58,6 +58,8 @@ class _FieldHistoryRepository:
                     "inspection_id": inspection_id,
                     "project_id": project_id,
                     "inspector": _optional_text(context.get("inspector")),
+                    "inspection_date": _optional_text(context.get("inspection_date")),
+                    "source_kind": _optional_text(context.get("source_kind")) or "field",
                     "previous_inspection_id": _optional_text(
                         context.get("previous_inspection_id")
                     ),
@@ -72,7 +74,10 @@ class _FieldHistoryRepository:
                 }
             )
         items.sort(
-            key=lambda item: (str(item.get("saved_at") or ""), item["inspection_id"]),
+            key=lambda item: (
+                str(item.get("inspection_date") or item.get("saved_at") or ""),
+                item["inspection_id"],
+            ),
             reverse=True,
         )
         return items
@@ -100,6 +105,8 @@ class _FieldHistoryRepository:
             "source_inspection_id": inspection_id,
             "project_id": _optional_text(context.get("project_id")),
             "inspector": _optional_text(context.get("inspector")),
+            "inspection_date": _optional_text(context.get("inspection_date")),
+            "source_kind": _optional_text(context.get("source_kind")) or "field",
             "previous_inspection_id": _optional_text(context.get("previous_inspection_id")),
             "saved_at": _optional_text(context.get("saved_at")),
             "snapshot_sha256": digest,
@@ -108,6 +115,7 @@ class _FieldHistoryRepository:
                 "rooms": rooms,
             },
             "historical_findings": historical_findings,
+            "legacy": snapshot.get("legacy") if isinstance(snapshot.get("legacy"), dict) else None,
         }
 
     def _load_snapshot(self, inspection_id: str) -> tuple[dict[str, Any], str]:
