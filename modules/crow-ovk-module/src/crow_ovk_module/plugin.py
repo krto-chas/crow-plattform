@@ -70,7 +70,7 @@ class CrowOvkModulePlugin:
             ovk_field_media_router(data_root),
             ovk_field_workbench_router(data_root),
             ovk_field_history_router(data_root),
-            ovk_legacy_router(),
+            ovk_legacy_router(data_root),
             ovk_reporting_router(data_root),
             ovk_time_router(data_root),
         )
