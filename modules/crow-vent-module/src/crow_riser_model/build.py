@@ -73,6 +73,4 @@ def build_riser_model(
         )
         for stairwell, members in sorted(grouped.items())
     )
-    return RiserModelResult(
-        strings=tuple(strings), summaries=summaries, skipped=tuple(skipped)
-    )
+    return RiserModelResult(strings=tuple(strings), summaries=summaries, skipped=tuple(skipped))

@@ -18,9 +18,7 @@ _PERCENT_PATTERN = re.compile(r"(?P<value>\d{1,3})\s*%")
 _FAMILY_WINDOW = 80
 
 
-def _family_positions(
-    line: str, knowledge: PressureTestKnowledge
-) -> tuple[tuple[int, str], ...]:
+def _family_positions(line: str, knowledge: PressureTestKnowledge) -> tuple[tuple[int, str], ...]:
     lowered = line.casefold()
     hits: list[tuple[int, str]] = []
     for family, terms in knowledge.duct_families.items():

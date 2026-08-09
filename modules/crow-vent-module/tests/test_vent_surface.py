@@ -39,9 +39,7 @@ def test_vent_takeoff_alias_is_denied_without_entitlement(
     assert response.json()["detail"] == {"code": "MODULE_NOT_ACTIVE", "module": "vent"}
 
 
-def test_vent_takeoff_alias_reuses_existing_pipeline(
-    tmp_path: Path, monkeypatch: object
-) -> None:
+def test_vent_takeoff_alias_reuses_existing_pipeline(tmp_path: Path, monkeypatch: object) -> None:
     monkeypatch.setenv("CROW_CUSTOMER_ID", "acme")  # type: ignore[attr-defined]
     _enable_vent(tmp_path)
     client = TestClient(create_app(tmp_path))

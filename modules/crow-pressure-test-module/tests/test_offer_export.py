@@ -91,9 +91,7 @@ def test_protocol_workbook_uses_knowledge_factors(tmp_path: Path) -> None:
     assert workbook.sheetnames[0] == "Protokoll"
     requirements = workbook["Krav & standarder"]
     rows = {
-        row[0].value: row
-        for row in requirements.iter_rows(min_row=4, max_row=7)
-        if row[0].value
+        row[0].value: row for row in requirements.iter_rows(min_row=4, max_row=7) if row[0].value
     }
     assert rows["C"][1].value == pytest.approx(0.003)
     assert rows["C"][2].value == pytest.approx(0.147387, abs=1e-6)
@@ -106,7 +104,5 @@ def test_protocol_workbook_uses_knowledge_factors(tmp_path: Path) -> None:
         if isinstance(cell.value, str) and cell.value.startswith("=")
     ]
     assert any("VLOOKUP" in formula and "^0.65" in formula for formula in formulas)
-    standard_texts = [
-        cell.value for row in requirements.iter_rows() for cell in row if cell.value
-    ]
+    standard_texts = [cell.value for row in requirements.iter_rows() for cell in row if cell.value]
     assert any("SS-EN 1507" in str(value) for value in standard_texts)

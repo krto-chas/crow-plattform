@@ -6,9 +6,7 @@ from pathlib import Path
 from .models import OvkWorkflowRecord
 from .service import record_from_payload, record_to_payload
 
-_ALLOWED_ID_CHARS = set(
-    "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_"
-)
+_ALLOWED_ID_CHARS = set("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_")
 
 
 class OvkWorkflowRepository:
@@ -42,10 +40,7 @@ class OvkWorkflowRepository:
         directory = self.root / "projects" / project_id / "ovk"
         if not directory.exists():
             return ()
-        records = [
-            self.load(project_id, path.stem)
-            for path in sorted(directory.glob("*.json"))
-        ]
+        records = [self.load(project_id, path.stem) for path in sorted(directory.glob("*.json"))]
         return tuple(records)
 
     def _path(self, project_id: str, inspection_id: str) -> Path:

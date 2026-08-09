@@ -154,9 +154,7 @@ def _project_photo(
         "evidence_id": None if not verified else receipt_data.get("evidence_id"),
         "size_bytes": None if not verified else receipt_data.get("size_bytes"),
         "content_url": (
-            None
-            if not verified
-            else f"/api/ovk/field/media/{inspection_id}/{photo_id}/content"
+            None if not verified else f"/api/ovk/field/media/{inspection_id}/{photo_id}/content"
         ),
     }
 

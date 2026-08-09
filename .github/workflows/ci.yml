@@ -23,14 +23,18 @@ jobs:
               python -m pip install -e "$module"
             fi
           done
+      - run: ruff format --check .
       - run: ruff check .
       - run: mypy
       - name: Type-check first-party modules
         run: |
           mypy --strict \
             modules/crow-vent-module/src \
+            modules/crow-vent-module/tests \
             modules/crow-pressure-test-module/src \
-            modules/crow-ovk-module/src
+            modules/crow-pressure-test-module/tests \
+            modules/crow-ovk-module/src \
+            modules/crow-ovk-module/tests
       - run: pytest -q
       - name: Architecture review
         run: python -m crow_module_conformance.cli review --root .

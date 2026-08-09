@@ -75,9 +75,9 @@ def write_protocol_workbook(
         row=row, column=1, value="STANDARDER SOM PROVNINGEN UTFÖRS MOT"
     ).font = styles["bb"]
     for offset, standard in enumerate(knowledge.standards()):
-        requirements.cell(row=row + 1 + offset, column=1, value=standard.standard_id).font = (
-            styles["bb"]
-        )
+        requirements.cell(row=row + 1 + offset, column=1, value=standard.standard_id).font = styles[
+            "bb"
+        ]
         requirements.cell(row=row + 1 + offset, column=2, value=standard.title).font = styles[
             "note"
         ]
@@ -136,10 +136,7 @@ def write_protocol_workbook(
         protocol.cell(
             row=row,
             column=8,
-            value=(
-                f'=IF(OR(F{row}="",G{row}=""),"",'
-                f'IF(G{row}<=F{row},"GODKÄND","EJ GODKÄND"))'
-            ),
+            value=(f'=IF(OR(F{row}="",G{row}=""),"",IF(G{row}<=F{row},"GODKÄND","EJ GODKÄND"))'),
         ).border = styles["border"]
 
     output_path.parent.mkdir(parents=True, exist_ok=True)

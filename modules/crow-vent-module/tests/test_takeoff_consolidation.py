@@ -8,7 +8,7 @@ from crow_takeoff_consolidation import (
 from crow_vent.lexicon import VentLexicon
 
 
-def geometry_payload() -> dict:
+def geometry_payload() -> dict[str, object]:
     return {
         "schema_version": "crow-vent-quantity-v0.3",
         "lines": [

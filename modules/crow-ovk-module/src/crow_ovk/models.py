@@ -80,11 +80,7 @@ class OvkMeasurement:
     def deviation_percent(self) -> Decimal | None:
         if self.designed_value is None or self.designed_value == 0:
             return None
-        return (
-            (self.measured_value - self.designed_value)
-            / self.designed_value
-            * Decimal("100")
-        )
+        return (self.measured_value - self.designed_value) / self.designed_value * Decimal("100")
 
 
 @dataclass(frozen=True, slots=True)

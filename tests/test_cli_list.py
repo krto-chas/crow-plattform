@@ -15,6 +15,7 @@ def test_cli_list_handles_no_installed_modules(capsys, monkeypatch) -> None:
 
 def test_cli_list_reports_discovered_module(capsys, monkeypatch) -> None:
     """Discovery reports modules found via crow.modules entry points."""
+
     class _MockEntryPoint:
         name = "example"
 

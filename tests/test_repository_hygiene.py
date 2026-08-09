@@ -21,8 +21,6 @@ def test_generated_python_artifacts_are_not_tracked() -> None:
     offenders = [
         path
         for path in _tracked_paths()
-        if "__pycache__/" in path
-        or path.endswith((".pyc", ".pyo"))
-        or ".egg-info/" in path
+        if "__pycache__/" in path or path.endswith((".pyc", ".pyo")) or ".egg-info/" in path
     ]
     assert offenders == [], "Tracked generated artifacts:\n" + "\n".join(offenders)

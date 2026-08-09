@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from hashlib import sha256
 from pathlib import Path
+from typing import cast
 
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
@@ -82,7 +83,7 @@ def _seed_previous(client: TestClient, content: bytes) -> dict[str, object]:
     assert context.status_code == 200
     assert snapshot.status_code == 200
     assert media.status_code == 200
-    return media.json()
+    return cast(dict[str, object], media.json())
 
 
 def test_history_lists_server_inspections_by_project(tmp_path: Path) -> None:

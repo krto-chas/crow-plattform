@@ -120,9 +120,7 @@ def _build_snapshot(item: LegacyHistoricalCommit) -> dict[str, Any]:
         for index, number in enumerate(unit_numbers, start=1)
     ]
     findings: list[dict[str, Any]] = []
-    for index, fact in enumerate(
-        (fact for fact in item.facts if fact.field == "finding"), start=1
-    ):
+    for index, fact in enumerate((fact for fact in item.facts if fact.field == "finding"), start=1):
         findings.append(
             {
                 "finding_id": f"legacy-finding-{index}",

@@ -134,9 +134,9 @@ def _heal_document_path(document_path: str, project_file: Path) -> str:
     stored = Path(document_path)
     parents = project_file.parents
     data_root = parents[2] if len(parents) > 2 else project_file.parent
-    is_absolute = PurePosixPath(document_path).is_absolute() or PureWindowsPath(
-        document_path
-    ).is_absolute()
+    is_absolute = (
+        PurePosixPath(document_path).is_absolute() or PureWindowsPath(document_path).is_absolute()
+    )
     if not is_absolute:
         return str((data_root / stored).resolve())
     if stored.exists():

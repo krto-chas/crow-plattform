@@ -32,9 +32,7 @@ def test_catalog_separates_data_dependencies_from_commercial_access() -> None:
 
 def test_missing_entitlement_file_fails_closed(tmp_path: Path) -> None:
     catalog = load_product_module_catalog()
-    entitlements = load_customer_entitlements(
-        tmp_path / "config", "acme", catalog=catalog
-    )
+    entitlements = load_customer_entitlements(tmp_path / "config", "acme", catalog=catalog)
     assert entitlements.entries == ()
     assert not entitlements.has_active_module("vent", today=date(2026, 8, 8))
 

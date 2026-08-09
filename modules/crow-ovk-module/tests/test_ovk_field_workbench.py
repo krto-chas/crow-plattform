@@ -22,9 +22,7 @@ def _client(data_root: Path) -> TestClient:
 def _payload(content: bytes) -> dict[str, object]:
     return {
         "inspection_id": "ovk-78",
-        "units": [
-            {"unit_id": "unit-1", "number": "1203", "kind": "apartment", "label": ""}
-        ],
+        "units": [{"unit_id": "unit-1", "number": "1203", "kind": "apartment", "label": ""}],
         "rooms": [{"room_id": "room-1", "unit_id": "unit-1", "name": "Badrum"}],
         "findings": [
             {

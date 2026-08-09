@@ -1,13 +1,17 @@
 from crow_vent import build_vent_model, component_registry, resolve_component
 
 
-def test_registry_resolves_numbered_symbols():
-    assert resolve_component("TD1").name_sv == "Tilluftsdon"
-    assert resolve_component("FD-03").airflow_role == "extract"
+def test_registry_resolves_numbered_symbols() -> None:
+    supply = resolve_component("TD1")
+    extract = resolve_component("FD-03")
+    assert supply is not None
+    assert extract is not None
+    assert supply.name_sv == "Tilluftsdon"
+    assert extract.airflow_role == "extract"
     assert resolve_component("okänd") is None
 
 
-def test_build_vent_model_keeps_geometry_provenance():
+def test_build_vent_model_keeps_geometry_provenance() -> None:
     payload = {
         "candidates": [
             {
@@ -27,11 +31,11 @@ def test_build_vent_model_keeps_geometry_provenance():
     assert result["classifications"][0]["evidence"]["geometry_candidate"] == "candidate-1"
 
 
-def test_registry_has_initial_component_set():
+def test_registry_has_initial_component_set() -> None:
     assert len(component_registry()) >= 15
 
 
-def test_vent_02_detects_mixed_airflow_roles():
+def test_vent_02_detects_mixed_airflow_roles() -> None:
     payload = {
         "candidates": [
             {"candidate_group_id": "c1", "system_id": "s1", "display_value": "TD1", "score": 0.9},
@@ -44,7 +48,7 @@ def test_vent_02_detects_mixed_airflow_roles():
     assert result["systems"][0]["status"] == "needs_review"
 
 
-def test_vent_02_builds_relations_between_unit_and_terminal():
+def test_vent_02_builds_relations_between_unit_and_terminal() -> None:
     payload = {
         "candidates": [
             {"candidate_group_id": "c1", "system_id": "s1", "display_value": "TA01", "score": 0.9},
@@ -59,7 +63,7 @@ def test_vent_02_builds_relations_between_unit_and_terminal():
     assert result["systems"][0]["system_kind"] == "tilluft"
 
 
-def test_vent_03_builds_quantity_takeoff_and_dimensions():
+def test_vent_03_builds_quantity_takeoff_and_dimensions() -> None:
     payload = {
         "candidates": [
             {
@@ -90,7 +94,7 @@ def test_vent_03_builds_quantity_takeoff_and_dimensions():
     assert any(line["dimension"] == "300x200" for line in takeoff["lines"])
 
 
-def test_vent_03_exports_semicolon_csv():
+def test_vent_03_exports_semicolon_csv() -> None:
     from crow_vent import quantity_takeoff_csv
 
     takeoff = {

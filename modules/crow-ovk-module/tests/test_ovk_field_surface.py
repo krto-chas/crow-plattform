@@ -67,7 +67,7 @@ def test_field_page_exposes_offline_app_shell(tmp_path: Path) -> None:
     response = client.get("/ovk/falt")
     assert response.status_code == 200
     assert "Crow OVK · Fält" in response.text
-    assert "capture=\"environment\"" in response.text
+    assert 'capture="environment"' in response.text
     assert "/ovk/falt/app.js" in response.text
 
     app = client.get("/ovk/falt/app.js")

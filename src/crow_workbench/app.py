@@ -2990,16 +2990,12 @@ def create_app(data_root: Path | None = None) -> FastAPI:
         table_rows = body.get("table_rows") or []
         if table_rows:
             takeoffs.append(
-                takeoff_from_table(
-                    table_rows, source_id="tabell:mangdforteckning", lexicon=lexicon
-                )
+                takeoff_from_table(table_rows, source_id="tabell:mangdforteckning", lexicon=lexicon)
             )
         text_segments = body.get("text_segments") or []
         if text_segments:
             takeoffs.append(
-                takeoff_from_text(
-                    text_segments, source_id="text:beskrivning", lexicon=lexicon
-                )
+                takeoff_from_text(text_segments, source_id="text:beskrivning", lexicon=lexicon)
             )
         if not takeoffs:
             raise HTTPException(
