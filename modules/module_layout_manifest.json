@@ -25,7 +25,7 @@
       "repository_root": "modules/crow-pressure-test-module",
       "requires_modules": ["crow.vent"],
       "owned_packages": ["crow_pressure_test"],
-      "migration_pending_from_root_src": true
+      "migration_pending_from_root_src": false
     },
     {
       "module_id": "crow.ovk",
