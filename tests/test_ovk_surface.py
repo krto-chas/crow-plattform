@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-from crow_workbench.ovk_surface import ovk_router
+from crow_ovk_module.ovk_surface import ovk_router
 
 
 def make_client() -> TestClient:

@@ -14,9 +14,10 @@ from crow_module_sdk.models import (
     ValidationResult,
 )
 from crow_ovk_field import load_defect_types
-from crow_workbench.ovk_field_surface import ovk_field_router
-from crow_workbench.ovk_surface import ovk_router
-from crow_workbench.ovk_workflow_surface import ovk_workflow_router
+
+from .ovk_field_surface import ovk_field_router
+from .ovk_surface import ovk_router
+from .ovk_workflow_surface import ovk_workflow_router
 
 
 class CrowOvkModulePlugin:

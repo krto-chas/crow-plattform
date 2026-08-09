@@ -3,7 +3,7 @@ from __future__ import annotations
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-from crow_workbench.ovk_field_surface import ovk_field_router
+from crow_ovk_module.ovk_field_surface import ovk_field_router
 
 
 def _client() -> TestClient:
