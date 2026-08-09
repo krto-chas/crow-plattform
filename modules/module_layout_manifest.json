@@ -1,6 +1,6 @@
 {
   "meta": {
-    "version": "1.4",
+    "version": "1.5",
     "description": "Kanoniskt repository-layoutkontrakt för first-party Crow-moduler",
     "new_modules_must_live_under": "modules/",
     "root_src_policy": "Backbone src/ får endast innehålla delade plattformskapabiliteter och värdskal; verksamhetsdomäner ägs av first-party-moduler under modules/."
@@ -27,11 +27,8 @@
         "crow_takeoff_consolidation"
       ],
       "migration_pending_packages": [],
-      "migration_pending_surfaces": [
-        "crow_workbench/vent_surface.py",
-        "crow_workbench/vent_quote_surface.py"
-      ],
-      "migration_pending_from_root_src": true
+      "migration_pending_surfaces": [],
+      "migration_pending_from_root_src": false
     },
     {
       "module_id": "crow.provtryckning",
