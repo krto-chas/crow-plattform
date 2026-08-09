@@ -88,11 +88,17 @@ def test_module_owned_packages_do_not_silently_live_in_backbone() -> None:
         assert isinstance(packages, list)
         migrated = entry.get("migrated_packages", [])
         pending_packages = entry.get("migration_pending_packages", [])
+        pending_surfaces = entry.get("migration_pending_surfaces", [])
         assert isinstance(migrated, list)
         assert isinstance(pending_packages, list)
+        assert isinstance(pending_surfaces, list)
         assert set(map(str, migrated)).isdisjoint(set(map(str, pending_packages)))
         assert set(map(str, migrated)) | set(map(str, pending_packages)) == set(map(str, packages))
-        assert pending is bool(pending_packages)
+        assert pending is bool(pending_packages or pending_surfaces)
+
+        for surface in pending_surfaces:
+            surface_path = ROOT / "src" / str(surface)
+            assert surface_path.is_file(), f"{module_id}: pending surface {surface} is missing"
 
         for package in packages:
             package_name = str(package)
