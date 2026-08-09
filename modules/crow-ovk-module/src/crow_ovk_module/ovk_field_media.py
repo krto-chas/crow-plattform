@@ -160,7 +160,7 @@ class _FieldMediaRepository:
         directory.mkdir(parents=True, exist_ok=True)
         media_id = f"sha256:{digest}"
         evidence_digest = sha256(
-            f"{inspection_id}\0{photo_id}\0{digest}".encode("utf-8")
+            f"{inspection_id}\0{photo_id}\0{digest}".encode()
         ).hexdigest()
         receipt: dict[str, Any] = {
             "inspection_id": inspection_id,
