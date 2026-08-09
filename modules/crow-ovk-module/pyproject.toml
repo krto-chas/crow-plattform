@@ -7,7 +7,11 @@ name = "crow-ovk-module"
 version = "1.0.0"
 description = "Crow OVK domain module"
 requires-python = ">=3.11"
-dependencies = ["crow-plattform>=0.7.0a1,<0.8"]
+dependencies = [
+    "crow-plattform>=0.7.0a1,<0.8",
+    "openpyxl>=3.1",
+    "pypdf>=5.0",
+]
 
 [project.entry-points."crow.modules"]
 ovk = "crow_ovk_module.plugin:CrowOvkModulePlugin"
@@ -21,4 +25,5 @@ crow_ovk = ["py.typed"]
 crow_ovk_field = ["py.typed", "defect_types.json"]
 crow_ovk_workflow = ["py.typed"]
 crow_ovk_import = ["py.typed"]
+crow_ovk_legacy = ["py.typed"]
 crow_ovk_pricing = ["py.typed", "ovk_taxa_lexikon.json"]

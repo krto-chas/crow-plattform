@@ -19,6 +19,7 @@ from .ovk_field_history import ovk_field_history_router
 from .ovk_field_media import ovk_field_media_router
 from .ovk_field_surface import ovk_field_router
 from .ovk_field_workbench import ovk_field_workbench_router
+from .ovk_legacy_surface import ovk_legacy_router
 from .ovk_surface import ovk_router
 from .ovk_workflow_surface import ovk_workflow_router
 
@@ -67,4 +68,5 @@ class CrowOvkModulePlugin:
             ovk_field_media_router(data_root),
             ovk_field_workbench_router(data_root),
             ovk_field_history_router(data_root),
+            ovk_legacy_router(),
         )
