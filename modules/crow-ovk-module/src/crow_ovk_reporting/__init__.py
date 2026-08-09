@@ -1,3 +1,4 @@
+from .capture import append_time_adjustment, append_time_segment
 from .models import (
     AnnualReportRow,
     CertificationProfile,
@@ -25,6 +26,8 @@ __all__ = [
     "TimeCategory",
     "TimeSegment",
     "adjustment_hours",
+    "append_time_adjustment",
+    "append_time_segment",
     "build_report_rows",
     "calculated_hours",
     "ledger_from_payload",
