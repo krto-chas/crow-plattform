@@ -1,12 +1,14 @@
 from __future__ import annotations
 
+from pathlib import Path
+
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from crow_ovk_module.ovk_legacy_surface import ovk_legacy_router
 
 
-def test_legacy_review_page_and_client_are_served(tmp_path) -> None:
+def test_legacy_review_page_and_client_are_served(tmp_path: Path) -> None:
     app = FastAPI()
     app.include_router(ovk_legacy_router(tmp_path))
     client = TestClient(app)
@@ -23,7 +25,7 @@ def test_legacy_review_page_and_client_are_served(tmp_path) -> None:
     assert "/api/ovk/legacy/commit" in script.text
 
 
-def test_legacy_review_ui_does_not_auto_accept_ambiguous_rows(tmp_path) -> None:
+def test_legacy_review_ui_does_not_auto_accept_ambiguous_rows(tmp_path: Path) -> None:
     app = FastAPI()
     app.include_router(ovk_legacy_router(tmp_path))
     script = TestClient(app).get("/ovk/legacy/app.js").text
