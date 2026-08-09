@@ -7,7 +7,7 @@ name = "crow-pressure-test-module"
 version = "1.0.0"
 description = "Crow Provtryckning domain module"
 requires-python = ">=3.11"
-dependencies = ["crow-plattform>=0.7.0a1,<0.8"]
+dependencies = ["crow-plattform>=0.7.0a1,<0.8", "openpyxl>=3.1"]
 
 [project.entry-points."crow.modules"]
 provtryckning = "crow_pressure_test_module.plugin:CrowPressureTestModulePlugin"
