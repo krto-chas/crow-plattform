@@ -1,9 +1,8 @@
 from decimal import Decimal
 
-from crow_vent_module import CrowVentModulePlugin
-
 from crow_module_conformance import validate_plugin
 from crow_module_sdk.models import Claim, Provenance
+from crow_vent_module import CrowVentModulePlugin
 
 
 def make_claim(subject: str, prop: str, value: object, unit: str | None) -> Claim:
