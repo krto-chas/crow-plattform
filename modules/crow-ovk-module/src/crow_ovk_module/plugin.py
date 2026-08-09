@@ -57,4 +57,4 @@ class CrowOvkModulePlugin:
         )
 
     def routers(self, data_root: Path) -> tuple[APIRouter, ...]:
-        return (ovk_router(), ovk_workflow_router(data_root), ovk_field_router())
+        return (ovk_router(), ovk_workflow_router(data_root), ovk_field_router(data_root))
