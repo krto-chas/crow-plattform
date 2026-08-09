@@ -45,3 +45,12 @@ def test_migrated_vent_packages_have_no_source_artifacts_in_backbone_src() -> No
     for package in MIGRATED_VENT_PACKAGES:
         artifacts = _source_artifacts(repository_root / "src" / package)
         assert not artifacts, f"{package} leaked source artifacts into backbone: {artifacts}"
+
+
+def test_vent_web_surfaces_are_owned_by_vent_module() -> None:
+    repository_root = Path(__file__).resolve().parents[1]
+    module_root = repository_root / "modules" / "crow-vent-module" / "src" / "crow_vent_module"
+    assert (module_root / "vent_surface.py").is_file()
+    assert (module_root / "vent_quote_surface.py").is_file()
+    assert not (repository_root / "src" / "crow_workbench" / "vent_surface.py").exists()
+    assert not (repository_root / "src" / "crow_workbench" / "vent_quote_surface.py").exists()

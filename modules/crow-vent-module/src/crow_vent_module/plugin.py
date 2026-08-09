@@ -17,8 +17,9 @@ from crow_module_sdk.models import (
     ValidationResult,
 )
 from crow_vent.lexicon import VentLexicon
-from crow_workbench.vent_quote_surface import vent_quote_router
-from crow_workbench.vent_surface import vent_router
+
+from .vent_quote_surface import vent_quote_router
+from .vent_surface import vent_router
 
 NAMESPACE = "vent"
 
