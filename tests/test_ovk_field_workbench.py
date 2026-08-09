@@ -35,7 +35,7 @@ def _payload(content: bytes) -> dict[str, object]:
                 "description": "Smutsigt frånluftsdon",
                 "severity": "minor",
                 "system_id": "FTX01",
-                "rule_refs": ["PBL-OVK"],
+                "rule_refs": [],
                 "origin": "observed",
             }
         ],
@@ -54,7 +54,7 @@ def _payload(content: bytes) -> dict[str, object]:
                 "finding_id": "finding-1",
                 "system_id": "FTX01",
                 "description": "Smutsigt frånluftsdon",
-                "rule_refs": ["PBL-OVK"],
+                "rule_refs": [],
                 "sync_status": "local",
             }
         ],
@@ -94,7 +94,7 @@ def test_field_roundtrip_projects_verified_evidence_into_workbench(tmp_path: Pat
     }
     finding = data["units"][0]["findings"][0]
     assert finding["room_name"] == "Badrum"
-    assert finding["rule_refs"] == ["PBL-OVK"]
+    assert finding["rule_refs"] == []
     photo = finding["photos"][0]
     assert photo["verified"] is True
     assert photo["media_id"] == media.json()["media_id"]
