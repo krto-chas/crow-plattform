@@ -164,10 +164,7 @@ def _fact(field: str, value: str, source: LegacySourceRef) -> LegacyFact:
 
 
 def _system_ids(text: str) -> tuple[str, ...]:
-    values = {
-        re.sub(r"[\s_-]+", "", match.group(0)).upper()
-        for match in _SYSTEM_RE.finditer(text)
-    }
+    values = {re.sub(r"[\s_-]+", "", match.group(0)).upper() for match in _SYSTEM_RE.finditer(text)}
     return tuple(sorted(values))
 
 

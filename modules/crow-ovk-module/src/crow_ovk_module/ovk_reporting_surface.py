@@ -135,9 +135,7 @@ def ovk_reporting_router(data_root: Path) -> APIRouter:
         return Response(
             content=report_to_csv(profile, rows),
             media_type="text/csv; charset=utf-8",
-            headers={
-                "Content-Disposition": f'attachment; filename="ovk-annual-{profile_id}.csv"'
-            },
+            headers={"Content-Disposition": f'attachment; filename="ovk-annual-{profile_id}.csv"'},
         )
 
     return router

@@ -19,9 +19,15 @@ from dataclasses import dataclass
 
 _SHIFT = 0x1D
 _SPECIAL = {
-    "b": "Ä", "c": "Å", "d": "Ö", "e": "É",
-    "m": "ä", "n": "å", "o": "ö",
-    "ð": "²", "ñ": "³",
+    "b": "Ä",
+    "c": "Å",
+    "d": "Ö",
+    "e": "É",
+    "m": "ä",
+    "n": "å",
+    "o": "ö",
+    "ð": "²",
+    "ñ": "³",
 }
 _PLAUSIBLE = set("ABCDEFGHIJKLMNOPQRSTUVWXYZÅÄÖÉabcdefghijklmnopqrstuvwxyzåäöé²³")
 _TOKEN = re.compile(r"\S+")

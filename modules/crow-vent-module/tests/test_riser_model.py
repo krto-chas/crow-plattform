@@ -33,9 +33,7 @@ _CONFIG = RiserConfiguration(top_plan="14")
 
 
 def test_builds_three_strings_per_apartment_with_height_plus_allowance() -> None:
-    result = build_riser_model(
-        [_apartment("41-1001", "trh-1", "10")], _LEVELS, _CONFIG
-    )
+    result = build_riser_model([_apartment("41-1001", "trh-1", "10")], _LEVELS, _CONFIG)
     assert result.string_count == 3
     assert {item.kind for item in result.strings} == {"tilluft", "franluft", "imkanal"}
     assert all(item.length_m == Decimal("13.31") for item in result.strings)
@@ -43,9 +41,7 @@ def test_builds_three_strings_per_apartment_with_height_plus_allowance() -> None
 
 
 def test_missing_level_is_skipped_with_reason_not_silently() -> None:
-    result = build_riser_model(
-        [_apartment("43-1201", "trh-3", "12")], _LEVELS, _CONFIG
-    )
+    result = build_riser_model([_apartment("43-1201", "trh-3", "12")], _LEVELS, _CONFIG)
     assert result.string_count == 0
     assert result.skipped[0]["reason"] == "missing_or_inverted_level"
     assert result.skipped[0]["apartment_id"] == "43-1201"
@@ -122,8 +118,6 @@ def test_real_berghallen_riser_model_matches_expected_totals() -> None:
         actual = by_stairwell[stairwell].total_length_m
         assert abs(actual - expected) / expected < Decimal("0.05"), (stairwell, actual)
     radhus = [item for item in seen.values() if item.stairwell_id == "radhus"]
-    radhus_result = build_riser_model(
-        radhus, levels, RiserConfiguration(top_plan="12")
-    )
+    radhus_result = build_riser_model(radhus, levels, RiserConfiguration(top_plan="12"))
     assert radhus_result.string_count == 9
     assert abs(radhus_result.total_length_m - Decimal("63")) / Decimal("63") < Decimal("0.2")

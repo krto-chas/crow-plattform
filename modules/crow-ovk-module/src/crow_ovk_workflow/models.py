@@ -35,7 +35,4 @@ class OvkWorkflowRecord:
 
     @property
     def protocol_ready(self) -> bool:
-        return (
-            self.inspection.conclusion.value != "pending"
-            and self.unresolved_review_count == 0
-        )
+        return self.inspection.conclusion.value != "pending" and self.unresolved_review_count == 0

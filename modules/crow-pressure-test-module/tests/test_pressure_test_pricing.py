@@ -71,9 +71,7 @@ def test_rejects_wrong_schema_and_invalid_inputs() -> None:
     with pytest.raises(ValueError):
         price_pressure_test_offer({"schema_version": "x"}, default_service_price_book())
     with pytest.raises(ValueError):
-        price_pressure_test_offer(
-            _QUANTITIES, default_service_price_book(), establishments=-1
-        )
+        price_pressure_test_offer(_QUANTITIES, default_service_price_book(), establishments=-1)
     with pytest.raises(ValueError):
         price_pressure_test_offer(
             _QUANTITIES, default_service_price_book(), risk_factor=Decimal("-0.1")

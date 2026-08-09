@@ -17,9 +17,7 @@ def _has_source_artifacts(package_root: Path) -> bool:
     if not package_root.exists():
         return False
     return any(
-        path.is_file()
-        and "__pycache__" not in path.parts
-        and path.suffix not in {".pyc", ".pyo"}
+        path.is_file() and "__pycache__" not in path.parts and path.suffix not in {".pyc", ".pyo"}
         for path in package_root.rglob("*")
     )
 

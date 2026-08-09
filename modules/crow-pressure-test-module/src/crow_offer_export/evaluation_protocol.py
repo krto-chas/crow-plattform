@@ -68,9 +68,7 @@ def build_evaluation_protocol_workbook(result: Mapping[str, Any]) -> bytes:
     standards.column_dimensions["A"].width = 24
     standards.column_dimensions["B"].width = 72
     for row_index, item in enumerate(_mapping_items(result.get("standards")), start=1):
-        standards.cell(row=row_index, column=1, value=str(item.get("id", ""))).font = styles[
-            "bb"
-        ]
+        standards.cell(row=row_index, column=1, value=str(item.get("id", ""))).font = styles["bb"]
         standards.cell(row=row_index, column=2, value=str(item.get("title", "")))
 
     output = BytesIO()

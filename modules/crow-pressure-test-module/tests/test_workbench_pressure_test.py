@@ -61,9 +61,7 @@ def test_pressure_test_api_requires_its_own_entitlement(
     }
 
 
-def test_pressure_test_requires_vent_entitlement(
-    tmp_path: Path, monkeypatch: MonkeyPatch
-) -> None:
+def test_pressure_test_requires_vent_entitlement(tmp_path: Path, monkeypatch: MonkeyPatch) -> None:
     client = _client(
         tmp_path,
         monkeypatch,

@@ -13,14 +13,17 @@ def protocol_html(record: OvkWorkflowRecord) -> str:
 
     inspection = record.inspection
     ovk_object = inspection.ovk_object
-    system_rows = "".join(
-        "<tr>"
-        f"<td>{escape(system.system_id)}</td>"
-        f"<td>{escape(system.system_type)}</td>"
-        f"<td>{escape(system.label)}</td>"
-        "</tr>"
-        for system in inspection.systems
-    ) or '<tr><td colspan="3">Inga system registrerade.</td></tr>'
+    system_rows = (
+        "".join(
+            "<tr>"
+            f"<td>{escape(system.system_id)}</td>"
+            f"<td>{escape(system.system_type)}</td>"
+            f"<td>{escape(system.label)}</td>"
+            "</tr>"
+            for system in inspection.systems
+        )
+        or '<tr><td colspan="3">Inga system registrerade.</td></tr>'
+    )
 
     checkpoint_rows = "".join(
         "<tr>"
@@ -36,15 +39,18 @@ def protocol_html(record: OvkWorkflowRecord) -> str:
         '<tr><td colspan="6">Inga mätningar registrerade.</td></tr>'
     )
 
-    finding_rows = "".join(
-        "<tr>"
-        f"<td>{escape(item.system_id or '—')}</td>"
-        f"<td>{escape(item.severity.value)}</td>"
-        f"<td>{escape(item.description)}</td>"
-        f"<td>{'Ja' if item.action_required else 'Nej'}</td>"
-        "</tr>"
-        for item in inspection.findings
-    ) or '<tr><td colspan="4">Inga findings registrerade.</td></tr>'
+    finding_rows = (
+        "".join(
+            "<tr>"
+            f"<td>{escape(item.system_id or '—')}</td>"
+            f"<td>{escape(item.severity.value)}</td>"
+            f"<td>{escape(item.description)}</td>"
+            f"<td>{'Ja' if item.action_required else 'Nej'}</td>"
+            "</tr>"
+            for item in inspection.findings
+        )
+        or '<tr><td colspan="4">Inga findings registrerade.</td></tr>'
+    )
 
     return f"""<!doctype html>
 <html lang="sv"><head><meta charset="utf-8"><title>OVK-protokoll</title>
@@ -59,7 +65,7 @@ th,td{{border:1px solid #bbb;padding:6px;text-align:left;vertical-align:top}}
 <p>Genererat från sparad Crow-besiktning. Ingen normbedömning har lagts till av exporten.</p>
 <div class="meta">
 <div><strong>Objekt:</strong> {escape(ovk_object.name)}</div>
-<div><strong>Adress:</strong> {escape(ovk_object.address or '—')}</div>
+<div><strong>Adress:</strong> {escape(ovk_object.address or "—")}</div>
 <div><strong>Projekt:</strong> {escape(ovk_object.project_id)}</div>
 <div><strong>Besiktning:</strong> {escape(inspection.inspection_id)}</div>
 <div><strong>Byggnad:</strong> {escape(ovk_object.building_id)}</div>

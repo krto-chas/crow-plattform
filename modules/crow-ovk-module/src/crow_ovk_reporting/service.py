@@ -28,9 +28,7 @@ def calculated_hours(ledger: InspectionTimeLedger) -> Decimal:
 
 
 def adjustment_hours(ledger: InspectionTimeLedger) -> Decimal:
-    return sum((item.hours for item in ledger.adjustments), Decimal("0")).quantize(
-        Decimal("0.01")
-    )
+    return sum((item.hours for item in ledger.adjustments), Decimal("0")).quantize(Decimal("0.01"))
 
 
 def reported_hours(ledger: InspectionTimeLedger) -> Decimal:

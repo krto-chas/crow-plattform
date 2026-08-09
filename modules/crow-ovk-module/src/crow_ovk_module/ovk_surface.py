@@ -32,7 +32,10 @@ def ovk_router() -> APIRouter:
         if not isinstance(rows, list) or not rows:
             raise HTTPException(
                 status_code=422,
-                detail={"code": "INVALID_OVK_IMPORT", "message": "observations must be a non-empty list"},
+                detail={
+                    "code": "INVALID_OVK_IMPORT",
+                    "message": "observations must be a non-empty list",
+                },
             )
 
         observations: list[Observation] = []
@@ -142,7 +145,7 @@ def _positive_int(value: object, *, default: int) -> int:
     return parsed if parsed > 0 else default
 
 
-_OVK_HTML = r'''<!doctype html>
+_OVK_HTML = r"""<!doctype html>
 <html lang="sv"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Crow OVK</title>
 <style>
 :root{font-family:Inter,system-ui,sans-serif;color:#18212b;background:#f4f6f8}body{margin:0}.shell{display:grid;grid-template-columns:230px 1fr;min-height:100vh}aside{background:#17202a;color:#fff;padding:24px}aside h1{font-size:20px;margin:0 0 28px}nav a{display:block;color:#dce5ed;text-decoration:none;padding:10px 0}nav a.active{font-weight:700;color:#fff}main{padding:32px;max-width:1300px}.eyebrow{font-size:12px;letter-spacing:.12em;color:#687684}.grid{display:grid;grid-template-columns:420px 1fr;gap:18px}.panel{background:#fff;border:1px solid #dfe5ea;border-radius:10px;padding:20px}label{display:block;font-size:13px;font-weight:600;margin:12px 0 5px}select,input,textarea{width:100%;box-sizing:border-box;padding:9px;border:1px solid #cbd4dc;border-radius:6px}textarea{min-height:210px;resize:vertical}.two{display:grid;grid-template-columns:1fr 1fr;gap:10px}.primary{margin-top:16px;padding:10px 14px;border:0;border-radius:6px;background:#17202a;color:#fff;cursor:pointer}.status{padding:12px;border-radius:6px;background:#eef2f5;margin-top:12px}.summary{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px}.metric{background:#f5f7f9;padding:12px;border-radius:6px}.metric strong{display:block;font-size:20px}table{width:100%;border-collapse:collapse;font-size:13px}th,td{text-align:left;border-bottom:1px solid #e6eaee;padding:8px;vertical-align:top}.section{margin-top:22px}.badge{display:inline-block;padding:3px 7px;border-radius:12px;background:#e8edf1;font-size:11px;font-weight:700}.review{background:#fff4cf}.empty{color:#687684;font-size:13px}.help{font-size:13px;color:#52616f;line-height:1.45}@media(max-width:900px){.shell{grid-template-columns:1fr}aside{display:none}.grid{grid-template-columns:1fr}.summary,.two{grid-template-columns:1fr 1fr}}
@@ -157,4 +160,4 @@ $('preview').onclick=async()=>{const lines=$('rows').value.split(/\r?\n/).map(x=
 function table(headers,rows){if(!rows.length)return '<div class="empty">Inga poster.</div>';return '<table><thead><tr>'+headers.map(h=>'<th>'+h+'</th>').join('')+'</tr></thead><tbody>'+rows.join('')+'</tbody></table>'}
 function render(d){$('summary').innerHTML=[['System',d.systems.length],['Mätningar',d.measurements.length],['Findings',d.findings.length],['Review',d.review.length]].map(x=>'<div class="metric"><span>'+x[0]+'</span><strong>'+x[1]+'</strong></div>').join('');$('systems').innerHTML=table(['System','Typ','Källa'],d.systems.map(x=>'<tr><td><strong>'+esc(x.system_id)+'</strong></td><td>'+esc(x.system_type)+'</td><td>'+esc(x.source_ref)+'</td></tr>'));$('measurements').innerHTML=table(['Punkt','System','Uppmätt','Projekterat','Avvikelse','Källa'],d.measurements.map(x=>'<tr><td>'+esc(x.point_id||'—')+'</td><td>'+esc(x.system_id||'—')+'</td><td>'+esc(x.measured_value)+' '+esc(x.unit)+'</td><td>'+esc(x.designed_value??'—')+'</td><td>'+esc(x.deviation_percent===null?'—':x.deviation_percent+' %')+'</td><td>'+esc(x.evidence_ref)+'</td></tr>'));$('findings').innerHTML=table(['System','Beskrivning','Origin','Källa'],d.findings.map(x=>'<tr><td>'+esc(x.system_id||'—')+'</td><td>'+esc(x.description)+'</td><td><span class="badge">'+esc(x.origin.toUpperCase())+'</span></td><td>'+esc(x.evidence_ref)+'</td></tr>'));$('review').innerHTML=table(['Orsak','Källtext','Källa'],d.review.map(x=>'<tr class="review"><td>'+esc(x.reason)+'</td><td>'+esc(x.source_text)+'</td><td>'+esc(x.evidence_ref)+'</td></tr>'))}
 init();
-</script></body></html>'''
+</script></body></html>"""

@@ -60,9 +60,7 @@ class _FieldHistoryRepository:
                     "inspector": _optional_text(context.get("inspector")),
                     "inspection_date": _optional_text(context.get("inspection_date")),
                     "source_kind": _optional_text(context.get("source_kind")) or "field",
-                    "previous_inspection_id": _optional_text(
-                        context.get("previous_inspection_id")
-                    ),
+                    "previous_inspection_id": _optional_text(context.get("previous_inspection_id")),
                     "saved_at": _optional_text(context.get("saved_at")),
                     "snapshot_sha256": digest,
                     "counts": {
@@ -147,9 +145,7 @@ class _FieldHistoryRepository:
             "media_id": receipt.get("media_id") if verified else None,
             "evidence_id": receipt.get("evidence_id") if verified else None,
             "content_url": (
-                f"/api/ovk/field/media/{inspection_id}/{photo_id}/content"
-                if verified
-                else None
+                f"/api/ovk/field/media/{inspection_id}/{photo_id}/content" if verified else None
             ),
         }
 
