@@ -9,7 +9,7 @@
   </style>
 </head>
 <body>
-<header class="top"><strong>Crow OVK · Fält</strong><span id="network" class="net">Kontrollerar nät…</span><a href="/ovk/besiktning">Workbench</a></header>
+<header class="top"><strong>Crow OVK · Fält</strong><span id="network" class="net">Kontrollerar nät…</span><a id="workbenchLink" href="/ovk/besiktning" onclick="const id=document.getElementById('inspection').value.trim();this.href=id?'/ovk/besiktning?inspection_id='+encodeURIComponent(id):'/ovk/besiktning'">Workbench</a></header>
 <main class="wrap">
   <section class="card"><div class="step">1 · BESIKTNING</div><h1 class="big">Välj arbetsyta</h1><div class="grid"><div><label>Projekt</label><select id="project"><option value="adhoc">Ad hoc</option></select></div><div><label>Besiktnings-ID</label><input id="inspection" value="ovk-001"></div></div><label>Besiktningsman</label><input id="inspector" placeholder="Namn"><button class="btn" id="start">Starta / återuppta fältläge</button><div id="draftStatus" class="status">Ingen lokal session laddad.</div></section>
   <section class="card hidden" id="unitCard"><div class="step">2 · LÄGENHET / LOKAL</div><h2 class="big">Var är du?</h2><div class="grid"><div><label>Typ</label><select id="kind"><option value="apartment">Lägenhet</option><option value="premises">Lokal</option></select></div><div><label>Nummer</label><input id="unitNumber" inputmode="numeric" placeholder="1203"></div></div><label>Benämning</label><input id="unitLabel" placeholder="Valfri"><button class="btn" id="setUnit">Öppna enhet</button></section>
