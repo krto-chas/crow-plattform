@@ -29,6 +29,10 @@ def ovk_time_router(data_root: Path) -> APIRouter:
     def time_app() -> Response:
         return Response(_asset_text("time.js"), media_type="application/javascript")
 
+    @router.get("/ovk/falt/time.js", response_class=Response)
+    def field_time_app() -> Response:
+        return Response(_asset_text("field-time.js"), media_type="application/javascript")
+
     @router.post("/api/ovk/reporting/time/{inspection_id}/segments", response_model=None)
     def append_segment(inspection_id: str, payload: dict[str, Any]) -> dict[str, Any]:
         try:
