@@ -11,7 +11,7 @@ from crow_takeoff_consolidation import (
 from crow_vent.lexicon import VentLexicon
 
 
-def build_consolidated() -> dict:
+def build_consolidated() -> dict[str, object]:
     geometry = takeoff_from_geometry(
         {
             "lines": [
