@@ -92,7 +92,7 @@ target-version = "py311"
 select = ["E", "F", "I", "UP", "B"]
 
 [tool.ruff.lint.isort]
-known-first-party = ["crow_ovk", "crow_ovk_field", "crow_ovk_workflow", "crow_ovk_import", "crow_ovk_pricing"]
+known-first-party = ["crow_ovk", "crow_ovk_field", "crow_ovk_workflow", "crow_ovk_import", "crow_ovk_pricing", "crow_ovk_module"]
 
 [tool.mypy]
 python_version = "3.11"
