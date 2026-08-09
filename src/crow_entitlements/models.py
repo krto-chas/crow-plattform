@@ -18,6 +18,7 @@ class ProductModule:
     route: str
     api_prefixes: tuple[str, ...]
     data_dependencies: tuple[str, ...] = ()
+    requires_modules: tuple[str, ...] = ()
     runtime_module_id: str | None = None
 
     def matches_api_path(self, path: str) -> bool:
