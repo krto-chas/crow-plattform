@@ -1,9 +1,8 @@
 from io import BytesIO
 
+from crow_ovk_legacy import LegacySourceKind, preview_legacy_file
 from openpyxl import Workbook
 from pypdf import PdfWriter
-
-from crow_ovk_legacy import LegacySourceKind, preview_legacy_file
 
 
 def _xlsx_bytes() -> bytes:
