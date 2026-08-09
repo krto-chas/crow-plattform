@@ -14,8 +14,9 @@ from crow_module_sdk.models import (
     ValidationResult,
 )
 from crow_pressure_test import load_knowledge
-from crow_workbench.pressure_test_integration_surface import pressure_test_integration_router
-from crow_workbench.pressure_test_surface import pressure_test_router
+
+from .pressure_test_integration_surface import pressure_test_integration_router
+from .pressure_test_surface import pressure_test_router
 
 
 class CrowPressureTestModulePlugin:
