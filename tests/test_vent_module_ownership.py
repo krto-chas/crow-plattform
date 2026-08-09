@@ -8,6 +8,8 @@ MIGRATED_VENT_PACKAGES = (
     "crow_vent_drawing",
     "crow_riser_model",
     "crow_takeoff_consolidation",
+    "crow_vent_quote",
+    "crow_benchmark_pricing",
 )
 
 
