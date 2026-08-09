@@ -1,6 +1,6 @@
 {
   "meta": {
-    "version": "1.2",
+    "version": "1.3",
     "description": "Kanoniskt repository-layoutkontrakt för first-party Crow-moduler",
     "new_modules_must_live_under": "modules/",
     "root_src_policy": "Backbone src/ får endast innehålla delade plattformskapabiliteter och värdskal; verksamhetsdomäner ägs av first-party-moduler under modules/."
@@ -20,13 +20,13 @@
       ],
       "migrated_packages": [
         "crow_vent",
-        "crow_vent_drawing"
+        "crow_vent_drawing",
+        "crow_riser_model",
+        "crow_takeoff_consolidation"
       ],
       "migration_pending_packages": [
-        "crow_riser_model",
         "crow_vent_quote",
-        "crow_benchmark_pricing",
-        "crow_takeoff_consolidation"
+        "crow_benchmark_pricing"
       ],
       "migration_pending_from_root_src": true
     },
