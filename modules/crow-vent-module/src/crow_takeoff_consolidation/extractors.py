@@ -62,7 +62,12 @@ def takeoff_from_geometry(payload: dict[str, Any], *, source_id: str) -> SourceT
 def takeoff_from_table(
     rows: list[list[Any]], *, source_id: str, lexicon: DesignationLexicon
 ) -> SourceTakeoff:
-    """Extract lines from spreadsheet rows (XLSX/CSV via the import framework)."""
+    """Extract lines from spreadsheet rows (XLSX/CSV via the import framework).
+
+    Strategy: for each row, find the first cell the lexicon recognises as a
+    duct string or component identity, then take the nearest numeric cell to
+    its right as the quantity and any unit-looking cell as the unit.
+    """
     lex = lexicon
     lines: list[SourceLine] = []
     skipped: list[dict[str, Any]] = []
@@ -132,6 +137,12 @@ def takeoff_from_table(
 def takeoff_from_text(
     segments: list[str], *, source_id: str, lexicon: DesignationLexicon
 ) -> SourceTakeoff:
+    """Extract component counts from specification text (PDF/DOCX segments).
+
+    Matches the pattern "<antal> st <beteckning>" and validates the
+    identity against the lexicon. Duct strings without adjacent lengths in
+    prose are recorded as skipped mentions rather than quantities.
+    """
     lex = lexicon
     lines: list[SourceLine] = []
     skipped: list[dict[str, Any]] = []
