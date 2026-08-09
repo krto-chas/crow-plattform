@@ -8,6 +8,7 @@ from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import HTMLResponse
 
 from crow_ovk_workflow import (
+    OvkWorkflowRecord,
     OvkWorkflowRepository,
     protocol_html,
     record_from_payload,
@@ -111,7 +112,7 @@ def _load(
     repository: OvkWorkflowRepository,
     project_id: str,
     inspection_id: str,
-):
+) -> OvkWorkflowRecord:
     try:
         return repository.load(project_id, inspection_id)
     except FileNotFoundError as exc:
