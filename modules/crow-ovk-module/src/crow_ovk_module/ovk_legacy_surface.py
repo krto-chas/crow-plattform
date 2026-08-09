@@ -1,10 +1,10 @@
+# ruff: noqa: B008
 from __future__ import annotations
 
 from typing import Any
 
-from fastapi import APIRouter, File, Form, HTTPException, UploadFile
-
 from crow_ovk_legacy import preview_legacy_file
+from fastapi import APIRouter, File, Form, HTTPException, UploadFile
 
 
 def ovk_legacy_router() -> APIRouter:
