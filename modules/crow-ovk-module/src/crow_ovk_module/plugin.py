@@ -22,6 +22,7 @@ from .ovk_field_workbench import ovk_field_workbench_router
 from .ovk_legacy_surface import ovk_legacy_router
 from .ovk_reporting_surface import ovk_reporting_router
 from .ovk_surface import ovk_router
+from .ovk_time_surface import ovk_time_router
 from .ovk_workflow_surface import ovk_workflow_router
 
 
@@ -71,4 +72,5 @@ class CrowOvkModulePlugin:
             ovk_field_history_router(data_root),
             ovk_legacy_router(),
             ovk_reporting_router(data_root),
+            ovk_time_router(data_root),
         )
