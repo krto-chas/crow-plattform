@@ -1,4 +1,5 @@
 from pathlib import Path
+from typing import cast
 
 from crow_ovk_legacy import LegacyHistoryCommitRepository, historical_commit_from_payload
 
@@ -68,8 +69,8 @@ def test_legacy_commit_materializes_field_history(tmp_path: Path) -> None:
 
 def test_legacy_commit_rejects_mixed_source_hashes(tmp_path: Path) -> None:
     payload = _payload()
-    facts = list(payload["facts"])  # type: ignore[arg-type]
-    facts[0] = {**facts[0], "source_sha256": "b" * 64}  # type: ignore[arg-type]
+    facts = list(cast(list[dict[str, object]], payload["facts"]))
+    facts[0] = {**facts[0], "source_sha256": "b" * 64}
     payload["facts"] = facts
     historical = historical_commit_from_payload(payload)
 
