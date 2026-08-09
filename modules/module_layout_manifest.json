@@ -1,9 +1,10 @@
 {
   "meta": {
-    "version": "1.6",
+    "version": "1.7",
     "description": "Kanoniskt repository-layoutkontrakt för first-party Crow-moduler",
     "new_modules_must_live_under": "modules/",
-    "root_src_policy": "Backbone src/ får endast innehålla delade plattformskapabiliteter och värdskal; verksamhetsdomäner ägs av first-party-moduler under modules/."
+    "root_src_policy": "Backbone src/ får endast innehålla delade plattformskapabiliteter och värdskal; verksamhetsdomäner ägs av first-party-moduler under modules/.",
+    "ownership_policy": "Repository ownership är komplett först när både modulens källkod/surfaces och dess domänägda tester ligger under modulens repository_root."
   },
   "modules": [
     {
@@ -26,9 +27,13 @@
         "crow_benchmark_pricing",
         "crow_takeoff_consolidation"
       ],
+      "owned_tests": [],
       "migration_pending_packages": [],
       "migration_pending_surfaces": [],
-      "migration_pending_from_root_src": false
+      "migration_pending_from_root_src": false,
+      "source_migration_complete": true,
+      "test_migration_complete": false,
+      "repository_ownership_complete": false
     },
     {
       "module_id": "crow.provtryckning",
@@ -36,9 +41,21 @@
       "requires_modules": ["crow.vent"],
       "owned_packages": ["crow_pressure_test", "crow_offer_export"],
       "migrated_packages": ["crow_pressure_test", "crow_offer_export"],
+      "owned_tests": [
+        "test_pressure_test_extraction.py",
+        "test_pressure_test_knowledge.py",
+        "test_pressure_test_pricing.py",
+        "test_pressure_test_workflow.py",
+        "test_workbench_pressure_test.py",
+        "test_pressure_test_vent_bridge.py",
+        "test_offer_export.py"
+      ],
       "migration_pending_packages": [],
       "migration_pending_surfaces": [],
-      "migration_pending_from_root_src": false
+      "migration_pending_from_root_src": false,
+      "source_migration_complete": true,
+      "test_migration_complete": true,
+      "repository_ownership_complete": true
     },
     {
       "module_id": "crow.ovk",
@@ -64,9 +81,13 @@
         "crow_ovk_reporting",
         "crow_ovk_module"
       ],
+      "owned_tests": [],
       "migration_pending_packages": [],
       "migration_pending_surfaces": [],
-      "migration_pending_from_root_src": false
+      "migration_pending_from_root_src": false,
+      "source_migration_complete": true,
+      "test_migration_complete": false,
+      "repository_ownership_complete": false
     }
   ],
   "shared_backbone_examples": [
