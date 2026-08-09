@@ -48,13 +48,7 @@ def configure_entitlement_shell(
         if module.status.value != "active" or not _module_is_effectively_active(module, active_ids):
             return JSONResponse(
                 status_code=403,
-                content={
-                    "detail": {
-                        "code": "MODULE_NOT_ACTIVE",
-                        "module": module.id,
-                        "requires_modules": list(module.requires_modules),
-                    }
-                },
+                content={"detail": {"code": "MODULE_NOT_ACTIVE", "module": module.id}},
             )
         request.state.customer = customer
         return await call_next(request)
