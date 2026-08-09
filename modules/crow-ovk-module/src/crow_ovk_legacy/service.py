@@ -1,10 +1,10 @@
 from __future__ import annotations
 
 import re
+from collections.abc import Iterable
 from hashlib import sha256
 from io import BytesIO
 from pathlib import Path
-from typing import Iterable
 
 from openpyxl import load_workbook
 from pypdf import PdfReader
@@ -18,9 +18,15 @@ from .models import (
     LegacySourceRef,
 )
 
-_SYSTEM_RE = re.compile(r"\b(?:TA|FA|TF|FF|FTX|FT|FX)\s*[-_]?\s*\d{1,3}\b", re.IGNORECASE)
+_SYSTEM_RE = re.compile(
+    r"\b(?:TA|FA|TF|FF|FTX|FT|FX)\s*[-_]?\s*\d{1,3}\b",
+    re.IGNORECASE,
+)
 _DATE_RE = re.compile(r"\b(20\d{2}[-/.](?:0?[1-9]|1[0-2])[-/.](?:0?[1-9]|[12]\d|3[01]))\b")
-_APARTMENT_RE = re.compile(r"\b(?:lgh|lägenhet)\s*(?:nr|nummer)?\s*[:#-]?\s*([A-Za-z0-9-]{2,12})\b", re.IGNORECASE)
+_APARTMENT_RE = re.compile(
+    r"\b(?:lgh|lägenhet)\s*(?:nr|nummer)?\s*[:#-]?\s*([A-Za-z0-9-]{2,12})\b",
+    re.IGNORECASE,
+)
 _MEASURED_RE = re.compile(
     r"(?:uppmätt|mätvärde)\s*[:=]?\s*(-?\d+(?:[.,]\d+)?)\s*(l/s|m3/s|m³/s)",
     re.IGNORECASE,
@@ -37,10 +43,10 @@ def preview_legacy_file(project_id: str, filename: str, content: bytes) -> Legac
     suffix = Path(filename).suffix.lower()
     if suffix == ".pdf":
         kind = LegacySourceKind.PDF
-        records = _pdf_records(filename, content)
+        records = _pdf_records(content)
     elif suffix == ".xlsx":
         kind = LegacySourceKind.XLSX
-        records = _xlsx_records(filename, content)
+        records = _xlsx_records(content)
     else:
         raise ValueError(f"Unsupported legacy OVK file type: {suffix or '<none>'}")
 
@@ -89,7 +95,7 @@ def preview_legacy_file(project_id: str, filename: str, content: bytes) -> Legac
     )
 
 
-def _pdf_records(filename: str, content: bytes) -> tuple[tuple[str, str], ...]:
+def _pdf_records(content: bytes) -> tuple[tuple[str, str], ...]:
     reader = PdfReader(BytesIO(content))
     records: list[tuple[str, str]] = []
     for page_number, page in enumerate(reader.pages, start=1):
@@ -99,7 +105,7 @@ def _pdf_records(filename: str, content: bytes) -> tuple[tuple[str, str], ...]:
     return tuple(records)
 
 
-def _xlsx_records(filename: str, content: bytes) -> tuple[tuple[str, str], ...]:
+def _xlsx_records(content: bytes) -> tuple[tuple[str, str], ...]:
     workbook = load_workbook(BytesIO(content), read_only=True, data_only=True)
     records: list[tuple[str, str]] = []
     for worksheet in workbook.worksheets:
@@ -108,7 +114,9 @@ def _xlsx_records(filename: str, content: bytes) -> tuple[tuple[str, str], ...]:
             if not populated:
                 continue
             text = " | ".join(str(cell.value) for cell in populated)
-            locator = f"sheet:{worksheet.title}:cells:{populated[0].coordinate}-{populated[-1].coordinate}"
+            first = populated[0].coordinate
+            last = populated[-1].coordinate
+            locator = f"sheet:{worksheet.title}:cells:{first}-{last}"
             records.append((locator, text))
     workbook.close()
     return tuple(records)
@@ -121,7 +129,8 @@ def _facts_from_text(text: str, source: LegacySourceRef) -> tuple[LegacyFact, ..
 
     date_match = _DATE_RE.search(text)
     if date_match:
-        facts.append(_fact("inspection_date", date_match.group(1).replace("/", "-").replace(".", "-"), source))
+        date_value = date_match.group(1).replace("/", "-").replace(".", "-")
+        facts.append(_fact("inspection_date", date_value, source))
 
     apartment = _APARTMENT_RE.search(text)
     if apartment:
@@ -129,11 +138,13 @@ def _facts_from_text(text: str, source: LegacySourceRef) -> tuple[LegacyFact, ..
 
     measured = _MEASURED_RE.search(text)
     if measured:
-        facts.append(_fact("measured_airflow", f"{_number(measured.group(1))} {_unit(measured.group(2))}", source))
+        value = f"{_number(measured.group(1))} {_unit(measured.group(2))}"
+        facts.append(_fact("measured_airflow", value, source))
 
     designed = _DESIGNED_RE.search(text)
     if designed:
-        facts.append(_fact("designed_airflow", f"{_number(designed.group(1))} {_unit(designed.group(2))}", source))
+        value = f"{_number(designed.group(1))} {_unit(designed.group(2))}"
+        facts.append(_fact("designed_airflow", value, source))
 
     finding = _FINDING_RE.search(text)
     if finding and finding.group(1).strip():
