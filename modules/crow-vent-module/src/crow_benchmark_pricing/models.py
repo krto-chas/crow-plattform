@@ -23,7 +23,6 @@ ORIGIN_INFERRED = "inferred"
 
 class ComparisonVerdict(StrEnum):
     """Utfall när en detaljkalkyl jämförs mot schablonspannet."""
-
     BELOW_RANGE = "below_range"
     WITHIN_RANGE = "within_range"
     ABOVE_RANGE = "above_range"
@@ -32,7 +31,6 @@ class ComparisonVerdict(StrEnum):
 @dataclass(frozen=True, slots=True)
 class BenchmarkRange:
     """Spann i kronor per enhet; låg ≤ normal ≤ hög krävs."""
-
     low: Decimal
     normal: Decimal
     high: Decimal
@@ -57,7 +55,6 @@ class Benchmark:
 @dataclass(frozen=True, slots=True)
 class QuickEstimate:
     """Grov prisindikation: kvantitet × spann, alltid inferred."""
-
     schema_version: str
     benchmark_id: str
     discipline: str
@@ -74,7 +71,6 @@ class QuickEstimate:
 @dataclass(frozen=True, slots=True)
 class BenchmarkComparison:
     """Detaljkalkyl mot schablonspann; utanför spann = flaggad avvikelse."""
-
     schema_version: str
     benchmark_id: str
     discipline: str
