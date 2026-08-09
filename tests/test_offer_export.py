@@ -9,6 +9,7 @@ openpyxl = pytest.importorskip("openpyxl")
 
 # ruff: noqa: E402  (importskip måste ske före modulimporterna)
 from crow_offer_export import write_offer_workbook, write_protocol_workbook
+
 from crow_pressure_test import (
     OfferItemRequest,
     TightnessClass,
