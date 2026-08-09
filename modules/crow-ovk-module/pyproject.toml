@@ -16,7 +16,7 @@ ovk = "crow_ovk_module.plugin:CrowOvkModulePlugin"
 where = ["src"]
 
 [tool.setuptools.package-data]
-crow_ovk_module = ["py.typed"]
+crow_ovk_module = ["py.typed", "assets/*.html", "assets/*.js"]
 crow_ovk = ["py.typed"]
 crow_ovk_field = ["py.typed", "defect_types.json"]
 crow_ovk_workflow = ["py.typed"]
