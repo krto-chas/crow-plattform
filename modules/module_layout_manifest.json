@@ -1,6 +1,6 @@
 {
   "meta": {
-    "version": "1.5",
+    "version": "1.6",
     "description": "Kanoniskt repository-layoutkontrakt för first-party Crow-moduler",
     "new_modules_must_live_under": "modules/",
     "root_src_policy": "Backbone src/ får endast innehålla delade plattformskapabiliteter och värdskal; verksamhetsdomäner ägs av first-party-moduler under modules/."
@@ -34,8 +34,8 @@
       "module_id": "crow.provtryckning",
       "repository_root": "modules/crow-pressure-test-module",
       "requires_modules": ["crow.vent"],
-      "owned_packages": ["crow_pressure_test"],
-      "migrated_packages": ["crow_pressure_test"],
+      "owned_packages": ["crow_pressure_test", "crow_offer_export"],
+      "migrated_packages": ["crow_pressure_test", "crow_offer_export"],
       "migration_pending_packages": [],
       "migration_pending_surfaces": [],
       "migration_pending_from_root_src": false
