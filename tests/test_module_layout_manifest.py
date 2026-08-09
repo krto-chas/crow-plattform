@@ -38,6 +38,26 @@ def test_first_party_modules_must_live_under_modules() -> None:
     assert discovered_roots == registered_roots
 
 
+def test_module_dependencies_reference_declared_modules() -> None:
+    manifest = _manifest()
+    modules = manifest["modules"]
+    assert isinstance(modules, list)
+    entries = [entry for entry in modules if isinstance(entry, dict)]
+    module_ids = {str(entry["module_id"]) for entry in entries}
+
+    for entry in entries:
+        module_id = str(entry["module_id"])
+        requires = entry.get("requires_modules", [])
+        assert isinstance(requires, list)
+        assert module_id not in requires
+        assert set(str(item) for item in requires).issubset(module_ids)
+
+    pressure = next(entry for entry in entries if entry["module_id"] == "crow.provtryckning")
+    ovk = next(entry for entry in entries if entry["module_id"] == "crow.ovk")
+    assert pressure["requires_modules"] == ["crow.vent"]
+    assert ovk["requires_modules"] == []
+
+
 def test_backbone_root_cannot_register_a_domain_module() -> None:
     root_pyproject = (ROOT / "pyproject.toml").read_text(encoding="utf-8")
     assert '[project.entry-points."crow.modules"]' not in root_pyproject

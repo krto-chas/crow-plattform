@@ -29,6 +29,13 @@ def _client(
     return TestClient(create_app(tmp_path))
 
 
+def _pressure_with_vent() -> list[dict[str, object]]:
+    return [
+        {"id": "vent", "active": True},
+        {"id": "provtryckning", "active": True},
+    ]
+
+
 def _payload() -> dict[str, object]:
     return {
         "tightness_class": "C",
@@ -54,7 +61,7 @@ def test_pressure_test_api_requires_its_own_entitlement(
     }
 
 
-def test_pressure_test_does_not_require_commercial_vent_entitlement(
+def test_pressure_test_requires_vent_entitlement(
     tmp_path: Path, monkeypatch: MonkeyPatch
 ) -> None:
     client = _client(
@@ -62,6 +69,20 @@ def test_pressure_test_does_not_require_commercial_vent_entitlement(
         monkeypatch,
         [{"id": "provtryckning", "active": True}],
     )
+    response = client.post("/api/provtryckning/projects/p1/evaluate", json=_payload())
+    assert response.status_code == 403
+    assert response.json()["detail"] == {
+        "code": "MODULE_NOT_ACTIVE",
+        "module": "provtryckning",
+    }
+    modules = client.get("/api/me/modules").json()["modules"]
+    assert not any(module["id"] == "provtryckning" for module in modules)
+
+
+def test_pressure_test_runs_when_both_entitlements_are_active(
+    tmp_path: Path, monkeypatch: MonkeyPatch
+) -> None:
+    client = _client(tmp_path, monkeypatch, _pressure_with_vent())
     response = client.post("/api/provtryckning/projects/p1/evaluate", json=_payload())
     assert response.status_code == 200
     payload = response.json()
@@ -73,11 +94,7 @@ def test_pressure_test_does_not_require_commercial_vent_entitlement(
 def test_inferred_requirement_requires_confirmation(
     tmp_path: Path, monkeypatch: MonkeyPatch
 ) -> None:
-    client = _client(
-        tmp_path,
-        monkeypatch,
-        [{"id": "provtryckning", "active": True}],
-    )
+    client = _client(tmp_path, monkeypatch, _pressure_with_vent())
     body = _payload()
     body.update(
         {
@@ -95,11 +112,7 @@ def test_inferred_requirement_requires_confirmation(
 
 
 def test_pressure_test_page_is_served(tmp_path: Path, monkeypatch: MonkeyPatch) -> None:
-    client = _client(
-        tmp_path,
-        monkeypatch,
-        [{"id": "provtryckning", "active": True}],
-    )
+    client = _client(tmp_path, monkeypatch, _pressure_with_vent())
     response = client.get("/provtryckning")
     assert response.status_code == 200
     assert "Täthetsprovning" in response.text
