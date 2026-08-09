@@ -1,4 +1,5 @@
 from decimal import Decimal
+from pathlib import Path
 
 from crow_ovk_reporting import (
     ReportingRepository,
@@ -10,7 +11,7 @@ from crow_ovk_reporting import (
 )
 
 
-def test_append_segment_is_idempotent_and_preserves_category(tmp_path) -> None:
+def test_append_segment_is_idempotent_and_preserves_category(tmp_path: Path) -> None:
     repository = ReportingRepository(tmp_path)
     first = append_time_segment(
         repository,
@@ -39,7 +40,7 @@ def test_append_segment_is_idempotent_and_preserves_category(tmp_path) -> None:
     assert calculated_hours(second) == Decimal("2.50")
 
 
-def test_adjustment_is_separate_from_calculated_time(tmp_path) -> None:
+def test_adjustment_is_separate_from_calculated_time(tmp_path: Path) -> None:
     repository = ReportingRepository(tmp_path)
     append_time_segment(
         repository,
@@ -68,7 +69,7 @@ def test_adjustment_is_separate_from_calculated_time(tmp_path) -> None:
     assert ledger.adjustments[0].reason == "Efterarbete utanför timer"
 
 
-def test_existing_ledger_rejects_project_mismatch(tmp_path) -> None:
+def test_existing_ledger_rejects_project_mismatch(tmp_path: Path) -> None:
     repository = ReportingRepository(tmp_path)
     append_time_segment(
         repository,
