@@ -125,18 +125,19 @@ def _project_photo(
     photo_id = str(photo.get("photo_id", ""))
     expected_sha256 = str(photo.get("sha256", "")).lower()
     receipt = repository.load_receipt_optional(inspection_id, photo_id)
+    receipt_data = receipt or {}
     verified = bool(
         receipt
-        and compare_digest(str(receipt.get("sha256", "")).lower(), expected_sha256)
-        and str(receipt.get("inspection_id", "")) == inspection_id
-        and str(receipt.get("photo_id", "")) == photo_id
+        and compare_digest(str(receipt_data.get("sha256", "")).lower(), expected_sha256)
+        and str(receipt_data.get("inspection_id", "")) == inspection_id
+        and str(receipt_data.get("photo_id", "")) == photo_id
     )
     return {
         **photo,
         "verified": verified,
-        "media_id": None if not verified else receipt.get("media_id"),
-        "evidence_id": None if not verified else receipt.get("evidence_id"),
-        "size_bytes": None if not verified else receipt.get("size_bytes"),
+        "media_id": None if not verified else receipt_data.get("media_id"),
+        "evidence_id": None if not verified else receipt_data.get("evidence_id"),
+        "size_bytes": None if not verified else receipt_data.get("size_bytes"),
         "content_url": (
             None
             if not verified
