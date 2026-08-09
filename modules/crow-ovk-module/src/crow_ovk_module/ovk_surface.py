@@ -136,7 +136,7 @@ def _text(value: object) -> str | None:
 
 def _positive_int(value: object, *, default: int) -> int:
     try:
-        parsed = int(value) if value is not None else default
+        parsed = int(str(value)) if value is not None else default
     except (TypeError, ValueError):
         return default
     return parsed if parsed > 0 else default
