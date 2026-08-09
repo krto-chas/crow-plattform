@@ -71,7 +71,10 @@ class _FieldHistoryRepository:
                     },
                 }
             )
-        items.sort(key=lambda item: (str(item.get("saved_at") or ""), item["inspection_id"]), reverse=True)
+        items.sort(
+            key=lambda item: (str(item.get("saved_at") or ""), item["inspection_id"]),
+            reverse=True,
+        )
         return items
 
     def restore_projection(self, inspection_id: str) -> dict[str, Any]:
