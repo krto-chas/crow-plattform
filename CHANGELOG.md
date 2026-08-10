@@ -1,3 +1,16 @@
+# Unreleased — Pass 100: OVK PDF-export med signerade nedladdningsvägar
+
+- Nytt paket `crow_ovk_export`: PDF-rendering av protokoll och intyg (`fpdf2`),
+  innehållsverifierad i tester via pypdf-extraktion.
+- HMAC-SHA256-signerade exportvägar: signering över kanonisk sökväg + utgångstid,
+  konstanttidsverifiering, 403 vid manipulerad/utgången länk. Nyckel ur
+  `CROW_EXPORT_SIGNING_KEY`; saknas den svarar exporten 503 — ingen osignerad
+  fallback. Därmed stängs attackytan "oskyddade exportvägar".
+- Yta sign→download för `protokoll` och `intyg` med TTL-gränser (1–86400 s),
+  protokollklar-spärr (409) och pluginexport `ovk_pdf_export`.
+- Layoutmanifest 1.13, ägarskapsvakter, `known-first-party`, modulberoende
+  `fpdf2>=2.8` och package-data uppdaterade.
+
 # Unreleased — Pass 99: OVK-besiktningsbevakning
 
 - Nytt paket `crow_ovk_besiktningsbevakning`: bevakningslista som härledd vy utan

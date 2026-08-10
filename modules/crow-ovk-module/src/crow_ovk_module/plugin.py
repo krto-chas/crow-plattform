@@ -16,6 +16,7 @@ from crow_module_sdk.models import (
 from crow_ovk_field import load_defect_types
 
 from .ovk_bevakning_surface import ovk_bevakning_router
+from .ovk_export_surface import ovk_export_router
 from .ovk_field_history import ovk_field_history_router
 from .ovk_field_media import ovk_field_media_router
 from .ovk_field_surface import ovk_field_router
@@ -78,6 +79,7 @@ class CrowOvkModulePlugin:
             ovk_intyg_router(data_root),
             ovk_reinspection_router(data_root),
             ovk_bevakning_router(data_root),
+            ovk_export_router(data_root),
             ovk_field_router(data_root),
             ovk_field_media_router(data_root),
             ovk_field_workbench_router(data_root),
