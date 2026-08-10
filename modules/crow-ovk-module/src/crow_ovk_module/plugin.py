@@ -21,6 +21,7 @@ from .ovk_field_surface import ovk_field_router
 from .ovk_field_workbench import ovk_field_workbench_router
 from .ovk_intyg_surface import ovk_intyg_router
 from .ovk_legacy_surface import ovk_legacy_router
+from .ovk_reinspection_surface import ovk_reinspection_router
 from .ovk_reporting_surface import ovk_reporting_router
 from .ovk_surface import ovk_router
 from .ovk_time_surface import ovk_time_router
@@ -68,6 +69,7 @@ class CrowOvkModulePlugin:
             ovk_router(),
             ovk_workflow_router(data_root),
             ovk_intyg_router(data_root),
+            ovk_reinspection_router(data_root),
             ovk_field_router(data_root),
             ovk_field_media_router(data_root),
             ovk_field_workbench_router(data_root),

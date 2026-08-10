@@ -1,6 +1,6 @@
 {
   "meta": {
-    "version": "1.10",
+    "version": "1.11",
     "description": "Kanoniskt repository-layoutkontrakt för first-party Crow-moduler",
     "new_modules_must_live_under": "modules/",
     "root_src_policy": "Backbone src/ får endast innehålla delade plattformskapabiliteter och värdskal; verksamhetsdomäner ägs av first-party-moduler under modules/.",
@@ -119,6 +119,7 @@
         "test_ovk_legacy_commit.py",
         "test_ovk_module_ownership.py",
         "test_ovk_pricing.py",
+        "test_ovk_reinspection.py",
         "test_ovk_reporting.py",
         "test_ovk_surface.py",
         "test_ovk_time_capture.py",
