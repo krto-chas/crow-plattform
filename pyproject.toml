@@ -20,6 +20,7 @@ dev = [
   "openpyxl>=3.1",
   "ruff>=0.5",
   "mypy>=1.10",
+  "types-fpdf2",
   "build>=1.2"
 ]
 

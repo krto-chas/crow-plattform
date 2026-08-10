@@ -7,6 +7,13 @@ from datetime import date
 from pathlib import Path
 
 import pytest
+from crow_ovk_export import (
+    ExportSignatureError,
+    intyg_pdf,
+    protocol_pdf,
+    sign_export_path,
+    verify_export_signature,
+)
 from fastapi.testclient import TestClient
 from pypdf import PdfReader
 from pytest import MonkeyPatch
@@ -18,13 +25,6 @@ from crow_ovk import (
     OvkFinding,
     OvkObject,
     VentilationSystemRef,
-)
-from crow_ovk_export import (
-    ExportSignatureError,
-    intyg_pdf,
-    protocol_pdf,
-    sign_export_path,
-    verify_export_signature,
 )
 from crow_ovk_intyg import (
     Behorighet,

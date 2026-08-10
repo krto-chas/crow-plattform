@@ -9,6 +9,7 @@ description = "Crow OVK domain module"
 requires-python = ">=3.11"
 dependencies = [
     "crow-plattform>=0.7.0a1,<0.8",
+    "fpdf2>=2.8",
     "openpyxl>=3.1",
     "pypdf>=5.0",
 ]

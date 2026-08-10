@@ -5,9 +5,6 @@ import time
 from pathlib import Path
 from typing import Any
 
-from fastapi import APIRouter, HTTPException, Query, Request
-from fastapi.responses import Response
-
 from crow_ovk_export import (
     ExportSignatureError,
     intyg_pdf,
@@ -15,6 +12,9 @@ from crow_ovk_export import (
     sign_export_path,
     verify_export_signature,
 )
+from fastapi import APIRouter, HTTPException, Query, Request
+from fastapi.responses import Response
+
 from crow_ovk_intyg import OvkIntygRepository
 from crow_ovk_workflow import OvkWorkflowRepository
 
