@@ -1,3 +1,17 @@
+# Unreleased — Pass 99: OVK-besiktningsbevakning
+
+- Nytt paket `crow_ovk_besiktningsbevakning`: bevakningslista som härledd vy utan
+  eget lagrat tillstånd — byggs on-demand ur intyg (pass 97) och öppna
+  ombesiktningsärenden (pass 98), så synkdrift mot källorna är omöjlig.
+- Statusar `ok`/`paminnelse`/`forsenad`/`ombesiktning_kravs`/`ingen_frist`; senaste
+  intyget per byggnad vinner deterministiskt och stängda ärenden lämnar bevakningen
+  till förmån för ombesiktningens eget intyg — kedjan 97→98→99 sluter sig.
+- Varje post bär obligatorisk skriven basis; intygsposternas basis är intygets egen
+  BFS 2011:16-härledning så proveniensen följer med in i vyn.
+- Yta `GET /api/ovk/projects/{p}/bevakning` med valfri deterministisk `today`-parameter
+  och konfigurerbart påminnelsefönster; pluginexport `ovk_bevakning`;
+  layoutmanifest 1.12 och ägarskapsvakter utökade.
+
 # Unreleased — Pass 98: OVK-ombesiktning
 
 - `crow_ovk_workflow` utökat med ombesiktningsflödet: ärenden öppnas endast ur
