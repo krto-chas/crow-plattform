@@ -1,6 +1,6 @@
 {
   "meta": {
-    "version": "1.13",
+    "version": "1.14",
     "description": "Kanoniskt repository-layoutkontrakt för first-party Crow-moduler",
     "new_modules_must_live_under": "modules/",
     "root_src_policy": "Backbone src/ får endast innehålla delade plattformskapabiliteter och värdskal; verksamhetsdomäner ägs av first-party-moduler under modules/.",
@@ -87,7 +87,6 @@
       "owned_packages": [
         "crow_ovk",
         "crow_ovk_besiktningsbevakning",
-        "crow_ovk_export",
         "crow_ovk_field",
         "crow_ovk_workflow",
         "crow_ovk_import",
@@ -100,7 +99,6 @@
       "migrated_packages": [
         "crow_ovk",
         "crow_ovk_besiktningsbevakning",
-        "crow_ovk_export",
         "crow_ovk_field",
         "crow_ovk_workflow",
         "crow_ovk_import",
@@ -113,10 +111,10 @@
       "owned_tests": [
         "test_ovk_bevakning.py",
         "test_ovk_domain.py",
-        "test_ovk_export.py",
         "test_ovk_field.py",
         "test_ovk_field_history.py",
         "test_ovk_field_media.py",
+        "test_ovk_field_round.py",
         "test_ovk_field_surface.py",
         "test_ovk_field_workbench.py",
         "test_ovk_import.py",

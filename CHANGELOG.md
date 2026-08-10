@@ -1,15 +1,19 @@
-# Unreleased — Pass 100: OVK PDF-export med signerade nedladdningsvägar
+# Unreleased — Pass 101: Fältflöde 2.0 (rondering)
 
-- Nytt paket `crow_ovk_export`: PDF-rendering av protokoll och intyg (`fpdf2`),
-  innehållsverifierad i tester via pypdf-extraktion.
-- HMAC-SHA256-signerade exportvägar: signering över kanonisk sökväg + utgångstid,
-  konstanttidsverifiering, 403 vid manipulerad/utgången länk. Nyckel ur
-  `CROW_EXPORT_SIGNING_KEY`; saknas den svarar exporten 503 — ingen osignerad
-  fallback. Därmed stängs attackytan "oskyddade exportvägar".
-- Yta sign→download för `protokoll` och `intyg` med TTL-gränser (1–86400 s),
-  protokollklar-spärr (409) och pluginexport `ovk_pdf_export`.
-- Layoutmanifest 1.13, ägarskapsvakter, `known-first-party`, modulberoende
-  `fpdf2>=2.8` och package-data uppdaterade.
+- Fältappen omdesignad kring den verkliga arbetsgången: förladdad enhetslista ur
+  nummerserie (Lantmäteriets fyrsiffriga), ronderingsvy med segmenterad progressstapel
+  där varje segment är en enhet, och ett-trycks "Klar – UA" med auto-hopp till nästa.
+- Nya enhetsstatusar ej_paborjad/ua/anmarkning/bom med tidsstämpelkrav; bom stämplar
+  tid+datum automatiskt. Nyckelspårning per enhet: mottagen/återlämnad med tidsstämplar
+  och huvudnyckel med obligatorisk kommentar för spårbarhet.
+- Flödesmätning vid varje don (`FieldMeasurement`, Decimal, l/s): rum-chips, punkttyper
+  från-/till-/överluft, "Ej mätbar" kräver skriven orsak + kopplad anmärkning för foto.
+- Fönsterventiler som rena finns/finns ej-kontroller (`WindowVentCheck`), helt dolda i
+  FT/FTX-fastigheter; systemtyp lagras i fältkontexten och valideras på servern.
+- Statuskonsistens valideras serverside: UA-enheter får inte bära anmärkningar och
+  bom-enheter varken anmärkningar eller mätningar; synken rapporterar täckning.
+- Foto binds automatiskt till senaste anmärkning; feltypslexikon 0.2 med fyra nya typer.
+  Layoutmanifest 1.14 och ägarskapsvakter utökade med `test_ovk_field_round.py`.
 
 # Unreleased — Pass 99: OVK-besiktningsbevakning
 

@@ -26,8 +26,20 @@ def ovk_field_workbench_router(data_root: Path) -> APIRouter:
         project_id = _optional_text(payload.get("project_id"))
         inspector = _optional_text(payload.get("inspector"))
         previous_inspection_id = _optional_text(payload.get("previous_inspection_id"))
+        system_type = _optional_text(payload.get("system_type"))
         if project_id is None or inspector is None:
             raise HTTPException(status_code=422, detail={"code": "INVALID_OVK_FIELD_CONTEXT"})
+        if system_type is not None and system_type.upper() not in (
+            "S",
+            "F",
+            "FX",
+            "FT",
+            "FTX",
+        ):
+            raise HTTPException(
+                status_code=422,
+                detail={"code": "INVALID_OVK_FIELD_SYSTEM_TYPE"},
+            )
         if previous_inspection_id is not None:
             _validate_identifier(previous_inspection_id)
             if previous_inspection_id == inspection_id:
@@ -40,6 +52,7 @@ def ovk_field_workbench_router(data_root: Path) -> APIRouter:
             "project_id": project_id,
             "inspector": inspector,
             "previous_inspection_id": previous_inspection_id,
+            "system_type": system_type.upper() if system_type is not None else None,
             "saved_at": datetime.now(UTC).isoformat(),
         }
         repository.save_context(inspection_id, context)

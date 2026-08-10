@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from decimal import Decimal, InvalidOperation
 from enum import StrEnum
 
 from crow_ovk import EvidenceOrigin, FindingSeverity, OvkFinding
@@ -18,6 +19,44 @@ class PhotoSyncStatus(StrEnum):
     FAILED = "failed"
 
 
+class UnitStatus(StrEnum):
+    EJ_PABORJAD = "ej_paborjad"
+    UA = "ua"
+    ANMARKNING = "anmarkning"
+    BOM = "bom"
+
+
+class MeasurePointType(StrEnum):
+    FRANLUFTSDON = "franluftsdon"
+    TILLUFTSDON = "tilluftsdon"
+    OVERLUFTSDON = "overluftsdon"
+
+
+@dataclass(frozen=True, slots=True)
+class KeyLog:
+    """Nyckelspårning per enhet: mottagen/återlämnad med tidsstämplar.
+
+    Huvudnyckel kräver alltid en skriven kommentar för spårbarhetens skull.
+    """
+
+    received: bool = False
+    received_at: str | None = None
+    returned: bool = False
+    returned_at: str | None = None
+    master_key_used: bool = False
+    master_key_note: str = ""
+
+    def __post_init__(self) -> None:
+        if self.received and not (self.received_at or "").strip():
+            raise ValueError("key received requires a timestamp")
+        if self.returned and not (self.returned_at or "").strip():
+            raise ValueError("key returned requires a timestamp")
+        if self.returned and not self.received:
+            raise ValueError("key cannot be returned before it was received")
+        if self.master_key_used and not self.master_key_note.strip():
+            raise ValueError("master key use requires a written note")
+
+
 @dataclass(frozen=True, slots=True)
 class FieldUnit:
     unit_id: str
@@ -25,6 +64,11 @@ class FieldUnit:
     number: str
     kind: UnitKind = UnitKind.APARTMENT
     label: str = ""
+    status: UnitStatus = UnitStatus.EJ_PABORJAD
+    checked_at: str | None = None
+    bom_at: str | None = None
+    bom_note: str = ""
+    key: KeyLog | None = None
 
     def __post_init__(self) -> None:
         if not self.unit_id.strip():
@@ -33,6 +77,13 @@ class FieldUnit:
             raise ValueError("inspection_id must not be empty")
         if not self.number.strip():
             raise ValueError("unit number must not be empty")
+        if (
+            self.status in (UnitStatus.UA, UnitStatus.ANMARKNING)
+            and not (self.checked_at or "").strip()
+        ):
+            raise ValueError(f"unit status {self.status.value!r} requires checked_at")
+        if self.status is UnitStatus.BOM and not (self.bom_at or "").strip():
+            raise ValueError("bom status requires bom_at timestamp")
 
 
 @dataclass(frozen=True, slots=True)
@@ -44,6 +95,83 @@ class FieldRoom:
     def __post_init__(self) -> None:
         if not self.room_id.strip() or not self.unit_id.strip() or not self.name.strip():
             raise ValueError("room_id, unit_id and name must not be empty")
+
+
+@dataclass(frozen=True, slots=True)
+class FieldMeasurement:
+    """Flödesmätning vid ett don. Uppmätt värde är MEASURED, projekterat STATED.
+
+    Ej mätbara don kräver skriven orsak; foto binds via en kopplad anmärkning.
+    """
+
+    measurement_id: str
+    inspection_id: str
+    unit_id: str
+    point_type: MeasurePointType
+    point_label: str
+    room_id: str | None = None
+    measurable: bool = True
+    measured_value: Decimal | None = None
+    designed_value: Decimal | None = None
+    unit_of_measure: str = "l/s"
+    not_measurable_reason: str = ""
+    finding_id: str | None = None
+    origin: EvidenceOrigin = EvidenceOrigin.MEASURED
+
+    def __post_init__(self) -> None:
+        if not self.measurement_id.strip() or not self.unit_id.strip():
+            raise ValueError("measurement_id and unit_id must not be empty")
+        if not self.point_label.strip():
+            raise ValueError("measurement point_label must not be empty")
+        if self.measurable:
+            if self.measured_value is None:
+                raise ValueError(
+                    f"measurable point {self.measurement_id!r} requires measured_value"
+                )
+        else:
+            if not self.not_measurable_reason.strip():
+                raise ValueError(
+                    f"not measurable point {self.measurement_id!r} requires a written reason"
+                )
+            if self.measured_value is not None:
+                raise ValueError(
+                    f"not measurable point {self.measurement_id!r} cannot carry a value"
+                )
+
+    @property
+    def deviation(self) -> Decimal | None:
+        if self.measured_value is None or self.designed_value is None:
+            return None
+        return self.measured_value - self.designed_value
+
+
+def parse_flow_value(value: object) -> Decimal | None:
+    text = str(value).strip().replace(",", ".") if value is not None else ""
+    if not text:
+        return None
+    try:
+        return Decimal(text)
+    except InvalidOperation as exc:
+        raise ValueError(f"invalid flow value {text!r}") from exc
+
+
+@dataclass(frozen=True, slots=True)
+class WindowVentCheck:
+    """Fönsterventil kontrolleras endast finns/finns ej, aldrig med mätning.
+
+    Kontrolleras inte alls i fastigheter med FT/FTX.
+    """
+
+    check_id: str
+    inspection_id: str
+    unit_id: str
+    present: bool
+    room_id: str | None = None
+    note: str = ""
+
+    def __post_init__(self) -> None:
+        if not self.check_id.strip() or not self.unit_id.strip():
+            raise ValueError("check_id and unit_id must not be empty")
 
 
 @dataclass(frozen=True, slots=True)
@@ -125,3 +253,5 @@ class FieldInspectionData:
     rooms: tuple[FieldRoom, ...] = ()
     findings: tuple[FieldFinding, ...] = ()
     photos: tuple[OvkPhotoEvidence, ...] = ()
+    measurements: tuple[FieldMeasurement, ...] = field(default=())
+    window_vents: tuple[WindowVentCheck, ...] = field(default=())

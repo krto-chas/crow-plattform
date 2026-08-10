@@ -14,12 +14,18 @@ from crow_ovk import EvidenceOrigin, FindingSeverity
 from crow_ovk_field import (
     FieldFinding,
     FieldInspectionData,
+    FieldMeasurement,
     FieldRoom,
     FieldUnit,
+    KeyLog,
+    MeasurePointType,
     OvkPhotoEvidence,
     PhotoSyncStatus,
     UnitKind,
+    UnitStatus,
+    WindowVentCheck,
     load_defect_types,
+    parse_flow_value,
     validate_field_data,
 )
 
@@ -118,12 +124,19 @@ def _validated_payload(payload: Any) -> FieldInspectionData:
 
 
 def _validation_summary(data: FieldInspectionData) -> dict[str, Any]:
+    status_counts = {status.value: 0 for status in UnitStatus}
+    for unit in data.units:
+        status_counts[unit.status.value] += 1
     return {
         "inspection_id": data.inspection_id,
         "units": len(data.units),
         "rooms": len(data.rooms),
         "findings": len(data.findings),
         "photos": len(data.photos),
+        "measurements": len(data.measurements),
+        "window_vents": len(data.window_vents),
+        "unit_status_counts": status_counts,
+        "coverage_complete": bool(data.units) and status_counts["ej_paborjad"] == 0,
         "valid": True,
     }
 
@@ -137,6 +150,11 @@ def _field_data_from_payload(payload: dict[str, Any]) -> FieldInspectionData:
             number=str(item["number"]),
             kind=UnitKind(str(item.get("kind", "apartment"))),
             label=str(item.get("label", "")),
+            status=UnitStatus(str(item.get("status", "ej_paborjad"))),
+            checked_at=_optional_str(item.get("checked_at")),
+            bom_at=_optional_str(item.get("bom_at")),
+            bom_note=str(item.get("bom_note", "")),
+            key=_key_from_payload(item.get("key")),
         )
         for item in _dict_items(payload.get("units", []), "units")
     )
@@ -186,12 +204,57 @@ def _field_data_from_payload(payload: dict[str, Any]) -> FieldInspectionData:
         )
         for item in _dict_items(payload.get("photos", []), "photos")
     )
+    measurements = tuple(
+        FieldMeasurement(
+            measurement_id=str(item["measurement_id"]),
+            inspection_id=inspection_id,
+            unit_id=str(item["unit_id"]),
+            point_type=MeasurePointType(str(item["point_type"])),
+            point_label=str(item["point_label"]),
+            room_id=_optional_str(item.get("room_id")),
+            measurable=bool(item.get("measurable", True)),
+            measured_value=parse_flow_value(item.get("measured_value")),
+            designed_value=parse_flow_value(item.get("designed_value")),
+            unit_of_measure=str(item.get("unit_of_measure", "l/s")),
+            not_measurable_reason=str(item.get("not_measurable_reason", "")),
+            finding_id=_optional_str(item.get("finding_id")),
+        )
+        for item in _dict_items(payload.get("measurements", []), "measurements")
+    )
+    window_vents = tuple(
+        WindowVentCheck(
+            check_id=str(item["check_id"]),
+            inspection_id=inspection_id,
+            unit_id=str(item["unit_id"]),
+            present=bool(item.get("present", False)),
+            room_id=_optional_str(item.get("room_id")),
+            note=str(item.get("note", "")),
+        )
+        for item in _dict_items(payload.get("window_vents", []), "window_vents")
+    )
     return FieldInspectionData(
         inspection_id=inspection_id,
         units=units,
         rooms=rooms,
         findings=findings,
         photos=photos,
+        measurements=measurements,
+        window_vents=window_vents,
+    )
+
+
+def _key_from_payload(value: Any) -> KeyLog | None:
+    if value is None:
+        return None
+    if not isinstance(value, dict):
+        raise ValueError("key must be an object")
+    return KeyLog(
+        received=bool(value.get("received", False)),
+        received_at=_optional_str(value.get("received_at")),
+        returned=bool(value.get("returned", False)),
+        returned_at=_optional_str(value.get("returned_at")),
+        master_key_used=bool(value.get("master_key_used", False)),
+        master_key_note=str(value.get("master_key_note", "")),
     )
 
 
@@ -204,6 +267,22 @@ def _field_data_to_payload(data: FieldInspectionData) -> dict[str, Any]:
                 "number": item.number,
                 "kind": item.kind.value,
                 "label": item.label,
+                "status": item.status.value,
+                "checked_at": item.checked_at,
+                "bom_at": item.bom_at,
+                "bom_note": item.bom_note,
+                "key": (
+                    {
+                        "received": item.key.received,
+                        "received_at": item.key.received_at,
+                        "returned": item.key.returned,
+                        "returned_at": item.key.returned_at,
+                        "master_key_used": item.key.master_key_used,
+                        "master_key_note": item.key.master_key_note,
+                    }
+                    if item.key is not None
+                    else None
+                ),
             }
             for item in data.units
         ],
@@ -246,6 +325,37 @@ def _field_data_to_payload(data: FieldInspectionData) -> dict[str, Any]:
                 "sync_status": item.sync_status.value,
             }
             for item in data.photos
+        ],
+        "measurements": [
+            {
+                "measurement_id": item.measurement_id,
+                "unit_id": item.unit_id,
+                "point_type": item.point_type.value,
+                "point_label": item.point_label,
+                "room_id": item.room_id,
+                "measurable": item.measurable,
+                "measured_value": (
+                    str(item.measured_value) if item.measured_value is not None else None
+                ),
+                "designed_value": (
+                    str(item.designed_value) if item.designed_value is not None else None
+                ),
+                "unit_of_measure": item.unit_of_measure,
+                "not_measurable_reason": item.not_measurable_reason,
+                "finding_id": item.finding_id,
+                "origin": item.origin.value,
+            }
+            for item in data.measurements
+        ],
+        "window_vents": [
+            {
+                "check_id": item.check_id,
+                "unit_id": item.unit_id,
+                "present": item.present,
+                "room_id": item.room_id,
+                "note": item.note,
+            }
+            for item in data.window_vents
         ],
     }
 

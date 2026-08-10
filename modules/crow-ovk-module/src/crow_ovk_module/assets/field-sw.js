@@ -1,4 +1,4 @@
-const CACHE='crow-ovk-field-shell-v1';
+const CACHE='crow-ovk-field-shell-v2';
 const APP_SHELL=['/ovk/falt','/ovk/falt/app.js','/api/ovk/field/defect-types'];
 self.addEventListener('install',event=>{event.waitUntil(caches.open(CACHE).then(cache=>cache.addAll(APP_SHELL)).then(()=>self.skipWaiting()))});
 self.addEventListener('activate',event=>{event.waitUntil(self.clients.claim())});
