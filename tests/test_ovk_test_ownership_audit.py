@@ -9,7 +9,6 @@ MODULE_TESTS = ROOT / "modules" / "crow-ovk-module" / "tests"
 OVK_OWNED_IMPORT_ROOTS = {
     "crow_ovk",
     "crow_ovk_besiktningsbevakning",
-    "crow_ovk_export",
     "crow_ovk_field",
     "crow_ovk_workflow",
     "crow_ovk_import",
@@ -22,10 +21,10 @@ OVK_OWNED_IMPORT_ROOTS = {
 OVK_OWNED_TESTS = {
     "test_ovk_bevakning.py",
     "test_ovk_domain.py",
-    "test_ovk_export.py",
     "test_ovk_field.py",
     "test_ovk_field_history.py",
     "test_ovk_field_media.py",
+    "test_ovk_field_round.py",
     "test_ovk_field_surface.py",
     "test_ovk_field_workbench.py",
     "test_ovk_import.py",

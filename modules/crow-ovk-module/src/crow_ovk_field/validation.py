@@ -1,9 +1,10 @@
 from __future__ import annotations
 
+from crow_ovk import FindingSeverity
 from crow_regulations import reference_by_id
 
 from .defects import defect_type_by_id
-from .models import FieldInspectionData
+from .models import FieldInspectionData, UnitStatus
 
 
 def validate_field_data(data: FieldInspectionData) -> None:
@@ -47,6 +48,63 @@ def validate_field_data(data: FieldInspectionData) -> None:
             raise ValueError(f"photo {photo.photo_id!r} references unknown finding")
         defect_type_by_id(photo.defect_type)
         _validate_rule_refs(photo.rule_refs)
+
+    _validate_measurements(data)
+    _validate_window_vents(data)
+    _validate_status_consistency(data)
+
+
+def _validate_status_consistency(data: FieldInspectionData) -> None:
+    findings_by_unit: dict[str, int] = {}
+    for finding in data.findings:
+        if finding.severity in (FindingSeverity.MINOR, FindingSeverity.MAJOR):
+            findings_by_unit[finding.unit_id] = findings_by_unit.get(finding.unit_id, 0) + 1
+    measured_units = {item.unit_id for item in data.measurements}
+    for unit in data.units:
+        remark_count = findings_by_unit.get(unit.unit_id, 0)
+        if unit.status is UnitStatus.UA and remark_count:
+            raise ValueError(f"unit {unit.number!r} is marked UA but has {remark_count} remark(s)")
+        if unit.status is UnitStatus.BOM and (remark_count or unit.unit_id in measured_units):
+            raise ValueError(
+                f"unit {unit.number!r} is marked bom but carries findings or measurements"
+            )
+
+
+def _validate_measurements(data: FieldInspectionData) -> None:
+    unit_ids = {item.unit_id for item in data.units}
+    room_ids = {item.room_id for item in data.rooms}
+    finding_ids = {item.finding_id for item in data.findings}
+    seen: set[str] = set()
+    for measurement in data.measurements:
+        if measurement.measurement_id in seen:
+            raise ValueError(f"duplicate measurement id {measurement.measurement_id!r}")
+        seen.add(measurement.measurement_id)
+        if measurement.unit_id not in unit_ids:
+            raise ValueError(f"measurement {measurement.measurement_id!r} references unknown unit")
+        if measurement.room_id is not None and measurement.room_id not in room_ids:
+            raise ValueError(f"measurement {measurement.measurement_id!r} references unknown room")
+        if measurement.finding_id is not None and measurement.finding_id not in finding_ids:
+            raise ValueError(
+                f"measurement {measurement.measurement_id!r} references unknown finding"
+            )
+        if not measurement.measurable and measurement.finding_id is None:
+            raise ValueError(
+                f"not measurable point {measurement.measurement_id!r} requires a linked finding"
+            )
+
+
+def _validate_window_vents(data: FieldInspectionData) -> None:
+    unit_ids = {item.unit_id for item in data.units}
+    room_ids = {item.room_id for item in data.rooms}
+    seen: set[str] = set()
+    for check in data.window_vents:
+        if check.check_id in seen:
+            raise ValueError(f"duplicate window vent check id {check.check_id!r}")
+        seen.add(check.check_id)
+        if check.unit_id not in unit_ids:
+            raise ValueError(f"window vent check {check.check_id!r} references unknown unit")
+        if check.room_id is not None and check.room_id not in room_ids:
+            raise ValueError(f"window vent check {check.check_id!r} references unknown room")
 
 
 def _validate_rule_refs(rule_refs: tuple[str, ...]) -> None:
