@@ -85,7 +85,7 @@ target-version = "py311"
 select = ["E", "F", "I", "UP", "B"]
 
 [tool.ruff.lint.isort]
-known-first-party = ["crow_ovk", "crow_ovk_besiktningsbevakning", "crow_ovk_field", "crow_ovk_workflow", "crow_ovk_import", "crow_ovk_intyg", "crow_ovk_pricing", "crow_ovk_module", "crow_pressure_test", "crow_pressure_test_module", "crow_vent", "crow_vent_drawing", "crow_vent_module", "crow_riser_model", "crow_takeoff_consolidation", "crow_vent_quote", "crow_benchmark_pricing"]
+known-first-party = ["crow_ovk", "crow_ovk_besiktningsbevakning", "crow_ovk_export", "crow_ovk_field", "crow_ovk_workflow", "crow_ovk_import", "crow_ovk_intyg", "crow_ovk_pricing", "crow_ovk_module", "crow_pressure_test", "crow_pressure_test_module", "crow_vent", "crow_vent_drawing", "crow_vent_module", "crow_riser_model", "crow_takeoff_consolidation", "crow_vent_quote", "crow_benchmark_pricing"]
 
 [tool.mypy]
 python_version = "3.11"

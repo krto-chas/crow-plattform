@@ -11,6 +11,7 @@ dependencies = [
     "crow-plattform>=0.7.0a1,<0.8",
     "openpyxl>=3.1",
     "pypdf>=5.0",
+    "fpdf2>=2.8",
 ]
 
 [project.entry-points."crow.modules"]
@@ -22,6 +23,7 @@ where = ["src"]
 [tool.setuptools.package-data]
 crow_ovk_module = ["py.typed", "assets/*.html", "assets/*.js"]
 crow_ovk = ["py.typed"]
+crow_ovk_export = ["py.typed"]
 crow_ovk_besiktningsbevakning = ["py.typed"]
 crow_ovk_field = ["py.typed", "defect_types.json"]
 crow_ovk_workflow = ["py.typed"]
