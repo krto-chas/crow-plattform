@@ -19,6 +19,7 @@ from .ovk_field_history import ovk_field_history_router
 from .ovk_field_media import ovk_field_media_router
 from .ovk_field_surface import ovk_field_router
 from .ovk_field_workbench import ovk_field_workbench_router
+from .ovk_intyg_surface import ovk_intyg_router
 from .ovk_legacy_surface import ovk_legacy_router
 from .ovk_reporting_surface import ovk_reporting_router
 from .ovk_surface import ovk_router
@@ -44,7 +45,7 @@ class CrowOvkModulePlugin:
             technical_delta=True,
             commercial_impact=True,
             pricing_adapter=True,
-            exports=("ovk_protocol", "field_evidence", "ovk_annual_report"),
+            exports=("ovk_protocol", "ovk_intyg", "field_evidence", "ovk_annual_report"),
             human_review_supported=True,
         )
 
@@ -66,6 +67,7 @@ class CrowOvkModulePlugin:
         return (
             ovk_router(),
             ovk_workflow_router(data_root),
+            ovk_intyg_router(data_root),
             ovk_field_router(data_root),
             ovk_field_media_router(data_root),
             ovk_field_workbench_router(data_root),
