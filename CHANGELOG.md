@@ -1,3 +1,14 @@
+# Unreleased — Pass 97: OVK-intyg
+
+- Nytt paket `crow_ovk_intyg`: intygsmodell med funktionskontrollant (behörighet N/K),
+  byggnadsägare och systemresultat; byggs endast ur protokollklara workflowrecords.
+- Nästa besiktningsfrist härleds ur BFS 2011:16-intervallen i OVK-taxan (kortaste
+  intervall vinner, skottdagssäker datumaddition) och märks INFERRED med obligatorisk
+  skriven basis; EJ GODKÄND ger ingen frist och pekar mot ombesiktning (pass 98).
+- Anslags-HTML, atomiskt repository samt yta med utfärdande (409 när workflow ej är
+  klart), lista och anslagsexport; pluginexport `ovk_intyg`.
+- Layoutmanifest 1.10 och ägarskapsvakter utökade med paketet och `test_ovk_intyg.py`.
+
 # Unreleased — Pass 49–50: Berghällen golden dataset och provtryckningsdomän
 
 - Pass 49: Berghällen-förfrågningspaketet registrerat som golden dataset
