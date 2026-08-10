@@ -1,3 +1,14 @@
+# Unreleased — Pass 98: OVK-ombesiktning
+
+- `crow_ovk_workflow` utökat med ombesiktningsflödet: ärenden öppnas endast ur
+  protokollklara underkända records och punkterna kopieras som ögonblicksbild.
+- STATED/OBSERVED-disciplin: uppgiven åtgärd (STATED, kräver notering) skiljs från
+  kontrollantens verifiering (OBSERVED, bunden till ombesiktningens besiktnings-ID).
+- Ärenden stängs endast mot ett protokollklart, godkänt ombesiktningsrecord där
+  samtliga punkter verifierats mot exakt det ID:t; stängda ärenden är oföränderliga.
+- Yta med öppna/uppge/verifiera/stäng (200/409/404), atomiskt repository, schema
+  `crow-ovk-ombesiktning-v0.1`; layoutmanifest 1.11 och ägarskapsvakter utökade.
+
 # Unreleased — Pass 97: OVK-intyg
 
 - Nytt paket `crow_ovk_intyg`: intygsmodell med funktionskontrollant (behörighet N/K),

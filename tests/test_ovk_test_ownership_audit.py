@@ -30,6 +30,7 @@ OVK_OWNED_TESTS = {
     "test_ovk_legacy_commit.py",
     "test_ovk_module_ownership.py",
     "test_ovk_pricing.py",
+    "test_ovk_reinspection.py",
     "test_ovk_reporting.py",
     "test_ovk_surface.py",
     "test_ovk_time_capture.py",
