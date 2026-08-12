@@ -79,7 +79,7 @@ def test_field_page_exposes_offline_app_shell(tmp_path: Path) -> None:
     worker = client.get("/ovk/falt/sw.js")
     assert worker.status_code == 200
     assert worker.headers["service-worker-allowed"] == "/ovk/"
-    assert "crow-ovk-field-shell-v2" in worker.text
+    assert "crow-ovk-field-shell-v3" in worker.text
 
 
 def test_defect_types_are_exposed(tmp_path: Path) -> None:
@@ -101,6 +101,10 @@ def test_field_payload_validates_photo_unit_and_defect(tmp_path: Path) -> None:
         "measurements": 0,
         "window_vents": 0,
         "unit_status_counts": {"ej_paborjad": 1, "ua": 0, "anmarkning": 0, "bom": 0},
+        "technical_spaces": 0,
+        "checkpoints": 0,
+        "checkpoint_failures": 0,
+        "nameplates_missing": [],
         "coverage_complete": False,
         "valid": True,
     }

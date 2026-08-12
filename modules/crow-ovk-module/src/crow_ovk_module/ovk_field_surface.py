@@ -10,8 +10,9 @@ from typing import Any
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import HTMLResponse, Response
 
-from crow_ovk import EvidenceOrigin, FindingSeverity
+from crow_ovk import CheckStatus, EvidenceOrigin, FindingSeverity
 from crow_ovk_field import (
+    FieldCheckpoint,
     FieldFinding,
     FieldInspectionData,
     FieldMeasurement,
@@ -21,10 +22,14 @@ from crow_ovk_field import (
     MeasurePointType,
     OvkPhotoEvidence,
     PhotoSyncStatus,
+    TechnicalSpace,
+    TechnicalSpaceKind,
     UnitKind,
     UnitStatus,
     WindowVentCheck,
+    load_checklists,
     load_defect_types,
+    nameplate_missing_spaces,
     parse_flow_value,
     validate_field_data,
 )
@@ -51,6 +56,15 @@ def ovk_field_router(data_root: Path) -> APIRouter:
             media_type="application/javascript",
             headers={"Service-Worker-Allowed": "/ovk/"},
         )
+
+    @router.get("/api/ovk/field/checklists", response_model=None)
+    def field_checklists() -> dict[str, Any]:
+        return {
+            "checklists": {
+                kind.value: [{"id": item.item_id, "label": item.label} for item in items]
+                for kind, items in load_checklists().items()
+            }
+        }
 
     @router.get("/api/ovk/field/defect-types", response_model=None)
     def defect_types() -> dict[str, Any]:
@@ -136,6 +150,10 @@ def _validation_summary(data: FieldInspectionData) -> dict[str, Any]:
         "measurements": len(data.measurements),
         "window_vents": len(data.window_vents),
         "unit_status_counts": status_counts,
+        "technical_spaces": len(data.technical_spaces),
+        "checkpoints": len(data.checkpoints),
+        "checkpoint_failures": sum(item.status is CheckStatus.FAIL for item in data.checkpoints),
+        "nameplates_missing": list(nameplate_missing_spaces(data)),
         "coverage_complete": bool(data.units) and status_counts["ej_paborjad"] == 0,
         "valid": True,
     }
@@ -186,8 +204,8 @@ def _field_data_from_payload(payload: dict[str, Any]) -> FieldInspectionData:
         OvkPhotoEvidence(
             photo_id=str(item["photo_id"]),
             inspection_id=inspection_id,
-            unit_id=str(item["unit_id"]),
-            unit_number=str(item["unit_number"]),
+            unit_id=str(item.get("unit_id", "")),
+            unit_number=str(item.get("unit_number", "")),
             defect_type=str(item["defect_type"]),
             captured_at=str(item["captured_at"]),
             captured_by=str(item["captured_by"]),
@@ -198,6 +216,7 @@ def _field_data_from_payload(payload: dict[str, Any]) -> FieldInspectionData:
             finding_id=_optional_str(item.get("finding_id")),
             checkpoint_id=_optional_str(item.get("checkpoint_id")),
             system_id=_optional_str(item.get("system_id")),
+            space_id=_optional_str(item.get("space_id")),
             description=str(item.get("description", "")),
             rule_refs=tuple(str(value) for value in item.get("rule_refs", [])),
             sync_status=PhotoSyncStatus(str(item.get("sync_status", "local"))),
@@ -232,6 +251,28 @@ def _field_data_from_payload(payload: dict[str, Any]) -> FieldInspectionData:
         )
         for item in _dict_items(payload.get("window_vents", []), "window_vents")
     )
+    technical_spaces = tuple(
+        TechnicalSpace(
+            space_id=str(item["space_id"]),
+            inspection_id=inspection_id,
+            kind=TechnicalSpaceKind(str(item["kind"])),
+            label=str(item["label"]),
+            location=str(item.get("location", "")),
+            system_id=_optional_str(item.get("system_id")),
+        )
+        for item in _dict_items(payload.get("technical_spaces", []), "technical_spaces")
+    )
+    checkpoints = tuple(
+        FieldCheckpoint(
+            checkpoint_id=str(item["checkpoint_id"]),
+            inspection_id=inspection_id,
+            space_id=str(item["space_id"]),
+            label=str(item["label"]),
+            status=CheckStatus(str(item.get("status", "pass"))),
+            note=str(item.get("note", "")),
+        )
+        for item in _dict_items(payload.get("checkpoints", []), "checkpoints")
+    )
     return FieldInspectionData(
         inspection_id=inspection_id,
         units=units,
@@ -240,6 +281,8 @@ def _field_data_from_payload(payload: dict[str, Any]) -> FieldInspectionData:
         photos=photos,
         measurements=measurements,
         window_vents=window_vents,
+        technical_spaces=technical_spaces,
+        checkpoints=checkpoints,
     )
 
 
@@ -320,6 +363,7 @@ def _field_data_to_payload(data: FieldInspectionData) -> dict[str, Any]:
                 "finding_id": item.finding_id,
                 "checkpoint_id": item.checkpoint_id,
                 "system_id": item.system_id,
+                "space_id": item.space_id,
                 "description": item.description,
                 "rule_refs": list(item.rule_refs),
                 "sync_status": item.sync_status.value,
@@ -356,6 +400,26 @@ def _field_data_to_payload(data: FieldInspectionData) -> dict[str, Any]:
                 "note": item.note,
             }
             for item in data.window_vents
+        ],
+        "technical_spaces": [
+            {
+                "space_id": item.space_id,
+                "kind": item.kind.value,
+                "label": item.label,
+                "location": item.location,
+                "system_id": item.system_id,
+            }
+            for item in data.technical_spaces
+        ],
+        "checkpoints": [
+            {
+                "checkpoint_id": item.checkpoint_id,
+                "space_id": item.space_id,
+                "label": item.label,
+                "status": item.status.value,
+                "note": item.note,
+            }
+            for item in data.checkpoints
         ],
     }
 

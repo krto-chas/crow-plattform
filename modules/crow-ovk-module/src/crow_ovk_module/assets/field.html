@@ -93,6 +93,26 @@
       <div id="unitList"></div>
       <button class="btn ghost" id="addUnit">+ Lägg till enhet</button>
     </div>
+    <div class="card">
+      <div class="eyebrow">Allmänna delar · <span id="spaceMeta">0 utrymmen</span></div>
+      <div id="spaceList"></div>
+      <div class="row"><button class="btn ghost" id="addFlaktrum">+ Fläktrum (aggregat)</button><button class="btn ghost" id="addTakflakt">+ Frånluftsfläkt tak/vind</button></div>
+    </div>
+  </section>
+
+  <!-- VY: TEKNIKUTRYMME -->
+  <section class="view" id="viewSpace">
+    <div class="card">
+      <div class="eyebrow" id="spaceKindLabel">Fläktrum</div>
+      <div class="bignr" id="spaceName" style="font-size:32px">–</div>
+      <div class="sub" id="spaceLoc"></div>
+      <button class="btn ghost" id="nameplate">📷 Fota märkskylt</button>
+      <div id="nameplateStatus" class="status">Märkskylt ej dokumenterad.</div>
+    </div>
+    <div class="card"><div class="eyebrow">Kontrollpunkter · utan kommentar = UA</div>
+      <div id="cplist"></div>
+      <input id="spacePhoto" type="file" accept="image/*" capture="environment" class="hidden">
+    </div>
   </section>
 
   <!-- VY: ENHET -->

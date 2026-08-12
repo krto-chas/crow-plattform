@@ -36,7 +36,7 @@ def _photo(**overrides: object) -> OvkPhotoEvidence:
 
 
 def test_photo_requires_apartment_number_and_defect_type() -> None:
-    with pytest.raises(ValueError, match="unit_number"):
+    with pytest.raises(ValueError, match="unit binding or a technical space"):
         _photo(unit_number="")
     with pytest.raises(ValueError, match="defect_type"):
         _photo(defect_type="")

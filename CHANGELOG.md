@@ -1,3 +1,19 @@
+# Unreleased — Pass 102: Allmänna delar – teknikutrymmen med checklistor
+
+- Nya fältmodeller `TechnicalSpace` (fläktrum med aggregat, frånluftsfläkt tak/vind)
+  och `FieldCheckpoint` där punkt utan kommentar är UA (pass som default) och
+  underkänd punkt kräver skriven notering — serverside-validerat.
+- Checklistmallar som installationsdata (`checklists.json`, kundutbytbar): fläktrum
+  10 punkter, takfläkt 6 punkter; serveras via `/api/ovk/field/checklists` och
+  cachas offline (SW v3).
+- Märkskyltsfoton: fotobevis kan nu bindas till teknikutrymme istället för lägenhet
+  (`equipment_nameplate`, lexikon 0.3); synken rapporterar `nameplates_missing`
+  per utrymme samt `checkpoint_failures`.
+- Appen: "Allmänna delar"-kort i ronderingsvyn, utrymmesvy med checklista där varje
+  punkt startar som UA och ett tryck + kommentar gör anmärkning, dedikerad
+  märkskyltsknapp med kamerabindning till utrymmet.
+- Layoutmanifest 1.15 och ägarskapsvakter utökade med `test_ovk_field_common.py`.
+
 # Unreleased — Pass 101: Fältflöde 2.0 (rondering)
 
 - Fältappen omdesignad kring den verkliga arbetsgången: förladdad enhetslista ur
