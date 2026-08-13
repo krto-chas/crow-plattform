@@ -8,6 +8,7 @@ from pydantic import BaseModel, Field
 
 from .auth import UserRecord, hash_password, load_user, write_user
 from .context import current_customer_from_request
+from .models import CustomerContext
 
 _ADMIN_ROLE = "platform-admin"
 
@@ -93,7 +94,7 @@ def user_admin_router(config_root: Path) -> APIRouter:
     return router
 
 
-def _require_admin(request: Request) -> Any:
+def _require_admin(request: Request) -> CustomerContext:
     try:
         customer = current_customer_from_request(request)
     except RuntimeError as error:
