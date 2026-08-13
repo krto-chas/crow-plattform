@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="sv">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Administration · Crow Platform</title>
+  <style>
+    :root { font-family: Inter, ui-sans-serif, system-ui, sans-serif; color: #18202a; background: #f4f6f8; }
+    * { box-sizing: border-box; }
+    body { margin: 0; min-height: 100vh; }
+    header { background: #111820; color: white; padding: 18px 28px; display: flex; justify-content: space-between; gap: 16px; align-items: center; }
+    header a, header button { color: #dce4ea; text-decoration: none; background: transparent; border: 0; font: inherit; cursor: pointer; margin-left: 14px; }
+    header button { border: 1px solid #3a4652; border-radius: 8px; padding: 7px 10px; }
+    main { max-width: 1180px; margin: 0 auto; padding: 34px 24px 72px; }
+    h1 { margin: 0 0 8px; }
+    .muted { color: #647180; }
+    .hero { display: flex; justify-content: space-between; gap: 24px; align-items: flex-start; }
+    .identity { min-width: 250px; padding: 14px 16px; border-radius: 10px; background: #e9eef2; font-size: 13px; }
+    .eyebrow { color: #6d7a86; font-size: 12px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(245px, 1fr)); gap: 16px; margin-top: 20px; }
+    .card { display: flex; flex-direction: column; min-height: 190px; background: white; border: 1px solid #dce2e8; border-radius: 12px; padding: 20px; box-shadow: 0 2px 8px rgba(20, 30, 40, .04); }
+    .card h3 { margin: 8px 0; }
+    .actions { margin-top: auto; padding-top: 16px; }
+    .button { display: inline-block; border-radius: 8px; background: #1d5b79; color: white; padding: 9px 13px; text-decoration: none; }
+    .status { margin-top: 28px; padding: 14px 16px; background: white; border: 1px solid #dce2e8; border-radius: 10px; }
+    .error { color: #8a2626; }
+    @media (max-width: 760px) { header, .hero { flex-direction: column; align-items: flex-start; } .identity { width: 100%; } }
+  </style>
+</head>
+<body>
+  <header>
+    <strong>CROW PLATFORM · ADMIN</strong>
+    <nav><a href="/app">Min Crow</a><a href="/workbench">Workbench</a><button id="logout" type="button" hidden>Logga ut</button></nav>
+  </header>
+  <main>
+    <section class="hero">
+      <div>
+        <div class="eyebrow">Plattformsadministration</div>
+        <h1>Administrationscenter</h1>
+        <p class="muted">Välj administrationsyta. Behörigheten kräver rollen <code>platform-admin</code>.</p>
+      </div>
+      <div class="identity" id="identity"><span class="muted">Laddar identitet…</span></div>
+    </section>
+
+    <div class="grid">
+      <article class="card">
+        <div class="eyebrow">Kunder & moduler</div>
+        <h3>Åtkomststyrning</h3>
+        <p class="muted">Skapa kunder och aktivera eller tidsbegränsa produktmoduler.</p>
+        <div class="actions"><a class="button" href="/admin?view=access">Hantera åtkomst</a></div>
+      </article>
+      <article class="card">
+        <div class="eyebrow">Identitet</div>
+        <h3>Användare</h3>
+        <p class="muted">Skapa konton, koppla kund, hantera roller, lösenord och aktiv status.</p>
+        <div class="actions"><a class="button" href="/admin/users">Hantera användare</a></div>
+      </article>
+      <article class="card">
+        <div class="eyebrow">Spårbarhet</div>
+        <h3>Audit trail</h3>
+        <p class="muted">Granska administrativa ändringar av kunder, åtkomst och användare.</p>
+        <div class="actions"><a class="button" href="/admin/audit">Öppna audit trail</a></div>
+      </article>
+    </div>
+
+    <div class="status" id="status"><span class="muted">Kontrollerar admin-API…</span></div>
+  </main>
+  <script>
+    const identity = document.getElementById("identity");
+    const status = document.getElementById("status");
+    const logout = document.getElementById("logout");
+
+    function escapeHtml(value) {
+      return String(value ?? "").replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;").replaceAll("'", "&#039;");
+    }
+
+    async function api(url, options = {}) {
+      const response = await fetch(url, options);
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(typeof payload.detail === "string" ? payload.detail : `HTTP ${response.status}`);
+      return payload;
+    }
+
+    async function boot() {
+      try {
+        const session = await api("/api/session");
+        if (!session.roles.includes("platform-admin")) {
+          location.replace("/app");
+          return;
+        }
+        identity.innerHTML = `<div class="eyebrow">Aktiv identitet</div><strong>${escapeHtml(session.user_id || "lokal användare")}</strong><br><span class="muted">Kund: ${escapeHtml(session.customer_id)}</span>`;
+        if (session.auth_mode === "session") logout.hidden = false;
+        const [customers, modules, users] = await Promise.all([
+          api("/api/admin/customers"),
+          api("/api/admin/modules"),
+          api("/api/admin/users")
+        ]);
+        status.innerHTML = `<strong>Admin-API svarar.</strong> <span class="muted">${customers.customers.length} kunder · ${modules.modules.length} produktmoduler · ${users.users.length} användare</span>`;
+      } catch (error) {
+        status.innerHTML = `<span class="error">Admin-API kunde inte laddas: ${escapeHtml(error.message)}</span>`;
+      }
+    }
+
+    logout.addEventListener("click", async () => {
+      await fetch("/api/auth/logout", {method: "POST"});
+      location.replace("/login");
+    });
+
+    boot();
+  </script>
+</body>
+</html>

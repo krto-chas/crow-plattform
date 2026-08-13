@@ -88,6 +88,11 @@ def user_admin_router(config_root: Path) -> APIRouter:
             raise HTTPException(
                 status_code=400, detail="Cannot deactivate the current administrator"
             )
+        if administrator.user_id == normalized and _ADMIN_ROLE not in roles:
+            raise HTTPException(
+                status_code=400,
+                detail="Cannot remove platform-admin from the current administrator",
+            )
 
         before = _public_user(existing)
         password_salt = existing.password_salt
