@@ -9,7 +9,7 @@ from fastapi import APIRouter, FastAPI, Request
 from fastapi.responses import JSONResponse, Response
 
 from .catalog import load_product_module_catalog
-from .context import current_customer_from_env
+from .context import current_customer_from_request
 from .entitlements import load_customer_entitlements
 from .models import CustomerContext, ProductModule, ProductModuleCatalog
 
@@ -31,7 +31,7 @@ def configure_entitlement_shell(
         module = catalog.module_for_api_path(request.url.path)
         if module is None:
             return await call_next(request)
-        customer = _customer_or_error()
+        customer = _customer_or_error(request)
         if isinstance(customer, JSONResponse):
             return customer
         try:
@@ -62,8 +62,8 @@ def _router(
     router = APIRouter()
 
     @router.get("/api/me/modules", response_model=None)
-    def my_modules() -> dict[str, Any] | JSONResponse:
-        customer = _customer_or_error()
+    def my_modules(request: Request) -> dict[str, Any] | JSONResponse:
+        customer = _customer_or_error(request)
         if isinstance(customer, JSONResponse):
             return customer
         try:
@@ -105,11 +105,11 @@ def _module_is_effectively_active(module: ProductModule, active_ids: frozenset[s
     return module.id in active_ids and set(module.requires_modules).issubset(active_ids)
 
 
-def _customer_or_error() -> CustomerContext | JSONResponse:
+def _customer_or_error(request: Request) -> CustomerContext | JSONResponse:
     try:
-        return current_customer_from_env()
+        return current_customer_from_request(request)
     except RuntimeError as error:
         return JSONResponse(
-            status_code=503,
-            content={"detail": {"code": "CUSTOMER_CONTEXT_UNAVAILABLE", "message": str(error)}},
+            status_code=401,
+            content={"detail": {"code": "AUTHENTICATION_REQUIRED", "message": str(error)}},
         )
