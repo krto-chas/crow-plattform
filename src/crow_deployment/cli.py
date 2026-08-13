@@ -31,9 +31,7 @@ def main() -> int:
     root = args.root.resolve() if args.root is not None else find_repository_root()
     plan = build_module_install_plan(root)
 
-    for module_id, repository_root in zip(
-        plan.module_ids, plan.repository_roots, strict=True
-    ):
+    for module_id, repository_root in zip(plan.module_ids, plan.repository_roots, strict=True):
         print(f"{module_id}: {repository_root}")
         if not args.dry_run:
             subprocess.run(
