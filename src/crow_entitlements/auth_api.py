@@ -81,7 +81,10 @@ def _session_secret() -> str | None:
     path = Path(configured_file).expanduser()
     secret = path.read_text(encoding="utf-8").strip()
     if not secret:
-        raise ValueError("CROW_SESSION_SECRET_FILE points to an empty file")
+        raise ValueError(
+            "CROW_SESSION_SECRET_FILE points to an empty file; "
+            "run deploy/bootstrap.sh on the Debian host or configure a non-empty session secret"
+        )
     return secret
 
 
