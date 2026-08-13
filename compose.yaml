@@ -38,35 +38,29 @@ services:
     image: caddy:2.11.4-alpine
     restart: unless-stopped
     init: true
-    user: "${CROW_PLATFORM_UID:-1000}:${CROW_PLATFORM_GID:-1000}"
     depends_on:
       crow-platform:
         condition: service_healthy
+    command:
+      - caddy
+      - reverse-proxy
+      - --from
+      - "${CROW_PROXY_SITE:-crow.localhost}"
+      - --to
+      - crow-platform:8080
     ports:
-      - "${CROW_PROXY_BIND_ADDRESS:-127.0.0.1}:${CROW_PROXY_HTTP_PORT:-80}:8080"
-      - "${CROW_PROXY_BIND_ADDRESS:-127.0.0.1}:${CROW_PROXY_HTTPS_PORT:-443}:8443"
-      - "${CROW_PROXY_BIND_ADDRESS:-127.0.0.1}:${CROW_PROXY_HTTPS_PORT:-443}:8443/udp"
-    environment:
-      CROW_PROXY_SITE: "${CROW_PROXY_SITE:-crow.localhost}"
+      - "${CROW_PROXY_BIND_ADDRESS:-127.0.0.1}:${CROW_PROXY_HTTP_PORT:-80}:80"
+      - "${CROW_PROXY_BIND_ADDRESS:-127.0.0.1}:${CROW_PROXY_HTTPS_PORT:-443}:443"
+      - "${CROW_PROXY_BIND_ADDRESS:-127.0.0.1}:${CROW_PROXY_HTTPS_PORT:-443}:443/udp"
     volumes:
-      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
-      - "${CROW_PROXY_DATA_DIR:-/srv/crow-config/platform/proxy/caddy-data}:/data"
-      - "${CROW_PROXY_CONFIG_DIR:-/srv/crow-config/platform/proxy/caddy-config}:/config"
+      - crow_proxy_data:/data
+      - crow_proxy_config:/config
     logging:
       driver: json-file
       options:
         max-size: "${CROW_PROXY_LOG_MAX_SIZE:-10m}"
         max-file: "${CROW_PROXY_LOG_MAX_FILES:-5}"
-    healthcheck:
-      test:
-        - CMD
-        - caddy
-        - validate
-        - --config
-        - /etc/caddy/Caddyfile
-        - --adapter
-        - caddyfile
-      interval: 30s
-      timeout: 5s
-      retries: 3
-      start_period: 10s
+
+volumes:
+  crow_proxy_data:
+  crow_proxy_config:
