@@ -12,6 +12,7 @@ from pydantic import BaseModel, Field
 
 from crow_module_sdk.module_registry import ModuleRegistry
 
+from .audit import write_audit_event
 from .catalog import load_product_module_catalog
 from .context import current_customer_from_request
 from .entitlements import load_customer_entitlements
@@ -105,7 +106,7 @@ def management_router(config_root: Path) -> APIRouter:
 
     @router.post("/api/admin/customers", status_code=201, response_model=None)
     def create_customer(payload: CustomerCreate, request: Request) -> dict[str, Any]:
-        _require_admin(request)
+        administrator = _require_admin(request)
         customer_id = _normalize_customer_id(payload.customer_id)
         target = config_root / "customers" / customer_id / "entitlements.json"
         if target.exists():
@@ -115,6 +116,15 @@ def management_router(config_root: Path) -> APIRouter:
         target.write_text(
             json.dumps(document, ensure_ascii=False, indent=2) + "\n",
             encoding="utf-8",
+        )
+        write_audit_event(
+            config_root,
+            actor=administrator,
+            action="customer.created",
+            target_type="customer",
+            target_id=customer_id,
+            customer_id=customer_id,
+            after=document,
         )
         return _customer_summary(config_root, customer_id, catalog)
 
@@ -129,9 +139,15 @@ def management_router(config_root: Path) -> APIRouter:
     def update_customer_entitlements(
         customer_id: str, payload: EntitlementUpdate, request: Request
     ) -> dict[str, Any]:
-        _require_admin(request)
+        administrator = _require_admin(request)
         normalized = _normalize_customer_id(customer_id)
         _validate_update(payload, catalog)
+        target = config_root / "customers" / normalized / "entitlements.json"
+        before = (
+            json.loads(target.read_text(encoding="utf-8"))
+            if target.is_file()
+            else {"customer_id": normalized, "modules": []}
+        )
         document = {
             "customer_id": normalized,
             "modules": [
@@ -147,13 +163,22 @@ def management_router(config_root: Path) -> APIRouter:
                 for entry in payload.modules
             ],
         }
-        target = config_root / "customers" / normalized / "entitlements.json"
         target.parent.mkdir(parents=True, exist_ok=True)
         temporary = target.with_suffix(".json.tmp")
         temporary.write_text(
             json.dumps(document, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
         )
         temporary.replace(target)
+        write_audit_event(
+            config_root,
+            actor=administrator,
+            action="entitlements.updated",
+            target_type="customer",
+            target_id=normalized,
+            customer_id=normalized,
+            before=before,
+            after=document,
+        )
         entitlements = load_customer_entitlements(config_root, normalized, catalog=catalog)
         return _entitlement_payload(entitlements.customer_id, entitlements.entries)
 
