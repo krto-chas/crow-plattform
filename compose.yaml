@@ -13,12 +13,13 @@ services:
       CROW_PLATFORM_DATA_ROOT: /srv/crow-data/platform
       CROW_PLATFORM_CONFIG_ROOT: /srv/crow-config/platform
       CROW_AUTH_MODE: "${CROW_AUTH_MODE:-session}"
+      CROW_SESSION_SECRET: "${CROW_SESSION_SECRET:-}"
       CROW_SESSION_SECRET_FILE: /run/secrets/crow_session_secret
       CROW_COOKIE_SECURE: "${CROW_COOKIE_SECURE:-true}"
     volumes:
       - "${CROW_PLATFORM_DATA_DIR:-/srv/crow-data/platform}:/srv/crow-data/platform"
       - "${CROW_PLATFORM_CONFIG_DIR:-/srv/crow-config/platform}:/srv/crow-config/platform"
-      - "${CROW_SESSION_SECRET_PATH:-/etc/crow-platform/session-secret}:/run/secrets/crow_session_secret:ro"
+      - "${CROW_SESSION_SECRET_PATH:-/dev/null}:/run/secrets/crow_session_secret:ro"
     logging:
       driver: json-file
       options:
