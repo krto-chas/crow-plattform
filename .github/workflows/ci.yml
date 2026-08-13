@@ -40,6 +40,11 @@ jobs:
         run: python -m crow_module_conformance.cli review --root .
       - name: Build distribution
         run: python -m pip install build && python -m build
+      - name: Deployment operations validation
+        run: |
+          set -euo pipefail
+          bash -n deploy/*.sh deploy/lib/*.sh tests/deployment_backup_restore.sh
+          ./tests/deployment_backup_restore.sh
       - name: Container deployment smoke
         env:
           CROW_SESSION_SECRET: 0123456789abcdef0123456789abcdef

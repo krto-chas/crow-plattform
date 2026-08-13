@@ -18,6 +18,11 @@ services:
     volumes:
       - "${CROW_PLATFORM_DATA_DIR:-/srv/crow-data/platform}:/srv/crow-data/platform"
       - "${CROW_PLATFORM_CONFIG_DIR:-/srv/crow-config/platform}:/srv/crow-config/platform"
+    logging:
+      driver: json-file
+      options:
+        max-size: "${CROW_PLATFORM_LOG_MAX_SIZE:-10m}"
+        max-file: "${CROW_PLATFORM_LOG_MAX_FILES:-5}"
     healthcheck:
       test:
         - CMD
