@@ -40,3 +40,28 @@ jobs:
         run: python -m crow_module_conformance.cli review --root .
       - name: Build distribution
         run: python -m pip install build && python -m build
+      - name: Container deployment smoke
+        env:
+          CROW_SESSION_SECRET: 0123456789abcdef0123456789abcdef
+        run: |
+          set -euo pipefail
+          docker compose config >/dev/null
+          docker build -t crow-platform:ci .
+          docker run --detach --name crow-platform-ci \
+            --env CROW_AUTH_MODE=session \
+            --env CROW_SESSION_SECRET="$CROW_SESSION_SECRET" \
+            --env CROW_COOKIE_SECURE=false \
+            --publish 127.0.0.1:18080:8080 \
+            crow-platform:ci
+          cleanup() {
+            docker rm -f crow-platform-ci >/dev/null 2>&1 || true
+          }
+          trap cleanup EXIT
+          for attempt in $(seq 1 30); do
+            if curl --fail --silent http://127.0.0.1:18080/health >/dev/null; then
+              exit 0
+            fi
+            sleep 1
+          done
+          docker logs crow-platform-ci
+          exit 1

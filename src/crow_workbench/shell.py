@@ -6,6 +6,7 @@ from pathlib import Path
 from fastapi import FastAPI, Request
 from fastapi.responses import FileResponse, RedirectResponse, Response
 
+from crow_deployment.runtime import platform_config_root, platform_data_root
 from crow_entitlements.api import configure_entitlement_shell
 from crow_entitlements.audit import audit_router
 from crow_entitlements.auth_api import configure_auth
@@ -21,9 +22,10 @@ from .app import create_app as create_core_app
 _ADMIN_ROLE = "platform-admin"
 
 
-def create_app(data_root: Path | None = None) -> FastAPI:
-    app = create_core_app(data_root)
-    root = data_root or Path.cwd() / ".crow-workbench"
+def create_app(data_root: Path | None = None, config_root: Path | None = None) -> FastAPI:
+    root = data_root or platform_data_root()
+    resolved_config_root = config_root or platform_config_root(root)
+    app = create_core_app(root)
     static_root = Path(__file__).parent / "static"
 
     _remove_core_index(app)
@@ -35,11 +37,11 @@ def create_app(data_root: Path | None = None) -> FastAPI:
             for router in plugin.routers(root):
                 app.include_router(router)
 
-    configure_auth(app, config_root=root / "config")
-    configure_entitlement_shell(app, config_root=root / "config")
-    app.include_router(management_router(root / "config"))
-    app.include_router(user_admin_router(root / "config"))
-    app.include_router(audit_router(root / "config"))
+    configure_auth(app, config_root=resolved_config_root)
+    configure_entitlement_shell(app, config_root=resolved_config_root)
+    app.include_router(management_router(resolved_config_root))
+    app.include_router(user_admin_router(resolved_config_root))
+    app.include_router(audit_router(resolved_config_root))
 
     @app.get("/", include_in_schema=False, response_model=None)
     def platform_landing(request: Request) -> Response:
