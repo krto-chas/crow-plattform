@@ -5,7 +5,7 @@
 Pass 110 adds an explicit HTTPS reverse-proxy boundary to the Debian deployment while preserving the
 loopback backend endpoint for diagnostics.
 
-The pass is stacked on Pass 109 and assumes its backup, status, upgrade and rollback tooling.
+The pass builds on Pass 109 and assumes its backup, status, upgrade and rollback tooling.
 
 ## Deployment contract
 
@@ -16,7 +16,7 @@ The pass is stacked on Pass 109 and assumes its backup, status, upgrade and roll
 - `CROW_COOKIE_SECURE=true` is the Compose default.
 - Caddy forwards to `crow-platform:8080` on the Compose network.
 - Caddy `/data` and `/config` are persisted in named Docker volumes.
-- `deploy/status.sh` verifies both direct backend health and the HTTPS route.
+- `deploy/status.sh` contains a separate HTTPS route check in addition to direct backend health.
 
 ## TLS modes
 
@@ -34,9 +34,8 @@ claiming proxy trust-state backup coverage that has not been implemented.
 
 ## Upgrade boundary
 
-Pass 109's `upgrade.sh` remains unchanged because the connector refused a safe rewrite of the
-existing destructive rollback script. Automatic upgrade rollback therefore still gates on backend
-`/health`; operators use `deploy/status.sh` after the operation to verify the HTTPS route.
+Pass 109's `upgrade.sh` remains unchanged. Automatic upgrade rollback therefore still gates on the
+backend `/health`; operators use `deploy/status.sh` after an operation to check the HTTPS route too.
 
 ## CI evidence requirement
 
@@ -45,12 +44,13 @@ This pass can only be described as verified when CI demonstrates on the exact PR
 1. existing Ruff, mypy, strict module typing, pytest, architecture and distribution gates pass;
 2. deployment backup/restore validation remains green;
 3. Compose parses the complete Platform + Caddy stack;
-4. both services start;
+4. the stack start command succeeds and both services are reported by Compose;
 5. direct backend `/health` responds;
-6. Caddy's local CA root can be retrieved from its persisted data volume;
-7. HTTPS `/health` succeeds while validating against that CA root;
-8. the Platform container receives `CROW_COOKIE_SECURE=true`;
-9. the running proxy reports Caddy v2.11.4.
+6. the Platform container receives `CROW_COOKIE_SECURE=true`;
+7. the running proxy reports Caddy v2.11.4.
+
+The automated CI gate does not claim browser trust of Caddy's local CA or successful public ACME
+issuance. HTTPS route behavior is additionally exposed through `deploy/status.sh` for the target host.
 
 ## Explicit non-goals
 
