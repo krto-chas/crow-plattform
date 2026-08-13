@@ -108,9 +108,9 @@ def test_admin_can_create_customer(tmp_path: Path, monkeypatch: pytest.MonkeyPat
     assert response.status_code == 201
     assert response.json()["customer_id"] == "acme_north"
     stored = json.loads(
-        (
-            tmp_path / "config" / "customers" / "acme_north" / "entitlements.json"
-        ).read_text(encoding="utf-8")
+        (tmp_path / "config" / "customers" / "acme_north" / "entitlements.json").read_text(
+            encoding="utf-8"
+        )
     )
     assert stored == {"customer_id": "acme_north", "modules": []}
 
