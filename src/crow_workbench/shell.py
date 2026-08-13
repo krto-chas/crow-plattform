@@ -36,6 +36,10 @@ def create_app(data_root: Path | None = None) -> FastAPI:
     def platform_landing() -> FileResponse:
         return FileResponse(static_root / "shell.html")
 
+    @app.get("/login", include_in_schema=False)
+    def login_shell() -> FileResponse:
+        return FileResponse(static_root / "login.html")
+
     @app.get("/app", include_in_schema=False)
     def customer_shell() -> FileResponse:
         return FileResponse(static_root / "shell.html")
