@@ -6,6 +6,7 @@ from fastapi import FastAPI
 from fastapi.responses import FileResponse
 
 from crow_entitlements.api import configure_entitlement_shell
+from crow_entitlements.auth_api import configure_auth
 from crow_entitlements.management import management_router
 from crow_module_sdk.module_registry import ModuleRegistry
 from crow_module_sdk.web import CrowWebModule
@@ -27,6 +28,7 @@ def create_app(data_root: Path | None = None) -> FastAPI:
             for router in plugin.routers(root):
                 app.include_router(router)
 
+    configure_auth(app, config_root=root / "config")
     configure_entitlement_shell(app, config_root=root / "config")
     app.include_router(management_router(root / "config"))
 
