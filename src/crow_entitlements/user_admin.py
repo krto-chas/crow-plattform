@@ -6,6 +6,7 @@ from typing import Any
 from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel, Field
 
+from .audit import write_audit_event
 from .auth import UserRecord, hash_password, load_user, write_user
 from .context import current_customer_from_request
 from .models import CustomerContext
@@ -45,7 +46,7 @@ def user_admin_router(config_root: Path) -> APIRouter:
 
     @router.post("/api/admin/users", status_code=201, response_model=None)
     def create_user(payload: UserCreate, request: Request) -> dict[str, Any]:
-        _require_admin(request)
+        administrator = _require_admin(request)
         username = _normalize_username(payload.username)
         customer_id = _normalize_customer_id(payload.customer_id)
         roles = _normalize_roles(payload.roles)
@@ -61,7 +62,17 @@ def user_admin_router(config_root: Path) -> APIRouter:
             password_hash=digest,
         )
         write_user(config_root, user)
-        return _public_user(user)
+        public = _public_user(user)
+        write_audit_event(
+            config_root,
+            actor=administrator,
+            action="user.created",
+            target_type="user",
+            target_id=username,
+            customer_id=customer_id,
+            after=public,
+        )
+        return public
 
     @router.put("/api/admin/users/{username}", response_model=None)
     def update_user(username: str, payload: UserUpdate, request: Request) -> dict[str, Any]:
@@ -78,8 +89,10 @@ def user_admin_router(config_root: Path) -> APIRouter:
                 status_code=400, detail="Cannot deactivate the current administrator"
             )
 
+        before = _public_user(existing)
         password_salt = existing.password_salt
         password_hash = existing.password_hash
+        password_changed = payload.password is not None
         if payload.password is not None:
             password_salt, password_hash = hash_password(payload.password)
         user = UserRecord(
@@ -91,7 +104,18 @@ def user_admin_router(config_root: Path) -> APIRouter:
             active=payload.active,
         )
         write_user(config_root, user, overwrite=True)
-        return _public_user(user)
+        after = _public_user(user)
+        write_audit_event(
+            config_root,
+            actor=administrator,
+            action="user.updated",
+            target_type="user",
+            target_id=normalized,
+            customer_id=customer_id,
+            before=before,
+            after={**after, "password_changed": password_changed},
+        )
+        return after
 
     return router
 
