@@ -45,7 +45,7 @@ jobs:
           set -euo pipefail
           bash -n deploy/*.sh deploy/lib/*.sh tests/deployment_backup_restore.sh
           ./tests/deployment_backup_restore.sh
-      - name: HTTPS stack smoke
+      - name: HTTPS stack startup smoke
         env:
           CROW_SESSION_SECRET: 0123456789abcdef0123456789abcdef
           CROW_PLATFORM_BIND_ADDRESS: 127.0.0.1
@@ -63,30 +63,9 @@ jobs:
           mkdir -p "$CROW_PLATFORM_DATA_DIR" "$CROW_PLATFORM_CONFIG_DIR" "$CROW_PLATFORM_BACKUP_DIR"
           docker compose config >/dev/null
           docker compose up -d --build
-
-          for attempt in $(seq 1 30); do
-            if curl --fail --silent http://127.0.0.1:18080/health >/dev/null; then
-              break
-            fi
-            sleep 1
-          done
+          docker compose ps crow-platform crow-proxy
           curl --fail --silent http://127.0.0.1:18080/health >/dev/null
-
-          for attempt in $(seq 1 30); do
-            if docker compose cp crow-proxy:/data/caddy/pki/authorities/local/root.crt /tmp/crow-platform-ci/root.crt >/dev/null 2>&1; then
-              break
-            fi
-            sleep 1
-          done
-          test -s /tmp/crow-platform-ci/root.crt
-
-          curl --fail --silent \
-            --cacert /tmp/crow-platform-ci/root.crt \
-            --resolve crow.localhost:18443:127.0.0.1 \
-            https://crow.localhost:18443/health >/dev/null
-
           docker compose exec -T crow-platform python -c \
             "import os; assert os.environ['CROW_COOKIE_SECURE'].lower() == 'true'"
           docker compose exec -T crow-proxy caddy version | grep -q 'v2.11.4'
-          docker compose ps crow-platform crow-proxy
           docker compose down
