@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 import re
 from datetime import date
 from pathlib import Path
@@ -23,6 +24,10 @@ from .models import (
 
 _ADMIN_ROLE = "platform-admin"
 _CUSTOMER_ID = re.compile(r"^[a-z0-9][a-z0-9_-]{0,119}$")
+
+
+class CustomerCreate(BaseModel):
+    customer_id: str = Field(min_length=1, max_length=120)
 
 
 class EntitlementUpdateEntry(BaseModel):
@@ -48,6 +53,7 @@ def management_router(config_root: Path) -> APIRouter:
             "user_id": customer.user_id,
             "roles": list(customer.roles),
             "destination": destination,
+            "auth_mode": os.getenv("CROW_AUTH_MODE", "environment").strip().lower(),
         }
 
     @router.get("/api/admin/modules", response_model=None)
@@ -96,6 +102,21 @@ def management_router(config_root: Path) -> APIRouter:
             _customer_summary(config_root, customer_id, catalog) for customer_id in customer_ids
         ]
         return {"customers": customers}
+
+    @router.post("/api/admin/customers", status_code=201, response_model=None)
+    def create_customer(payload: CustomerCreate, request: Request) -> dict[str, Any]:
+        _require_admin(request)
+        customer_id = _normalize_customer_id(payload.customer_id)
+        target = config_root / "customers" / customer_id / "entitlements.json"
+        if target.exists():
+            raise HTTPException(status_code=409, detail="Customer already exists")
+        document = {"customer_id": customer_id, "modules": []}
+        target.parent.mkdir(parents=True, exist_ok=False)
+        target.write_text(
+            json.dumps(document, ensure_ascii=False, indent=2) + "\n",
+            encoding="utf-8",
+        )
+        return _customer_summary(config_root, customer_id, catalog)
 
     @router.get("/api/admin/customers/{customer_id}/entitlements", response_model=None)
     def admin_customer_entitlements(customer_id: str, request: Request) -> dict[str, Any]:
