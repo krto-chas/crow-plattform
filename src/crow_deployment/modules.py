@@ -61,7 +61,9 @@ def build_module_install_plan(root: Path) -> ModuleInstallPlan:
         try:
             entry = by_id[module_id]
         except KeyError as error:
-            raise ValueError(f"Unknown module dependency in layout manifest: {module_id}") from error
+            raise ValueError(
+                f"Unknown module dependency in layout manifest: {module_id}"
+            ) from error
 
         visiting.add(module_id)
         requires = entry.get("requires_modules", [])
