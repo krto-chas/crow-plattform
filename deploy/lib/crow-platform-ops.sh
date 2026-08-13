@@ -70,7 +70,7 @@ require_clean_git() {
   fi
 }
 
-create_backup_archive() {
+create_backup_archive() (
   local destination="$1"
   local source_sha="$2"
   local workspace
@@ -80,7 +80,7 @@ create_backup_archive() {
   assert_safe_directory "$CROW_PLATFORM_CONFIG_DIR"
   mkdir -p "$CROW_PLATFORM_BACKUP_DIR"
   workspace="$(mktemp -d)"
-  trap 'rm -rf "$workspace"' RETURN
+  trap 'rm -rf "$workspace"' EXIT
 
   tar --numeric-owner -C "$CROW_PLATFORM_DATA_DIR" -czf "$workspace/data.tar.gz" .
   tar --numeric-owner -C "$CROW_PLATFORM_CONFIG_DIR" -czf "$workspace/config.tar.gz" .
@@ -90,9 +90,9 @@ create_backup_archive() {
     sha256sum data.tar.gz config.tar.gz metadata.env >SHA256SUMS
     tar -czf "$destination" data.tar.gz config.tar.gz metadata.env SHA256SUMS
   )
-}
+)
 
-restore_backup_archive() {
+restore_backup_archive() (
   local archive="$1"
   local workspace
 
@@ -100,7 +100,7 @@ restore_backup_archive() {
   assert_safe_directory "$CROW_PLATFORM_DATA_DIR"
   assert_safe_directory "$CROW_PLATFORM_CONFIG_DIR"
   workspace="$(mktemp -d)"
-  trap 'rm -rf "$workspace"' RETURN
+  trap 'rm -rf "$workspace"' EXIT
 
   tar -xzf "$archive" -C "$workspace"
   (
@@ -113,4 +113,4 @@ restore_backup_archive() {
   find "$CROW_PLATFORM_CONFIG_DIR" -mindepth 1 -maxdepth 1 -exec rm -rf -- {} +
   tar -xzf "$workspace/data.tar.gz" -C "$CROW_PLATFORM_DATA_DIR"
   tar -xzf "$workspace/config.tar.gz" -C "$CROW_PLATFORM_CONFIG_DIR"
-}
+)
