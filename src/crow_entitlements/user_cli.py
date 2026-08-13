@@ -4,6 +4,8 @@ import argparse
 import getpass
 from pathlib import Path
 
+from crow_deployment.runtime import platform_config_root
+
 from .auth import UserRecord, hash_password, write_user
 
 
@@ -12,7 +14,7 @@ def main() -> None:
     parser.add_argument("username")
     parser.add_argument("--customer", required=True)
     parser.add_argument("--role", action="append", default=[])
-    parser.add_argument("--config-root", type=Path, default=Path(".crow-workbench/config"))
+    parser.add_argument("--config-root", type=Path, default=platform_config_root())
     parser.add_argument("--replace", action="store_true")
     args = parser.parse_args()
 
