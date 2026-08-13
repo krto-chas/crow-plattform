@@ -1,0 +1,180 @@
+<!doctype html>
+<html lang="sv">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Crow Platform</title>
+  <style>
+    :root { font-family: Inter, ui-sans-serif, system-ui, sans-serif; color: #18202a; background: #f4f6f8; }
+    * { box-sizing: border-box; }
+    body { margin: 0; }
+    header { background: #111820; color: white; padding: 20px 28px; display: flex; align-items: center; justify-content: space-between; }
+    header strong { font-size: 20px; letter-spacing: .04em; }
+    header span { color: #aeb9c5; font-size: 13px; }
+    main { max-width: 1180px; margin: 0 auto; padding: 32px 24px 64px; }
+    h1 { margin: 0 0 8px; font-size: 30px; }
+    h2 { margin-top: 32px; }
+    .muted { color: #647180; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; margin-top: 22px; }
+    .card { background: white; border: 1px solid #dce2e8; border-radius: 12px; padding: 20px; box-shadow: 0 2px 8px rgba(20,30,40,.04); }
+    .card h3 { margin: 0 0 8px; }
+    .pill { display: inline-block; border-radius: 999px; background: #eef2f5; padding: 4px 9px; font-size: 12px; margin-right: 6px; }
+    a.button, button { display: inline-block; border: 0; border-radius: 8px; background: #1d5b79; color: white; padding: 9px 13px; text-decoration: none; cursor: pointer; font: inherit; }
+    button.secondary, a.secondary { background: #e8edf1; color: #25313d; }
+    .toolbar { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 18px; }
+    .split { display: grid; grid-template-columns: minmax(220px, .7fr) minmax(320px, 1.3fr); gap: 20px; margin-top: 22px; }
+    .customer { width: 100%; text-align: left; margin-bottom: 8px; background: #e8edf1; color: #25313d; }
+    .module-row { display: grid; grid-template-columns: 28px 1fr auto; gap: 10px; align-items: start; padding: 12px 0; border-bottom: 1px solid #edf0f2; }
+    .module-row:last-child { border-bottom: 0; }
+    .error { background: #fff0f0; border: 1px solid #f0caca; color: #8a2626; padding: 12px; border-radius: 8px; margin-top: 16px; }
+    .ok { background: #eef8f0; border: 1px solid #cce4d0; color: #245f31; padding: 12px; border-radius: 8px; margin-top: 16px; }
+    @media (max-width: 760px) { .split { grid-template-columns: 1fr; } header { align-items: flex-start; gap: 8px; flex-direction: column; } }
+  </style>
+</head>
+<body>
+  <header>
+    <strong>CROW PLATFORM</strong>
+    <span id="identity">Laddar session…</span>
+  </header>
+  <main id="content"><p class="muted">Laddar…</p></main>
+  <script>
+    const content = document.getElementById("content");
+    const identity = document.getElementById("identity");
+
+    async function json(url, options = {}) {
+      const response = await fetch(url, options);
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        const detail = typeof payload.detail === "string" ? payload.detail : JSON.stringify(payload.detail || payload);
+        throw new Error(detail || `HTTP ${response.status}`);
+      }
+      return payload;
+    }
+
+    function escapeHtml(value) {
+      return String(value ?? "")
+        .replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;").replaceAll("'", "&#039;");
+    }
+
+    async function boot() {
+      try {
+        const session = await json("/api/session");
+        identity.textContent = `${session.user_id || "lokal användare"} · ${session.customer_id}`;
+        if (location.pathname === "/") {
+          location.replace(session.destination);
+          return;
+        }
+        if (location.pathname === "/admin") {
+          await renderAdmin(session);
+        } else {
+          await renderApp(session);
+        }
+      } catch (error) {
+        content.innerHTML = `<h1>Crow Platform</h1><div class="error">${escapeHtml(error.message)}</div>`;
+      }
+    }
+
+    async function renderApp(session) {
+      const data = await json("/api/me/modules");
+      const cards = data.modules.map(module => `
+        <article class="card">
+          <h3>${escapeHtml(module.name)}</h3>
+          <p class="muted">${escapeHtml(module.id)}</p>
+          <a class="button" href="${escapeHtml(module.route)}">Öppna modul</a>
+        </article>`).join("");
+      content.innerHTML = `
+        <h1>Min Crow</h1>
+        <p class="muted">Tillgängliga moduler för ${escapeHtml(session.customer_id)}.</p>
+        <div class="toolbar"><a class="button secondary" href="/workbench">Projekt & Workbench</a></div>
+        <section class="grid">${cards || '<div class="card"><h3>Inga aktiva moduler</h3><p class="muted">Kontakta administratören för att aktivera produktmoduler.</p></div>'}</section>`;
+    }
+
+    async function renderAdmin(session) {
+      if (!session.roles.includes("platform-admin")) {
+        content.innerHTML = '<h1>Administration</h1><div class="error">Du saknar rollen platform-admin.</div>';
+        return;
+      }
+      const [customerData, moduleData] = await Promise.all([
+        json("/api/admin/customers"),
+        json("/api/admin/modules")
+      ]);
+      content.innerHTML = `
+        <h1>Administration</h1>
+        <p class="muted">Kundåtkomst och modulstatus. Teknisk installation och kommersiell entitlement visas separat.</p>
+        <div class="grid">
+          <div class="card"><h3>${customerData.customers.length}</h3><p class="muted">Konfigurerade kunder</p></div>
+          <div class="card"><h3>${moduleData.runtime_modules.length}</h3><p class="muted">Upptäckta runtime-moduler</p></div>
+          <div class="card"><h3>${moduleData.modules.filter(m => m.status === "active").length}</h3><p class="muted">Aktiva produktmoduler</p></div>
+        </div>
+        <div class="split">
+          <section class="card"><h2>Kunder</h2><div id="customers"></div></section>
+          <section class="card"><h2 id="customer-title">Välj kund</h2><form id="entitlement-form"><div id="entitlements" class="muted">Välj en kund till vänster.</div><div class="toolbar"><button type="submit" id="save" hidden>Spara åtkomst</button></div><div id="message"></div></form></section>
+        </div>
+        <h2>Produkt- och runtime-moduler</h2>
+        <div class="grid">${moduleData.modules.map(module => `
+          <article class="card">
+            <h3>${escapeHtml(module.name)}</h3>
+            <p><span class="pill">${escapeHtml(module.status)}</span>${module.runtime_installed === true ? '<span class="pill">installerad</span>' : module.runtime_installed === false ? '<span class="pill">saknas i runtime</span>' : '<span class="pill">runtime ej kopplad</span>'}</p>
+            <p class="muted">${escapeHtml(module.id)}${module.requires_modules.length ? ` · kräver ${escapeHtml(module.requires_modules.join(", "))}` : ""}</p>
+          </article>`).join("")}</div>`;
+
+      const customers = document.getElementById("customers");
+      customers.innerHTML = customerData.customers.map(customer => `
+        <button type="button" class="customer" data-customer="${escapeHtml(customer.customer_id)}">
+          <strong>${escapeHtml(customer.customer_id)}</strong><br>
+          <span>${escapeHtml(customer.active_modules.join(", ") || "inga aktiva moduler")}</span>
+        </button>`).join("") || '<p class="muted">Inga kundkonfigurationer ännu.</p>';
+
+      customers.querySelectorAll("button[data-customer]").forEach(button => {
+        button.addEventListener("click", () => loadCustomer(button.dataset.customer, moduleData.modules));
+      });
+      document.getElementById("entitlement-form").addEventListener("submit", event => saveCustomer(event, moduleData.modules));
+    }
+
+    let selectedCustomer = null;
+
+    async function loadCustomer(customerId, modules) {
+      selectedCustomer = customerId;
+      const data = await json(`/api/admin/customers/${encodeURIComponent(customerId)}/entitlements`);
+      const configured = new Map(data.modules.map(item => [item.id, item]));
+      document.getElementById("customer-title").textContent = `Åtkomst · ${customerId}`;
+      document.getElementById("save").hidden = false;
+      document.getElementById("message").innerHTML = "";
+      document.getElementById("entitlements").innerHTML = modules.map(module => {
+        const entry = configured.get(module.id) || {active: false, valid_until: null};
+        const disabled = module.status !== "active";
+        return `<label class="module-row">
+          <input type="checkbox" name="module" value="${escapeHtml(module.id)}" ${entry.active ? "checked" : ""} ${disabled ? "disabled" : ""}>
+          <span><strong>${escapeHtml(module.name)}</strong><br><span class="muted">${escapeHtml(module.id)}${module.requires_modules.length ? ` · kräver ${escapeHtml(module.requires_modules.join(", "))}` : ""}</span></span>
+          <input type="date" data-valid-until="${escapeHtml(module.id)}" value="${escapeHtml(entry.valid_until || "")}" ${disabled ? "disabled" : ""}>
+        </label>`;
+      }).join("");
+    }
+
+    async function saveCustomer(event, modules) {
+      event.preventDefault();
+      if (!selectedCustomer) return;
+      const form = event.currentTarget;
+      const entries = modules.filter(module => module.status === "active").map(module => {
+        const checked = form.querySelector(`input[name="module"][value="${CSS.escape(module.id)}"]`).checked;
+        const validUntil = form.querySelector(`input[data-valid-until="${CSS.escape(module.id)}"]`).value;
+        return {id: module.id, active: checked, valid_until: validUntil || null};
+      });
+      const message = document.getElementById("message");
+      try {
+        await json(`/api/admin/customers/${encodeURIComponent(selectedCustomer)}/entitlements`, {
+          method: "PUT",
+          headers: {"Content-Type": "application/json"},
+          body: JSON.stringify({modules: entries})
+        });
+        message.innerHTML = '<div class="ok">Åtkomsten är sparad.</div>';
+      } catch (error) {
+        message.innerHTML = `<div class="error">${escapeHtml(error.message)}</div>`;
+      }
+    }
+
+    boot();
+  </script>
+</body>
+</html>
