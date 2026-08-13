@@ -89,9 +89,7 @@ def test_wrong_password_does_not_create_session(
     _write_user(tmp_path, "anna", "acme", ())
     client = TestClient(create_app(tmp_path))
 
-    login = client.post(
-        "/api/auth/login", json={"username": "anna", "password": "wrong-password"}
-    )
+    login = client.post("/api/auth/login", json={"username": "anna", "password": "wrong-password"})
     session = client.get("/api/session")
 
     assert login.status_code == 401
