@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [main, pass111-runtime-observability]
   pull_request:
 
 jobs:
