@@ -171,13 +171,17 @@ def _validate_update(payload: EntitlementUpdate, catalog: ProductModuleCatalog) 
     known = {module.id for module in catalog.modules}
     unknown = sorted(set(module_ids) - known)
     if unknown:
-        raise HTTPException(status_code=400, detail=f"Unknown product modules: {', '.join(unknown)}")
+        raise HTTPException(
+            status_code=400, detail=f"Unknown product modules: {', '.join(unknown)}"
+        )
 
     active_ids = {entry.id for entry in payload.modules if entry.active}
     for module_id in sorted(active_ids):
         module = catalog.get(module_id)
         if module.status is not ProductModuleStatus.ACTIVE:
-            raise HTTPException(status_code=400, detail=f"Product module is not active: {module_id}")
+            raise HTTPException(
+                status_code=400, detail=f"Product module is not active: {module_id}"
+            )
         missing = sorted(set(module.requires_modules) - active_ids)
         if missing:
             raise HTTPException(
@@ -197,9 +201,7 @@ def _customer_summary(
     }
 
 
-def _entitlement_payload(
-    customer_id: str, entries: tuple[EntitlementEntry, ...]
-) -> dict[str, Any]:
+def _entitlement_payload(customer_id: str, entries: tuple[EntitlementEntry, ...]) -> dict[str, Any]:
     return {
         "customer_id": customer_id,
         "modules": [
