@@ -47,10 +47,8 @@ jobs:
           ./tests/deployment_backup_restore.sh
       - name: Prepare HTTPS stack smoke
         run: |
+          set -euo pipefail
           cat >>"$GITHUB_ENV" <<'EOF'
-          CROW_SESSION_SECRET=0123456789abcdef0123456789abcdef
-          CROW_PLATFORM_UID=0
-          CROW_PLATFORM_GID=0
           CROW_PLATFORM_BIND_ADDRESS=127.0.0.1
           CROW_PLATFORM_PORT=18080
           CROW_PROXY_BIND_ADDRESS=127.0.0.1
@@ -61,8 +59,14 @@ jobs:
           CROW_PLATFORM_DATA_DIR=/tmp/crow-platform-ci/data
           CROW_PLATFORM_CONFIG_DIR=/tmp/crow-platform-ci/config
           CROW_PLATFORM_BACKUP_DIR=/tmp/crow-platform-ci/backups
+          CROW_SESSION_SECRET_PATH=/tmp/crow-platform-ci/session-secret
           EOF
+          echo "CROW_PLATFORM_UID=$(id -u)" >>"$GITHUB_ENV"
+          echo "CROW_PLATFORM_GID=$(id -g)" >>"$GITHUB_ENV"
           mkdir -p /tmp/crow-platform-ci/data /tmp/crow-platform-ci/config /tmp/crow-platform-ci/backups
+          printf '%s\n' '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef' \
+            >/tmp/crow-platform-ci/session-secret
+          chmod 0400 /tmp/crow-platform-ci/session-secret
       - name: Validate HTTPS Compose config
         run: docker compose config >/dev/null
       - name: Start HTTPS stack
