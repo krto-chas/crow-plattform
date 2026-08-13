@@ -14,7 +14,12 @@ from crow_module_sdk.module_registry import ModuleRegistry
 from .catalog import load_product_module_catalog
 from .context import current_customer_from_env
 from .entitlements import load_customer_entitlements
-from .models import CustomerContext, ProductModuleCatalog, ProductModuleStatus
+from .models import (
+    CustomerContext,
+    EntitlementEntry,
+    ProductModuleCatalog,
+    ProductModuleStatus,
+)
 
 _ADMIN_ROLE = "platform-admin"
 _CUSTOMER_ID = re.compile(r"^[a-z0-9][a-z0-9_-]{0,119}$")
@@ -192,7 +197,9 @@ def _customer_summary(
     }
 
 
-def _entitlement_payload(customer_id: str, entries: tuple[Any, ...]) -> dict[str, Any]:
+def _entitlement_payload(
+    customer_id: str, entries: tuple[EntitlementEntry, ...]
+) -> dict[str, Any]:
     return {
         "customer_id": customer_id,
         "modules": [
