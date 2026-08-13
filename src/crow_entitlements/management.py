@@ -6,13 +6,13 @@ from datetime import date
 from pathlib import Path
 from typing import Any
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel, Field
 
 from crow_module_sdk.module_registry import ModuleRegistry
 
 from .catalog import load_product_module_catalog
-from .context import current_customer_from_env
+from .context import current_customer_from_request
 from .entitlements import load_customer_entitlements
 from .models import (
     CustomerContext,
@@ -40,8 +40,8 @@ def management_router(config_root: Path) -> APIRouter:
     catalog = load_product_module_catalog()
 
     @router.get("/api/session", response_model=None)
-    def session() -> dict[str, Any]:
-        customer = _current_customer()
+    def session(request: Request) -> dict[str, Any]:
+        customer = _current_customer(request)
         destination = "/admin" if _is_admin(customer) else "/app"
         return {
             "customer_id": customer.customer_id,
@@ -51,8 +51,8 @@ def management_router(config_root: Path) -> APIRouter:
         }
 
     @router.get("/api/admin/modules", response_model=None)
-    def admin_modules() -> dict[str, Any]:
-        _require_admin()
+    def admin_modules(request: Request) -> dict[str, Any]:
+        _require_admin(request)
         registry = ModuleRegistry()
         discovered = registry.discover()
         runtime = {
@@ -84,8 +84,8 @@ def management_router(config_root: Path) -> APIRouter:
         }
 
     @router.get("/api/admin/customers", response_model=None)
-    def admin_customers() -> dict[str, Any]:
-        _require_admin()
+    def admin_customers(request: Request) -> dict[str, Any]:
+        _require_admin(request)
         customers_root = config_root / "customers"
         customer_ids = (
             sorted(path.name for path in customers_root.iterdir() if path.is_dir())
@@ -98,17 +98,17 @@ def management_router(config_root: Path) -> APIRouter:
         return {"customers": customers}
 
     @router.get("/api/admin/customers/{customer_id}/entitlements", response_model=None)
-    def admin_customer_entitlements(customer_id: str) -> dict[str, Any]:
-        _require_admin()
+    def admin_customer_entitlements(customer_id: str, request: Request) -> dict[str, Any]:
+        _require_admin(request)
         normalized = _normalize_customer_id(customer_id)
         entitlements = load_customer_entitlements(config_root, normalized, catalog=catalog)
         return _entitlement_payload(entitlements.customer_id, entitlements.entries)
 
     @router.put("/api/admin/customers/{customer_id}/entitlements", response_model=None)
     def update_customer_entitlements(
-        customer_id: str, payload: EntitlementUpdate
+        customer_id: str, payload: EntitlementUpdate, request: Request
     ) -> dict[str, Any]:
-        _require_admin()
+        _require_admin(request)
         normalized = _normalize_customer_id(customer_id)
         _validate_update(payload, catalog)
         document = {
@@ -139,19 +139,19 @@ def management_router(config_root: Path) -> APIRouter:
     return router
 
 
-def _current_customer() -> CustomerContext:
+def _current_customer(request: Request) -> CustomerContext:
     try:
-        return current_customer_from_env()
+        return current_customer_from_request(request)
     except RuntimeError as error:
-        raise HTTPException(status_code=503, detail=str(error)) from error
+        raise HTTPException(status_code=401, detail=str(error)) from error
 
 
 def _is_admin(customer: CustomerContext) -> bool:
     return _ADMIN_ROLE in customer.roles
 
 
-def _require_admin() -> CustomerContext:
-    customer = _current_customer()
+def _require_admin(request: Request) -> CustomerContext:
+    customer = _current_customer(request)
     if not _is_admin(customer):
         raise HTTPException(status_code=403, detail="Platform administrator role required")
     return customer

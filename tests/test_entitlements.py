@@ -86,6 +86,7 @@ def test_shared_api_remains_available_without_module_entitlement(
 
 
 def test_server_mode_requires_customer_identity(tmp_path: Path, monkeypatch: object) -> None:
+    monkeypatch.setenv("CROW_AUTH_MODE", "environment")  # type: ignore[attr-defined]
     monkeypatch.setenv("CROW_MODE", "server")  # type: ignore[attr-defined]
     monkeypatch.delenv("CROW_CUSTOMER_ID", raising=False)  # type: ignore[attr-defined]
     client = TestClient(create_app(tmp_path))

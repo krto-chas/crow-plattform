@@ -13,6 +13,7 @@ dependencies = ["pypdf>=5.0", "fastapi>=0.115", "uvicorn>=0.30", "python-multipa
 crow = "crow_module_conformance.cli:main"
 crow-workbench = "crow_workbench.__main__:main"
 crow-install-modules = "crow_deployment.cli:main"
+crow-user = "crow_entitlements.user_cli:main"
 
 [project.optional-dependencies]
 export = ["openpyxl>=3.1"]
