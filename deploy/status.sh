@@ -14,12 +14,20 @@ echo "git_sha=$(current_git_sha)"
 echo "data_dir=$CROW_PLATFORM_DATA_DIR"
 echo "config_dir=$CROW_PLATFORM_CONFIG_DIR"
 echo "backup_dir=$CROW_PLATFORM_BACKUP_DIR"
-compose ps crow-platform
+echo "https_site=$CROW_PROXY_SITE"
+compose ps crow-platform crow-proxy
 
 if wait_for_health 1; then
-  echo "health=ok"
+  echo "backend_health=ok"
 else
-  echo "health=failed"
+  echo "backend_health=failed"
+  exit 1
+fi
+
+if wait_for_proxy_route 1; then
+  echo "https_route=ok"
+else
+  echo "https_route=failed"
   exit 1
 fi
 
