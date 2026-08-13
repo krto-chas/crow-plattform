@@ -17,6 +17,8 @@ load_platform_env() {
   CROW_PLATFORM_CONFIG_DIR="${CROW_PLATFORM_CONFIG_DIR:-/srv/crow-config/platform}"
   CROW_PLATFORM_BACKUP_DIR="${CROW_PLATFORM_BACKUP_DIR:-/srv/crow-backups/platform}"
   CROW_PLATFORM_PORT="${CROW_PLATFORM_PORT:-8080}"
+  CROW_PROXY_SITE="${CROW_PROXY_SITE:-crow.localhost}"
+  CROW_PROXY_HTTPS_PORT="${CROW_PROXY_HTTPS_PORT:-443}"
 }
 
 require_command() {
@@ -45,6 +47,13 @@ service_is_running() {
   [[ "$(docker inspect -f '{{.State.Running}}' "$container_id" 2>/dev/null || true)" == "true" ]]
 }
 
+proxy_is_running() {
+  local container_id
+  container_id="$(compose ps -q crow-proxy 2>/dev/null || true)"
+  [[ -n "$container_id" ]] || return 1
+  [[ "$(docker inspect -f '{{.State.Running}}' "$container_id" 2>/dev/null || true)" == "true" ]]
+}
+
 wait_for_health() {
   local attempts="${1:-30}"
   local url="http://127.0.0.1:${CROW_PLATFORM_PORT}/health"
@@ -56,6 +65,22 @@ wait_for_health() {
     sleep 1
   done
   echo "Health check failed: $url" >&2
+  return 1
+}
+
+wait_for_proxy_route() {
+  local attempts="${1:-30}"
+  local url="https://${CROW_PROXY_SITE}:${CROW_PROXY_HTTPS_PORT}/health"
+  local attempt
+  for attempt in $(seq 1 "$attempts"); do
+    if curl --fail --silent --insecure \
+      --resolve "${CROW_PROXY_SITE}:${CROW_PROXY_HTTPS_PORT}:127.0.0.1" \
+      "$url" >/dev/null; then
+      return 0
+    fi
+    sleep 1
+  done
+  echo "HTTPS proxy route failed: $url" >&2
   return 1
 }
 

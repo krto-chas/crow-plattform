@@ -6,157 +6,122 @@ identity, configuration and module boundaries.
 
 ## Runtime contract
 
-The container image installs:
+The deployment contains two runtime services:
 
-1. the Crow Platform backbone with export support;
-2. every first-party module declared in `modules/module_layout_manifest.json`, in dependency order.
+1. `crow-platform`: the Platform backbone plus every first-party module declared in
+   `modules/module_layout_manifest.json`, installed in dependency order;
+2. `crow-proxy`: Caddy 2.11.4, terminating HTTPS and forwarding requests to
+   `crow-platform:8080` on the private Compose network.
 
-The image build uses `crow-install-modules --root /app`. A future first-party module therefore
-requires its package plus its canonical manifest entry; the Debian host does not gain another
-module-specific installation command.
+The direct Platform host port remains loopback-only by default and is an operational diagnostic
+path. Browser traffic should use the HTTPS proxy.
 
-Persistent state is split into two host mounts:
+Persistent Platform state remains:
 
-- data: `/srv/crow-data/platform` -> projects, uploads and module runtime data;
-- config: `/srv/crow-config/platform` -> users, customer entitlements and administrative audit;
-- backups: `/srv/crow-backups/platform` -> cold state archives with checksums and deployment SHA.
+- data: `/srv/crow-data/platform`;
+- config: `/srv/crow-config/platform`;
+- backups: `/srv/crow-backups/platform`.
 
-The application receives the first two locations through `CROW_PLATFORM_DATA_ROOT` and
-`CROW_PLATFORM_CONFIG_ROOT`. Local source execution remains compatible with the historical
-`.crow-workbench` default when those variables are absent.
+Caddy certificate/configuration state is persisted in the Compose volumes `crow_proxy_data` and
+`crow_proxy_config`. These volumes survive container recreation but are outside the Pass 109
+filesystem backup archive; sites using Caddy's internal CA must back up/export that trust state
+separately until proxy-volume backup is added.
 
 ## First installation
 
-Install Docker Engine with the Docker Compose plugin, clone the repository, then create the local
-environment file:
-
 ```bash
 cp deploy/crow-platform.env.example .env
-```
-
-Generate a session secret and place it in `.env` as `CROW_SESSION_SECRET`:
-
-```bash
 openssl rand -hex 32
 ```
 
-Create the persistent directories. The owner must match `CROW_PLATFORM_UID` and
-`CROW_PLATFORM_GID` from `.env`:
+Put the generated value in `.env` as `CROW_SESSION_SECRET`, then create the Platform persistent
+paths with ownership matching `CROW_PLATFORM_UID`/`CROW_PLATFORM_GID`.
 
 ```bash
 sudo install -d -m 0750 -o 1000 -g 1000 /srv/crow-data/platform
 sudo install -d -m 0750 -o 1000 -g 1000 /srv/crow-config/platform
 sudo install -d -m 0750 -o 1000 -g 1000 /srv/crow-backups/platform
-```
-
-Build and start the Platform:
-
-```bash
 docker compose up -d --build
 ```
 
-Verify the process-level health endpoint:
+Direct process health remains available on loopback:
 
 ```bash
 curl http://127.0.0.1:8080/health
 ```
 
-## Bootstrap the first administrator
+## HTTPS modes
 
-The `crow-user` CLI uses `CROW_PLATFORM_CONFIG_ROOT` by default, so it writes directly to the
-mounted configuration volume inside the container:
+`CROW_PROXY_SITE` controls the Caddy site name. The shipped default is `crow.localhost`.
+
+For a public DNS name, set `CROW_PROXY_SITE` to that name, point its A/AAAA record to the Debian
+host, set `CROW_PROXY_BIND_ADDRESS` to the intended reachable address (or `0.0.0.0`), and allow or
+forward TCP 80 and TCP/UDP 443. Caddy then manages HTTPS certificates and redirects HTTP to HTTPS.
+
+For a private/LAN hostname, set a resolvable private name and intentionally expose Caddy on the LAN.
+Caddy uses its internal CA for names that cannot receive publicly trusted certificates. Client
+machines must trust that CA root before browsers consider the connection trusted. Caddy running in a
+container cannot silently install trust on other devices.
+
+Export the local CA root for controlled client installation with:
+
+```bash
+docker compose cp crow-proxy:/data/caddy/pki/authorities/local/root.crt ./crow-platform-local-ca.crt
+```
+
+Distribute only the root certificate, never the CA private key.
+
+## Session boundary
+
+Compose defaults to `CROW_AUTH_MODE=session` and `CROW_COOKIE_SECURE=true`; the session secret is
+mandatory. The direct HTTP backend is therefore diagnostic only, while browser login/session traffic
+uses HTTPS through Caddy.
+
+Caddy's standard reverse-proxy behavior supplies `X-Forwarded-For`, `X-Forwarded-Proto` and
+`X-Forwarded-Host` to the backend.
+
+## Bootstrap the first administrator
 
 ```bash
 docker compose exec crow-platform crow-user admin --customer platform --role platform-admin
 ```
 
-The command prompts for a password and confirmation. Password material is stored using the
-existing scrypt user-record implementation; plaintext passwords are not written to disk.
-
-## Session and network mode
-
-Compose enables `CROW_AUTH_MODE=session`. `CROW_SESSION_SECRET` is mandatory and must contain at
-least 32 characters.
-
-Host exposure remains loopback-only by default. Change `CROW_PLATFORM_BIND_ADDRESS` only when LAN
-exposure is intentional. `CROW_COOKIE_SECURE=false` is suitable only for the current internal
-plain-HTTP path; set it to `true` when the browser reaches Crow through HTTPS/TLS.
-
-TLS termination and reverse proxy configuration remain a separate deployment boundary.
-
-## Operational status and bounded logs
+## Operational status and logs
 
 ```bash
 ./deploy/status.sh
 ```
 
-The status command reports the deployed Git SHA, Compose service state, health endpoint result and
-persistent-directory sizes. Docker's `json-file` log driver is bounded by `CROW_PLATFORM_LOG_MAX_SIZE`
-and `CROW_PLATFORM_LOG_MAX_FILES` to prevent unbounded local log growth.
-
-Use standard Compose commands for detailed runtime logs:
+The status command reports the Git SHA, both services, direct backend health and the HTTPS route.
+Docker's local logs are bounded for both services.
 
 ```bash
-docker compose logs --tail=200 crow-platform
-docker compose logs -f crow-platform
+docker compose logs --tail=200 crow-platform crow-proxy
+docker compose logs -f crow-platform crow-proxy
 ```
 
 ## Consistent backup and restore
 
-Create a backup with:
+Pass 109's cold Platform backup/restore remains unchanged:
 
 ```bash
 ./deploy/backup.sh
-```
-
-If the service is running, the script stops it before archiving and starts it again afterward. The
-archive contains independent data/config tarballs, a UTC creation time, the deployed Git SHA and
-SHA-256 checksums. This deliberately favors a consistent filesystem snapshot over an online backup.
-
-Restore only from a trusted Crow Platform backup:
-
-```bash
 ./deploy/restore.sh /srv/crow-backups/platform/crow-platform-YYYYMMDDTHHMMSSZ.tar.gz
 ```
 
-The restore command stops a running service, verifies all checksums before replacing either
-persistent root, then starts the service and requires `/health` to recover. A failed checksum aborts
-before persistent data is removed.
+The archive covers Platform data/config and verifies SHA-256 checksums before restore. It does not yet
+archive the two Docker-managed Caddy volumes.
 
-Backups should be copied to storage outside the Debian host as part of the site backup policy.
+## Guarded upgrade and rollback
 
-## Verified upgrade and code rollback path
-
-Use the guarded upgrade script from a clean deployment checkout:
+Pass 109's guarded upgrade and code rollback commands remain the deployment mechanism:
 
 ```bash
 ./deploy/upgrade.sh
-```
-
-The script:
-
-1. refuses a checkout with local changes;
-2. creates a cold pre-upgrade backup;
-3. records the previous Git SHA and backup path under the config root;
-4. runs `git pull --ff-only`;
-5. rebuilds/recreates the complete manifest-driven Platform image;
-6. requires the health endpoint to pass;
-7. automatically resets the code to the previous SHA and rebuilds if the health gate fails.
-
-Manual code rollback uses the recorded prior SHA, or an explicit commit SHA:
-
-```bash
 ./deploy/rollback.sh
-./deploy/rollback.sh <commit-sha>
 ```
 
-Rollback changes the deployment checkout and container image. It does **not** automatically restore
-persistent data. If a future deployment introduces a non-backward-compatible state migration, the
-operator must pair code rollback with the pre-upgrade backup until a versioned migration framework
-exists.
-
-## Backup boundary
-
-Back up both persistent roots and the generated archives. The config root contains identity records,
-entitlements and audit evidence and should normally have stricter access controls than
-project/runtime data.
+After an operation, use `./deploy/status.sh` to verify both direct backend health and HTTPS routing.
+The upgrade script itself still gates on backend `/health`; moving the HTTPS route into its automatic
+rollback gate is intentionally deferred because the current connector could not safely rewrite the
+existing destructive rollback script in this pass.
