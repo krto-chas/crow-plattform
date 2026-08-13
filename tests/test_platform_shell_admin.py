@@ -25,9 +25,7 @@ def _configure_identity(
 def _write_entitlements(root: Path, customer_id: str, modules: list[dict[str, object]]) -> None:
     path = root / "config" / "customers" / customer_id / "entitlements.json"
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(
-        json.dumps({"customer_id": customer_id, "modules": modules}), encoding="utf-8"
-    )
+    path.write_text(json.dumps({"customer_id": customer_id, "modules": modules}), encoding="utf-8")
 
 
 def test_platform_shell_replaces_domain_module_as_root(tmp_path: Path) -> None:
@@ -42,9 +40,7 @@ def test_platform_shell_replaces_domain_module_as_root(tmp_path: Path) -> None:
     assert "Crow" in legacy.text
 
 
-def test_session_routes_customer_to_app(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_session_routes_customer_to_app(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     _configure_identity(monkeypatch, customer_id="acme")
     client = TestClient(create_app(tmp_path))
 
