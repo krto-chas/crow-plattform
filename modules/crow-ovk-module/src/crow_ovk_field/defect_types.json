@@ -1,6 +1,6 @@
 {
   "meta": {
-    "version": "0.2",
+    "version": "0.3",
     "description": "Installationsdata for OVK field defect classification. Labels are operational categories, not legal conclusions."
   },
   "defect_types": [
@@ -83,6 +83,11 @@
       "id": "general_damage_observation",
       "label": "Allmän skadeobservation",
       "description": "Övrig observerad skada eller brist i lägenheten, t.ex. vattenläckage, som noteras och fotograferas."
+    },
+    {
+      "id": "equipment_nameplate",
+      "label": "Märkskylt dokumenterad",
+      "description": "Fotodokumentation av utrustningens märkskylt. Ingen brist."
     }
   ]
 }

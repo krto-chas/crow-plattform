@@ -1,5 +1,7 @@
+from .checklists import ChecklistItem, load_checklists
 from .defects import DefectType, defect_type_by_id, load_defect_types
 from .models import (
+    FieldCheckpoint,
     FieldFinding,
     FieldInspectionData,
     FieldMeasurement,
@@ -9,15 +11,19 @@ from .models import (
     MeasurePointType,
     OvkPhotoEvidence,
     PhotoSyncStatus,
+    TechnicalSpace,
+    TechnicalSpaceKind,
     UnitKind,
     UnitStatus,
     WindowVentCheck,
     parse_flow_value,
 )
-from .validation import validate_field_data
+from .validation import nameplate_missing_spaces, validate_field_data
 
 __all__ = [
+    "ChecklistItem",
     "DefectType",
+    "FieldCheckpoint",
     "FieldFinding",
     "FieldInspectionData",
     "FieldMeasurement",
@@ -27,11 +33,15 @@ __all__ = [
     "MeasurePointType",
     "OvkPhotoEvidence",
     "PhotoSyncStatus",
+    "TechnicalSpace",
+    "TechnicalSpaceKind",
     "UnitKind",
     "UnitStatus",
     "WindowVentCheck",
     "defect_type_by_id",
+    "load_checklists",
     "load_defect_types",
+    "nameplate_missing_spaces",
     "parse_flow_value",
     "validate_field_data",
 ]

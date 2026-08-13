@@ -24,6 +24,7 @@ OVK_OWNED_TESTS = {
     "test_ovk_field.py",
     "test_ovk_field_history.py",
     "test_ovk_field_media.py",
+    "test_ovk_field_common.py",
     "test_ovk_field_round.py",
     "test_ovk_field_surface.py",
     "test_ovk_field_workbench.py",

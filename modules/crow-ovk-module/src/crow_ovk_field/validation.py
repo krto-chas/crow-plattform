@@ -37,11 +37,15 @@ def validate_field_data(data: FieldInspectionData) -> None:
         if photo.photo_id in photo_ids:
             raise ValueError(f"duplicate photo id {photo.photo_id!r}")
         photo_ids.add(photo.photo_id)
-        unit = units_by_id.get(photo.unit_id)
-        if unit is None:
-            raise ValueError(f"photo {photo.photo_id!r} references unknown unit")
-        if photo.unit_number != unit.number:
-            raise ValueError(f"photo {photo.photo_id!r} unit_number does not match field unit")
+        if photo.space_id is not None:
+            if photo.space_id not in {item.space_id for item in data.technical_spaces}:
+                raise ValueError(f"photo {photo.photo_id!r} references unknown technical space")
+        else:
+            unit = units_by_id.get(photo.unit_id)
+            if unit is None:
+                raise ValueError(f"photo {photo.photo_id!r} references unknown unit")
+            if photo.unit_number != unit.number:
+                raise ValueError(f"photo {photo.photo_id!r} unit_number does not match field unit")
         if photo.room_id is not None and photo.room_id not in room_ids:
             raise ValueError(f"photo {photo.photo_id!r} references unknown room")
         if photo.finding_id is not None and photo.finding_id not in finding_ids:
@@ -51,6 +55,7 @@ def validate_field_data(data: FieldInspectionData) -> None:
 
     _validate_measurements(data)
     _validate_window_vents(data)
+    _validate_technical_spaces(data)
     _validate_status_consistency(data)
 
 
@@ -105,6 +110,36 @@ def _validate_window_vents(data: FieldInspectionData) -> None:
             raise ValueError(f"window vent check {check.check_id!r} references unknown unit")
         if check.room_id is not None and check.room_id not in room_ids:
             raise ValueError(f"window vent check {check.check_id!r} references unknown room")
+
+
+def _validate_technical_spaces(data: FieldInspectionData) -> None:
+    space_ids: set[str] = set()
+    for space in data.technical_spaces:
+        if space.space_id in space_ids:
+            raise ValueError(f"duplicate technical space id {space.space_id!r}")
+        space_ids.add(space.space_id)
+    checkpoint_ids: set[str] = set()
+    for checkpoint in data.checkpoints:
+        if checkpoint.checkpoint_id in checkpoint_ids:
+            raise ValueError(f"duplicate checkpoint id {checkpoint.checkpoint_id!r}")
+        checkpoint_ids.add(checkpoint.checkpoint_id)
+        if checkpoint.space_id not in space_ids:
+            raise ValueError(
+                f"checkpoint {checkpoint.checkpoint_id!r} references unknown technical space"
+            )
+
+
+def nameplate_missing_spaces(data: FieldInspectionData) -> tuple[str, ...]:
+    """Utrymmen som ännu saknar dokumenterad märkskylt (foto)."""
+
+    documented = {
+        photo.space_id
+        for photo in data.photos
+        if photo.space_id is not None and photo.defect_type == "equipment_nameplate"
+    }
+    return tuple(
+        space.space_id for space in data.technical_spaces if space.space_id not in documented
+    )
 
 
 def _validate_rule_refs(rule_refs: tuple[str, ...]) -> None:

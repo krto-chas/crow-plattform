@@ -4,7 +4,7 @@ from dataclasses import dataclass, field
 from decimal import Decimal, InvalidOperation
 from enum import StrEnum
 
-from crow_ovk import EvidenceOrigin, FindingSeverity, OvkFinding
+from crow_ovk import CheckStatus, EvidenceOrigin, FindingSeverity, OvkFinding
 
 
 class UnitKind(StrEnum):
@@ -95,6 +95,53 @@ class FieldRoom:
     def __post_init__(self) -> None:
         if not self.room_id.strip() or not self.unit_id.strip() or not self.name.strip():
             raise ValueError("room_id, unit_id and name must not be empty")
+
+
+class TechnicalSpaceKind(StrEnum):
+    FLAKTRUM = "flaktrum"
+    TAKFLAKT = "takflakt"
+
+
+@dataclass(frozen=True, slots=True)
+class TechnicalSpace:
+    """Allmänt teknikutrymme: fläktrum med aggregat eller frånluftsfläkt tak/vind."""
+
+    space_id: str
+    inspection_id: str
+    kind: TechnicalSpaceKind
+    label: str
+    location: str = ""
+    system_id: str | None = None
+
+    def __post_init__(self) -> None:
+        if not self.space_id.strip():
+            raise ValueError("space_id must not be empty")
+        if not self.label.strip():
+            raise ValueError("technical space label must not be empty")
+
+
+@dataclass(frozen=True, slots=True)
+class FieldCheckpoint:
+    """Kontrollpunkt i teknikutrymme. Utan kommentar är punkten UA (pass).
+
+    En underkänd punkt kräver alltid en skriven notering.
+    """
+
+    checkpoint_id: str
+    inspection_id: str
+    space_id: str
+    label: str
+    status: CheckStatus = CheckStatus.PASS
+    note: str = ""
+    origin: EvidenceOrigin = EvidenceOrigin.OBSERVED
+
+    def __post_init__(self) -> None:
+        if not self.checkpoint_id.strip() or not self.space_id.strip():
+            raise ValueError("checkpoint_id and space_id must not be empty")
+        if not self.label.strip():
+            raise ValueError("checkpoint label must not be empty")
+        if self.status is CheckStatus.FAIL and not self.note.strip():
+            raise ValueError(f"failed checkpoint {self.checkpoint_id!r} requires a written note")
 
 
 @dataclass(frozen=True, slots=True)
@@ -217,6 +264,7 @@ class OvkPhotoEvidence:
     finding_id: str | None = None
     checkpoint_id: str | None = None
     system_id: str | None = None
+    space_id: str | None = None
     description: str = ""
     rule_refs: tuple[str, ...] = ()
     sync_status: PhotoSyncStatus = PhotoSyncStatus.LOCAL
@@ -225,8 +273,6 @@ class OvkPhotoEvidence:
         required = {
             "photo_id": self.photo_id,
             "inspection_id": self.inspection_id,
-            "unit_id": self.unit_id,
-            "unit_number": self.unit_number,
             "defect_type": self.defect_type,
             "captured_at": self.captured_at,
             "captured_by": self.captured_by,
@@ -237,6 +283,12 @@ class OvkPhotoEvidence:
         empty = [name for name, value in required.items() if not value.strip()]
         if empty:
             raise ValueError(f"photo evidence requires non-empty fields: {', '.join(empty)}")
+        unit_bound = bool(self.unit_id.strip()) and bool(self.unit_number.strip())
+        space_bound = bool((self.space_id or "").strip())
+        if not unit_bound and not space_bound:
+            raise ValueError(
+                "photo evidence requires either a unit binding or a technical space binding"
+            )
         valid_digest = len(self.sha256) == 64 and all(
             char in "0123456789abcdefABCDEF" for char in self.sha256
         )
@@ -255,3 +307,5 @@ class FieldInspectionData:
     photos: tuple[OvkPhotoEvidence, ...] = ()
     measurements: tuple[FieldMeasurement, ...] = field(default=())
     window_vents: tuple[WindowVentCheck, ...] = field(default=())
+    technical_spaces: tuple[TechnicalSpace, ...] = field(default=())
+    checkpoints: tuple[FieldCheckpoint, ...] = field(default=())
