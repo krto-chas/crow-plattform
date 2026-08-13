@@ -29,3 +29,4 @@ test ! -e "$CROW_PLATFORM_DATA_DIR/extra.txt"
 
 echo "backup/restore round-trip passed"
 bash "$REPO_ROOT/tests/deployment_bootstrap.sh"
+bash "$REPO_ROOT/tests/deployment_recovery.sh"
