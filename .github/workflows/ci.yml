@@ -45,29 +45,38 @@ jobs:
           set -euo pipefail
           bash -n deploy/*.sh deploy/lib/*.sh tests/deployment_backup_restore.sh
           ./tests/deployment_backup_restore.sh
-      - name: HTTPS stack startup smoke
-        env:
-          CROW_SESSION_SECRET: 0123456789abcdef0123456789abcdef
-          CROW_PLATFORM_UID: 0
-          CROW_PLATFORM_GID: 0
-          CROW_PLATFORM_BIND_ADDRESS: 127.0.0.1
-          CROW_PLATFORM_PORT: 18080
-          CROW_PROXY_BIND_ADDRESS: 127.0.0.1
-          CROW_PROXY_HTTP_PORT: 18081
-          CROW_PROXY_HTTPS_PORT: 18443
-          CROW_PROXY_SITE: crow.localhost
-          CROW_COOKIE_SECURE: "true"
-          CROW_PLATFORM_DATA_DIR: /tmp/crow-platform-ci/data
-          CROW_PLATFORM_CONFIG_DIR: /tmp/crow-platform-ci/config
-          CROW_PLATFORM_BACKUP_DIR: /tmp/crow-platform-ci/backups
+      - name: Prepare HTTPS stack smoke
         run: |
-          set -euo pipefail
-          mkdir -p "$CROW_PLATFORM_DATA_DIR" "$CROW_PLATFORM_CONFIG_DIR" "$CROW_PLATFORM_BACKUP_DIR"
-          docker compose config >/dev/null
-          docker compose up -d --build
-          docker compose ps crow-platform crow-proxy
-          curl --fail --silent http://127.0.0.1:18080/health >/dev/null
+          cat >>"$GITHUB_ENV" <<'EOF'
+          CROW_SESSION_SECRET=0123456789abcdef0123456789abcdef
+          CROW_PLATFORM_UID=0
+          CROW_PLATFORM_GID=0
+          CROW_PLATFORM_BIND_ADDRESS=127.0.0.1
+          CROW_PLATFORM_PORT=18080
+          CROW_PROXY_BIND_ADDRESS=127.0.0.1
+          CROW_PROXY_HTTP_PORT=18081
+          CROW_PROXY_HTTPS_PORT=18443
+          CROW_PROXY_SITE=crow.localhost
+          CROW_COOKIE_SECURE=true
+          CROW_PLATFORM_DATA_DIR=/tmp/crow-platform-ci/data
+          CROW_PLATFORM_CONFIG_DIR=/tmp/crow-platform-ci/config
+          CROW_PLATFORM_BACKUP_DIR=/tmp/crow-platform-ci/backups
+          EOF
+          mkdir -p /tmp/crow-platform-ci/data /tmp/crow-platform-ci/config /tmp/crow-platform-ci/backups
+      - name: Validate HTTPS Compose config
+        run: docker compose config >/dev/null
+      - name: Start HTTPS stack
+        run: docker compose up -d --build
+      - name: Inspect HTTPS stack
+        run: docker compose ps -a crow-platform crow-proxy
+      - name: Verify backend health
+        run: curl --fail --silent http://127.0.0.1:18080/health >/dev/null
+      - name: Verify secure-cookie mode
+        run: |
           docker compose exec -T crow-platform python -c \
             "import os; assert os.environ['CROW_COOKIE_SECURE'].lower() == 'true'"
-          docker compose exec -T crow-proxy caddy version | grep -q 'v2.11.4'
-          docker compose down
+      - name: Verify Caddy version
+        run: docker compose exec -T crow-proxy caddy version | grep -q 'v2.11.4'
+      - name: Stop HTTPS stack
+        if: always()
+        run: docker compose down || true
