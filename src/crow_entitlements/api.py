@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 from collections.abc import Awaitable, Callable
 from datetime import date
 from pathlib import Path
@@ -109,7 +110,13 @@ def _customer_or_error(request: Request) -> CustomerContext | JSONResponse:
     try:
         return current_customer_from_request(request)
     except RuntimeError as error:
+        auth_mode = os.getenv("CROW_AUTH_MODE", "environment").strip().lower()
+        if auth_mode == "session":
+            return JSONResponse(
+                status_code=401,
+                content={"detail": {"code": "AUTHENTICATION_REQUIRED", "message": str(error)}},
+            )
         return JSONResponse(
-            status_code=401,
-            content={"detail": {"code": "AUTHENTICATION_REQUIRED", "message": str(error)}},
+            status_code=503,
+            content={"detail": {"code": "CUSTOMER_CONTEXT_UNAVAILABLE", "message": str(error)}},
         )
