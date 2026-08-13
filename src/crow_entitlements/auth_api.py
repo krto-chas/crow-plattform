@@ -16,7 +16,7 @@ class LoginRequest(BaseModel):
 
 
 def configure_auth(app: FastAPI, *, config_root: Path) -> None:
-    secret = os.getenv("CROW_SESSION_SECRET")
+    secret = _session_secret()
     manager = SessionManager(secret) if secret else None
     app.state.crow_session_manager = manager
     app.state.crow_auth_config_root = config_root
@@ -67,6 +67,22 @@ def _router(config_root: Path, manager: SessionManager | None) -> APIRouter:
         }
 
     return router
+
+
+def _session_secret() -> str | None:
+    inline = os.getenv("CROW_SESSION_SECRET")
+    if inline is not None and inline.strip():
+        return inline.strip()
+
+    configured_file = os.getenv("CROW_SESSION_SECRET_FILE")
+    if configured_file is None or not configured_file.strip():
+        return None
+
+    path = Path(configured_file).expanduser()
+    secret = path.read_text(encoding="utf-8").strip()
+    if not secret:
+        raise ValueError("CROW_SESSION_SECRET_FILE points to an empty file")
+    return secret
 
 
 def _secure_cookie() -> bool:
