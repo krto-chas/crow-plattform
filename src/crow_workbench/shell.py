@@ -4,16 +4,19 @@ import os
 from pathlib import Path
 
 from fastapi import FastAPI, Request
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, RedirectResponse, Response
 
 from crow_entitlements.api import configure_entitlement_shell
 from crow_entitlements.auth_api import configure_auth
 from crow_entitlements.context import current_customer_from_request
 from crow_entitlements.management import management_router
+from crow_entitlements.models import CustomerContext
 from crow_module_sdk.module_registry import ModuleRegistry
 from crow_module_sdk.web import CrowWebModule
 
 from .app import create_app as create_core_app
+
+_ADMIN_ROLE = "platform-admin"
 
 
 def create_app(data_root: Path | None = None) -> FastAPI:
@@ -34,25 +37,36 @@ def create_app(data_root: Path | None = None) -> FastAPI:
     configure_entitlement_shell(app, config_root=root / "config")
     app.include_router(management_router(root / "config"))
 
-    @app.get("/", include_in_schema=False)
-    def platform_landing(request: Request) -> FileResponse:
-        if os.getenv("CROW_AUTH_MODE", "environment").strip().lower() == "session":
-            try:
-                current_customer_from_request(request)
-            except RuntimeError:
-                return FileResponse(static_root / "login.html")
-        return FileResponse(static_root / "shell.html")
+    @app.get("/", include_in_schema=False, response_model=None)
+    def platform_landing(request: Request) -> Response:
+        customer = _customer_for_shell(request)
+        if customer is None:
+            return FileResponse(static_root / "login.html")
+        destination = "/admin" if _ADMIN_ROLE in customer.roles else "/app"
+        return RedirectResponse(destination, status_code=303)
 
-    @app.get("/login", include_in_schema=False)
-    def login_shell() -> FileResponse:
+    @app.get("/login", include_in_schema=False, response_model=None)
+    def login_shell(request: Request) -> Response:
+        customer = _customer_for_shell(request)
+        if customer is not None:
+            destination = "/admin" if _ADMIN_ROLE in customer.roles else "/app"
+            return RedirectResponse(destination, status_code=303)
         return FileResponse(static_root / "login.html")
 
-    @app.get("/app", include_in_schema=False)
-    def customer_shell() -> FileResponse:
+    @app.get("/app", include_in_schema=False, response_model=None)
+    def customer_shell(request: Request) -> Response:
+        customer = _customer_for_shell(request)
+        if customer is None:
+            return RedirectResponse("/login", status_code=303)
         return FileResponse(static_root / "shell.html")
 
-    @app.get("/admin", include_in_schema=False)
-    def admin_shell() -> FileResponse:
+    @app.get("/admin", include_in_schema=False, response_model=None)
+    def admin_shell(request: Request) -> Response:
+        customer = _customer_for_shell(request)
+        if customer is None:
+            return RedirectResponse("/login", status_code=303)
+        if _ADMIN_ROLE not in customer.roles:
+            return RedirectResponse("/app", status_code=303)
         return FileResponse(static_root / "shell.html")
 
     @app.get("/workbench", include_in_schema=False)
@@ -60,6 +74,15 @@ def create_app(data_root: Path | None = None) -> FastAPI:
         return FileResponse(static_root / "index.html")
 
     return app
+
+
+def _customer_for_shell(request: Request) -> CustomerContext | None:
+    try:
+        return current_customer_from_request(request)
+    except RuntimeError:
+        if os.getenv("CROW_AUTH_MODE", "environment").strip().lower() == "session":
+            return None
+        raise
 
 
 def _remove_core_index(app: FastAPI) -> None:
