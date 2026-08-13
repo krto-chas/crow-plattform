@@ -19,6 +19,7 @@ def configure_auth(app: FastAPI, *, config_root: Path) -> None:
     secret = os.getenv("CROW_SESSION_SECRET")
     manager = SessionManager(secret) if secret else None
     app.state.crow_session_manager = manager
+    app.state.crow_auth_config_root = config_root
     app.include_router(_router(config_root, manager))
 
 
