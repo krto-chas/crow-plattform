@@ -6,6 +6,7 @@ LOCK_FILE="$REPO_ROOT/requirements/runtime-direct.lock"
 IMAGE_TAG="crow-platform-pass113-ci:${GITHUB_SHA:-local}"
 container_id=""
 inventory="$(mktemp)"
+runtime_root="$(mktemp -d)"
 
 cleanup() {
   if [[ -n "$container_id" ]]; then
@@ -13,6 +14,7 @@ cleanup() {
   fi
   docker image rm -f "$IMAGE_TAG" >/dev/null 2>&1 || true
   rm -f "$inventory"
+  rm -rf "$runtime_root"
 }
 trap cleanup EXIT
 
@@ -28,6 +30,8 @@ docker build \
 
 container_id="$(docker create "$IMAGE_TAG")"
 docker cp "$container_id:/app/crow-runtime-dependencies.txt" "$inventory"
+docker rm -f "$container_id" >/dev/null
+container_id=""
 
 while IFS= read -r raw_line; do
   line="${raw_line%%#*}"
@@ -38,5 +42,18 @@ while IFS= read -r raw_line; do
     exit 1
   }
 done <"$LOCK_FILE"
+
+mkdir -p "$runtime_root/data" "$runtime_root/config"
+chmod 0777 "$runtime_root/data" "$runtime_root/config"
+docker run --rm \
+  --user 1000:1000 \
+  --env CROW_PLATFORM_DATA_ROOT=/srv/crow-data/platform \
+  --env CROW_PLATFORM_CONFIG_ROOT=/srv/crow-config/platform \
+  --env CROW_AUTH_MODE=environment \
+  --env CROW_MODE=local \
+  --volume "$runtime_root/data:/srv/crow-data/platform" \
+  --volume "$runtime_root/config:/srv/crow-config/platform" \
+  "$IMAGE_TAG" \
+  python -c "import crow_workbench.shell; print('non-root platform import passed')"
 
 echo "locked runtime image dependency verification passed"
