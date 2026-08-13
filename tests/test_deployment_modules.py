@@ -7,7 +7,6 @@ import pytest
 from crow_deployment.modules import build_module_install_plan, find_repository_root
 from crow_workbench.__main__ import _port_from_environment
 
-
 ROOT = Path(__file__).resolve().parents[1]
 
 
