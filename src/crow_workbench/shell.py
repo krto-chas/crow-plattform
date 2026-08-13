@@ -11,6 +11,7 @@ from crow_entitlements.auth_api import configure_auth
 from crow_entitlements.context import current_customer_from_request
 from crow_entitlements.management import management_router
 from crow_entitlements.models import CustomerContext
+from crow_entitlements.user_admin import user_admin_router
 from crow_module_sdk.module_registry import ModuleRegistry
 from crow_module_sdk.web import CrowWebModule
 
@@ -36,6 +37,7 @@ def create_app(data_root: Path | None = None) -> FastAPI:
     configure_auth(app, config_root=root / "config")
     configure_entitlement_shell(app, config_root=root / "config")
     app.include_router(management_router(root / "config"))
+    app.include_router(user_admin_router(root / "config"))
 
     @app.get("/", include_in_schema=False, response_model=None)
     def platform_landing(request: Request) -> Response:
@@ -68,6 +70,15 @@ def create_app(data_root: Path | None = None) -> FastAPI:
         if _ADMIN_ROLE not in customer.roles:
             return RedirectResponse("/app", status_code=303)
         return FileResponse(static_root / "shell.html")
+
+    @app.get("/admin/users", include_in_schema=False, response_model=None)
+    def admin_users_shell(request: Request) -> Response:
+        customer = _customer_for_shell(request)
+        if customer is None:
+            return RedirectResponse("/login", status_code=303)
+        if _ADMIN_ROLE not in customer.roles:
+            return RedirectResponse("/app", status_code=303)
+        return FileResponse(static_root / "admin_users.html")
 
     @app.get("/workbench", include_in_schema=False)
     def legacy_workbench() -> FileResponse:
