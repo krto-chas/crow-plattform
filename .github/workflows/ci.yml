@@ -71,6 +71,15 @@ jobs:
         run: docker compose ps -a crow-platform crow-proxy
       - name: Verify backend health
         run: curl --fail --silent http://127.0.0.1:18080/health >/dev/null
+      - name: Verify readiness and request correlation
+        run: |
+          set -euo pipefail
+          curl --fail --silent \
+            --dump-header /tmp/crow-ready-headers \
+            --header 'X-Request-ID: ci-pass111' \
+            http://127.0.0.1:18080/ready > /tmp/crow-ready.json
+          grep -qi '^x-request-id: ci-pass111' /tmp/crow-ready-headers
+          python -c "import json; payload=json.load(open('/tmp/crow-ready.json')); assert payload['status'] == 'ready'"
       - name: Verify secure-cookie mode
         run: |
           docker compose exec -T crow-platform python -c \
