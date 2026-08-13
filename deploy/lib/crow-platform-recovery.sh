@@ -79,6 +79,8 @@ restore_recovery_archive() (
   local archive="$1"
   local workspace
   local secret_parent
+  local archived_secret_sha
+  local current_secret_sha=""
 
   load_platform_env
   validate_recovery_members "$archive"
@@ -93,12 +95,18 @@ restore_recovery_archive() (
   restore_backup_archive "$workspace/platform.tar.gz"
 
   if [[ -f "$workspace/session-secret" ]]; then
-    secret_parent="$(dirname "$CROW_SESSION_SECRET_PATH")"
-    assert_safe_directory "$secret_parent"
-    mkdir -p "$secret_parent"
-    install -m 0440 "$workspace/session-secret" "$CROW_SESSION_SECRET_PATH"
-    if [[ "${EUID:-$(id -u)}" -eq 0 ]]; then
-      chown 0:"${CROW_PLATFORM_GID:-1000}" "$CROW_SESSION_SECRET_PATH"
+    archived_secret_sha="$(sha256sum "$workspace/session-secret" | awk '{print $1}')"
+    if [[ -f "$CROW_SESSION_SECRET_PATH" ]]; then
+      current_secret_sha="$(sha256sum "$CROW_SESSION_SECRET_PATH" | awk '{print $1}')"
+    fi
+    if [[ "$archived_secret_sha" != "$current_secret_sha" ]]; then
+      secret_parent="$(dirname "$CROW_SESSION_SECRET_PATH")"
+      assert_safe_directory "$secret_parent"
+      mkdir -p "$secret_parent"
+      install -m 0440 "$workspace/session-secret" "$CROW_SESSION_SECRET_PATH"
+      if [[ "${EUID:-$(id -u)}" -eq 0 ]]; then
+        chown 0:"${CROW_PLATFORM_GID:-1000}" "$CROW_SESSION_SECRET_PATH"
+      fi
     fi
   elif [[ "$CROW_AUTH_MODE" == "session" ]]; then
     echo "Recovery archive is missing the session secret" >&2
