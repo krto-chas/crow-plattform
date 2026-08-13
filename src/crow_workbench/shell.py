@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
+from tempfile import TemporaryDirectory
 
 from fastapi import FastAPI, Request
 from fastapi.responses import FileResponse, RedirectResponse, Response
@@ -17,15 +18,13 @@ from crow_entitlements.user_admin import user_admin_router
 from crow_module_sdk.module_registry import ModuleRegistry
 from crow_module_sdk.web import CrowWebModule
 
-from .app import create_app as create_core_app
-
 _ADMIN_ROLE = "platform-admin"
 
 
 def create_app(data_root: Path | None = None, config_root: Path | None = None) -> FastAPI:
     root = data_root or platform_data_root()
     resolved_config_root = config_root or platform_config_root(root)
-    app = create_core_app(root)
+    app = _create_core_app(root)
     static_root = Path(__file__).parent / "static"
 
     _remove_core_index(app)
@@ -109,6 +108,17 @@ def create_app(data_root: Path | None = None, config_root: Path | None = None) -
         return FileResponse(static_root / "index.html")
 
     return app
+
+
+def _create_core_app(root: Path) -> FastAPI:
+    original_cwd = Path.cwd()
+    with TemporaryDirectory(prefix="crow-core-import-") as temporary_cwd:
+        try:
+            os.chdir(temporary_cwd)
+            from .app import create_app as create_core_app
+        finally:
+            os.chdir(original_cwd)
+    return create_core_app(root)
 
 
 def _customer_for_shell(request: Request) -> CustomerContext | None:
