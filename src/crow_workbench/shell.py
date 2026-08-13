@@ -73,7 +73,18 @@ def create_app(data_root: Path | None = None, config_root: Path | None = None) -
             return RedirectResponse("/login", status_code=303)
         if _ADMIN_ROLE not in customer.roles:
             return RedirectResponse("/app", status_code=303)
-        return FileResponse(static_root / "shell.html")
+        if request.query_params.get("view") == "access":
+            return FileResponse(static_root / "shell.html")
+        return FileResponse(static_root / "admin_home.html")
+
+    @app.get("/admin/access", include_in_schema=False, response_model=None)
+    def admin_access_shell(request: Request) -> Response:
+        customer = _customer_for_shell(request)
+        if customer is None:
+            return RedirectResponse("/login", status_code=303)
+        if _ADMIN_ROLE not in customer.roles:
+            return RedirectResponse("/app", status_code=303)
+        return RedirectResponse("/admin?view=access", status_code=303)
 
     @app.get("/admin/users", include_in_schema=False, response_model=None)
     def admin_users_shell(request: Request) -> Response:
