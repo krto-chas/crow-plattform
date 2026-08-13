@@ -1,4 +1,4 @@
-FROM python:3.11-slim
+FROM python:3.11.15-slim-trixie@sha256:db3ff2e1800a8581e2c48a27c3995339d47bdf046da21c7627accd3d51053a93
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1
@@ -10,7 +10,8 @@ COPY src ./src
 COPY modules ./modules
 
 RUN python -m pip install --no-cache-dir ".[export]" \
-    && crow-install-modules --root /app
+    && crow-install-modules --root /app \
+    && python -m pip freeze --all | LC_ALL=C sort > /app/crow-runtime-dependencies.txt
 
 ENV CROW_PLATFORM_BIND_ADDRESS=0.0.0.0 \
     CROW_PLATFORM_PORT=8080 \
