@@ -7,6 +7,7 @@ from fastapi import FastAPI, Request
 from fastapi.responses import FileResponse, RedirectResponse, Response
 
 from crow_entitlements.api import configure_entitlement_shell
+from crow_entitlements.audit import audit_router
 from crow_entitlements.auth_api import configure_auth
 from crow_entitlements.context import current_customer_from_request
 from crow_entitlements.management import management_router
@@ -38,6 +39,7 @@ def create_app(data_root: Path | None = None) -> FastAPI:
     configure_entitlement_shell(app, config_root=root / "config")
     app.include_router(management_router(root / "config"))
     app.include_router(user_admin_router(root / "config"))
+    app.include_router(audit_router(root / "config"))
 
     @app.get("/", include_in_schema=False, response_model=None)
     def platform_landing(request: Request) -> Response:
@@ -79,6 +81,15 @@ def create_app(data_root: Path | None = None) -> FastAPI:
         if _ADMIN_ROLE not in customer.roles:
             return RedirectResponse("/app", status_code=303)
         return FileResponse(static_root / "admin_users.html")
+
+    @app.get("/admin/audit", include_in_schema=False, response_model=None)
+    def admin_audit_shell(request: Request) -> Response:
+        customer = _customer_for_shell(request)
+        if customer is None:
+            return RedirectResponse("/login", status_code=303)
+        if _ADMIN_ROLE not in customer.roles:
+            return RedirectResponse("/app", status_code=303)
+        return FileResponse(static_root / "admin_audit.html")
 
     @app.get("/workbench", include_in_schema=False)
     def legacy_workbench() -> FileResponse:
