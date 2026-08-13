@@ -1,8 +1,14 @@
 # Crow Platform Debian deployment
 
-This is the reproducible Debian deployment path for the complete Crow Platform stack.
-It follows the same container/Compose pattern as Crow Health while preserving Platform-specific
-identity, configuration and module boundaries.
+This is the reproducible Debian deployment path for the complete Crow Platform stack. It follows the
+same container/Compose pattern as Crow Health while preserving Platform-specific identity,
+configuration and module boundaries.
+
+## Supported host
+
+Pass 111 targets Debian 13 (trixie) or newer with systemd and the standard Debian APT repositories.
+The bootstrap installs `docker.io`, `docker-cli`, Docker Compose v2 (`docker-compose`), `git`,
+`curl`, `openssl` and CA certificates from Debian packages.
 
 ## Runtime contract
 
@@ -20,7 +26,8 @@ Persistent Platform state remains:
 
 - data: `/srv/crow-data/platform`;
 - config: `/srv/crow-config/platform`;
-- backups: `/srv/crow-backups/platform`.
+- backups: `/srv/crow-backups/platform`;
+- session secret: `/etc/crow-platform/session-secret` by default.
 
 Caddy certificate/configuration state is persisted in the Compose volumes `crow_proxy_data` and
 `crow_proxy_config`. These volumes survive container recreation but are outside the Pass 109
@@ -29,20 +36,30 @@ separately until proxy-volume backup is added.
 
 ## First installation
 
-```bash
-cp deploy/crow-platform.env.example .env
-openssl rand -hex 32
-```
-
-Put the generated value in `.env` as `CROW_SESSION_SECRET`, then create the Platform persistent
-paths with ownership matching `CROW_PLATFORM_UID`/`CROW_PLATFORM_GID`.
+From a clean Debian host with this repository checked out:
 
 ```bash
-sudo install -d -m 0750 -o 1000 -g 1000 /srv/crow-data/platform
-sudo install -d -m 0750 -o 1000 -g 1000 /srv/crow-config/platform
-sudo install -d -m 0750 -o 1000 -g 1000 /srv/crow-backups/platform
-docker compose up -d --build
+sudo bash ./deploy/bootstrap.sh
 ```
+
+The bootstrap is idempotent. It:
+
+- validates the Debian host version;
+- installs the required Debian packages and enables Docker;
+- creates the Platform data/config/backup directories with the configured numeric UID/GID;
+- creates `.env` if it does not already exist;
+- creates a 256-bit random session secret outside the repository;
+- validates Compose;
+- builds and starts the complete Platform + Caddy stack;
+- waits for direct backend health and the HTTPS proxy route.
+
+The secret value is not stored in a fresh `.env`. Bootstrap sets `CROW_SESSION_SECRET_PATH`, Compose
+mounts that host file read-only at `/run/secrets/crow_session_secret`, and the application reads it
+through `CROW_SESSION_SECRET_FILE`.
+
+For an existing Pass 110 deployment, bootstrap can migrate a non-empty `CROW_SESSION_SECRET=` value
+from `.env` into the secret file. It refuses migration if an existing secret file contains a
+different value.
 
 Direct process health remains available on loopback:
 
@@ -73,9 +90,13 @@ Distribute only the root certificate, never the CA private key.
 
 ## Session boundary
 
-Compose defaults to `CROW_AUTH_MODE=session` and `CROW_COOKIE_SECURE=true`; the session secret is
-mandatory. The direct HTTP backend is therefore diagnostic only, while browser login/session traffic
-uses HTTPS through Caddy.
+Compose defaults to `CROW_AUTH_MODE=session` and `CROW_COOKIE_SECURE=true`. The Debian bootstrap
+configures the file-backed secret path and leaves the direct HTTP backend as a diagnostic route;
+browser login/session traffic uses HTTPS through Caddy.
+
+The application and Compose definition still accept `CROW_SESSION_SECRET` as a compatibility fallback
+for development and the pre-Pass-111 CI smoke. A bootstrap-generated deployment does not put the
+secret value in `.env`.
 
 Caddy's standard reverse-proxy behavior supplies `X-Forwarded-For`, `X-Forwarded-Proto` and
 `X-Forwarded-Host` to the backend.
@@ -110,7 +131,7 @@ Pass 109's cold Platform backup/restore remains unchanged:
 ```
 
 The archive covers Platform data/config and verifies SHA-256 checksums before restore. It does not yet
-archive the two Docker-managed Caddy volumes.
+archive the two Docker-managed Caddy volumes or the external session-secret file.
 
 ## Guarded upgrade and rollback
 
@@ -122,6 +143,5 @@ Pass 109's guarded upgrade and code rollback commands remain the deployment mech
 ```
 
 After an operation, use `./deploy/status.sh` to verify both direct backend health and HTTPS routing.
-The upgrade script itself still gates on backend `/health`; moving the HTTPS route into its automatic
-rollback gate is intentionally deferred because the current connector could not safely rewrite the
-existing destructive rollback script in this pass.
+The upgrade script itself still gates on backend `/health`; HTTPS upgrade gating and full
+proxy/secret disaster-recovery coverage are deferred to the next deployment-recovery pass.
