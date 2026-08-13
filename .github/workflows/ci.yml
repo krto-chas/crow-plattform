@@ -48,6 +48,8 @@ jobs:
       - name: HTTPS stack startup smoke
         env:
           CROW_SESSION_SECRET: 0123456789abcdef0123456789abcdef
+          CROW_PLATFORM_UID: 0
+          CROW_PLATFORM_GID: 0
           CROW_PLATFORM_BIND_ADDRESS: 127.0.0.1
           CROW_PLATFORM_PORT: 18080
           CROW_PROXY_BIND_ADDRESS: 127.0.0.1
