@@ -75,6 +75,8 @@ jobs:
         run: |
           docker compose exec -T crow-platform python -c \
             "import os; assert os.environ['CROW_COOKIE_SECURE'].lower() == 'true'"
+      - name: Inspect Caddy startup logs
+        run: docker compose logs --no-color crow-proxy
       - name: Verify Caddy version
         run: docker compose exec -T crow-proxy caddy version | grep -q 'v2.11.4'
       - name: Stop HTTPS stack
