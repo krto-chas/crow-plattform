@@ -28,3 +28,4 @@ test "$(<"$CROW_PLATFORM_CONFIG_DIR/audit/events.jsonl")" = "original-config"
 test ! -e "$CROW_PLATFORM_DATA_DIR/extra.txt"
 
 echo "backup/restore round-trip passed"
+bash "$REPO_ROOT/tests/deployment_bootstrap.sh"
