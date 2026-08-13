@@ -180,10 +180,13 @@ def test_role_change_invalidates_existing_session(
     user = _write_user(tmp_path, "alice", "acme")
     client = TestClient(create_app(tmp_path))
 
-    assert client.post(
-        "/api/auth/login",
-        json={"username": "alice", "password": "correct-horse-battery-staple"},
-    ).status_code == 200
+    assert (
+        client.post(
+            "/api/auth/login",
+            json={"username": "alice", "password": "correct-horse-battery-staple"},
+        ).status_code
+        == 200
+    )
 
     changed = UserRecord(
         username=user.username,
