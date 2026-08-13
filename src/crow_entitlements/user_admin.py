@@ -74,7 +74,9 @@ def user_admin_router(config_root: Path) -> APIRouter:
         roles = _normalize_roles(payload.roles)
         _validate_customer_target(config_root, customer_id, roles)
         if administrator.user_id == normalized and not payload.active:
-            raise HTTPException(status_code=400, detail="Cannot deactivate the current administrator")
+            raise HTTPException(
+                status_code=400, detail="Cannot deactivate the current administrator"
+            )
 
         password_salt = existing.password_salt
         password_hash = existing.password_hash
