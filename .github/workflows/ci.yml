@@ -77,6 +77,14 @@ jobs:
             "import os; assert os.environ['CROW_COOKIE_SECURE'].lower() == 'true'"
       - name: Inspect Caddy startup logs
         run: docker compose logs --no-color crow-proxy
+      - name: Verify HTTPS route with Caddy CA
+        run: |
+          set -euo pipefail
+          docker compose exec -T crow-proxy cat /data/caddy/pki/authorities/local/root.crt > /tmp/crow-caddy-root.crt
+          curl --noproxy '*' --fail --silent \
+            --cacert /tmp/crow-caddy-root.crt \
+            --resolve crow.localhost:18443:127.0.0.1 \
+            https://crow.localhost:18443/health >/dev/null
       - name: Verify Caddy version
         run: docker compose exec -T crow-proxy caddy version | grep -q 'v2.11.4'
       - name: Stop HTTPS stack
