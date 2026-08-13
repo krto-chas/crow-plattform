@@ -14,7 +14,7 @@ services:
       CROW_PLATFORM_CONFIG_ROOT: /srv/crow-config/platform
       CROW_AUTH_MODE: "${CROW_AUTH_MODE:-session}"
       CROW_SESSION_SECRET: "${CROW_SESSION_SECRET:?Set CROW_SESSION_SECRET in .env}"
-      CROW_COOKIE_SECURE: "${CROW_COOKIE_SECURE:-false}"
+      CROW_COOKIE_SECURE: "${CROW_COOKIE_SECURE:-true}"
     volumes:
       - "${CROW_PLATFORM_DATA_DIR:-/srv/crow-data/platform}:/srv/crow-data/platform"
       - "${CROW_PLATFORM_CONFIG_DIR:-/srv/crow-config/platform}:/srv/crow-config/platform"
@@ -33,3 +33,40 @@ services:
       timeout: 5s
       retries: 3
       start_period: 15s
+
+  crow-proxy:
+    image: caddy:2.11.4-alpine
+    restart: unless-stopped
+    init: true
+    user: "${CROW_PLATFORM_UID:-1000}:${CROW_PLATFORM_GID:-1000}"
+    depends_on:
+      crow-platform:
+        condition: service_healthy
+    ports:
+      - "${CROW_PROXY_BIND_ADDRESS:-127.0.0.1}:${CROW_PROXY_HTTP_PORT:-80}:8080"
+      - "${CROW_PROXY_BIND_ADDRESS:-127.0.0.1}:${CROW_PROXY_HTTPS_PORT:-443}:8443"
+      - "${CROW_PROXY_BIND_ADDRESS:-127.0.0.1}:${CROW_PROXY_HTTPS_PORT:-443}:8443/udp"
+    environment:
+      CROW_PROXY_SITE: "${CROW_PROXY_SITE:-crow.localhost}"
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - "${CROW_PROXY_DATA_DIR:-/srv/crow-config/platform/proxy/caddy-data}:/data"
+      - "${CROW_PROXY_CONFIG_DIR:-/srv/crow-config/platform/proxy/caddy-config}:/config"
+    logging:
+      driver: json-file
+      options:
+        max-size: "${CROW_PROXY_LOG_MAX_SIZE:-10m}"
+        max-file: "${CROW_PROXY_LOG_MAX_FILES:-5}"
+    healthcheck:
+      test:
+        - CMD
+        - caddy
+        - validate
+        - --config
+        - /etc/caddy/Caddyfile
+        - --adapter
+        - caddyfile
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
