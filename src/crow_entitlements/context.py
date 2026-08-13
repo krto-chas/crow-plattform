@@ -2,11 +2,12 @@ from __future__ import annotations
 
 import os
 import re
+from pathlib import Path
 from typing import cast
 
 from fastapi import Request
 
-from .auth import SessionManager
+from .auth import SessionManager, load_user
 from .models import CustomerContext
 
 _CUSTOMER_ID = re.compile(r"^[a-z0-9][a-z0-9_-]{0,119}$")
@@ -22,7 +23,7 @@ def current_customer_from_request(request: Request) -> CustomerContext:
         token = request.cookies.get(manager.cookie_name)
         if token:
             customer = manager.resolve(token)
-            if customer is not None:
+            if customer is not None and _session_user_is_current(request, customer):
                 return customer
     if auth_mode == "session":
         raise RuntimeError("Authentication required")
@@ -43,3 +44,16 @@ def current_customer_from_env() -> CustomerContext:
     raw_roles = os.getenv("CROW_ROLES", "").split(",")
     roles = tuple(sorted({item.strip() for item in raw_roles if item.strip()}))
     return CustomerContext(customer_id=customer_id, user_id=user_id, roles=roles)
+
+
+def _session_user_is_current(request: Request, customer: CustomerContext) -> bool:
+    config_root = cast(
+        Path | None,
+        getattr(request.app.state, "crow_auth_config_root", None),
+    )
+    if config_root is None or customer.user_id is None:
+        return False
+    user = load_user(config_root, customer.user_id)
+    if user is None or not user.active:
+        return False
+    return user.customer_id == customer.customer_id and user.roles == customer.roles
