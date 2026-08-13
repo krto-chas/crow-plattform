@@ -18,7 +18,12 @@ def _port_from_environment() -> int:
 
 def main() -> None:
     host = os.getenv("CROW_PLATFORM_BIND_ADDRESS", "127.0.0.1")
-    uvicorn.run("crow_workbench.shell:app", host=host, port=_port_from_environment(), reload=False)
+    uvicorn.run(
+        "crow_deployment.runtime_app:app",
+        host=host,
+        port=_port_from_environment(),
+        reload=False,
+    )
 
 
 if __name__ == "__main__":

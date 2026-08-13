@@ -15,6 +15,7 @@ services:
       CROW_AUTH_MODE: "${CROW_AUTH_MODE:-session}"
       CROW_SESSION_SECRET: "${CROW_SESSION_SECRET:?Set CROW_SESSION_SECRET in .env}"
       CROW_COOKIE_SECURE: "${CROW_COOKIE_SECURE:-true}"
+      CROW_LOG_LEVEL: "${CROW_LOG_LEVEL:-INFO}"
     volumes:
       - "${CROW_PLATFORM_DATA_DIR:-/srv/crow-data/platform}:/srv/crow-data/platform"
       - "${CROW_PLATFORM_CONFIG_DIR:-/srv/crow-config/platform}:/srv/crow-config/platform"
@@ -28,7 +29,7 @@ services:
         - CMD
         - python
         - -c
-        - "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/health', timeout=3).read()"
+        - "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/ready', timeout=3).read()"
       interval: 30s
       timeout: 5s
       retries: 3
