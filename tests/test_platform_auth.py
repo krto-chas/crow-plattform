@@ -26,6 +26,7 @@ def _write_user(root: Path, username: str, customer_id: str, roles: tuple[str, .
 def _session_mode(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("CROW_AUTH_MODE", "session")
     monkeypatch.setenv("CROW_SESSION_SECRET", "0123456789abcdef0123456789abcdef")
+    monkeypatch.delenv("CROW_SESSION_SECRET_FILE", raising=False)
     monkeypatch.setenv("CROW_COOKIE_SECURE", "false")
     monkeypatch.delenv("CROW_CUSTOMER_ID", raising=False)
     monkeypatch.delenv("CROW_USER_ID", raising=False)
@@ -62,6 +63,30 @@ def test_customer_login_routes_to_customer_app(
     assert session.status_code == 200
     assert session.json()["customer_id"] == "acme"
     assert session.json()["user_id"] == "anna"
+
+
+def test_session_secret_file_supports_login(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("CROW_AUTH_MODE", "session")
+    monkeypatch.delenv("CROW_SESSION_SECRET", raising=False)
+    secret_file = tmp_path / "session-secret"
+    secret_file.write_text("0123456789abcdef0123456789abcdef\n", encoding="utf-8")
+    monkeypatch.setenv("CROW_SESSION_SECRET_FILE", str(secret_file))
+    monkeypatch.setenv("CROW_COOKIE_SECURE", "false")
+    monkeypatch.delenv("CROW_CUSTOMER_ID", raising=False)
+    monkeypatch.delenv("CROW_USER_ID", raising=False)
+    monkeypatch.delenv("CROW_ROLES", raising=False)
+    _write_user(tmp_path, "anna", "acme", ())
+    client = TestClient(create_app(tmp_path))
+
+    login = client.post(
+        "/api/auth/login",
+        json={"username": "anna", "password": "correct-horse-battery-staple"},
+    )
+
+    assert login.status_code == 200
+    assert login.json()["customer_id"] == "acme"
 
 
 def test_admin_login_routes_to_admin_and_unlocks_admin_api(
