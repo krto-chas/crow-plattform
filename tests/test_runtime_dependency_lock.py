@@ -67,6 +67,5 @@ def test_runtime_lock_contains_no_floating_versions() -> None:
 
     assert locked
     assert all(
-        version and not any(token in version for token in "*<>=!~")
-        for version in locked.values()
+        version and not any(token in version for token in "*<>=!~") for version in locked.values()
     )
