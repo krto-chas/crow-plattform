@@ -67,7 +67,9 @@ class SessionManager:
             return CustomerContext(
                 customer_id=str(payload["customer_id"]),
                 user_id=str(payload["sub"]),
-                roles=tuple(sorted(str(role) for role in cast(list[Any], payload.get("roles", [])))),
+                roles=tuple(
+                    sorted(str(role) for role in cast(list[Any], payload.get("roles", [])))
+                ),
             )
         except (KeyError, TypeError, ValueError, json.JSONDecodeError):
             return None
@@ -132,7 +134,9 @@ def write_user(config_root: Path, user: UserRecord, *, overwrite: bool = False) 
 
 def _safe_username(username: str) -> str:
     normalized = username.strip().lower()
-    if not normalized or any(char not in "abcdefghijklmnopqrstuvwxyz0123456789._-" for char in normalized):
+    if not normalized or any(
+        char not in "abcdefghijklmnopqrstuvwxyz0123456789._-" for char in normalized
+    ):
         raise ValueError("Username contains invalid characters")
     return normalized
 
