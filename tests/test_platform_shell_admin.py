@@ -48,6 +48,7 @@ def test_session_routes_customer_to_app(tmp_path: Path, monkeypatch: pytest.Monk
 
     assert response.status_code == 200
     assert response.json()["destination"] == "/app"
+    assert response.json()["auth_mode"] == "environment"
 
 
 def test_session_routes_platform_admin_to_admin(
@@ -62,6 +63,31 @@ def test_session_routes_platform_admin_to_admin(
     assert response.json()["destination"] == "/admin"
 
 
+def test_customer_cannot_open_admin_surface(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _configure_identity(monkeypatch, customer_id="acme")
+    client = TestClient(create_app(tmp_path))
+
+    response = client.get("/admin", follow_redirects=False)
+
+    assert response.status_code == 303
+    assert response.headers["location"] == "/app"
+
+
+def test_session_mode_requires_login_for_customer_surface(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("CROW_AUTH_MODE", "session")
+    monkeypatch.delenv("CROW_CUSTOMER_ID", raising=False)
+    client = TestClient(create_app(tmp_path))
+
+    response = client.get("/app", follow_redirects=False)
+
+    assert response.status_code == 303
+    assert response.headers["location"] == "/login"
+
+
 def test_admin_endpoints_are_role_protected(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -71,6 +97,34 @@ def test_admin_endpoints_are_role_protected(
     response = client.get("/api/admin/customers")
 
     assert response.status_code == 403
+
+
+def test_admin_can_create_customer(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    _configure_identity(monkeypatch, customer_id="crow-admin", roles="platform-admin")
+    client = TestClient(create_app(tmp_path))
+
+    response = client.post("/api/admin/customers", json={"customer_id": "Acme_North"})
+
+    assert response.status_code == 201
+    assert response.json()["customer_id"] == "acme_north"
+    stored = json.loads(
+        (
+            tmp_path / "config" / "customers" / "acme_north" / "entitlements.json"
+        ).read_text(encoding="utf-8")
+    )
+    assert stored == {"customer_id": "acme_north", "modules": []}
+
+
+def test_admin_cannot_create_duplicate_customer(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _configure_identity(monkeypatch, customer_id="crow-admin", roles="platform-admin")
+    _write_entitlements(tmp_path, "acme", [])
+    client = TestClient(create_app(tmp_path))
+
+    response = client.post("/api/admin/customers", json={"customer_id": "acme"})
+
+    assert response.status_code == 409
 
 
 def test_admin_can_update_customer_entitlements(
