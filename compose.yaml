@@ -42,7 +42,6 @@ services:
       crow-platform:
         condition: service_healthy
     command:
-      - caddy
       - reverse-proxy
       - --from
       - "${CROW_PROXY_SITE:-crow.localhost}"
