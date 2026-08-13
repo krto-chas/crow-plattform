@@ -1,6 +1,6 @@
 {
   "meta": {
-    "version": "0.2",
+    "version": "0.3",
     "description": "Product metadata layered on top of the canonical crow.modules runtime registry"
   },
   "modules": [
@@ -22,7 +22,7 @@
       "api_prefixes": ["/api/provtryckning", "/api/pressure-test"],
       "data_dependencies": ["vent_model"],
       "requires_modules": ["vent"],
-      "runtime_module_id": null
+      "runtime_module_id": "crow.provtryckning"
     },
     {
       "id": "ovk",
@@ -32,7 +32,7 @@
       "api_prefixes": ["/api/ovk"],
       "data_dependencies": ["vent_model"],
       "requires_modules": [],
-      "runtime_module_id": null
+      "runtime_module_id": "crow.ovk"
     },
     {
       "id": "injustering",
