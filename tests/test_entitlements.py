@@ -105,8 +105,10 @@ def test_module_navigation_only_lists_effective_entitlements(
     response = client.get("/ovk")
 
     assert response.status_code == 200
+    assert "OVK-arbetsyta" in response.text
     assert '<a href="/app">Projekt</a>' in response.text
     assert '<a class="active" href="/ovk">OVK</a>' in response.text
+    assert '<a href="/logout">Logga ut</a>' in response.text
     assert 'href="/vent"' not in response.text
     assert 'href="/provtryckning"' not in response.text
 
