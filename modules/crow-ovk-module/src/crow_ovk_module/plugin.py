@@ -16,6 +16,7 @@ from crow_module_sdk.models import (
 from crow_ovk_field import load_defect_types
 
 from .ovk_bevakning_surface import ovk_bevakning_router
+from .ovk_dashboard_surface import ovk_dashboard_router
 from .ovk_field_history import ovk_field_history_router
 from .ovk_field_media import ovk_field_media_router
 from .ovk_field_surface import ovk_field_router
@@ -73,6 +74,7 @@ class CrowOvkModulePlugin:
 
     def routers(self, data_root: Path) -> tuple[APIRouter, ...]:
         return (
+            ovk_dashboard_router(data_root),
             ovk_router(),
             ovk_workflow_router(data_root),
             ovk_intyg_router(data_root),
