@@ -7,6 +7,7 @@ const slug = value => String(value||'legacy').replace(/[^A-Za-z0-9._-]+/g,'-').r
 function sourceFact(fact){return {field:fact.field,value:fact.value,source_id:fact.source.source_id,filename:fact.source.filename,locator:fact.source.locator,source_sha256:fact.source.sha256};}
 function inferredDate(item){const dates=item.data.facts.filter(f=>f.field==='inspection_date').map(f=>f.value);return [...new Set(dates)].length===1?dates[0]:'';}
 function defaultInspectionId(item,index){const date=inferredDate(item)||'unknown-date';return 'legacy-'+date+'-'+slug(item.data.filename)+'-'+String(index+1).padStart(2,'0');}
+function previewItem(data,index){const item={data,factAccepted:data.facts.map(()=>true),reviewAccepted:data.review.map(()=>false),reviewFields:data.review.map(()=>''),reviewValues:data.review.map(r=>r.source_text||''),inspectionId:'',inspectionDate:'',committed:false,error:false,status:'Preview klar · reviewposter kräver aktivt godkännande.'};item.inspectionDate=inferredDate(item);item.inspectionId=defaultInspectionId(item,index);return item;}
 
 function render(){
   $('queue').innerHTML=queue.map((item,index)=>{
@@ -26,12 +27,23 @@ async function previewFiles(){
     try{
       const response=await fetch('/api/ovk/legacy/preview',{method:'POST',body:form}); const data=await response.json();
       if(!response.ok)throw new Error(JSON.stringify(data));
-      const item={data,factAccepted:data.facts.map(()=>true),reviewAccepted:data.review.map(()=>false),reviewFields:data.review.map(()=>''),reviewValues:data.review.map(r=>r.source_text||''),inspectionId:'',inspectionDate:'',committed:false,error:false,status:'Preview klar · reviewposter kräver aktivt godkännande.'};
-      item.inspectionDate=inferredDate(item); item.inspectionId=defaultInspectionId(item,queue.length); queue.push(item);
+      queue.push(previewItem(data,queue.length));
     }catch(error){queue.push({data:{filename:file.name,kind:'unknown',facts:[],review:[],source_sha256:''},factAccepted:[],reviewAccepted:[],reviewFields:[],reviewValues:[],inspectionId:'',inspectionDate:'',committed:false,error:true,status:'Preview misslyckades: '+String(error)});}
     render();
   }
   $('globalStatus').textContent=queue.length+' filer i granskningskön.';
+}
+
+async function loadProjectAsset(){
+  const params=new URLSearchParams(location.search);const project=(params.get('project_id')||'').trim();const checksum=(params.get('checksum')||'').trim();
+  if(project)$('project').value=project;
+  if(!project||!checksum)return;
+  $('globalStatus').textContent='Laddar Workbench-underlag…';
+  try{
+    const response=await fetch('/api/ovk/projects/'+encodeURIComponent(project)+'/legacy-assets/'+encodeURIComponent(checksum)+'/preview');const data=await response.json();
+    if(!response.ok)throw new Error(JSON.stringify(data));
+    queue.push(previewItem(data,queue.length));render();$('globalStatus').textContent='Workbench-underlaget är laddat i granskningskön.';
+  }catch(error){$('globalStatus').textContent='Kunde inte ladda Workbench-underlaget: '+String(error);}
 }
 
 function reviewedFacts(item){
@@ -66,3 +78,4 @@ $('commitAll').onclick=commitAll;
 $('queue').onchange=event=>{const target=event.target;const index=Number(target.dataset.index);const item=queue[index];if(!item)return;const ri=Number(target.dataset.ri);const fi=Number(target.dataset.fi);switch(target.dataset.action){case'fact':item.factAccepted[fi]=target.checked;break;case'review':item.reviewAccepted[ri]=target.checked;break;case'reviewField':item.reviewFields[ri]=target.value;break;case'reviewValue':item.reviewValues[ri]=target.value;break;case'inspectionId':item.inspectionId=target.value;break;case'inspectionDate':item.inspectionDate=target.value;break;}};
 $('queue').oninput=$('queue').onchange;
 $('queue').onclick=event=>{const target=event.target.closest('button');if(!target)return;const index=Number(target.dataset.index);if(target.dataset.action==='commit')commitItem(index);if(target.dataset.action==='remove'){queue.splice(index,1);render();}};
+loadProjectAsset();
