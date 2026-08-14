@@ -30,6 +30,14 @@ def test_catalog_separates_data_dependencies_from_commercial_access() -> None:
     assert adjustment.status.value == "planned"
 
 
+def test_catalog_resolves_product_page_routes() -> None:
+    catalog = load_product_module_catalog()
+    assert catalog.module_for_route_path("/vent").id == "vent"  # type: ignore[union-attr]
+    assert catalog.module_for_route_path("/provtryckning").id == "provtryckning"  # type: ignore[union-attr]
+    assert catalog.module_for_route_path("/ovk").id == "ovk"  # type: ignore[union-attr]
+    assert catalog.module_for_route_path("/app") is None
+
+
 def test_missing_entitlement_file_fails_closed(tmp_path: Path) -> None:
     catalog = load_product_module_catalog()
     entitlements = load_customer_entitlements(tmp_path / "config", "acme", catalog=catalog)
@@ -73,6 +81,34 @@ def test_module_api_is_available_with_entitlement(tmp_path: Path, monkeypatch: o
     client = TestClient(create_app(tmp_path))
     response = client.get("/api/vent/registry")
     assert response.status_code == 200
+
+
+def test_module_page_redirects_without_entitlement(tmp_path: Path, monkeypatch: object) -> None:
+    monkeypatch.setenv("CROW_MODE", "local")  # type: ignore[attr-defined]
+    monkeypatch.setenv("CROW_CUSTOMER_ID", "acme")  # type: ignore[attr-defined]
+    client = TestClient(create_app(tmp_path))
+
+    response = client.get("/vent", follow_redirects=False)
+
+    assert response.status_code == 303
+    assert response.headers["location"] == "/app"
+
+
+def test_module_navigation_only_lists_effective_entitlements(
+    tmp_path: Path, monkeypatch: object
+) -> None:
+    monkeypatch.setenv("CROW_MODE", "local")  # type: ignore[attr-defined]
+    monkeypatch.setenv("CROW_CUSTOMER_ID", "acme")  # type: ignore[attr-defined]
+    _write_entitlements(tmp_path, "acme", [{"id": "ovk", "active": True}])
+    client = TestClient(create_app(tmp_path))
+
+    response = client.get("/ovk")
+
+    assert response.status_code == 200
+    assert '<a href="/app">Projekt</a>' in response.text
+    assert '<a class="active" href="/ovk">OVK</a>' in response.text
+    assert 'href="/vent"' not in response.text
+    assert 'href="/provtryckning"' not in response.text
 
 
 def test_shared_api_remains_available_without_module_entitlement(
