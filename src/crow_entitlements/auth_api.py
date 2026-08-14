@@ -4,6 +4,7 @@ import os
 from pathlib import Path
 
 from fastapi import APIRouter, FastAPI, HTTPException, Request, Response
+from fastapi.responses import RedirectResponse
 from pydantic import BaseModel, Field
 
 from .auth import SessionManager, load_user, verify_password
@@ -52,6 +53,13 @@ def _router(config_root: Path, manager: SessionManager | None) -> APIRouter:
 
     @router.post("/api/auth/logout", status_code=204)
     def logout(response: Response) -> Response:
+        cookie_name = manager.cookie_name if manager is not None else "crow_session"
+        response.delete_cookie(cookie_name, path="/")
+        return response
+
+    @router.get("/logout", include_in_schema=False, response_model=None)
+    def logout_page() -> RedirectResponse:
+        response = RedirectResponse("/login", status_code=303)
         cookie_name = manager.cookie_name if manager is not None else "crow_session"
         response.delete_cookie(cookie_name, path="/")
         return response

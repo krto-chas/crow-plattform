@@ -170,6 +170,7 @@ def _module_navigation_markup(
         label = module.name.split(" – ", maxsplit=1)[0]
         active = ' class="active"' if module.id == current_module.id else ""
         links.append(f'<a{active} href="{escape(module.route, quote=True)}">{escape(label)}</a>')
+    links.append('<a href="/logout">Logga ut</a>')
     return f"<nav>{''.join(links)}</nav>"
 
 
