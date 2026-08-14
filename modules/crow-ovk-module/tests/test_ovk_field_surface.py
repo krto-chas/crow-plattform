@@ -78,6 +78,11 @@ def test_field_page_exposes_offline_app_shell(tmp_path: Path) -> None:
     assert "indexedDB.open" in app.text
     assert "serviceWorker.register" in app.text
     assert "sync_status:'local'" in app.text
+    assert "function crowRandomUuid()" in app.text
+    assert "typeof api.getRandomValues==='function'" in app.text
+    assert "crypto.randomUUID();" not in app.text
+    assert "Typ av enhet: L = lägenhet, O = lokal" in app.text
+    assert "Fotoevidens kräver HTTPS" in app.text
 
     context = client.get("/ovk/falt/context.js")
     assert context.status_code == 200
@@ -93,7 +98,11 @@ def test_field_page_exposes_offline_app_shell(tmp_path: Path) -> None:
     worker = client.get("/ovk/falt/sw.js")
     assert worker.status_code == 200
     assert worker.headers["service-worker-allowed"] == "/ovk/"
-    assert "crow-ovk-field-shell-v3" in worker.text
+    assert "crow-ovk-field-shell-v4" in worker.text
+    assert "'/ovk/falt/context.js'" in worker.text
+    assert "'/ovk/falt/time.js'" in worker.text
+    assert "keys.filter" in worker.text
+    assert "url.pathname.startsWith('/ovk/falt/')" in worker.text
 
 
 def test_defect_types_are_exposed(tmp_path: Path) -> None:
