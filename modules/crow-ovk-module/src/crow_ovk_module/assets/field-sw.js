@@ -1,18 +1,21 @@
-const CACHE='crow-ovk-field-shell-v4';
 const CACHE_PREFIX='crow-ovk-field-shell-';
-const APP_SHELL=[
+const CACHE=CACHE_PREFIX+'v5';
+const STATIC_PATHS=new Set([
   '/ovk/falt',
   '/ovk/falt/app.js',
   '/ovk/falt/context.js',
-  '/ovk/falt/time.js',
+  '/ovk/falt/unit-flow.js',
+  '/ovk/falt/time.js'
+]);
+const REFERENCE_PATHS=new Set([
   '/api/ovk/field/defect-types',
   '/api/ovk/field/checklists'
-];
+]);
 
 self.addEventListener('install',event=>{
   event.waitUntil(
     caches.open(CACHE)
-      .then(cache=>cache.addAll(APP_SHELL))
+      .then(cache=>cache.addAll([...STATIC_PATHS]))
       .then(()=>self.skipWaiting())
   );
 });
@@ -30,43 +33,30 @@ self.addEventListener('fetch',event=>{
   if(request.method!=='GET')return;
   const url=new URL(request.url);
 
-  if(url.pathname==='/api/projects'){
+  if(STATIC_PATHS.has(url.pathname)){
     event.respondWith(
-      fetch(request)
-        .then(response=>{
-          const copy=response.clone();
-          caches.open(CACHE).then(cache=>cache.put(request,copy));
-          return response;
-        })
-        .catch(()=>caches.match(request))
+      caches.open(CACHE).then(async cache=>{
+        const cached=await cache.match(url.pathname);
+        if(cached)return cached;
+        const response=await fetch(request);
+        if(response.ok)await cache.put(url.pathname,response.clone());
+        return response;
+      })
     );
     return;
   }
 
-  if(url.pathname==='/ovk/falt'){
+  if(REFERENCE_PATHS.has(url.pathname)){
     event.respondWith(
       fetch(request)
         .then(response=>{
-          const copy=response.clone();
-          caches.open(CACHE).then(cache=>cache.put('/ovk/falt',copy));
+          if(response.ok){
+            const copy=response.clone();
+            caches.open(CACHE).then(cache=>cache.put(url.pathname,copy));
+          }
           return response;
         })
-        .catch(()=>caches.match('/ovk/falt'))
+        .catch(()=>caches.open(CACHE).then(cache=>cache.match(url.pathname)))
     );
-    return;
   }
-
-  const cacheable=
-    url.pathname.startsWith('/ovk/falt/')||
-    url.pathname==='/api/ovk/field/defect-types'||
-    url.pathname==='/api/ovk/field/checklists';
-  if(!cacheable)return;
-
-  event.respondWith(
-    caches.match(request).then(cached=>cached||fetch(request).then(response=>{
-      const copy=response.clone();
-      caches.open(CACHE).then(cache=>cache.put(request,copy));
-      return response;
-    }))
-  );
 });
