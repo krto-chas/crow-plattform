@@ -76,5 +76,7 @@ def test_workbench_import_can_be_previewed_without_reupload(tmp_path: Path) -> N
     assert payload["filename"] == filename
     assert payload["source_sha256"] == digest
     assert any(item["field"] == "inspection_date" for item in payload["facts"])
-    assert any(item["field"] == "system_id" and item["value"] == "FTX01" for item in payload["facts"])
+    assert any(
+        item["field"] == "system_id" and item["value"] == "FTX01" for item in payload["facts"]
+    )
     assert any(item["field"] == "finding" for item in payload["facts"])
