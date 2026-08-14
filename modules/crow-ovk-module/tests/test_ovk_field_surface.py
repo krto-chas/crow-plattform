@@ -72,6 +72,7 @@ def test_field_page_exposes_offline_app_shell(tmp_path: Path) -> None:
     assert 'capture="environment"' in response.text
     assert "/ovk/falt/app.js" in response.text
     assert "/ovk/falt/context.js" in response.text
+    assert "/ovk/falt/unit-flow.js" in response.text
 
     app = client.get("/ovk/falt/app.js")
     assert app.status_code == 200
@@ -95,14 +96,26 @@ def test_field_page_exposes_offline_app_shell(tmp_path: Path) -> None:
     assert "await originalGenerateHandler()" in context.text
     assert "'/ovk/besiktning' + (query ? '?' + query : '')" in context.text
 
+    unit_flow = client.get("/ovk/falt/unit-flow.js")
+    assert unit_flow.status_code == 200
+    assert "renderUnitPreview" in unit_flow.text
+    assert "addFieldUnit('apartment')" in unit_flow.text
+    assert "addFieldUnit('premises')" in unit_flow.text
+    assert "openUnit(unit.unit_id)" in unit_flow.text
+    assert "confirm(" not in unit_flow.text
+
     worker = client.get("/ovk/falt/sw.js")
     assert worker.status_code == 200
     assert worker.headers["service-worker-allowed"] == "/ovk/"
-    assert "crow-ovk-field-shell-v4" in worker.text
+    assert "crow-ovk-field-shell-" in worker.text
+    assert "v5" in worker.text
     assert "'/ovk/falt/context.js'" in worker.text
+    assert "'/ovk/falt/unit-flow.js'" in worker.text
     assert "'/ovk/falt/time.js'" in worker.text
-    assert "keys.filter" in worker.text
-    assert "url.pathname.startsWith('/ovk/falt/')" in worker.text
+    assert "caches.keys()" in worker.text
+    assert "STATIC_PATHS.has(url.pathname)" in worker.text
+    assert "REFERENCE_PATHS.has(url.pathname)" in worker.text
+    assert "/api/projects" not in worker.text
 
 
 def test_defect_types_are_exposed(tmp_path: Path) -> None:
