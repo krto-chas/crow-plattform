@@ -11,6 +11,9 @@ async function api(url, options = {}) {
 }
 
 function split(line) { return line.split('|').map(value => value.trim()); }
+function esc(value) {
+  return String(value ?? '').replace(/[&<>"']/g, ch => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[ch]));
+}
 function ensureProject(id, label = id) {
   if (!id) return;
   let option = [...$('project').options].find(item => item.value === id);
@@ -20,6 +23,13 @@ function ensureProject(id, label = id) {
     $('project').appendChild(option);
   }
   option.textContent = label || id;
+}
+function savedInspectionOptions(inspections) {
+  return '<option value="">Ny besiktning</option>' + inspections.map(item => {
+    const id = String(item.inspection_id || '');
+    const label = String(item.object_name || id);
+    return '<option value="' + esc(id) + '">' + esc(label) + ' · ' + esc(id) + '</option>';
+  }).join('');
 }
 
 function reviewMetadata(observationId) {
@@ -143,7 +153,7 @@ async function loadProject() {
   try {
     const data = await api('/api/ovk/projects/' + enc(projectId) + '/inspections');
     const inspections = data.inspections || [];
-    $('saved').innerHTML = '<option value="">Ny besiktning</option>' + inspections.map(item => '<option value="' + item.inspection_id + '">' + (item.object_name || item.inspection_id) + ' · ' + item.inspection_id + '</option>').join('');
+    $('saved').innerHTML = savedInspectionOptions(inspections);
     if (requestedInspection && inspections.some(item => item.inspection_id === requestedInspection)) {
       await loadInspection(projectId, requestedInspection);
       requestedInspection = '';
@@ -176,7 +186,7 @@ $('save').onclick = async () => {
     });
     render(record);
     const data = await api('/api/ovk/projects/' + enc(projectId) + '/inspections');
-    $('saved').innerHTML = '<option value="">Ny besiktning</option>' + (data.inspections || []).map(item => '<option value="' + item.inspection_id + '">' + (item.object_name || item.inspection_id) + ' · ' + item.inspection_id + '</option>').join('');
+    $('saved').innerHTML = savedInspectionOptions(data.inspections || []);
     $('saved').value = inspectionId;
   } catch (error) {
     $('status').className = 'status warn';
