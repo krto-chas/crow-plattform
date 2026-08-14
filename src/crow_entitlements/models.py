@@ -24,6 +24,9 @@ class ProductModule:
     def matches_api_path(self, path: str) -> bool:
         return any(path == prefix or path.startswith(f"{prefix}/") for prefix in self.api_prefixes)
 
+    def matches_route_path(self, path: str) -> bool:
+        return path == self.route or path.startswith(f"{self.route}/")
+
 
 @dataclass(frozen=True, slots=True)
 class ProductModuleCatalog:
@@ -46,6 +49,12 @@ class ProductModuleCatalog:
         if not matches:
             return None
         return max(matches, key=lambda module: max(len(prefix) for prefix in module.api_prefixes))
+
+    def module_for_route_path(self, path: str) -> ProductModule | None:
+        matches = [module for module in self.modules if module.matches_route_path(path)]
+        if not matches:
+            return None
+        return max(matches, key=lambda module: len(module.route))
 
 
 @dataclass(frozen=True, slots=True)
