@@ -193,3 +193,27 @@ def test_workbench_blocks_protocol_with_pending_review(
     protocol = client.get(url + "/protocol")
     assert protocol.status_code == 409
     assert protocol.json()["detail"]["code"] == "OVK_PROTOCOL_NOT_READY"
+
+
+def test_workflow_page_preserves_project_and_saved_inspection_context(
+    tmp_path: Path,
+    monkeypatch: MonkeyPatch,
+) -> None:
+    client = _client(tmp_path, monkeypatch)
+
+    page = client.get("/ovk/besiktning?project_id=p1&inspection_id=ovk-001")
+    script = client.get("/ovk/besiktning/app.js")
+
+    assert page.status_code == 200
+    assert "Besiktningsunderlag" in page.text
+    assert "/ovk/besiktning/app.js" in page.text
+    assert script.status_code == 200
+    assert "get('project_id')" in script.text
+    assert "get('inspection_id')" in script.text
+    assert "await loadInspection(projectId, requestedInspection)" in script.text
+    assert "$('building').value = object.building_id" in script.text
+    assert "$('checkpoints').value = lines(inspection.checkpoints" in script.text
+    assert "measurements: previousInspection.measurements || []" in script.text
+    assert "findings: previousInspection.findings || []" in script.text
+    assert "actions: previousInspection.actions || []" in script.text
+    assert "'/ovk/falt' + (query ? '?' + query : '')" in script.text
