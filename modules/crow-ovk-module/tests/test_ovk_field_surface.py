@@ -82,7 +82,7 @@ def test_field_page_exposes_offline_app_shell(tmp_path: Path) -> None:
     assert "typeof api.getRandomValues==='function'" in app.text
     assert "crypto.randomUUID();" not in app.text
     assert "Typ av enhet: L = lägenhet, O = lokal" in app.text
-    assert "Fotoevidens kräver HTTPS" in app.text
+    assert "Foto kräver HTTPS" in app.text
 
     context = client.get("/ovk/falt/context.js")
     assert context.status_code == 200
