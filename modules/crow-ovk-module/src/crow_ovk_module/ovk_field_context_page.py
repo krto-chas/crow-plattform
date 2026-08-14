@@ -26,8 +26,7 @@ function crowRandomUuid(){
 const uid=prefix=>prefix+'-'+crowRandomUuid();"""
 
 _UNIT_KIND_MARKER = (
-    "const kind=confirm('Är detta en lokal? (Avbryt = lägenhet)')?"
-    "'premises':'apartment';"
+    "const kind=confirm('Är detta en lokal? (Avbryt = lägenhet)')?'premises':'apartment';"
 )
 _UNIT_KIND_RUNTIME = (
     "const type=(prompt('Typ av enhet: L = lägenhet, O = lokal','L')||'')"
@@ -38,8 +37,7 @@ _UNIT_KIND_RUNTIME = (
 )
 
 _DIGEST_MARKER = (
-    "const buffer=await file.arrayBuffer();"
-    "const hash=await crypto.subtle.digest('SHA-256',buffer);"
+    "const buffer=await file.arrayBuffer();const hash=await crypto.subtle.digest('SHA-256',buffer);"
 )
 _SPACE_DIGEST_RUNTIME = (
     "if(!globalThis.crypto||!globalThis.crypto.subtle){"
