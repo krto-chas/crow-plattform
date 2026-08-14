@@ -21,8 +21,10 @@ def ovk_dashboard_router(data_root: Path) -> APIRouter:
 
     @router.get("/ovk", response_class=HTMLResponse)
     def dashboard_page() -> str:
-        return resources.files("crow_ovk_module").joinpath("assets", "dashboard.html").read_text(
-            encoding="utf-8"
+        return (
+            resources.files("crow_ovk_module")
+            .joinpath("assets", "dashboard.html")
+            .read_text(encoding="utf-8")
         )
 
     @router.get(
@@ -58,7 +60,9 @@ def ovk_dashboard_router(data_root: Path) -> APIRouter:
                 detail={"code": "UNSUPPORTED_LEGACY_OVK_FILE", "message": str(exc)},
             ) from exc
         if preview.source_sha256 != safe_checksum:
-            raise HTTPException(status_code=409, detail={"code": "PROJECT_IMPORT_CHECKSUM_MISMATCH"})
+            raise HTTPException(
+                status_code=409, detail={"code": "PROJECT_IMPORT_CHECKSUM_MISMATCH"}
+            )
         return _preview_payload(preview)
 
     return router
