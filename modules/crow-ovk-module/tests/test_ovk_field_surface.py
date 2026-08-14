@@ -6,11 +6,13 @@ from pathlib import Path
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
+from crow_ovk_module.ovk_field_context_page import ovk_field_context_page_router
 from crow_ovk_module.ovk_field_surface import ovk_field_router
 
 
 def _client(data_root: Path) -> TestClient:
     app = FastAPI()
+    app.include_router(ovk_field_context_page_router())
     app.include_router(ovk_field_router(data_root))
     return TestClient(app)
 
@@ -64,17 +66,29 @@ def _field_payload() -> dict[str, object]:
 
 def test_field_page_exposes_offline_app_shell(tmp_path: Path) -> None:
     client = _client(tmp_path)
-    response = client.get("/ovk/falt")
+    response = client.get("/ovk/falt?project_id=p1&inspection_id=ovk-001")
     assert response.status_code == 200
     assert "Crow OVK · Fält" in response.text
     assert 'capture="environment"' in response.text
     assert "/ovk/falt/app.js" in response.text
+    assert "/ovk/falt/context.js" in response.text
 
     app = client.get("/ovk/falt/app.js")
     assert app.status_code == 200
     assert "indexedDB.open" in app.text
     assert "serviceWorker.register" in app.text
     assert "sync_status:'local'" in app.text
+
+    context = client.get("/ovk/falt/context.js")
+    assert context.status_code == 200
+    assert "get('project_id')" in context.text
+    assert "get('inspection_id')" in context.text
+    assert "const originalRestoreLatest = restoreLatest" in context.text
+    assert "const exact = await dbGet('drafts', requestedInspectionId)" in context.text
+    assert "exact.project_id === requestedProjectId" in context.text
+    assert "state.inspection_id = $('inspection').value.trim()" in context.text
+    assert "await originalGenerateHandler()" in context.text
+    assert "'/ovk/besiktning' + (query ? '?' + query : '')" in context.text
 
     worker = client.get("/ovk/falt/sw.js")
     assert worker.status_code == 200
