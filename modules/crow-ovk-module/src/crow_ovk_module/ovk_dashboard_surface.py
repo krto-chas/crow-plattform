@@ -6,11 +6,10 @@ from importlib import resources
 from pathlib import Path
 from typing import Any
 
-from fastapi import APIRouter, HTTPException
-from fastapi.responses import HTMLResponse
-
 from crow_ovk_legacy import preview_legacy_file
 from crow_ovk_legacy.models import LegacyImportPreview
+from fastapi import APIRouter, HTTPException
+from fastapi.responses import HTMLResponse
 
 _SAFE_PROJECT_ID = re.compile(r"^[a-z0-9][a-z0-9_-]{0,119}$")
 _SAFE_CHECKSUM = re.compile(r"^[0-9a-f]{64}$")
