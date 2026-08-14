@@ -16,7 +16,7 @@
     .grid { display: grid; grid-template-columns: minmax(300px, .9fr) minmax(420px, 1.1fr); gap: 20px; margin-top: 24px; }
     .card { background: white; border: 1px solid #dce2e8; border-radius: 12px; padding: 20px; }
     label { display: block; font-weight: 600; margin: 13px 0 6px; }
-    input { width: 100%; padding: 9px 10px; border: 1px solid #cbd4dc; border-radius: 8px; font: inherit; }
+    input, select { width: 100%; padding: 9px 10px; border: 1px solid #cbd4dc; border-radius: 8px; font: inherit; background: white; }
     input[type="checkbox"] { width: auto; }
     button { border: 0; border-radius: 8px; padding: 9px 13px; background: #1d5b79; color: white; cursor: pointer; font: inherit; }
     button.secondary { background: #e8edf1; color: #25313d; }
@@ -48,8 +48,11 @@
         <form id="user-form">
           <label for="username">Användarnamn</label>
           <input id="username" required pattern="[A-Za-z0-9._-]+">
-          <label for="customer">Kund-ID</label>
-          <input id="customer" required pattern="[A-Za-z0-9_-]+">
+          <label for="customer">Kund</label>
+          <select id="customer" required>
+            <option value="">Laddar kunder…</option>
+          </select>
+          <p class="muted" id="customer-help">Kunder hämtas från Åtkomststyrning.</p>
           <label for="roles">Roller</label>
           <input id="roles" placeholder="platform-admin eller kommaseparerade roller">
           <label for="password">Lösenord</label>
@@ -69,8 +72,11 @@
     const usersRoot = document.getElementById("users");
     const form = document.getElementById("user-form");
     const message = document.getElementById("message");
+    const customerSelect = document.getElementById("customer");
+    const customerHelp = document.getElementById("customer-help");
     let editing = null;
     let users = [];
+    let customers = [];
 
     async function api(url, options = {}) {
       const response = await fetch(url, options);
@@ -81,6 +87,32 @@
 
     function escapeHtml(value) {
       return String(value ?? "").replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;").replaceAll("'", "&#039;");
+    }
+
+    function renderCustomerOptions(selected = "") {
+      const known = new Set(customers.map(customer => customer.customer_id));
+      const options = ['<option value="">Välj kund…</option>'];
+      for (const customer of customers) {
+        const id = customer.customer_id;
+        options.push(`<option value="${escapeHtml(id)}"${id === selected ? " selected" : ""}>${escapeHtml(id)}</option>`);
+      }
+      if (selected && !known.has(selected)) {
+        options.push(`<option value="${escapeHtml(selected)}" selected>${escapeHtml(selected)} (system/admin)</option>`);
+      }
+      customerSelect.innerHTML = options.join("");
+    }
+
+    async function loadCustomers() {
+      try {
+        customers = (await api("/api/admin/customers")).customers || [];
+        renderCustomerOptions(customerSelect.value);
+        customerHelp.textContent = customers.length
+          ? "Kunder hämtas från Åtkomststyrning."
+          : "Inga kunder finns ännu. Skapa kunden under Åtkomststyrning först.";
+      } catch (error) {
+        customerHelp.textContent = `Kundlistan kunde inte laddas: ${error.message}`;
+        throw error;
+      }
     }
 
     async function loadUsers() {
@@ -105,7 +137,7 @@
       document.getElementById("form-title").textContent = `Redigera ${user.username}`;
       document.getElementById("username").value = user.username;
       document.getElementById("username").disabled = true;
-      document.getElementById("customer").value = user.customer_id;
+      renderCustomerOptions(user.customer_id);
       document.getElementById("roles").value = user.roles.join(", ");
       document.getElementById("password").value = "";
       document.getElementById("password").required = false;
@@ -117,6 +149,7 @@
     function resetForm() {
       editing = null;
       form.reset();
+      renderCustomerOptions();
       document.getElementById("active").checked = true;
       document.getElementById("username").disabled = false;
       document.getElementById("password").required = true;
@@ -129,7 +162,7 @@
       event.preventDefault();
       const password = document.getElementById("password").value;
       const payload = {
-        customer_id: document.getElementById("customer").value,
+        customer_id: customerSelect.value,
         roles: document.getElementById("roles").value.split(",").map(value => value.trim()).filter(Boolean),
         active: document.getElementById("active").checked
       };
@@ -151,8 +184,15 @@
     });
 
     document.getElementById("new-user").addEventListener("click", resetForm);
-    resetForm();
-    loadUsers();
+
+    async function initialize() {
+      resetForm();
+      await Promise.all([loadCustomers(), loadUsers()]);
+    }
+
+    initialize().catch(error => {
+      message.innerHTML = `<div class="message error">${escapeHtml(error.message)}</div>`;
+    });
   </script>
 </body>
 </html>
