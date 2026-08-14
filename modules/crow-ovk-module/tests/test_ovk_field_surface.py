@@ -73,6 +73,7 @@ def test_field_page_exposes_offline_app_shell(tmp_path: Path) -> None:
     assert "/ovk/falt/app.js" in response.text
     assert "/ovk/falt/context.js" in response.text
     assert "/ovk/falt/unit-flow.js" in response.text
+    assert "/ovk/falt/auth.js" in response.text
 
     app = client.get("/ovk/falt/app.js")
     assert app.status_code == 200
@@ -104,15 +105,29 @@ def test_field_page_exposes_offline_app_shell(tmp_path: Path) -> None:
     assert "openUnit(unit.unit_id)" in unit_flow.text
     assert "confirm(" not in unit_flow.text
 
+    auth = client.get("/ovk/falt/auth.js")
+    assert auth.status_code == 200
+    assert "class CrowAuthenticationRequired" in auth.text
+    assert "credentials: 'same-origin'" in auth.text
+    assert "cache: 'no-store'" in auth.text
+    assert "'/api/auth/me'" in auth.text
+    assert "Sessionen saknas eller har gått ut" in auth.text
+    assert "Ronderingen är kvar lokalt" in auth.text
+
     worker = client.get("/ovk/falt/sw.js")
     assert worker.status_code == 200
     assert worker.headers["service-worker-allowed"] == "/ovk/"
     assert "crow-ovk-field-shell-" in worker.text
-    assert "v5" in worker.text
+    assert "v6" in worker.text
+    assert "const FIELD_PAGE='/ovk/falt'" in worker.text
     assert "'/ovk/falt/context.js'" in worker.text
     assert "'/ovk/falt/unit-flow.js'" in worker.text
+    assert "'/ovk/falt/auth.js'" in worker.text
     assert "'/ovk/falt/time.js'" in worker.text
     assert "caches.keys()" in worker.text
+    assert "url.pathname===FIELD_PAGE" in worker.text
+    assert "response.redirected" in worker.text
+    assert "cache.match(FIELD_PAGE)" in worker.text
     assert "STATIC_PATHS.has(url.pathname)" in worker.text
     assert "REFERENCE_PATHS.has(url.pathname)" in worker.text
     assert "/api/projects" not in worker.text
