@@ -69,6 +69,7 @@ def ovk_field_context_page_router() -> APIRouter:
             marker
             + '\n<script src="/ovk/falt/context.js"></script>'
             + '\n<script src="/ovk/falt/unit-flow.js"></script>'
+            + '\n<script src="/ovk/falt/auth.js"></script>'
         )
         return html.replace(marker, replacement, 1)
 
@@ -83,6 +84,10 @@ def ovk_field_context_page_router() -> APIRouter:
     @router.get("/ovk/falt/unit-flow.js", response_class=Response)
     def field_unit_flow_app() -> Response:
         return Response(_asset_text("field-unit-flow.js"), media_type="application/javascript")
+
+    @router.get("/ovk/falt/auth.js", response_class=Response)
+    def field_auth_app() -> Response:
+        return Response(_asset_text("field-auth.js"), media_type="application/javascript")
 
     return router
 
