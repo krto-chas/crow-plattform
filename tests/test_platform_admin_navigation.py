@@ -69,6 +69,9 @@ def test_session_admin_can_open_complete_admin_surface(
     assert "CROW PLATFORM" in access.text
     assert users.status_code == 200
     assert "Användare" in users.text
+    assert '<select id="customer" required>' in users.text
+    assert 'api("/api/admin/customers")' in users.text
+    assert "Kunder hämtas från Åtkomststyrning." in users.text
     assert audit.status_code == 200
     assert "Audit" in audit.text
 
