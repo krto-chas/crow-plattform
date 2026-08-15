@@ -118,8 +118,10 @@ def test_field_page_exposes_offline_app_shell(tmp_path: Path) -> None:
     assert worker.status_code == 200
     assert worker.headers["service-worker-allowed"] == "/ovk/"
     assert "crow-ovk-field-shell-" in worker.text
-    assert "v7" in worker.text
-    assert "v6" not in worker.text
+    assert "v8" in worker.text
+    assert "v7" not in worker.text
+    assert "Network-first" in worker.text
+    assert worker.headers["cache-control"] == "no-cache"
     assert "const FIELD_PAGE='/ovk/falt'" in worker.text
     assert "'/ovk/falt/context.js'" in worker.text
     assert "'/ovk/falt/unit-flow.js'" in worker.text
@@ -276,3 +278,44 @@ def test_field_sync_accepts_bom_unit_without_findings_or_measurements(tmp_path: 
     response = client.put("/api/ovk/field/sync/ovk-bom", json=payload)
     assert response.status_code == 200
     assert response.json()["synced"] is True
+
+
+def test_field_surfaces_disable_http_caching(tmp_path: Path) -> None:
+    client = _client(tmp_path)
+    assert client.get("/ovk/falt").headers["cache-control"] == "no-cache"
+    for name in ("app.js", "context.js", "unit-flow.js", "auth.js"):
+        assert client.get(f"/ovk/falt/{name}").headers["cache-control"] == "no-cache"
+
+
+def test_field_app_presets_and_unit_system_override(tmp_path: Path) -> None:
+    client = _client(tmp_path)
+    app = client.get("/ovk/falt/app.js")
+    assert app.status_code == 200
+    # Badrum/WC/Kök får automatisk frånluftsmätpunkt när rummet skapas.
+    assert "PRESET_EXTRACT_ROOMS=['badrum','wc','kök']" in app.text
+    # Avvikande system per enhet (vinds-/källarlägenhet) med fastigheten som default.
+    assert "function unitSystem(unit)" in app.text
+    assert "system_type:system_type||null" in app.text
+    assert "unitSystemBtn" in app.text
+    # Nytt besiktnings-ID startar tom session i stället för att ärva gammal data.
+    assert "Starta ny tom besiktning" in app.text
+    assert "updateViaCache:'none'" in app.text
+
+    page = client.get("/ovk/falt")
+    assert 'id="unitSystemBtn"' in page.text
+
+
+def test_field_sync_roundtrips_unit_system_type(tmp_path: Path) -> None:
+    client = _client(tmp_path)
+    payload = _field_payload()
+    units = payload["units"]
+    assert isinstance(units, list)
+    units[0]["system_type"] = "FTX"
+    response = client.put("/api/ovk/field/sync/ovk-1", json=payload)
+    assert response.status_code == 200
+    stored = client.get("/api/ovk/field/sync/ovk-1").json()
+    assert stored["payload"]["units"][0]["system_type"] == "FTX"
+
+    units[0]["system_type"] = "FTZ"
+    rejected = client.put("/api/ovk/field/sync/ovk-1", json=payload)
+    assert rejected.status_code == 422
