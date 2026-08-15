@@ -1,0 +1,11 @@
+module:
+  id: crow.example
+  name: Crow Example
+  version: 0.1.0
+  domain: example
+compatibility:
+  backbone_api: ">=1.0,<2.0"
+  domain_model: "1.0"
+capabilities:
+  claim_types: [example.component.size]
+  human_review_supported: true

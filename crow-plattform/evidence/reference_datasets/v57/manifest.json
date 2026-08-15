@@ -1,0 +1,91 @@
+{
+  "dataset_id": "v57-kfu1",
+  "description": "Real DWG and document package supplied for project-level import and inventory testing.",
+  "known_limitations": [
+    "DWG contents are inventoried only at file/header level because no verified DWG parser is integrated.",
+    "The archive contents are not asserted as complete project scope."
+  ],
+  "metadata": {},
+  "schema_version": 1,
+  "sources": [
+    {
+      "checksum_sha256": "0fa6676f5e6fe6cbceface7c5d09dd49cc90ec77b254af0370dad3e62ef701bd",
+      "external_path": "V57-1 etapp 1.dwg",
+      "filename": "V57-1 etapp 1.dwg",
+      "format_id": "dwg",
+      "format_version": "AutoCAD 2013/2014/2015/2016/2017",
+      "media_type": "application/acad",
+      "notes": [],
+      "reference_quality": "authoritative",
+      "role": "drawing",
+      "size_bytes": 222516,
+      "source_id": "etapp-1"
+    },
+    {
+      "checksum_sha256": "cc388f425661d1c3da5fc85083037ecf9780adfc47e87921194e0b82278d9119",
+      "external_path": "V57-2 etapp 2 & 3.dwg",
+      "filename": "V57-2 etapp 2 & 3.dwg",
+      "format_id": "dwg",
+      "format_version": "AutoCAD 2013/2014/2015/2016/2017",
+      "media_type": "application/acad",
+      "notes": [],
+      "reference_quality": "authoritative",
+      "role": "drawing",
+      "size_bytes": 348880,
+      "source_id": "etapp-2-3"
+    },
+    {
+      "checksum_sha256": "2fab6875f666c3fae1191bd8fd48f3076c4fc6d32c432d65bf3860d4ee2b7972",
+      "external_path": "V57-P10.dwg",
+      "filename": "V57-P10.dwg",
+      "format_id": "dwg",
+      "format_version": "AutoCAD 2013/2014/2015/2016/2017",
+      "media_type": "application/acad",
+      "notes": [],
+      "reference_quality": "authoritative",
+      "role": "drawing",
+      "size_bytes": 2861635,
+      "source_id": "plan-10"
+    },
+    {
+      "checksum_sha256": "b94f17f4bc7f6f064a2c94dbb11f978ba8e3de3077dbceb3a7b6d9ddaefade57",
+      "external_path": "V57-P11.dwg",
+      "filename": "V57-P11.dwg",
+      "format_id": "dwg",
+      "format_version": "AutoCAD 2013/2014/2015/2016/2017",
+      "media_type": "application/acad",
+      "notes": [],
+      "reference_quality": "authoritative",
+      "role": "drawing",
+      "size_bytes": 1469896,
+      "source_id": "plan-11"
+    },
+    {
+      "checksum_sha256": "cd460ca2f6e72f3f3dfc251dd9c5c7d0f327004bcd49250518e193413aeb4ec0",
+      "external_path": "V57-vind.dwg",
+      "filename": "V57-vind.dwg",
+      "format_id": "dwg",
+      "format_version": "AutoCAD 2010/2011/2012",
+      "media_type": "application/acad",
+      "notes": [],
+      "reference_quality": "authoritative",
+      "role": "drawing",
+      "size_bytes": 1596688,
+      "source_id": "vind"
+    },
+    {
+      "checksum_sha256": "93d276c2c758a5647daeb1799c9a889c045030c0ba2175f2aa0547b95ac4b1ec",
+      "external_path": "V57-1-KFU1(1).zip",
+      "filename": "V57-1-KFU1(1).zip",
+      "format_id": "zip",
+      "format_version": null,
+      "media_type": "application/zip",
+      "notes": [],
+      "reference_quality": "supporting",
+      "role": "project_archive",
+      "size_bytes": 1102319,
+      "source_id": "kfu1-archive"
+    }
+  ],
+  "title": "V57 KFU1 reference dataset"
+}

@@ -1,0 +1,16 @@
+{
+  "release": "Crow Platform 2.3 Reasoning Engine RC1 Sprint 4",
+  "version": "2.3.0rc1-sprint4",
+  "schema": "crow-release-v1",
+  "tests": 272,
+  "status": "verified",
+  "features": [
+    "knowledge pack manifest loader",
+    "dependency validation",
+    "ontology cycle validation",
+    "recommendation reference validation",
+    "runtime registry",
+    "Crow Vent 1.0.0-rc1 example pack",
+    "Workbench knowledge pack API"
+  ]
+}

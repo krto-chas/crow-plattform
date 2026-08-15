@@ -1,0 +1,28 @@
+{
+  "sprint": "RC0-D1",
+  "name": "Architecture Foundation",
+  "status": "PASS",
+  "deliverables": [
+    "docs/00_Architecture/ARCHITECTURE.md",
+    "docs/00_Architecture/SYSTEM_OVERVIEW.md",
+    "docs/00_Architecture/THE_CROW_PHILOSOPHY.md",
+    "docs/00_Architecture/DESIGN_PRINCIPLES.md",
+    "docs/00_Architecture/ARCHITECTURAL_STYLE.md",
+    "docs/00_Architecture/DECISION_PIPELINE.md",
+    "docs/03_Security/SECURITY_ARCHITECTURE.md",
+    "docs/adr/ADR-011-backbone-authorization.md"
+  ],
+  "notes": [
+    "The uploaded ADR proposal is preserved as ADR-010-backbone-authorization-PROPOSAL.md.",
+    "The canonical integrated decision is ADR-011 to avoid colliding with existing ADR numbering.",
+    "Security documents explicitly distinguish current implementation from target architecture."
+  ],
+  "verification": {
+    "ruff": "PASS",
+    "mypy_strict": "PASS (110 source files)",
+    "pytest": "PASS (190 tests)",
+    "wheel": "PASS",
+    "sdist": "PASS",
+    "internal_markdown_links": "PASS"
+  }
+}

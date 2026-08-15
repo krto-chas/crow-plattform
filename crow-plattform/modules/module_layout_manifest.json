@@ -1,0 +1,154 @@
+{
+  "meta": {
+    "version": "1.15",
+    "description": "Kanoniskt repository-layoutkontrakt för first-party Crow-moduler",
+    "new_modules_must_live_under": "modules/",
+    "root_src_policy": "Backbone src/ får endast innehålla delade plattformskapabiliteter och värdskal; verksamhetsdomäner ägs av first-party-moduler under modules/.",
+    "ownership_policy": "Repository ownership är komplett först när både modulens källkod/surfaces och dess domänägda tester ligger under modulens repository_root."
+  },
+  "modules": [
+    {
+      "module_id": "crow.vent",
+      "repository_root": "modules/crow-vent-module",
+      "requires_modules": [],
+      "owned_packages": [
+        "crow_vent",
+        "crow_vent_drawing",
+        "crow_riser_model",
+        "crow_vent_quote",
+        "crow_benchmark_pricing",
+        "crow_takeoff_consolidation"
+      ],
+      "migrated_packages": [
+        "crow_vent",
+        "crow_vent_drawing",
+        "crow_riser_model",
+        "crow_vent_quote",
+        "crow_benchmark_pricing",
+        "crow_takeoff_consolidation"
+      ],
+      "owned_tests": [
+        "test_benchmark_pricing.py",
+        "test_crow_vent.py",
+        "test_riser_model.py",
+        "test_takeoff_consolidation.py",
+        "test_takeoff_pricing.py",
+        "test_vent_audit_diff.py",
+        "test_vent_audit_verification.py",
+        "test_vent_drawing.py",
+        "test_vent_graph_audit.py",
+        "test_vent_lexicon.py",
+        "test_vent_quote.py",
+        "test_vent_text_interpretation.py",
+        "test_vent_surface.py",
+        "test_workbench_vent_quote.py"
+      ],
+      "migration_pending_packages": [],
+      "migration_pending_surfaces": [],
+      "migration_pending_from_root_src": false,
+      "source_migration_complete": true,
+      "test_migration_complete": true,
+      "repository_ownership_complete": true
+    },
+    {
+      "module_id": "crow.provtryckning",
+      "repository_root": "modules/crow-pressure-test-module",
+      "requires_modules": [
+        "crow.vent"
+      ],
+      "owned_packages": [
+        "crow_pressure_test",
+        "crow_offer_export"
+      ],
+      "migrated_packages": [
+        "crow_pressure_test",
+        "crow_offer_export"
+      ],
+      "owned_tests": [
+        "test_pressure_test_extraction.py",
+        "test_pressure_test_knowledge.py",
+        "test_pressure_test_pricing.py",
+        "test_pressure_test_workflow.py",
+        "test_workbench_pressure_test.py",
+        "test_pressure_test_vent_bridge.py",
+        "test_offer_export.py"
+      ],
+      "migration_pending_packages": [],
+      "migration_pending_surfaces": [],
+      "migration_pending_from_root_src": false,
+      "source_migration_complete": true,
+      "test_migration_complete": true,
+      "repository_ownership_complete": true
+    },
+    {
+      "module_id": "crow.ovk",
+      "repository_root": "modules/crow-ovk-module",
+      "requires_modules": [],
+      "owned_packages": [
+        "crow_ovk",
+        "crow_ovk_besiktningsbevakning",
+        "crow_ovk_field",
+        "crow_ovk_workflow",
+        "crow_ovk_import",
+        "crow_ovk_intyg",
+        "crow_ovk_pricing",
+        "crow_ovk_legacy",
+        "crow_ovk_reporting",
+        "crow_ovk_module"
+      ],
+      "migrated_packages": [
+        "crow_ovk",
+        "crow_ovk_besiktningsbevakning",
+        "crow_ovk_field",
+        "crow_ovk_workflow",
+        "crow_ovk_import",
+        "crow_ovk_intyg",
+        "crow_ovk_pricing",
+        "crow_ovk_legacy",
+        "crow_ovk_reporting",
+        "crow_ovk_module"
+      ],
+      "owned_tests": [
+        "test_ovk_bevakning.py",
+        "test_ovk_domain.py",
+        "test_ovk_field.py",
+        "test_ovk_field_history.py",
+        "test_ovk_field_media.py",
+        "test_ovk_field_common.py",
+        "test_ovk_field_round.py",
+        "test_ovk_field_surface.py",
+        "test_ovk_field_workbench.py",
+        "test_ovk_import.py",
+        "test_ovk_intyg.py",
+        "test_ovk_legacy.py",
+        "test_ovk_legacy_commit.py",
+        "test_ovk_module_ownership.py",
+        "test_ovk_pricing.py",
+        "test_ovk_reinspection.py",
+        "test_ovk_reporting.py",
+        "test_ovk_surface.py",
+        "test_ovk_time_capture.py",
+        "test_ovk_web_ownership.py",
+        "test_ovk_workflow.py"
+      ],
+      "migration_pending_packages": [],
+      "migration_pending_surfaces": [],
+      "migration_pending_from_root_src": false,
+      "source_migration_complete": true,
+      "test_migration_complete": true,
+      "repository_ownership_complete": true
+    }
+  ],
+  "shared_backbone_examples": [
+    "crow_module_sdk",
+    "crow_module_conformance",
+    "crow_workbench",
+    "crow_import_framework",
+    "crow_dwg_conversion",
+    "crow_cad_text",
+    "crow_ifc_relations",
+    "crow_building_graph",
+    "crow_regulations",
+    "crow_entitlements"
+  ]
+}

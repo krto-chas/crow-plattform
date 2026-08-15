@@ -1,0 +1,22 @@
+@startuml
+skinparam backgroundColor white
+skinparam shadowing false
+skinparam roundcorner 8
+skinparam defaultFontName Arial
+skinparam packageStyle rectangle
+skinparam componentStyle rectangle
+skinparam ArrowColor #444444
+skinparam BorderColor #333333
+skinparam classAttributeIconSize 0
+title Autonomy Lifecycle State Machine
+[*] --> Proposed
+Proposed --> Supervised : approved
+Supervised --> Bounded : evidence sufficient
+Bounded --> Expanded : assurance threshold met
+Expanded --> Suspended : anomaly / override
+Bounded --> Suspended : anomaly / override
+Suspended --> Supervised : remediation approved
+Suspended --> Revoked : unacceptable risk
+Expanded --> Revoked : mandate withdrawn
+Revoked --> [*]
+@enduml

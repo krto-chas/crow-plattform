@@ -1,0 +1,18 @@
+{
+  "release": "0.6.0-alpha.9",
+  "sprint": "B7.3 Accepted Claims",
+  "quality": {
+    "ruff": "PASS",
+    "mypy_strict": "PASS",
+    "pytest": "100 passed",
+    "wheel": "PASS",
+    "sdist": "PASS"
+  },
+  "canonical_admission": [
+    "accepted_complementary",
+    "accepted_consistent",
+    "resolved_by_hierarchy",
+    "resolved_by_date"
+  ],
+  "unresolved_behavior": "Retained as pending and excluded from canonical claims"
+}

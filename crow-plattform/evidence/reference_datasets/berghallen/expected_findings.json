@@ -1,0 +1,106 @@
+{
+  "schema_version": 1,
+  "dataset_id": "berghallen-kfu",
+  "description": "Golden expectations för provtrycknings- och kalkylkedjan, härledda manuellt ur förfrågningshandlingarna (bygghandling 2025-01-17).",
+  "tightness": {
+    "required_class_by_duct_family": {
+      "cirkular": "C",
+      "rektangular": "C",
+      "imkanal": "C"
+    },
+    "aggregate_casing_class": "L2",
+    "known_conflict": {
+      "duct_family": "rektangular",
+      "classes": [
+        "B",
+        "C"
+      ],
+      "note": "QL anger klass B för rektangulära kanaler medan kravtabellen anger klass C."
+    }
+  },
+  "test_scope_percent": {
+    "schakt": 100,
+    "rektangular": 10,
+    "cirkular": 10,
+    "platsbyggd": 100
+  },
+  "strings_per_apartment": 3,
+  "string_kinds": [
+    "tilluft",
+    "franluft",
+    "imkanal"
+  ],
+  "levels_fg": {
+    "plan_09": 14.65,
+    "plan_10": 17.27,
+    "plan_11": 21.08,
+    "plan_12": 23.91,
+    "plan_13": 26.74,
+    "plan_14": 29.58
+  },
+  "stairwells": [
+    {
+      "id": "trh-1",
+      "building": "hus-c",
+      "system": "LB01",
+      "apartments": 8,
+      "shaft_strings": 24,
+      "shaft_length_m": 200,
+      "rectangular_length_m": 32
+    },
+    {
+      "id": "trh-2",
+      "building": "hus-c",
+      "system": "LB01",
+      "apartments": 7,
+      "shaft_strings": 21,
+      "shaft_length_m": 188,
+      "rectangular_length_m": 27
+    },
+    {
+      "id": "trh-3",
+      "building": "hus-d",
+      "system": "LB02",
+      "apartments": 10,
+      "shaft_strings": 30,
+      "shaft_length_m": 248,
+      "rectangular_length_m": 42
+    },
+    {
+      "id": "trh-4",
+      "building": "hus-d",
+      "system": "LB02",
+      "apartments": 10,
+      "shaft_strings": 30,
+      "shaft_length_m": 248,
+      "rectangular_length_m": 36
+    },
+    {
+      "id": "radhus",
+      "building": "radhus",
+      "system": "LB03-LB05",
+      "apartments": 3,
+      "shaft_strings": 9,
+      "shaft_length_m": 63,
+      "rectangular_length_m": 0
+    }
+  ],
+  "totals": {
+    "apartments": 38,
+    "shaft_strings": 114,
+    "shaft_length_m": 947,
+    "rectangular_length_m": 137
+  },
+  "specification_apartment_count": 35,
+  "tolerances": {
+    "length_relative": 0.2
+  },
+  "buyer_questions": [
+    "QL anger täthetsklass B för rektangulära kanaler, kravtabellen klass C — vilket gäller?",
+    "Ska provning av ingjutna kanaler före gjutning ingå som kontraktskrav?"
+  ],
+  "revision": 2,
+  "revision_notes": [
+    "Rev 2 (Pass 51): trapphus 4 korrigerat från 5 till 10 lgh (44-1001-44-1302, plan 10-13). Rev 1 byggde på manuell rasterläsning av flödestabellen som undervärderade trh 4; pypdf-textlagret på V-57-1-40904/41104/41204/41304 redovisar samtliga. Beskrivningens 35 lgh (hus C+D) stämmer därmed med ritningarna."
+  ]
+}

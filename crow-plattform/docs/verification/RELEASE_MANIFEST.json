@@ -1,0 +1,54 @@
+{
+  "release": "crow-platform-2.4-inference-engine-rc1-sprint4",
+  "name": "Crow Backbone Foundation Release",
+  "status": "STABLE_FOUNDATION",
+  "meaning": "First functioning and externally validated Backbone release",
+  "python": ">=3.11",
+  "public_packages": [
+    "crow_module_sdk",
+    "crow_module_conformance"
+  ],
+  "entrypoint_group": "crow.modules",
+  "validated_external_module": {
+    "name": "crow-vent-reference-module",
+    "version": "0.2.0"
+  },
+  "validation": {
+    "ruff": "PASS",
+    "mypy_strict": "PASS",
+    "pytest": "PASS",
+    "architecture_review": "PASS",
+    "isolated_wheel_installation": "PASS",
+    "entrypoint_discovery": "PASS",
+    "conformance": "PASS",
+    "forbidden_private_imports": 0,
+    "end_to_end": "PASS",
+    "commercial_delta": "3960.00 SEK"
+  },
+  "next_milestone": "Sprint B — Document Intelligence and Knowledge Fusion",
+  "geometry_framework_version": "0.9",
+  "test_count": 231,
+  "component": "crow-building-graph",
+  "version": "2.4.0-rc1-sprint4",
+  "tests": {
+    "passed": 247
+  },
+  "features": [
+    "iterative rule chaining",
+    "spatial and system inference",
+    "evidence fusion",
+    "conflict query API",
+    "derived relation query API",
+    "persistent inference review lifecycle",
+    "accepted/rejected/promoted derived relation states",
+    "guarded promotion to verified Building Graph",
+    "promotion provenance and audit history",
+    "automatic inference invalidation after promotion"
+  ],
+  "verification": {
+    "tests_passed": 251,
+    "python_compileall": "passed",
+    "zip_integrity": "pending"
+  },
+  "test_status": "292 passed"
+}

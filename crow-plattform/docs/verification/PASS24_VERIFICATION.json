@@ -1,0 +1,27 @@
+{
+  "baseline": "0.7.0-alpha.1",
+  "pass": 24,
+  "scope": "Evidence integrity rule package",
+  "implemented": [
+    "general evidence integrity audit on top of EvidenceIndex and GraphRuleEngine",
+    "EVID-DQ-001 missing evidence reference detection",
+    "EVID-DQ-002 duplicate evidence id detection",
+    "EVID-DQ-003 conflicting source checksum detection",
+    "EVID-EVID-001 unreferenced evidence review finding",
+    "read-only Workbench evidence-audit endpoint",
+    "explicit metadata that no graph mutation, evidence mutation or automatic repair occurs"
+  ],
+  "not_implemented": [
+    "automatic repair of missing evidence references",
+    "automatic removal of unreferenced evidence",
+    "automatic checksum conflict resolution",
+    "technical validation of source correctness",
+    "AI-based evidence assessment"
+  ],
+  "verification": {
+    "ruff": "pass",
+    "mypy": "pass: 171 source files",
+    "pytest": "pass: 366 tests",
+    "build": "wheel and sdist built"
+  }
+}

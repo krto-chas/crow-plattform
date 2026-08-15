@@ -1,0 +1,25 @@
+@startuml
+skinparam backgroundColor white
+skinparam shadowing false
+skinparam roundcorner 8
+skinparam defaultFontName Arial
+skinparam packageStyle rectangle
+skinparam componentStyle rectangle
+skinparam ArrowColor #444444
+skinparam BorderColor #333333
+skinparam classAttributeIconSize 0
+title Trust and Assurance Class Model
+class TrustDomain
+class TrustRelationship
+class TrustEvidence
+class AssuranceClaim
+class AssuranceControl
+class AssuranceFinding
+class ConfidenceAssessment
+TrustDomain "1" o-- "*" TrustRelationship
+TrustRelationship "1" o-- "*" TrustEvidence
+AssuranceClaim "1" --> "1..*" TrustEvidence
+AssuranceClaim "1" --> "1..*" AssuranceControl
+AssuranceControl "1" --> "0..*" AssuranceFinding
+AssuranceClaim "1" --> "1" ConfidenceAssessment
+@enduml

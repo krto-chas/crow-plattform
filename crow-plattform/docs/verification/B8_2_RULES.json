@@ -1,0 +1,75 @@
+{
+  "id": "crow.rules.technical.example",
+  "name": "Example technical decision rules",
+  "version": "1.0.0",
+  "rules": [
+    {
+      "id": "ventilation.airflow.high",
+      "name": "High airflow",
+      "description": "Flags accepted airflow values above a configured threshold.",
+      "priority": 100,
+      "enabled": true,
+      "source": "Project technical rule",
+      "version": "1.0.0",
+      "conditions": [
+        {
+          "field": "predicate",
+          "operator": "equals",
+          "expected": "has_value"
+        },
+        {
+          "field": "unit",
+          "operator": "equals",
+          "expected": "L/S"
+        },
+        {
+          "field": "value",
+          "operator": "greater_than",
+          "expected": 350
+        }
+      ],
+      "output": {
+        "category": "ventilation",
+        "severity": "medium",
+        "title": "High accepted airflow",
+        "conclusion": "The accepted airflow exceeds the configured threshold.",
+        "recommended_action": "Verify sizing and downstream capacity."
+      }
+    }
+  ],
+  "multi_rules": [
+    {
+      "id": "ventilation.velocity.limit",
+      "name": "Calculated duct velocity",
+      "description": "Combines accepted airflow and duct area.",
+      "priority": 120,
+      "enabled": true,
+      "source": "Project technical rule",
+      "version": "1.0.0",
+      "selectors": [
+        {
+          "alias": "airflow",
+          "subject_regex": "airflow|luftflöde",
+          "unit": "L/S",
+          "minimum_confidence": 0.7
+        },
+        {
+          "alias": "area",
+          "subject_regex": "duct area|kanalarea",
+          "unit": "M2",
+          "minimum_confidence": 0.7
+        }
+      ],
+      "expression": "(airflow / 1000) / area",
+      "comparison": "greater_than",
+      "expected": 5.0,
+      "output": {
+        "category": "ventilation",
+        "severity": "high",
+        "title": "Calculated air velocity exceeds limit",
+        "conclusion": "Accepted airflow and duct area imply excessive velocity.",
+        "recommended_action": "Increase duct area or revise airflow."
+      }
+    }
+  ]
+}

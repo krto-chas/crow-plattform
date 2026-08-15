@@ -1,0 +1,66 @@
+{
+  "dataset_id": "v50-1-01",
+  "description": "Real project dataset linking DWG, IFC, PDF drawing and a partial supplier quotation supplied by the project owner.",
+  "known_limitations": [
+    "The supplier quotation is incomplete and must not be treated as an exhaustive bill of materials.",
+    "Consumables and installation allowances may not be directly derivable from model geometry.",
+    "The association between source files is user-provided; automated cross-file identity verification is not yet implemented."
+  ],
+  "metadata": {},
+  "schema_version": 1,
+  "sources": [
+    {
+      "checksum_sha256": "7c662ca1b7ca998ae20a91d8a13de4eaafe0a916f5d025f1feca7a117e071113",
+      "external_path": "V-50-1-01.dwg",
+      "filename": "V-50-1-01.dwg",
+      "format_id": "dwg",
+      "format_version": "AutoCAD 2018+",
+      "media_type": "application/acad",
+      "notes": [],
+      "reference_quality": "authoritative",
+      "role": "drawing",
+      "size_bytes": 1085241,
+      "source_id": "drawing-dwg"
+    },
+    {
+      "checksum_sha256": "752d7797b844b91e0bee1e8a1344a7ccb3d7915fb7afc0d6e2f3ae6a6456f3a9",
+      "external_path": "V-50-1-01.ifc",
+      "filename": "V-50-1-01.ifc",
+      "format_id": "ifc",
+      "format_version": "IFC2X3",
+      "media_type": "application/x-step",
+      "notes": [],
+      "reference_quality": "authoritative",
+      "role": "model",
+      "size_bytes": 1470932,
+      "source_id": "model-ifc"
+    },
+    {
+      "checksum_sha256": "1945f95cd268e0c4740882e9fbf246602a109e127bbe8c20ef2096cf42442810",
+      "external_path": "V-50-1-01-101.pdf",
+      "filename": "V-50-1-01-101.pdf",
+      "format_id": "pdf",
+      "format_version": "1.7",
+      "media_type": "application/pdf",
+      "notes": [],
+      "reference_quality": "supporting",
+      "role": "drawing",
+      "size_bytes": 348597,
+      "source_id": "drawing-pdf"
+    },
+    {
+      "checksum_sha256": "739c948d8ed8614b3aa6c037be75d6da933c915941632ca8cd3be81e83c6b42a",
+      "external_path": "Offert-13239.pdf",
+      "filename": "Offert-13239.pdf",
+      "format_id": "pdf",
+      "format_version": "1.5",
+      "media_type": "application/pdf",
+      "notes": [],
+      "reference_quality": "partial",
+      "role": "quantity_reference",
+      "size_bytes": 123078,
+      "source_id": "supplier-offer"
+    }
+  ],
+  "title": "V-50-1-01 reference dataset"
+}

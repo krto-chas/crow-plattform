@@ -1,0 +1,2486 @@
+{
+  "release": "1.0.0-rc1",
+  "file_count": 496,
+  "files": [
+    {
+      "path": ".github/workflows/ci.yml",
+      "sha256": "e59396f7d0a1fd95f30ad793e4f729ef37cca5659ea31819d0413c2bb5bd99e3",
+      "bytes": 376
+    },
+    {
+      "path": "B10_1_VERIFICATION.json",
+      "sha256": "6d56777647b278823310433abe938c96fd9e64a0f79b72d4ca1f4fc348be01de",
+      "bytes": 719
+    },
+    {
+      "path": "B10_2_VERIFICATION.json",
+      "sha256": "3d2448531d5643d2abe2f40f9f583a52380a759413ed9d7b9b4f98be5dc16659",
+      "bytes": 674
+    },
+    {
+      "path": "B10_3_VERIFICATION.json",
+      "sha256": "e467397de43f94a2e4aaea8f290fe532981bb62ec50d820b778cdcfe3c30be0f",
+      "bytes": 912
+    },
+    {
+      "path": "B11_1_VERIFICATION.json",
+      "sha256": "582905a1e4c547837e45bc9744a2473a86f2bb705597d90eec57576bd8285cf5",
+      "bytes": 763
+    },
+    {
+      "path": "B11_2_VERIFICATION.json",
+      "sha256": "1bcf4606e2b5be5d870f97c1f3ee63589455a34310873222082574dfee2e441e",
+      "bytes": 1006
+    },
+    {
+      "path": "B11_3_VERIFICATION.json",
+      "sha256": "4d4cb73eb97e50dfb81e56893aa21698d6d2607757ac44ecea7ebbe404c7308a",
+      "bytes": 1703
+    },
+    {
+      "path": "B1_2_VERIFICATION.json",
+      "sha256": "e36fd300d778c224f5012cf50f5207ac5bba9c78961f76f6450a64c327f7daaf",
+      "bytes": 1705
+    },
+    {
+      "path": "B1_VERIFICATION.json",
+      "sha256": "1eff760a250ce68b6548067baf847242771eb310020e01a6babc1a47d77219b0",
+      "bytes": 2201
+    },
+    {
+      "path": "B2_VERIFICATION.json",
+      "sha256": "5e0b65459f4068e2426146ce8e5301b5dbb8b49d7d5f2e5e63f874457c15e270",
+      "bytes": 682
+    },
+    {
+      "path": "B3_VERIFICATION.json",
+      "sha256": "6632714e898e74b3d76f23bada5dcd11b5fec7068c26177775251f2fe21a9d9e",
+      "bytes": 1576
+    },
+    {
+      "path": "B4_DEMO.py",
+      "sha256": "e5f4fb3fd87e8b4505d4f9fea6b3a93c313a556c404e1b81e0f8e96136d44e38",
+      "bytes": 1309
+    },
+    {
+      "path": "B4_VERIFICATION.json",
+      "sha256": "90e6dc3b74622a83dce18d8d2a7b896b9df42abc31c76ea67271fc3bb344240d",
+      "bytes": 1878
+    },
+    {
+      "path": "B5_DEMO.py",
+      "sha256": "3a70cb393adf0dab739cca5c4eb06386b74a6e8bef929536d0e85a387239d1bf",
+      "bytes": 1225
+    },
+    {
+      "path": "B5_VERIFICATION.json",
+      "sha256": "f583ac2bf71de64beb45be95a4e66da3d87dc59e2cf40422122b89290318efeb",
+      "bytes": 345
+    },
+    {
+      "path": "B7_1_DEMO.py",
+      "sha256": "60b6841002a92ea9e2b9603bfd5e8a081eae97a68dfd393699fa17b98b41e47e",
+      "bytes": 2746
+    },
+    {
+      "path": "B7_1_VERIFICATION.json",
+      "sha256": "9d922f9f32096f3bcc03fb5a1e6b892871d316d6b9530aa6f14bf9efcff9d454",
+      "bytes": 2448
+    },
+    {
+      "path": "B7_3_VERIFICATION.json",
+      "sha256": "270f8b568f6e77968844791e67b992aa39c70533313b3f23cefafe025f9667ef",
+      "bytes": 429
+    },
+    {
+      "path": "B8_1_RULES.json",
+      "sha256": "730e4ac7aeb318527f2c1546ec92a2a925f11667cad0b0e94247df370f00a4e7",
+      "bytes": 1063
+    },
+    {
+      "path": "B8_1_VERIFICATION.json",
+      "sha256": "ce8257e191054959a89dd257beeb5dd4eae494f24ae669d1055c7278a9c7e9a7",
+      "bytes": 2884
+    },
+    {
+      "path": "B8_2_RULES.json",
+      "sha256": "837234f1333c7249081701bca89394ffa40734f3e0ee7ebf7d6f318b2c4b0145",
+      "bytes": 2115
+    },
+    {
+      "path": "B8_2_VERIFICATION.json",
+      "sha256": "24554c47140e9c9c878c59e42f844ca5da090d67b7c53d28fc74e4fd6684a668",
+      "bytes": 2992
+    },
+    {
+      "path": "B8_3_PROFILE.json",
+      "sha256": "4848ce31d6c9797fa152c016e38aa6c9f09f048635fbc9c621f9d73ea8a97569",
+      "bytes": 1205
+    },
+    {
+      "path": "B8_3_VERIFICATION.json",
+      "sha256": "0be3f8abd20a4a98e8b185c199cd73aca2c9b9213139efba2d27488d5a3e9db1",
+      "bytes": 3197
+    },
+    {
+      "path": "B8_4_VERIFICATION.json",
+      "sha256": "5697661f4c461a72bdf735ebd9d95fb7869077771e5ac14d030986576b5bdcfe",
+      "bytes": 3500
+    },
+    {
+      "path": "B9_1_VERIFICATION.json",
+      "sha256": "fc99223ee2d50513e7115744469b40a0ade264c4dab07c4d92132fa1c66eb3fd",
+      "bytes": 3372
+    },
+    {
+      "path": "B9_2_VERIFICATION.json",
+      "sha256": "a7e48d1ba9660fc47be8b0300776bf9004c4ce3e0cffa88e867dcaa46eb2e081",
+      "bytes": 615
+    },
+    {
+      "path": "B9_3_VERIFICATION.json",
+      "sha256": "a63d8c0bde728c4baebdb01cc2b150fc8e3cfdf46068b15335aadc01a02e95fa",
+      "bytes": 594
+    },
+    {
+      "path": "CHANGELOG.md",
+      "sha256": "1f6f6520e38e482db9aba1ebda61cfd792ba44985ff97c0251f0bde93cfbfa81",
+      "bytes": 15728
+    },
+    {
+      "path": "D1_VERIFICATION.json",
+      "sha256": "deb80c320ecc2b038dc9ad5bccff1912c0c9fdda50e338385c19b0ccb256372c",
+      "bytes": 1009
+    },
+    {
+      "path": "GEOMETRY_FRAMEWORK_RC1.json",
+      "sha256": "ed9e353aeeab9de7e4d3c8fdd7555aa42b05f5115a99631b5f9ce8b5cb174296",
+      "bytes": 530
+    },
+    {
+      "path": "GEOMETRY_FRAMEWORK_STATUS.json",
+      "sha256": "13eb12e052744b7ae2f2b90691cab958a0eef2c918d35d6ed312c01f4ea440cd",
+      "bytes": 613
+    },
+    {
+      "path": "MANIFEST.in",
+      "sha256": "a9d198db865855ff2e408c3f3f8bcb53409493bb9301cc64174d4ca32ee4e7ae",
+      "bytes": 33
+    },
+    {
+      "path": "README.md",
+      "sha256": "a7dffd939d31077a64746a23ee6f84adbc5ba7fc819919fe763d6e30475948b1",
+      "bytes": 2940
+    },
+    {
+      "path": "RELEASE_MANIFEST.json",
+      "sha256": "63d22f030cb82c51f12eb8adb45387d457570c57199052f4e70bf1a172c33a33",
+      "bytes": 896
+    },
+    {
+      "path": "TODO.md",
+      "sha256": "3de172ab61f960a7ee059b90d0e2a7421bc79da9e81e8d5e9bc09eacc6984a1f",
+      "bytes": 1463
+    },
+    {
+      "path": "WORKBENCH_BETA.json",
+      "sha256": "f82d96645f931e3fb95a2c667e1a9340b70cbb34037139b919456313bb391a39",
+      "bytes": 506
+    },
+    {
+      "path": "crow-accepted-claims.json",
+      "sha256": "d7633768a6b413c30083f84d669c68434e536cffca3a92b0eb618599b60ecafb",
+      "bytes": 716
+    },
+    {
+      "path": "crow-adjustments.json",
+      "sha256": "e27910ff6b0d604496e2ef2857fab4e4c38eb8ee43a3876aac6e36d20fff42e8",
+      "bytes": 678
+    },
+    {
+      "path": "crow-commercial-adjustments.json",
+      "sha256": "edf7f82c4d8b2524d1135bdc5b9066a76685cd517e32c6232f812ca1fbbf1cc6",
+      "bytes": 814
+    },
+    {
+      "path": "crow-commercial-impacts.json",
+      "sha256": "78aab5cbbb72821307220f4388d32dcf63003022c3f2cb48d8148eaf3d9f4ce8",
+      "bytes": 1030
+    },
+    {
+      "path": "crow-commercial-review.json",
+      "sha256": "7f119e7862dd69f183ae5f2a5bf78788b25edf8d29ddf65d46f5786448629543",
+      "bytes": 658
+    },
+    {
+      "path": "crow-estimate-revision.json",
+      "sha256": "48535368483813bfafdde1c2ad9787285dddbce0b3914e529f28b02c3879aa2a",
+      "bytes": 1699
+    },
+    {
+      "path": "crow-estimate.json",
+      "sha256": "250a8804526e359374f2a22401f95f710d33013e36e2b1c3dae36384ebaf1f7d",
+      "bytes": 1815
+    },
+    {
+      "path": "crow-price-book.json",
+      "sha256": "405f6a4655f65d2069c923f3a59ffbfe2447a575058fc0c3322f0471f97f7ac2",
+      "bytes": 570
+    },
+    {
+      "path": "crow-project.json",
+      "sha256": "4d06a4d5242b2e2fef39be38e0fe020224c970ba66efa8975989930c3971d522",
+      "bytes": 22
+    },
+    {
+      "path": "crow-scope-impacts.json",
+      "sha256": "4f2461dd16fd0dbae23074cc53ac33139ba26c9f6f230d7333d50aec2a621287",
+      "bytes": 949
+    },
+    {
+      "path": "crow-scope-rules.json",
+      "sha256": "25523fd09e13a15786914c60748877070d1949f90770e4a2980ce58296040d1f",
+      "bytes": 733
+    },
+    {
+      "path": "crow-structured-estimate-rev1.json",
+      "sha256": "bf5d09ae123aad741189d0eb3d2d06a87a4bd091f6e8ff08fedec6321271f9f7",
+      "bytes": 2166
+    },
+    {
+      "path": "crow-structured-estimate-rev2.json",
+      "sha256": "a7ec40a7b95fcd57e05c5dba24e90813524c38640f4df65b6a75c0b0cf0bca1f",
+      "bytes": 2166
+    },
+    {
+      "path": "crow-structured-estimate.json",
+      "sha256": "77883a39553b65b3bd1a88865c9a868bb34908d6e5ea8b2c96f891cebb2521b6",
+      "bytes": 2303
+    },
+    {
+      "path": "crow-technical-baseline.json",
+      "sha256": "5e251f0a8f70a6560441a8ff99967b1d2acf43edcce4f07c77f4676a05798323",
+      "bytes": 486
+    },
+    {
+      "path": "crow-technical-decisions.json",
+      "sha256": "0aad2433db1e91febb1191ad87d36385f0296614647095d8a602cc9ec2621d40",
+      "bytes": 1047
+    },
+    {
+      "path": "crow-technical-deltas.json",
+      "sha256": "c8c082c127f1ca758daca61ba13d51576439606b2c701bffce5bc86216d6a8a9",
+      "bytes": 1066
+    },
+    {
+      "path": "crow-technical-reviews.json",
+      "sha256": "ec5ba66f9139f06fed1395ba9970304b00f5cf3c7f21a5ad4d2ed9d534ad30da",
+      "bytes": 226
+    },
+    {
+      "path": "crow-technical-validation.json",
+      "sha256": "ae21096a0e7cf2048099bc1791b98e387571ccad52726e4801bca7753de400c8",
+      "bytes": 623
+    },
+    {
+      "path": "docs/00_Architecture/ARCHITECTURAL_STYLE.md",
+      "sha256": "ac1fc800dd3c303f62c948e2de08abb4840b38deee6125ce6e21d04928e14900",
+      "bytes": 2129
+    },
+    {
+      "path": "docs/00_Architecture/ARCHITECTURE.md",
+      "sha256": "d474e3bb5c8e976151e0624ba99ad565006e9b8c299a4d9a8c9a19dc1bbcf552",
+      "bytes": 9899
+    },
+    {
+      "path": "docs/00_Architecture/DECISION_PIPELINE.md",
+      "sha256": "7ce60cd3cfe4cb7b1f9e6ffe1c303a5d9fd02ac97205d1c79c1438259c1ac8d1",
+      "bytes": 4076
+    },
+    {
+      "path": "docs/00_Architecture/DESIGN_PRINCIPLES.md",
+      "sha256": "514f39aad3913e283598598f62a53618650d043f22b89fb41d106f794805f305",
+      "bytes": 4949
+    },
+    {
+      "path": "docs/00_Architecture/DIAGRAMS.md",
+      "sha256": "d90a077ac26f5368bb6669a4307179a75c8902dcf4fc256aba6d20a1e4984e3e",
+      "bytes": 5290
+    },
+    {
+      "path": "docs/00_Architecture/README.md",
+      "sha256": "233a84fcf32c35e15964d65f2e74623a6d2ade0788e690f1fc0f3cbc574f987c",
+      "bytes": 686
+    },
+    {
+      "path": "docs/00_Architecture/SYSTEM_OVERVIEW.md",
+      "sha256": "20ef3760ea70abd4d21a65368d283db65bcb4ed6ae994af6d34fe12010f807bc",
+      "bytes": 5527
+    },
+    {
+      "path": "docs/00_Architecture/THE_CROW_PHILOSOPHY.md",
+      "sha256": "d1a5fff56c2bccd23b34766745824f50107c3d301616156ddbb7d6b862e6542e",
+      "bytes": 3473
+    },
+    {
+      "path": "docs/03_Security/SECURITY_ARCHITECTURE.md",
+      "sha256": "a588494029cec152011f36afc4857def46fbadd718818cee4619684f7a922205",
+      "bytes": 3634
+    },
+    {
+      "path": "docs/90_Governance/Archive/README.md",
+      "sha256": "bef1ae3891ab47ff593d6304c51d37f63c143ca4c8afd4a6a8b61e2384f74c5f",
+      "bytes": 811
+    },
+    {
+      "path": "docs/90_Governance/Archive/original-caf-rc1/ADR/ADR-000_Index.md",
+      "sha256": "83a335af968459e227215b8ff5f69eb75290215f235d8da9a06e95b2a2e74e4a",
+      "bytes": 229
+    },
+    {
+      "path": "docs/90_Governance/Archive/original-caf-rc1/ADR/ADR-001_Initial_Repository_Structure.md",
+      "sha256": "0a09230926c7ff65e127b7d724cc26b44ab8224e4f56b7f7f34b396bfa7f812f",
+      "bytes": 299
+    },
+    {
+      "path": "docs/90_Governance/Archive/original-caf-rc1/ADR/ADR-002_Foundation_Organization.md",
+      "sha256": "80204a9b54f16365330dca386e26be0137131d0398b5185b7109e4af95cb971d",
+      "bytes": 320
+    },
+    {
+      "path": "docs/90_Governance/Archive/original-caf-rc1/ADR/ADR-003_Document_Numbering.md",
+      "sha256": "7aa8e4e839a8f8dffc744f4de9bfbfc8c047f03ef755f57f6a46ee6bc9446a69",
+      "bytes": 291
+    },
+    {
+      "path": "docs/90_Governance/Archive/original-caf-rc1/ADR/ADR-004_Document_Versioning.md",
+      "sha256": "4d28fe94a2505d6b410ca2019ceae553ed91d5f2d5ec14b91dd1357bacfb0ac1",
+      "bytes": 316
+    },
+    {
+      "path": "docs/90_Governance/Archive/original-caf-rc1/ADR/ADR-005_Repository_Structure.md",
+      "sha256": "53cdf13a07e39ef1eb43fc3152d84175f94a2b822ea1eebe70bfdfb74175ada2",
+      "bytes": 323
+    },
+    {
+      "path": "docs/90_Governance/Archive/original-caf-rc1/ADR/ADR-006_Change_Management.md",
+      "sha256": "75833879dcaf04b869fb2a4d24e29d7407e5ca4aa7cea25a196c9cce4442f2d3",
+      "bytes": 300
+    },
+    {
+      "path": "docs/90_Governance/Archive/original-caf-rc1/ADR/ADR-007_Release_Baseline.md",
+      "sha256": "4c1dfaba851664cf9783e3b7d60fbb8fa75a5c7af0bd7609d5dc1fa8563478b5",
+      "bytes": 281
+    },
+    {
+      "path": "docs/90_Governance/Archive/original-caf-rc1/ADR/ADR-008_Traceability.md",
+      "sha256": "b8b3264e8e3ed3e4b5f4d0592a60f7750fca44365b53539ea457db26394e71f3",
+      "bytes": 323
+    },
+    {
+      "path": "docs/90_Governance/Archive/original-caf-rc1/ADR/ADR-009_Document_Approval.md",
+      "sha256": "3a6826c7589f36582e65fcd7ae06cefc6cb2e20a798efd436c2e05b6a3f840fc",
+      "bytes": 309
+    },
+    {
+      "path": "docs/90_Governance/Archive/original-caf-rc1/ADR/ADR-010_Configuration_Management.md",
+      "sha256": "cadfe92ecc66c665411ce839542da59d21a5acaabf2019bf1caf0036147ab0c2",
+      "bytes": 332
+    },
+    {
+      "path": "docs/90_Governance/Archive/original-caf-rc1/ADR/ADR-011_Release_Packaging.md",
+      "sha256": "48f87ccb796e5582d6ec7e50a4231d2e454b9338cc29d2699a2c4d1427b37bb6",
+      "bytes": 343
+    },
+    {
+      "path": "docs/90_Governance/Archive/original-caf-rc1/ADR/ADR-012_Artefact_Identification.md",
+      "sha256": "b2540484a5b4e3db8abd824231efd207e06e022654a7e968421997bf4d59ae89",
+      "bytes": 333
+    },
+    {
+      "path": "docs/90_Governance/Archive/original-caf-rc1/ADR/ADR-013_Document_Lifecycle.md",
+      "sha256": "bc1521387c3892dfec95e3dbe1f5cd9c179676b79451a93b04701b93ae271617",
+      "bytes": 288
+    },
+    {
+      "path": "docs/90_Governance/Archive/original-caf-rc1/ADR/ADR-014_Reference_Documentation.md",
+      "sha256": "a1ab8859dd83d7a0bcd8a4dbd0cb07634be372de63d84eda62c0be2653a71e28",
+      "bytes": 310
+    },
+    {
+      "path": "docs/90_Governance/Archive/original-caf-rc1/ADR/ADR-015_Baseline_Maintenance.md",
+      "sha256": "e2f162ee1127d46b43e9b2a5e23b3e91515bc2120bb932f6f458ffea889b87ee",
+      "bytes": 281
+    },
+    {
+      "path": "docs/90_Governance/Archive/original-caf-rc1/ADR/ADR-016_Document_Ownership.md",
+      "sha256": "c44ae220c775cc6ff0841ef177ef97521710692a1827c32bb845b2b6e92437a5",
+      "bytes": 304
+    },
+    {
+      "path": "docs/90_Governance/Archive/original-caf-rc1/ADR/ADR-017_Review_Cadence.md",
+      "sha256": "9bd8212f9956f183abd0d9c2fe627eff5b9c3f34c9dc922b1a4f47940d4f09a9",
+      "bytes": 280
+    },
+    {
+      "path": "docs/90_Governance/Archive/original-caf-rc1/ADR/ADR-018_Change_Control.md",
+      "sha256": "7f14477f8025801ed9e89e1a23a723c1228513a6203d05cdc851d1fcfe14f706",
+      "bytes": 285
+    },
+    {
+      "path": "docs/90_Governance/Archive/original-caf-rc1/ADR/ADR-019_Archive_Policy.md",
+      "sha256": "a7ebecbbd02b0f0218e3e0d6bc6fa183de2c044f891ab3628785c45724e7eefe",
+      "bytes": 307
+    },
+    {
+      "path": "docs/90_Governance/Archive/original-caf-rc1/ADR/ADR-020_Document_Retention.md",
+      "sha256": "a372bb878c98a1c373725daa43c9d060f552f011c249a7934ff6e6d119a47830",
+      "bytes": 309
+    },
+    {
+      "path": "docs/90_Governance/Archive/original-caf-rc1/ADR/ADR-021_Normative_References.md",
+      "sha256": "5387cc4366fb254c5256fe2c5df9ecc3d3ae4e2c2b786da605c8982daee7a1dc",
+      "bytes": 312
+    },
+    {
+      "path": "docs/90_Governance/Archive/original-caf-rc1/ADR/ADR-022_Document_Status.md",
+      "sha256": "ae629cc212f6f49bd8663b4e221c084f10e0ec99927f931cbf3932ecda69540a",
+      "bytes": 267
+    },
+    {
+      "path": "docs/90_Governance/Archive/original-caf-rc1/ADR/ADR-023_Identifier_Stability.md",
+      "sha256": "2a5a23f1ef199200dd388402c596be9b0576ee2eb4d491ae9d23daa606251249",
+      "bytes": 261
+    },
+    {
+      "path": "docs/90_Governance/Archive/original-caf-rc1/ADR/ADR-024_Document_Classification.md",
+      "sha256": "b6b1b4339ea78184af89788cfb0b1b2919971a70187882a01f3d94071c7dcdfd",
+      "bytes": 311
+    },
+    {
+      "path": "docs/90_Governance/Archive/original-caf-rc1/ADR/ADR-025_Repository_Integrity.md",
+      "sha256": "1fce09a354706fc5ecdc00942db44304f2c94b91445e8031cc8159f6897b0b21",
+      "bytes": 302
+    },
+    {
+      "path": "docs/90_Governance/Archive/original-caf-rc1/ADR/ADR-026_Document_Review_Record.md",
+      "sha256": "d577e6449e6a5bcbb91f62444fe42526776c3f84fdd3b8985fd6333af3e2be68",
+      "bytes": 292
+    },
+    {
+      "path": "docs/90_Governance/Archive/original-caf-rc1/ADR/ADR-027_Publication_Process.md",
+      "sha256": "815b8d9fa6da518886907f9972e16afb31e158082f01d46f09d1dd405897b126",
+      "bytes": 282
+    },
+    {
+      "path": "docs/90_Governance/Archive/original-caf-rc1/ADR/ADR-028_Release_Verification.md",
+      "sha256": "4db135d15d9bc3d8dc816fc8cc0a9a3c6a69a900d9350d5fc2c65ca65e5f793d",
+      "bytes": 286
+    },
+    {
+      "path": "docs/90_Governance/Archive/original-caf-rc1/ADR/ADR-029_Document_Supersession.md",
+      "sha256": "de95d537184d6bb864ac9f22e68a398ac3b38860764e139ece8ed51ff052508c",
+      "bytes": 304
+    },
+    {
+      "path": "docs/90_Governance/Archive/original-caf-rc1/ADR/ADR-030_Document_Metadata.md",
+      "sha256": "95f7beacbf0c514b32f88dc07c837b208fdaa6eee98ab0edde46e54a6ee4a34d",
+      "bytes": 298
+    },
+    {
+      "path": "docs/90_Governance/Archive/original-caf-rc1/ADR/ADR-031_Document_Traceability_Matrix.md",
+      "sha256": "52d9b2870681f42982a6f78b963d294dae12e4772266cc55db6997c54e66fad9",
+      "bytes": 296
+    },
+    {
+      "path": "docs/90_Governance/Archive/original-caf-rc1/ADR/ADR-032_Document_Review_History.md",
+      "sha256": "4ea4df39c423efeb764005722ed9cc7dbb3ff28906e23573d0f203d81c224862",
+      "bytes": 323
+    },
+    {
+      "path": "docs/90_Governance/Archive/original-caf-rc1/ADR/ADR-033_Release_Identification.md",
+      "sha256": "93771e86bf8d285818b1c33c4004fb2da3d7d99f6bb3aafd7e4bc7b4db460062",
+      "bytes": 303
+    },
+    {
+      "path": "docs/90_Governance/Archive/original-caf-rc1/ADR/ADR-034_Release_Integrity.md",
+      "sha256": "67ed0616c510a988e6346b3cc18f010c632abb7538e331f840e7132fd5b1d250",
+      "bytes": 339
+    },
+    {
+      "path": "docs/90_Governance/Archive/original-caf-rc1/ADR/ADR-035_Document_Consistency.md",
+      "sha256": "0b6ac89596f7b9a0bef2fd725ed7f54c89fea5d5525c7dd9fd852292a1ecc351",
+      "bytes": 333
+    },
+    {
+      "path": "docs/90_Governance/Archive/original-caf-rc1/ADR/ADR-036_Document_Access_Control.md",
+      "sha256": "6312432478bf581d88b9ce3e46ccb7df60919206fb50ef94670af5b90927f6cf",
+      "bytes": 340
+    },
+    {
+      "path": "docs/90_Governance/Archive/original-caf-rc1/ADR/ADR-037_Baseline_Validation.md",
+      "sha256": "48df8411ffa4d8230988461972a981f415699dea8a127b7aa0cc9a096242da10",
+      "bytes": 319
+    },
+    {
+      "path": "docs/90_Governance/Archive/original-caf-rc1/ADR/ADR-038_Document_Auditability.md",
+      "sha256": "2bbbdaf458f5c7b16441dba3de5cfac43ca53b97b6e6d47bc307b32cf4b68b56",
+      "bytes": 303
+    },
+    {
+      "path": "docs/90_Governance/Archive/original-caf-rc1/ADR/ADR-039_Governance_Exceptions.md",
+      "sha256": "3ee1febd9ed300e7cee9cd9a9c3e1d3ce6b8a3ae2cf6cfe6b40f3c61dbffc945",
+      "bytes": 290
+    },
+    {
+      "path": "docs/90_Governance/Archive/original-caf-rc1/CAS/CAS-900_Architecture_Overview.md",
+      "sha256": "617d31ed29e40b38b474bce5ab18df25bb006857416509c46198809f86601d57",
+      "bytes": 980
+    },
+    {
+      "path": "docs/90_Governance/Archive/original-caf-rc1/CAS/CAS-901_Architecture_Classification.md",
+      "sha256": "2fca217222b0c4d98373ffde1dc482e774490751844af782e753379cb278f1f8",
+      "bytes": 1262
+    },
+    {
+      "path": "docs/90_Governance/Archive/original-caf-rc1/CAS/CAS-902_Architecture_Conformance.md",
+      "sha256": "d7065601ade716c62348f7f31a939b507d9f98a871ab9b416a75401d5f81c5c8",
+      "bytes": 1196
+    },
+    {
+      "path": "docs/90_Governance/Archive/original-caf-rc1/CAS/CAS-903_Architecture_Documentation.md",
+      "sha256": "0b6fe4f504aa60ac51f3783a90aef213b5c0b7d6b6293455038bdc1bbb5ec6f6",
+      "bytes": 1314
+    },
+    {
+      "path": "docs/90_Governance/Archive/original-caf-rc1/CAS/CAS-904_Architecture_Governance.md",
+      "sha256": "ce3aadf21c4988d3fd000c1683e2ecd6563715275e85ce79978c7a367915fb1c",
+      "bytes": 1470
+    },
+    {
+      "path": "docs/90_Governance/Archive/original-caf-rc1/CAS/CAS-905_Federation_Trust_Architecture.md",
+      "sha256": "00e327d030d349fe473929c643325572c874baee875b08273ef4651b6e46be25",
+      "bytes": 1355
+    },
+    {
+      "path": "docs/90_Governance/Archive/original-caf-rc1/CAS/CAS-906_Federated_Cognitive_Architecture.md",
+      "sha256": "0bb678ffefe2c456dbf26a3664efa14dee6a79bb92b29a85ef52aa8850eefa0f",
+      "bytes": 417
+    },
+    {
+      "path": "docs/90_Governance/Archive/original-caf-rc1/CAS/CAS-906_Federation_Identity_Architecture.md",
+      "sha256": "8df8d9b2c5af5c6d0ec1a9427d434324a723bc4a25013c351fceccb9b22322f5",
+      "bytes": 807
+    },
+    {
+      "path": "docs/90_Governance/Archive/original-caf-rc1/CAS/CAS-907_Collective_Reasoning_Architecture.md",
+      "sha256": "2997b5332221b7fb06d4b2e53d7021a98ec8fdf35046cd054f960d0bfb6530a9",
+      "bytes": 391
+    },
+    {
+      "path": "docs/90_Governance/Archive/original-caf-rc1/CAS/CAS-907_Federation_Authorization_Architecture.md",
+      "sha256": "f1ae1b65dfa64b270ec3bc05e8bb34d6e66abe40bd153df78c813d1855e0631c",
+      "bytes": 967
+    },
+    {
+      "path": "docs/90_Governance/Archive/original-caf-rc1/CAS/CAS-908_Federation_Assurance_Architecture.md",
+      "sha256": "22581d5cc784a91b42dfd449a3e1fe5fc4fdc913fe7a538d61929f9008ae3f71",
+      "bytes": 378
+    },
+    {
+      "path": "docs/90_Governance/Archive/original-caf-rc1/CAS/CAS-908_Federation_Audit_Architecture.md",
+      "sha256": "7b3e21d9ef7af04402fa73d8a6c4c9372c8dbec9d6b321c5855b04b1bd007882",
+      "bytes": 971
+    },
+    {
+      "path": "docs/90_Governance/Archive/original-caf-rc1/CAS/CAS-909_Autonomous_Federation_Architecture.md",
+      "sha256": "9e808f6f052f576babe757e3a3e9eccbd432b44994a7c74ed1909476f66e4871",
+      "bytes": 414
+    },
+    {
+      "path": "docs/90_Governance/Archive/original-caf-rc1/CAS/CAS-909_Federation_Logging_Architecture.md",
+      "sha256": "9a3b54dc97bd532565c07bfe14121b958072e687e8a5ceb29ec02dd698c7ecde",
+      "bytes": 1041
+    },
+    {
+      "path": "docs/90_Governance/Archive/original-caf-rc1/CAS/CAS-910_Federation_Intelligence_Architecture.md",
+      "sha256": "763ce08f8a8988e25a4a9ba249e5fd7696ffb44f8ff5dc714bcebec12f440abe",
+      "bytes": 522
+    },
+    {
+      "path": "docs/90_Governance/Archive/original-caf-rc1/CAS/CAS-910_Federation_Monitoring_Architecture.md",
+      "sha256": "dc0ba115197ffc0510751228421f56f4dd745bb260428c8039c144436a0f8aad",
+      "bytes": 1127
+    },
+    {
+      "path": "docs/90_Governance/Archive/original-caf-rc1/CAS/CAS-911_Federation_Policy_Architecture.md",
+      "sha256": "c88f1da930d35d749b0ac3fbc057a9a58b4d6463576683bd2dac547725c71e9b",
+      "bytes": 967
+    },
+    {
+      "path": "docs/90_Governance/Archive/original-caf-rc1/CAS/CAS-912_Federation_Risk_Architecture.md",
+      "sha256": "21e58027f3a13a2dbaae3d5fa3b6bb1f52128670b23b176bf08dfd114d1ef07f",
+      "bytes": 1010
+    },
+    {
+      "path": "docs/90_Governance/Archive/original-caf-rc1/CAS/CAS-913_Federation_Incident_Architecture.md",
+      "sha256": "07c291520319b902ce1b2854f16db911b517f081e640d27b29be49ccadcdccef",
+      "bytes": 1032
+    },
+    {
+      "path": "docs/90_Governance/Archive/original-caf-rc1/CAS/CAS-914_Federation_Resilience_Architecture.md",
+      "sha256": "c7f4b43bd64f38acaa225c8033358f3d3541d498de59e0f77846c1fee094e56d",
+      "bytes": 967
+    },
+    {
+      "path": "docs/90_Governance/Archive/original-caf-rc1/CAS/CAS-915_Federation_Continuity_Architecture.md",
+      "sha256": "cd84871bad0b150b59ad0399ab6bb1a872c15d1fb28d2988edd01981716f46c0",
+      "bytes": 1092
+    },
+    {
+      "path": "docs/90_Governance/Archive/original-caf-rc1/CAS/CAS-916_Federation_Compliance_Architecture.md",
+      "sha256": "2378757fefa73794a537309b694347db78db100a46ac4816bcd65e26c373c5c9",
+      "bytes": 1099
+    },
+    {
+      "path": "docs/90_Governance/Archive/original-caf-rc1/CAS/CAS-917_Federation_Data_Governance_Architecture.md",
+      "sha256": "89622be8cda32fd8764865b13472bc9139f3320c0a1231b0389b0574e73481ed",
+      "bytes": 1064
+    },
+    {
+      "path": "docs/90_Governance/Archive/original-caf-rc1/CAS/CAS-918_Federation_Data_Exchange_Architecture.md",
+      "sha256": "2760018a0639a11e76d7f76ddad76e2fb6cc5152e0c3eef38cc74b9a9242c24f",
+      "bytes": 984
+    },
+    {
+      "path": "docs/90_Governance/Archive/original-caf-rc1/CAS/CAS-919_Federation_Metadata_Architecture.md",
+      "sha256": "682b12853dffc32b2570d6648136af6fcab8b7a1707bb787c001ed028be53b1b",
+      "bytes": 927
+    },
+    {
+      "path": "docs/90_Governance/Archive/original-caf-rc1/CAS/CAS-920_Federation_API_Architecture.md",
+      "sha256": "d58a231bb913c6a51c5737fec6438f8fb0876a9eca836a86908a5ea592a0f5c5",
+      "bytes": 947
+    },
+    {
+      "path": "docs/90_Governance/Archive/original-caf-rc1/CAS/CAS-921_Federation_Service_Architecture.md",
+      "sha256": "11856e17c2fa2e1b6fdd5078d77ea85ad4d4daab983b1f2e0df196fbe6d9b0e9",
+      "bytes": 1087
+    },
+    {
+      "path": "docs/90_Governance/Archive/original-caf-rc1/CAS/CAS-922_Federation_Event_Architecture.md",
+      "sha256": "fe114ab53d5387cc9a084c43a00552e21c9979e37ce8da83c0547cd920a83f21",
+      "bytes": 1028
+    },
+    {
+      "path": "docs/90_Governance/Archive/original-caf-rc1/CAS/CAS-923_Federation_Integration_Architecture.md",
+      "sha256": "dab85ff8b3529590f5b4f6ff3a367a1c715963c653ef62355b7962e05b8c0e0b",
+      "bytes": 1070
+    },
+    {
+      "path": "docs/90_Governance/Archive/original-caf-rc1/CAS/CAS-924_Federation_Messaging_Architecture.md",
+      "sha256": "dfa9d4913ebb3d1ab33cbe6e4beb72add388bfb7804db4721f18c131ee916a63",
+      "bytes": 1055
+    },
+    {
+      "path": "docs/90_Governance/Archive/original-caf-rc1/CAS/CAS-925_Federation_Workflow_Architecture.md",
+      "sha256": "bfb8d10eb25dbcc8d89aea92099ccfccd1e050149591a1be20447bdba1098878",
+      "bytes": 1012
+    },
+    {
+      "path": "docs/90_Governance/Archive/original-caf-rc1/CAS/CAS-926_Federation_Process_Architecture.md",
+      "sha256": "8ed199bae180fcb8c97a33ef7b7dd1049eec59883ae9f08e587f7cc4fcc9629f",
+      "bytes": 1017
+    },
+    {
+      "path": "docs/90_Governance/Archive/original-caf-rc1/CAS/CAS-927_Federation_Capability_Architecture.md",
+      "sha256": "20ab2f110ca13364a562214a13284cd9c92c57a2f9338d8a3a3347cad8b158f7",
+      "bytes": 1060
+    },
+    {
+      "path": "docs/90_Governance/Archive/original-caf-rc1/CAS/CAS-928_Federation_Asset_Architecture.md",
+      "sha256": "12b48b9d1468231581ea7627275d9c496ecbdd3c82bd3c8597f5d522b35e32e7",
+      "bytes": 1004
+    },
+    {
+      "path": "docs/90_Governance/Archive/original-caf-rc1/CAS/CAS-929_Federation_Configuration_Architecture.md",
+      "sha256": "f013f9dd609ac829935f3832ace140f03deafcb7e0fab4a918c2c3ec08786236",
+      "bytes": 1017
+    },
+    {
+      "path": "docs/90_Governance/Archive/original-caf-rc1/CAS/CAS-930_Federation_Change_Architecture.md",
+      "sha256": "48f764f17a549d9650d102a753b0b55e4143bc5a9412f69f56ee64fee3c60da4",
+      "bytes": 999
+    },
+    {
+      "path": "docs/90_Governance/Archive/original-caf-rc1/CAS/CAS-931_Federation_Dependency_Architecture.md",
+      "sha256": "1e5bb4bf78772b3487df9d1a5167cad7b43f3c60b5c33d91d7780b3964b31201",
+      "bytes": 1016
+    },
+    {
+      "path": "docs/90_Governance/Archive/original-caf-rc1/CAS/CAS-932_Federation_Observability_Architecture.md",
+      "sha256": "9b4c921c5f0de723cc33a01a3a315d29db055b92206177bca6492f305fdbc0b2",
+      "bytes": 1002
+    },
+    {
+      "path": "docs/90_Governance/Archive/original-caf-rc1/CAS/CAS-933_Federation_Governance_Metrics_Architecture.md",
+      "sha256": "18152afb29b01a70368029016984afa18c25b234c4c563d721b6324f75e0763c",
+      "bytes": 977
+    },
+    {
+      "path": "docs/90_Governance/Archive/original-caf-rc1/CAS/CAS-934_Federation_Service_Level_Architecture.md",
+      "sha256": "36ef24effcec2dffb5a3c120a73bd925d7529cbf016a01c1d6071d0a6a720742",
+      "bytes": 1133
+    },
+    {
+      "path": "docs/90_Governance/Archive/original-caf-rc1/CAS/CAS-935_Federation_Capacity_Architecture.md",
+      "sha256": "155ae954f77e08e825f250c668883ff15b9f256ce3c0ea655114a86a7cdb0ad9",
+      "bytes": 1037
+    },
+    {
+      "path": "docs/90_Governance/Archive/original-caf-rc1/CAS/CAS-936_Federation_Availability_Architecture.md",
+      "sha256": "95330188e4c0f65f49b422f3b7c6e6172e125788dd34213008d9234c4787ee15",
+      "bytes": 1106
+    },
+    {
+      "path": "docs/90_Governance/Archive/original-caf-rc1/CAS/CAS-937_Federation_Performance_Architecture.md",
+      "sha256": "97b4d879012ba3ac3d980f53b8afb3416a3d2d1ae0fc2cd4ee6cbcb1ac74fa12",
+      "bytes": 1104
+    },
+    {
+      "path": "docs/90_Governance/Archive/original-caf-rc1/CAS/CAS-938_Federation_Scalability_Architecture.md",
+      "sha256": "b1e87f60d1a98cee62334dec49badefa9f2eadd1028c371d9c3bd184f22c5ba4",
+      "bytes": 1088
+    },
+    {
+      "path": "docs/90_Governance/Archive/original-caf-rc1/CAS/CAS-939_Federation_Reliability_Architecture.md",
+      "sha256": "0ad96cb9c00e269675a3db34c21c3296edc73c1d50cd23ba8faf0a629aff1255",
+      "bytes": 1097
+    },
+    {
+      "path": "docs/90_Governance/Archive/original-caf-rc1/CAS/CAS-940_Federation_Maintainability_Architecture.md",
+      "sha256": "f184e9cedc164d586a625f99ffe2e1208d1ef869a537ca42fc82c1d1d4838a6a",
+      "bytes": 1132
+    },
+    {
+      "path": "docs/90_Governance/Archive/original-caf-rc1/CAS/CAS-941_Federation_Operability_Architecture.md",
+      "sha256": "82a867c4e39e9b9f10cc59238b4f5e140e513ecc7cf4dc259eee5afe7e23e2f4",
+      "bytes": 1083
+    },
+    {
+      "path": "docs/90_Governance/Archive/original-caf-rc1/CAS/CAS-942_Federation_Support_Architecture.md",
+      "sha256": "de001fcbab02fed13320029796a2d95dbfd26a46c2994f9d4340ffed1e95745f",
+      "bytes": 1032
+    },
+    {
+      "path": "docs/90_Governance/Archive/original-caf-rc1/CAS/CAS-943_Federation_Lifecycle_Architecture.md",
+      "sha256": "4487badc6550575a00618567be4b994ff8ac535c05117f1c7ffb2d8615233603",
+      "bytes": 1092
+    },
+    {
+      "path": "docs/90_Governance/Archive/original-caf-rc1/Compliance/CAF-CMP-001_Conformance_Checklist.md",
+      "sha256": "f9dc2539a4c9244915cd7d98d17cc7f80082c1022ad75c28dad1376da516f3a8",
+      "bytes": 272
+    },
+    {
+      "path": "docs/90_Governance/Archive/original-caf-rc1/Compliance/CAF-CMP-002_Compliance_Record.md",
+      "sha256": "9027bfe70c538b8f57689895be1b307d5e1f59df0d41dd1dad3f0f521319a9c1",
+      "bytes": 246
+    },
+    {
+      "path": "docs/90_Governance/Archive/original-caf-rc1/Foundation/CAF-001_Core_Concepts.md",
+      "sha256": "ee4ec41375f85594c0137fae2390b33ef0758b3065b1d9516a698bac4a499bde",
+      "bytes": 564
+    },
+    {
+      "path": "docs/90_Governance/Archive/original-caf-rc1/Foundation/CAF-002_Architecture_Principles.md",
+      "sha256": "55cd4f357814380e18d5b1bf8e98ad5a8335f71e547f895b6ada8876ea0e2ef2",
+      "bytes": 511
+    },
+    {
+      "path": "docs/90_Governance/Archive/original-caf-rc1/Foundation/CAF-003_Architecture_Metamodel.md",
+      "sha256": "06f566cf5ce266205165bce943d6aa067c14e4301215f344a8779242401ad5ec",
+      "bytes": 664
+    },
+    {
+      "path": "docs/90_Governance/Archive/original-caf-rc1/Foundation/CAF-004_Architecture_Method.md",
+      "sha256": "9d033d74458b9d330e6bbed9530c9301081749a8ac5394b9d10e728a0fdc3ede",
+      "bytes": 219
+    },
+    {
+      "path": "docs/90_Governance/Archive/original-caf-rc1/Foundation/CAF-005_Architecture_Governance.md",
+      "sha256": "c8244ad7c453f87b629dfefe1a006de390b0e397148c6c238c7a8101cca5147c",
+      "bytes": 1058
+    },
+    {
+      "path": "docs/90_Governance/Archive/original-caf-rc1/Foundation/CAF-006_Architecture_Repository.md",
+      "sha256": "be9b418c0770e8d018173b0b7f0cedf12a944c66ebfcd022f820a3bb053e38ed",
+      "bytes": 1415
+    },
+    {
+      "path": "docs/90_Governance/Archive/original-caf-rc1/Foundation/CAF-007_Capability_Framework.md",
+      "sha256": "a3654f1cf4e135f738f9b23dc274a437c1523436d4d2ad343aa17865557bd564",
+      "bytes": 1285
+    },
+    {
+      "path": "docs/90_Governance/Archive/original-caf-rc1/Foundation/CAF-008_Architecture_Language.md",
+      "sha256": "2af463da02f86be7c905efb67ff15149b8259898810ccd9939b40fdb6421adfc",
+      "bytes": 1462
+    },
+    {
+      "path": "docs/90_Governance/Archive/original-caf-rc1/Foundation/CAF-009_Architecture_Lifecycle.md",
+      "sha256": "70c1497ed43f55fca6d3d9c1cf5cbe15728f320ce54da31010a2ffc8052fcc21",
+      "bytes": 1246
+    },
+    {
+      "path": "docs/90_Governance/Archive/original-caf-rc1/Glossary/CAF-GLS-001_Core_Terminology.md",
+      "sha256": "899b983862327c46ed0c836dedb1bad6e1f4fe4a4482cfe9fde5badfd5917342",
+      "bytes": 294
+    },
+    {
+      "path": "docs/90_Governance/Archive/original-caf-rc1/Glossary/CAF-GLS-002_Acronyms.md",
+      "sha256": "06f91e21feca55046385d6c1b965073cd72fbff9908e6cb8acb0780383067e1f",
+      "bytes": 305
+    },
+    {
+      "path": "docs/90_Governance/Archive/original-caf-rc1/Releases/CAF-REL-001_Release_Manifest.md",
+      "sha256": "4b2665502508e5793d30b0abf52e5de82daaf147afdffafe96b789705e3368a6",
+      "bytes": 281
+    },
+    {
+      "path": "docs/90_Governance/Archive/original-caf-rc1/Releases/CAF-REL-002_Release_Notes.md",
+      "sha256": "4c30d05b9b5d52065682b63122d3936327b22bd018134ef10c7f12d79bd493d8",
+      "bytes": 259
+    },
+    {
+      "path": "docs/90_Governance/Archive/original-caf-rc1/Templates/CAF-TPL-001_Architecture_Document_Template.md",
+      "sha256": "45ac5f7d38ece5ba0d13f8f5f113cd5e2cdf09750c209561250c80beb1c3588e",
+      "bytes": 298
+    },
+    {
+      "path": "docs/90_Governance/Archive/original-caf-rc1/Templates/CAF-TPL-002_Architecture_Decision_Record.md",
+      "sha256": "232874b59c058d62928e9ce2eb938c3ae5c49aa38757b0727dd5c97f666d39a5",
+      "bytes": 284
+    },
+    {
+      "path": "docs/90_Governance/Archive/original-caf-rc1/Templates/CAF-TPL-003_Architecture_Review_Checklist.md",
+      "sha256": "56bbc39e93b35c69f925087a09d3d3ff101bdd35e17d31002a3fba5200b1b409",
+      "bytes": 245
+    },
+    {
+      "path": "docs/90_Governance/Archive/original-caf-rc1/Templates/CAF-TPL-004_Standard_Change_Request.md",
+      "sha256": "40ab05e5b8e3d1fa1c62dbdf4a754e3adaf450fd6779e0862375eb8e3ed28c16",
+      "bytes": 258
+    },
+    {
+      "path": "docs/90_Governance/Archive/uml-v0.1.0/UML_INDEX.md",
+      "sha256": "a728cf83a1da5d9a7ae999a3acaba6500919db97766eed71aa8cb0459579e20e",
+      "bytes": 3659
+    },
+    {
+      "path": "docs/90_Governance/Archive/uml-v0.1.0/manifest.json",
+      "sha256": "b3af666f7b34750e37b2e147af09f300ab2d49bfe0db8cf926966ce7eaef70bb",
+      "bytes": 4323
+    },
+    {
+      "path": "docs/90_Governance/Archive/uml-v0.1.0/plantuml/01_caf_system_context.puml",
+      "sha256": "f086471e86c06e720acb0a4c6b222013d482eed284f2d74532e6cd491098ebc1",
+      "bytes": 781
+    },
+    {
+      "path": "docs/90_Governance/Archive/uml-v0.1.0/plantuml/02_cas_portfolio_packages.puml",
+      "sha256": "d43ad266b76daad0cb3b742e14fcaa43ad47aafae7ee3dcf5d9ae38f8fc72a51",
+      "bytes": 702
+    },
+    {
+      "path": "docs/90_Governance/Archive/uml-v0.1.0/plantuml/03_core_domain_class_model.puml",
+      "sha256": "93e05692b74ea413a2262bfad08d7502405ca82b32d4b2ae1fe32f332ed9af85",
+      "bytes": 966
+    },
+    {
+      "path": "docs/90_Governance/Archive/uml-v0.1.0/plantuml/04_federation_domain_class_model.puml",
+      "sha256": "f8c5295fe2176c1731ea5b0a1b5fe2cdd3065a7524ed29c5f9c169d35345a9a6",
+      "bytes": 830
+    },
+    {
+      "path": "docs/90_Governance/Archive/uml-v0.1.0/plantuml/05_distributed_governance_components.puml",
+      "sha256": "3922772c9c029580da516e9d3cb312134b6d6e07f90951f409702648f7d1fd6c",
+      "bytes": 646
+    },
+    {
+      "path": "docs/90_Governance/Archive/uml-v0.1.0/plantuml/06_semantic_knowledge_model.puml",
+      "sha256": "d57accd36ccbe581e5e05983e7068f87013fc65412720c802a265ee7b2810622",
+      "bytes": 848
+    },
+    {
+      "path": "docs/90_Governance/Archive/uml-v0.1.0/plantuml/07_trust_assurance_model.puml",
+      "sha256": "ee8a23d74410855b4018bcdba0124d8f0784fec6080176f6df12f8d5e8ae2c5f",
+      "bytes": 762
+    },
+    {
+      "path": "docs/90_Governance/Archive/uml-v0.1.0/plantuml/08_cognitive_reasoning_components.puml",
+      "sha256": "6aa18b900fbbb8f95df31971217657a32573d113971f41ad6da1b7a475aa359b",
+      "bytes": 687
+    },
+    {
+      "path": "docs/90_Governance/Archive/uml-v0.1.0/plantuml/09_collective_reasoning_sequence.puml",
+      "sha256": "6260f187fed1a447a272dadf9d5c459ea5952e9efa0ebbcf3b682e7c2f455e71",
+      "bytes": 874
+    },
+    {
+      "path": "docs/90_Governance/Archive/uml-v0.1.0/plantuml/10_autonomy_state_machine.puml",
+      "sha256": "9ebd2c7d2fc6d5aabbcab1bd292befef49389dd85db02aab7caff0c876280533",
+      "bytes": 711
+    },
+    {
+      "path": "docs/90_Governance/Archive/uml-v0.1.0/plantuml/11_assurance_activity.puml",
+      "sha256": "68f0add8b207aebaad2897e3bcd58f5cb72bc73959699d184d275dcd918cc0ca",
+      "bytes": 619
+    },
+    {
+      "path": "docs/90_Governance/Archive/uml-v0.1.0/plantuml/12_federation_intelligence_pipeline.puml",
+      "sha256": "3467bdac38b526d6f3d0d664f87009ef78753748d24a39031de9e53467a1c9e8",
+      "bytes": 658
+    },
+    {
+      "path": "docs/90_Governance/Archive/uml-v0.1.0/plantuml/13_deployment_reference.puml",
+      "sha256": "a8d9030c4461404277092a2bea7e57c51376e568904b3a3231b4766bf4feb260",
+      "bytes": 956
+    },
+    {
+      "path": "docs/90_Governance/Archive/uml-v0.1.0/plantuml/14_architecture_review_sequence.puml",
+      "sha256": "b86dedae7ce3487decfa278eff5a496470250363822e7b44353e0780d9cc25df",
+      "bytes": 932
+    },
+    {
+      "path": "docs/90_Governance/Archive/uml-v0.1.0/plantuml/15_traceability_model.puml",
+      "sha256": "8fee6f96e696ac9ebdcd6d49b1c9f97ce9fe63d1c18e415d7e9c8aa0331d0d80",
+      "bytes": 847
+    },
+    {
+      "path": "docs/90_Governance/CAF-001_Glossary.md",
+      "sha256": "ffe12f6f70c8ef515792fce1037f44f0d335046291e187ecdf15eb03360a0e1e",
+      "bytes": 3468
+    },
+    {
+      "path": "docs/90_Governance/CAF-002_Architecture_Principles.md",
+      "sha256": "04a741f484c330d48e4925b5ac765185cc9e5437c408211b560307b316ab881f",
+      "bytes": 1849
+    },
+    {
+      "path": "docs/90_Governance/CAF-CMP-001_Conformance_Checklist.md",
+      "sha256": "b2c42d55f8b205d4537edefac66855ef6ee523f53b2b14f53acabcbe155a447b",
+      "bytes": 1305
+    },
+    {
+      "path": "docs/90_Governance/CAF-FUT-001_Federation_Roadmap.md",
+      "sha256": "7eb360f458dd8ad8d6aa54e1ffdfda060f590209535ee5825e49de2d7c501d37",
+      "bytes": 1584
+    },
+    {
+      "path": "docs/90_Governance/CAF-REL-001_Release_Manifest.md",
+      "sha256": "c6eb8810beafc8e137bec1e5ec3182a8d01b965b9de106c5b97261c792059eba",
+      "bytes": 1210
+    },
+    {
+      "path": "docs/90_Governance/CAF-REL-002_Release_Notes.md",
+      "sha256": "a3a2b1f5450ad63badb6b4648f9ab5e33421dd0bb523147a5da27cc4cbe0023f",
+      "bytes": 665
+    },
+    {
+      "path": "docs/90_Governance/CAF-TPL-002_ADR_Template.md",
+      "sha256": "f0c651387f90bb9f34cd54b02c4dd324420b22071c69aa149d56282920fa12a2",
+      "bytes": 1091
+    },
+    {
+      "path": "docs/90_Governance/CAF-TPL-003_Architecture_Review_Checklist.md",
+      "sha256": "094214c20499435d36d2e9f47d029202dc7a5d301e608014739d7d918b134a57",
+      "bytes": 1100
+    },
+    {
+      "path": "docs/90_Governance/CAF-TPL-004_Standard_Change_Request.md",
+      "sha256": "5d1532fbbc32a3c527f6173e1f069a5569170454fde69fcfa2d09c2c5c874caa",
+      "bytes": 678
+    },
+    {
+      "path": "docs/90_Governance/CAF_README.md",
+      "sha256": "d1a836d5e8daa6555fe81fe927e1c0118d61bda30c79515f5938011db86e5b14",
+      "bytes": 1153
+    },
+    {
+      "path": "docs/90_Governance/CAS-900_Architecture_Overview.md",
+      "sha256": "7795d8343eec418cc1f452591b78f9d994d10e73b3925f1bd83f00fd396ea809",
+      "bytes": 946
+    },
+    {
+      "path": "docs/90_Governance/MIGRATION_FROM_RC1.md",
+      "sha256": "28d1bdbf69372bd5ea6c1bd7a69cc3f11146a6ed0b605d50dba50425cf6710a8",
+      "bytes": 1296
+    },
+    {
+      "path": "docs/AUDIT_AND_REVISION.md",
+      "sha256": "7b2c0eac979b046111d50af1ded292ba2c69feff52eeaff503c056578c68e89b",
+      "bytes": 632
+    },
+    {
+      "path": "docs/BATCH_PIPELINE.md",
+      "sha256": "23dd85260faaba0c620aeb1179f2cc298e00971171b3161f5fcd9f810bd7b991",
+      "bytes": 498
+    },
+    {
+      "path": "docs/CONSTITUTION.md",
+      "sha256": "de0c7aefa3ece9f83f0355d57f62fcaccc59642efa884aa5e9e807aa6d9ea8f4",
+      "bytes": 1957
+    },
+    {
+      "path": "docs/DECISION_GRAPH.md",
+      "sha256": "580d0605372e3f0899eca4692c41385046e548be7db8a1266fc089d6ff61fb5c",
+      "bytes": 938
+    },
+    {
+      "path": "docs/DECISION_PIPELINE.md",
+      "sha256": "6406c2dd79ae0918ca94575be838050b43203a682483500ce2b6453e0e25bacf",
+      "bytes": 629
+    },
+    {
+      "path": "docs/DOMAIN_HANDBOOK.md",
+      "sha256": "87f31af21443c8fac8ea498b4f6115bdfdc5df6223e11874c905c411b6053b3b",
+      "bytes": 951
+    },
+    {
+      "path": "docs/FUTURE_MODULES.md",
+      "sha256": "b3f22669926e9843d63b40e0596f575ce17b29e7e798ba06a3e1690096d6b2f0",
+      "bytes": 2539
+    },
+    {
+      "path": "docs/MIGRATION_POLICY.md",
+      "sha256": "c5a01d28427445f0ce0caf10a9e4b010a4d24ebc1073325595bba055ff27050e",
+      "bytes": 676
+    },
+    {
+      "path": "docs/MODULE_CERTIFICATION.md",
+      "sha256": "8f22c283a92f29bcf1e6eca86569e85770cda3ee0186021c0a557604cdbab8a3",
+      "bytes": 290
+    },
+    {
+      "path": "docs/MODULE_CLI.md",
+      "sha256": "7ffb63bbf4470fa6503b8e92e3e48a247a1e50792ac11476e6c7b73af4914cc7",
+      "bytes": 523
+    },
+    {
+      "path": "docs/MODULE_CONTRACT.md",
+      "sha256": "c718d62903b34472e656bf9d194070c4032c3508b22f3a553c6c9e955b2dc40c",
+      "bytes": 336
+    },
+    {
+      "path": "docs/MODULE_DEVELOPMENT_GUIDE.md",
+      "sha256": "2193dbf6c4f40cc9b053c5fbed19000b5134370737b9ad511f35e09e99f87897",
+      "bytes": 241
+    },
+    {
+      "path": "docs/MODULE_REGISTRY.md",
+      "sha256": "def7a4922a088bd7232426600c42cbcd5a559b742c1e0cd2de8e5c4fa31135fd",
+      "bytes": 438
+    },
+    {
+      "path": "docs/PERSISTENCE_CONTRACT.md",
+      "sha256": "021cbdc82838c7405831c090b8632283d47d4e10511d93a383c5452ecc077247",
+      "bytes": 466
+    },
+    {
+      "path": "docs/PHILOSOPHY.md",
+      "sha256": "4dda66c679a191626696e3a59e1fb17538f928764cb25a5da4eed0bf4d92615a",
+      "bytes": 650
+    },
+    {
+      "path": "docs/PROJECT_AGGREGATE_RULES.md",
+      "sha256": "2c6ce26bb911dbcb565f735fbf828594e3003b8b577db9633596cb3cee0f1e85",
+      "bytes": 595
+    },
+    {
+      "path": "docs/PROJECT_MODEL.md",
+      "sha256": "c7c354a2cb6ec00ad382a7544c2193a79c1aecb494727af861fc0f216d8ea83a",
+      "bytes": 1044
+    },
+    {
+      "path": "docs/PROJECT_TRANSACTIONS.md",
+      "sha256": "d852d1809b6377466328b267cb36278fedf6ffb1b89585849603c90d06459c0f",
+      "bytes": 556
+    },
+    {
+      "path": "docs/RELEASE_NOTES_0.5.0.md",
+      "sha256": "46573862f3c45a676f1575b8d46b024c963d8ae0d666bc61ec9d33fc071a6d67",
+      "bytes": 1844
+    },
+    {
+      "path": "docs/SPRINT_A_ARCHITECTURE_REVIEW.md",
+      "sha256": "0c2406ed01438f56c6a36337f8940c60bed48b7bf2902e957058f9d7e7292ec2",
+      "bytes": 2488
+    },
+    {
+      "path": "docs/SPRINT_B10_1_COMMERCIAL_IMPACT.md",
+      "sha256": "9f967ef046df7c5c1a3a72510d5a3890d050cfc2f6897c2a2ad849d0f24e4db8",
+      "bytes": 1758
+    },
+    {
+      "path": "docs/SPRINT_B10_2_COMMERCIAL_ADJUSTMENTS.md",
+      "sha256": "84d3e2fa87e332e5a49172cea39772738336c403e2c8d5f8a930ebd67c9b686c",
+      "bytes": 1458
+    },
+    {
+      "path": "docs/SPRINT_B10_3_COMMERCIAL_REVIEW.md",
+      "sha256": "a366d9eec5d38784b0cc95ec2563794640facac349190667005ac8448b07f2b5",
+      "bytes": 1440
+    },
+    {
+      "path": "docs/SPRINT_B11_1_ESTIMATE_LINE_FOUNDATION.md",
+      "sha256": "5466b04a2740654b5e603f641aec42b453f5986af0fbb962746fb3b644c91fef",
+      "bytes": 1797
+    },
+    {
+      "path": "docs/SPRINT_B11_2_ESTIMATE_STRUCTURE.md",
+      "sha256": "f5defb22ea7ce8b8b7efa0f0a21b3e8af821a3f5cbc61ace5f9a7a69a3a40e9d",
+      "bytes": 794
+    },
+    {
+      "path": "docs/SPRINT_B11_3_ESTIMATE_REVISION.md",
+      "sha256": "fe708fe9cb9762a8f6c2e5fe7081d05e64d2038d1233312a65355d1b4275d8e4",
+      "bytes": 892
+    },
+    {
+      "path": "docs/SPRINT_B1_2_INTAKE_RELIABILITY.md",
+      "sha256": "5a429c817692c588c3ef866966b906fd6aa1dad75123fa1996b32b45f85a52c2",
+      "bytes": 1036
+    },
+    {
+      "path": "docs/SPRINT_B1_DOCUMENT_INTAKE.md",
+      "sha256": "238f52f6bc1f93cadd98704cf078b173fe183a044c2f30778f17ed94064f2bb6",
+      "bytes": 737
+    },
+    {
+      "path": "docs/SPRINT_B2_DOCUMENT_MODEL.md",
+      "sha256": "4495e3cc063d8a2f288939830ea280a9468df175a62e2c712a6c1ecadaeb645f",
+      "bytes": 1117
+    },
+    {
+      "path": "docs/SPRINT_B3_OBSERVATION_ENGINE.md",
+      "sha256": "4564ac2c811623bfe66404ea9dc2dc77c0ddef580964bb980a1af442cdbb971f",
+      "bytes": 759
+    },
+    {
+      "path": "docs/SPRINT_B4_CLAIM_EXTRACTION.md",
+      "sha256": "25e11096a543694bd83d4bcfb046cbef49014bb74bb621a492ca312412d9608f",
+      "bytes": 1073
+    },
+    {
+      "path": "docs/SPRINT_B5_KNOWLEDGE_FUSION.md",
+      "sha256": "30cec16486c7e91bd395306fcda0660ab5a588ab2283ef04173d77e3eb6da450",
+      "bytes": 904
+    },
+    {
+      "path": "docs/SPRINT_B7_1_AUTHORITY_FRAMEWORK.md",
+      "sha256": "06b552c5df3505263918a2055e2a7d2c0c2adbc53d2ed114fd110d760ec6eb98",
+      "bytes": 1894
+    },
+    {
+      "path": "docs/SPRINT_B7_2_AUTHORITY_DISCOVERY.md",
+      "sha256": "01abc510ee8f693ef4aa69ebe297d457d1b794abc6babfdc1338320b8c9ad1c9",
+      "bytes": 665
+    },
+    {
+      "path": "docs/SPRINT_B7_3_ACCEPTED_CLAIMS.md",
+      "sha256": "d291417b0970df7e6b687ecb17751b4d91eb354ffa3c2f1190a7c90d87e2c857",
+      "bytes": 1271
+    },
+    {
+      "path": "docs/SPRINT_B8_1_TECHNICAL_DECISION_ENGINE.md",
+      "sha256": "ef3039a21408775f0186b78c945f3b5d25ec6e9f70c067deb83e0dc4294e288d",
+      "bytes": 1533
+    },
+    {
+      "path": "docs/SPRINT_B8_2_MULTI_CLAIM_REASONING.md",
+      "sha256": "4841db6e68edffe0b32c9fae82636b7cc86a41306e6aaad604e5fe50dfc9f209",
+      "bytes": 1406
+    },
+    {
+      "path": "docs/SPRINT_B8_3_TECHNICAL_VALIDATION.md",
+      "sha256": "531afa6323b75e1a65787c10080f0d90a160965e418f890ac6e4beb49c6a54fc",
+      "bytes": 1542
+    },
+    {
+      "path": "docs/SPRINT_B8_4_TECHNICAL_REVIEW.md",
+      "sha256": "92fe6155575aa96dc2a327e5eda75e930e2834320d68f3b1d9019ef20579afa2",
+      "bytes": 1354
+    },
+    {
+      "path": "docs/SPRINT_B9_1_TECHNICAL_DELTA.md",
+      "sha256": "977911a67c99911dff9132527722453e19a54de0f0b4ec8748616d5138154216",
+      "bytes": 1510
+    },
+    {
+      "path": "docs/SPRINT_B9_2_STRUCTURED_DELTA_SEMANTICS.md",
+      "sha256": "0e2bfe2cfdc7a40ba6765c477e37770b5e36e9031d27344a24c40b777e2bdfd0",
+      "bytes": 1331
+    },
+    {
+      "path": "docs/SPRINT_B9_3_QUANTITY_SCOPE_IMPACT.md",
+      "sha256": "e42d48a0b3c73a8e380e02e3f72a95996ab65cb58a8d1fb858a1910c6fe915ac",
+      "bytes": 1673
+    },
+    {
+      "path": "docs/TRUST_POLICY.md",
+      "sha256": "3c92d7ba2b89098ee6f6535f2d09d5ae6110c07f7c46f4845983f1de67c770ee",
+      "bytes": 680
+    },
+    {
+      "path": "docs/adr/ADR-001-claim-centric-architecture.md",
+      "sha256": "74dafe7ac431cd0f83851e503a6ba2df51b87afca54a6b34a9e2a717d8b3dc91",
+      "bytes": 458
+    },
+    {
+      "path": "docs/adr/ADR-002-explicit-authority-policy.md",
+      "sha256": "82f9f7c86730e8a3aba8db5506471821cbb519e201102387cc44e756a07ad576",
+      "bytes": 333
+    },
+    {
+      "path": "docs/adr/ADR-003-module-boundary.md",
+      "sha256": "0308274eb7e0f987cbacb51b66e42b37e47764920daf7a1731b3d882f8645790",
+      "bytes": 269
+    },
+    {
+      "path": "docs/adr/ADR-004-project-aggregate.md",
+      "sha256": "69a893e2a3b991839dfda18e9b0350e831696c1a3661d5a89c92fc7cde12eb05",
+      "bytes": 264
+    },
+    {
+      "path": "docs/adr/ADR-005-transactional-project-runs.md",
+      "sha256": "db40d018db3680d43cfcb6427e5e68278e6920f3d6b479b1182f19c408a71b16",
+      "bytes": 231
+    },
+    {
+      "path": "docs/adr/ADR-006-signed-module-manifests.md",
+      "sha256": "96207072bee3fc958351c86d858ef5a16b97650ef800577c7d71d7ed422f66a0",
+      "bytes": 883
+    },
+    {
+      "path": "docs/adr/ADR-007-versioned-migrations.md",
+      "sha256": "fe54d26b2e71b81da3c629cf9947b072fbc0e7fd876d9751e8396c66ad4d8e3c",
+      "bytes": 282
+    },
+    {
+      "path": "docs/adr/ADR-008-crow-decision-language.md",
+      "sha256": "bff5cc6e3bba23dd461b3e051e8e881aead706964d2d770fcd1a09c8df5360a8",
+      "bytes": 846
+    },
+    {
+      "path": "docs/adr/ADR-009-crow-knowledge-language.md",
+      "sha256": "158ad0dfe0793584035c4ff23040b3749ee3fc6c9b6b2c86c8588785cc80e470",
+      "bytes": 811
+    },
+    {
+      "path": "docs/adr/ADR-010-backbone-authorization-PROPOSAL.md",
+      "sha256": "034f5222822c6b6fa859497c833e68bd8366ffc29d763f5bcdd818e3c1672c14",
+      "bytes": 4645
+    },
+    {
+      "path": "docs/adr/ADR-011-backbone-authorization.md",
+      "sha256": "aeb171b34eefe1812d7875c455ccb146b8cfd6569ea7a12d6bd651a57f9c116f",
+      "bytes": 7571
+    },
+    {
+      "path": "estimate-structure.json",
+      "sha256": "789671264126383666259bd99fe87688bf24d7815b233516ec7b446049d271dc",
+      "bytes": 758
+    },
+    {
+      "path": "examples/crow_example_module/src/crow_example_module/__init__.py",
+      "sha256": "aa915b96cb150e049b53d8718a49a2dd5f100f3ad767f356812eafeb8fee5a35",
+      "bytes": 63
+    },
+    {
+      "path": "examples/crow_example_module/src/crow_example_module/plugin.py",
+      "sha256": "00b5a2b0b479631e51ca5b44083dfdc73b6b837287d3522f88c648537e1c3d9f",
+      "bytes": 1911
+    },
+    {
+      "path": "examples/crow_example_module/tests/test_conformance.py",
+      "sha256": "2a9a65ae93de4ced1f5b2f70633c417066967d1ceba50bff581741f6bf0a1602",
+      "bytes": 656
+    },
+    {
+      "path": "pyproject.toml",
+      "sha256": "43852c70c6f0bce3d0da014d84992ced52c79e4d00bd897c546030ae8d3923ee",
+      "bytes": 2380
+    },
+    {
+      "path": "src/crow_accepted_claims/__init__.py",
+      "sha256": "4fc561d9f1ec8d0c663300a3a6bae223d7c94c7296bd6c06268dcf5d201777bf",
+      "bytes": 609
+    },
+    {
+      "path": "src/crow_accepted_claims/canonicalize.py",
+      "sha256": "0a7ef26282a3d1dd3b500b545ea1217fbe247d04b23444a8724b5f98c2792ede",
+      "bytes": 4523
+    },
+    {
+      "path": "src/crow_accepted_claims/models.py",
+      "sha256": "8a930f877c1ad4b486a7033f8e30f74a94d4fb004bae9cfea48cea9b283fc44a",
+      "bytes": 1296
+    },
+    {
+      "path": "src/crow_accepted_claims/py.typed",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "src/crow_accepted_claims/service.py",
+      "sha256": "3a2b9b3f6f0e742a13fae4b3295dd639a1504a778d1a89e689b8f4005c536ff5",
+      "bytes": 3746
+    },
+    {
+      "path": "src/crow_authority/__init__.py",
+      "sha256": "a909440271a0b3270f37336e319d51da1dc273a0bdf86e8b7eccafef8cd9f0c5",
+      "bytes": 1014
+    },
+    {
+      "path": "src/crow_authority/frameworks.py",
+      "sha256": "b05705b872fd12b571671e1bb58c3c6323210c4cbdade3e73c3f8cacc01a4446",
+      "bytes": 1094
+    },
+    {
+      "path": "src/crow_authority/models.py",
+      "sha256": "8c227e71f1258e1fe8cb662167902c3e84a8607eb63e7e70af31a4b8093e7d97",
+      "bytes": 3375
+    },
+    {
+      "path": "src/crow_authority/py.typed",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "src/crow_authority/resolver.py",
+      "sha256": "3370761d14c61f15e4bd791479d1b76a30a760fb20da26f542311b9e556ad179",
+      "bytes": 7664
+    },
+    {
+      "path": "src/crow_authority/service.py",
+      "sha256": "ee5a6433cf3a9e9e2def7e13d82a0ecbb8f06a1e9803502f19e078e9ccd107a4",
+      "bytes": 6173
+    },
+    {
+      "path": "src/crow_authority_discovery/__init__.py",
+      "sha256": "521ecb6cd2261b7d50084fb64cac28d2369fcdaf271fbc7e3096043c3ecb9678",
+      "bytes": 592
+    },
+    {
+      "path": "src/crow_authority_discovery/discovery.py",
+      "sha256": "ceaf0e513bb11ba82428cf3f067a1481ab17aff847bc216243c44db841d87a79",
+      "bytes": 9243
+    },
+    {
+      "path": "src/crow_authority_discovery/models.py",
+      "sha256": "a77a526ab2fa59b22253edf07ea4ab0cb88f4ce48cfc25d65e59531d0dde7ed9",
+      "bytes": 1136
+    },
+    {
+      "path": "src/crow_authority_discovery/py.typed",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "src/crow_authority_discovery/service.py",
+      "sha256": "b66a118eb33d13f774dd5f26db0eb39598f0f52f8b0ae6521be62ddc14378f4f",
+      "bytes": 2608
+    },
+    {
+      "path": "src/crow_claim_extraction/__init__.py",
+      "sha256": "87346c1bd0a3a2cce8505f6abbd2ae5a59d0e5f4db2eb3afe0dd8a3d63876764",
+      "bytes": 672
+    },
+    {
+      "path": "src/crow_claim_extraction/extractor.py",
+      "sha256": "a0a7e15fec060aa01a9ff42077cab3d0af5ef4da1bb4a2fa63c3ff4ee2c51b2f",
+      "bytes": 7400
+    },
+    {
+      "path": "src/crow_claim_extraction/models.py",
+      "sha256": "aa1eb20ac8be4d24aad7f476139319a8f310a4cb4b5e57a3254c1fd7a8297a86",
+      "bytes": 1217
+    },
+    {
+      "path": "src/crow_claim_extraction/py.typed",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "src/crow_claim_extraction/service.py",
+      "sha256": "0ffe387354e1feef944dcd7ac7a16dca299dabad0a1cdaa86f7cea7baed3eb51",
+      "bytes": 3667
+    },
+    {
+      "path": "src/crow_commercial_adjustment/__init__.py",
+      "sha256": "8187bb7b342bb65a90311597fae375a3b7ddca26f3a80c663425dd01064dc1d2",
+      "bytes": 857
+    },
+    {
+      "path": "src/crow_commercial_adjustment/engine.py",
+      "sha256": "e6dfa9460f5d7bd5eca0e49c0f3fc8bac599064a70fc258c136116539a2ba47e",
+      "bytes": 4164
+    },
+    {
+      "path": "src/crow_commercial_adjustment/models.py",
+      "sha256": "6352bec32db5b014264cf091ba7f21e23787d46e6b40e50f30bfe1fcfd147f87",
+      "bytes": 2134
+    },
+    {
+      "path": "src/crow_commercial_adjustment/py.typed",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "src/crow_commercial_adjustment/service.py",
+      "sha256": "f435bf2fb08f1fa19ff0922daac187b8885c2ffbcede4092629bf4ee0d5eba5c",
+      "bytes": 6015
+    },
+    {
+      "path": "src/crow_commercial_impact/__init__.py",
+      "sha256": "20b9210cae945829d2d9b9138a1eee12eec9b520c6198b72a8835bf69d47c2f2",
+      "bytes": 815
+    },
+    {
+      "path": "src/crow_commercial_impact/engine.py",
+      "sha256": "133eb52296992edae1e1160de5aabbe4a22000bd2a4a976f0e557770fe490d25",
+      "bytes": 4713
+    },
+    {
+      "path": "src/crow_commercial_impact/models.py",
+      "sha256": "29542f7e13071ede693fc959f02a0bf47884c4ebbefcbbd1a2466b4061647aeb",
+      "bytes": 2302
+    },
+    {
+      "path": "src/crow_commercial_impact/py.typed",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "src/crow_commercial_impact/service.py",
+      "sha256": "eb7e88f2e92013379ca8403448db81d208a8a1506d75a07a2061ce92c2f53d47",
+      "bytes": 6797
+    },
+    {
+      "path": "src/crow_commercial_review/__init__.py",
+      "sha256": "06b115d02b03585f7a3db8ad6d6e172cc04cf65027a435b1fab1d0a6ae0f13b7",
+      "bytes": 708
+    },
+    {
+      "path": "src/crow_commercial_review/models.py",
+      "sha256": "55dc8659f13dc7320c119e9fafa7890cb088fb250907d6a3fa0a54a5ce8ad45b",
+      "bytes": 1065
+    },
+    {
+      "path": "src/crow_commercial_review/py.typed",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "src/crow_commercial_review/service.py",
+      "sha256": "b582d7f9821b4d8e03e167e5d69a7b42fbc040b6e05f6bf10f85c3e52c11bf82",
+      "bytes": 3581
+    },
+    {
+      "path": "src/crow_commercial_review/workflow.py",
+      "sha256": "977f2f4396a0a11bf05f559eb67cc07387e00acced7e502619f93225cd1f2f59",
+      "bytes": 3330
+    },
+    {
+      "path": "src/crow_decision_engine/__init__.py",
+      "sha256": "9bc672c780c651159bf0e2dc6265418aca131487e1b3ff900cb7e2d475713d8a",
+      "bytes": 1425
+    },
+    {
+      "path": "src/crow_decision_engine/engine.py",
+      "sha256": "f5dbe896e0eda777f9c8feda5e7ca63fadd1016f100417950e5b8f882b792dac",
+      "bytes": 6288
+    },
+    {
+      "path": "src/crow_decision_engine/models.py",
+      "sha256": "e027bb135f815f890bbe6c5d145db6bec094293c7fc11aeb9c2f4453b9ea3563",
+      "bytes": 4146
+    },
+    {
+      "path": "src/crow_decision_engine/multi_claim.py",
+      "sha256": "068c18a9f5fd7396e4ac754772494dda3f778cfea4a3e10cf16e1723f5ba3c8f",
+      "bytes": 9262
+    },
+    {
+      "path": "src/crow_decision_engine/operators.py",
+      "sha256": "90f211304d147f5ed7bf0327e4348babdbd20d521a0c7769d2aa72a148454895",
+      "bytes": 1924
+    },
+    {
+      "path": "src/crow_decision_engine/py.typed",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "src/crow_decision_engine/service.py",
+      "sha256": "3ee0e2be2f51cae5998db1c7fc519b8fc718f0be40a47bc9a4994aaf959632db",
+      "bytes": 11739
+    },
+    {
+      "path": "src/crow_document_intelligence/__init__.py",
+      "sha256": "5946b3daa507ceee0b0f038d08d6f4974139693b16be455caf9a93727732c0f2",
+      "bytes": 1568
+    },
+    {
+      "path": "src/crow_document_intelligence/classification.py",
+      "sha256": "ad91dc8b51bcfc46916414edffba04a750ecd5eb4d9d70dd6bcf8858e3ac9ca0",
+      "bytes": 1804
+    },
+    {
+      "path": "src/crow_document_intelligence/document_model.py",
+      "sha256": "93e2a7a257cb63acd10e80ee850702d5294a30c8b238fed2997b619517ad8746",
+      "bytes": 1782
+    },
+    {
+      "path": "src/crow_document_intelligence/extraction.py",
+      "sha256": "129688fdd81a7aac7ebc063da24ce66bcf48b98b026b28d71867b5163ecfe7fe",
+      "bytes": 1711
+    },
+    {
+      "path": "src/crow_document_intelligence/intake.py",
+      "sha256": "e3402a070d96e284211f9f045ab470e6362e8a8da54f37812f34b198846e4a46",
+      "bytes": 8089
+    },
+    {
+      "path": "src/crow_document_intelligence/metadata.py",
+      "sha256": "1e7fb418354bf146dd99e302f44130d22efd72c3c58681431f8f4c221b581b65",
+      "bytes": 1231
+    },
+    {
+      "path": "src/crow_document_intelligence/models.py",
+      "sha256": "ad033144f4f9ea1e78b46ec8dec8adfe2fba3ad67eae5ced813df1249d91956b",
+      "bytes": 4170
+    },
+    {
+      "path": "src/crow_document_intelligence/py.typed",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "src/crow_document_intelligence/relations.py",
+      "sha256": "208d7d26722a361424ef5d63fd866e1c4e042e69ef4375370d5707e706457372",
+      "bytes": 2640
+    },
+    {
+      "path": "src/crow_document_intelligence/repository.py",
+      "sha256": "317c5c45ec080c06326e0d71c0b988469fd3828b60323998fbd0e82a537b398f",
+      "bytes": 4426
+    },
+    {
+      "path": "src/crow_document_intelligence/revision.py",
+      "sha256": "4969725295873ab720c593f5b39eba6bb4c217ebce69bfc96c4cdf3103c65be9",
+      "bytes": 1146
+    },
+    {
+      "path": "src/crow_document_intelligence/service.py",
+      "sha256": "804a7085503966004acc2855e1c9deec7c5844bef28f5a323ad9c527d10d4173",
+      "bytes": 2476
+    },
+    {
+      "path": "src/crow_estimate_line/__init__.py",
+      "sha256": "cdbcc3f15b4df1aaf44b9e5aa92a4d78bb2a1699a44ae026ecd97a4d63750454",
+      "bytes": 494
+    },
+    {
+      "path": "src/crow_estimate_line/generator.py",
+      "sha256": "48079af1cb5f19cc6dec61fcdc72fd398eebcd185b4dc19c5b05647671ff8aa8",
+      "bytes": 7156
+    },
+    {
+      "path": "src/crow_estimate_line/models.py",
+      "sha256": "561762af269e77e732dd40a3e4f4c9f7d1f3ef34a56e48395fdd9e003ffe6f9d",
+      "bytes": 1677
+    },
+    {
+      "path": "src/crow_estimate_line/py.typed",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "src/crow_estimate_line/service.py",
+      "sha256": "53bb3630a83b55ae0930f12b3adb44977b8800d43552b65c754a3faa29a1b7ee",
+      "bytes": 4784
+    },
+    {
+      "path": "src/crow_estimate_revision/__init__.py",
+      "sha256": "48d61200e5c8ca96ef629dccad82325ba6481974a5836fdbe6b88747e9dabe9d",
+      "bytes": 513
+    },
+    {
+      "path": "src/crow_estimate_revision/engine.py",
+      "sha256": "250dd3cc6388e2595728278791572a92aeda21396c0bf0a46a9853ce426792ff",
+      "bytes": 6546
+    },
+    {
+      "path": "src/crow_estimate_revision/models.py",
+      "sha256": "3851db0ffac276f4cd37aeef8fec9ec448276a9e987ef8188662809e04477442",
+      "bytes": 1796
+    },
+    {
+      "path": "src/crow_estimate_revision/py.typed",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "src/crow_estimate_revision/service.py",
+      "sha256": "04fe751cdce10d681c04c5b4ff262ec7d85a7a840b0c5b8478c14924c35d3fb0",
+      "bytes": 4135
+    },
+    {
+      "path": "src/crow_estimate_structure/__init__.py",
+      "sha256": "77f6a145c6de1f73e09238a540fdfee95b1f8318fedfbc05cd926090c194608e",
+      "bytes": 815
+    },
+    {
+      "path": "src/crow_estimate_structure/engine.py",
+      "sha256": "4f0bf40d527fa073178741fa1ae4cd8cf1ed476dba5e6900cb1183f300fde594",
+      "bytes": 5909
+    },
+    {
+      "path": "src/crow_estimate_structure/models.py",
+      "sha256": "bd5463f065dc7c11f9d858f722e37bd94d8821d63f7b23b4bc433a423ee211e2",
+      "bytes": 2257
+    },
+    {
+      "path": "src/crow_estimate_structure/py.typed",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "src/crow_estimate_structure/service.py",
+      "sha256": "b00e84d3571d2829fe62d69eb3f844ba789f2fd31127874cca75b61e452ed789",
+      "bytes": 6978
+    },
+    {
+      "path": "src/crow_geometry_framework/__init__.py",
+      "sha256": "d7d30414073a1a1a3d8a158cda2e064e2dcf27f00c6e58fc15a04dad6a4f209f",
+      "bytes": 1333
+    },
+    {
+      "path": "src/crow_geometry_framework/adapters.py",
+      "sha256": "e2e4416868c86cb6ff903f8ac76047583ba9df7f3f5c84709d1715831436685b",
+      "bytes": 5910
+    },
+    {
+      "path": "src/crow_geometry_framework/consolidation.py",
+      "sha256": "8ba821986d13577e30161dd6e9d1d88f8dde494c2e0588f295807d1f0a732b83",
+      "bytes": 3505
+    },
+    {
+      "path": "src/crow_geometry_framework/models.py",
+      "sha256": "43705141874c286c9930e42eaf4c15335276aed900d1a728dd6e8010952a454e",
+      "bytes": 1443
+    },
+    {
+      "path": "src/crow_geometry_framework/observations.py",
+      "sha256": "7d803269a64d8e003d64746223fb4cd922769e2838a3fdee387506d8de7757a0",
+      "bytes": 6218
+    },
+    {
+      "path": "src/crow_geometry_framework/py.typed",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "src/crow_geometry_framework/query.py",
+      "sha256": "e4a3e7045657f67dc9d9c084832a949d77183232060d743e27fe93fde18db602",
+      "bytes": 4569
+    },
+    {
+      "path": "src/crow_geometry_framework/spatial.py",
+      "sha256": "9d2880c342852d0354bc853f4c4f8f02939a1ac69837210f37c3b0ce7807916b",
+      "bytes": 5805
+    },
+    {
+      "path": "src/crow_geometry_framework/systems.py",
+      "sha256": "640df976386bf74f078abb431486de1d8f62b6fdda6b0348b23eea34d2e64179",
+      "bytes": 5677
+    },
+    {
+      "path": "src/crow_geometry_framework/topology.py",
+      "sha256": "1d8181adf72dcef09ddf116a087d4fdf501caeabee892782a78967fcb41e36fe",
+      "bytes": 5575
+    },
+    {
+      "path": "src/crow_geometry_framework/tracing.py",
+      "sha256": "dd481ca2505495316e04d383cb52de1fe231234f63c7428e46035ae3b7489589",
+      "bytes": 8419
+    },
+    {
+      "path": "src/crow_import_framework/__init__.py",
+      "sha256": "f2d29a32faaf023b00035fa49bb8a8c8ea6a0048def5725be039e1135c626651",
+      "bytes": 654
+    },
+    {
+      "path": "src/crow_import_framework/base.py",
+      "sha256": "4c8621767c7a128d2d9ef179a5008764784e3f1a544c1d6a51f52f0a3f30a039",
+      "bytes": 1566
+    },
+    {
+      "path": "src/crow_import_framework/manager.py",
+      "sha256": "9959004a8ac7f9c9e6b81ba9e155622ffeafc226044ac42e516917d701e6ae9d",
+      "bytes": 1268
+    },
+    {
+      "path": "src/crow_import_framework/models.py",
+      "sha256": "9914c9e915e6b953247a8b1920183c5b9eb85f5b4278973120161d564856f0a2",
+      "bytes": 1202
+    },
+    {
+      "path": "src/crow_import_framework/plugin.py",
+      "sha256": "40eb871870911058f32d78c7ff7224aaa8329e8c33003a11f3bca6f14b353aa9",
+      "bytes": 668
+    },
+    {
+      "path": "src/crow_import_framework/plugins.py",
+      "sha256": "398fa7d030fcabcdc049ef8cbe764a0b5cc46e0d8e33fb2a9ce4b228e69bfdca",
+      "bytes": 14136
+    },
+    {
+      "path": "src/crow_import_framework/py.typed",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "src/crow_import_framework/registry.py",
+      "sha256": "de0a1401da6a2dadea63f4acc8946295ad81d67f639d1a61e5aa9e0b09bf87bd",
+      "bytes": 954
+    },
+    {
+      "path": "src/crow_knowledge_fusion/__init__.py",
+      "sha256": "438730ffe3c6df6fc515a5534dd6d29a48d5886ceec50715e270189ac5217416",
+      "bytes": 531
+    },
+    {
+      "path": "src/crow_knowledge_fusion/fusion.py",
+      "sha256": "a0fddcc1d1bdd7dd645c7bb1afee9e051e7ec4f0714a9684c6887a453c9b7ccd",
+      "bytes": 3611
+    },
+    {
+      "path": "src/crow_knowledge_fusion/models.py",
+      "sha256": "35b4d397e51ae03c7f1af5414302cc1f0bc7e8e6c7722a43c77719296d97369d",
+      "bytes": 1343
+    },
+    {
+      "path": "src/crow_knowledge_fusion/py.typed",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "src/crow_knowledge_fusion/service.py",
+      "sha256": "489749526688c00c806723a9f959ebb909eb467b0374eb3fc6f2ffa20d37cd64",
+      "bytes": 3272
+    },
+    {
+      "path": "src/crow_module_conformance/__init__.py",
+      "sha256": "0cbefd97833f133a37aafaa53460a9d639303432a5fab96f65b6582e5d909d84",
+      "bytes": 1137
+    },
+    {
+      "path": "src/crow_module_conformance/cli.py",
+      "sha256": "0b8738bfa722f7fbd00ace0d5a6e41586ca4b630610422d626f4fe6826199221",
+      "bytes": 34993
+    },
+    {
+      "path": "src/crow_module_conformance/import_guard.py",
+      "sha256": "6307361a5c4b0656b8fba99baa270a14c0969e18fb6542388051b177cf5ce4ab",
+      "bytes": 1559
+    },
+    {
+      "path": "src/crow_module_conformance/migrations.py",
+      "sha256": "cabef817aad07fe671d2d92a77a71455124d97ebdce4a3b95ffed1c26dd68139",
+      "bytes": 2251
+    },
+    {
+      "path": "src/crow_module_conformance/py.typed",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "src/crow_module_conformance/release_review.py",
+      "sha256": "88b5ecdca53240c493845e04060ff7c4bef5cc1ee435e4ad2847b3600fba1b8e",
+      "bytes": 2322
+    },
+    {
+      "path": "src/crow_module_conformance/snapshots.py",
+      "sha256": "17dca032bd777ad1bb66ed933d66ef98053631074f22551b57a3787eccbb57fb",
+      "bytes": 1459
+    },
+    {
+      "path": "src/crow_module_conformance/trust.py",
+      "sha256": "c572247b8cc273454e233fe4d5faba15810e87d1c4446644e84b482125e97b84",
+      "bytes": 3834
+    },
+    {
+      "path": "src/crow_module_conformance/validator.py",
+      "sha256": "d1acb5bf67ef0476173ea3946e082bee0447dd49f0673033088c8215224026c9",
+      "bytes": 3077
+    },
+    {
+      "path": "src/crow_module_conformance/versioning.py",
+      "sha256": "ca1549f1fd5a19cf25542c47c6ac3a05b6492ea115970688859d1ec78aa66dc5",
+      "bytes": 2184
+    },
+    {
+      "path": "src/crow_module_sdk/__init__.py",
+      "sha256": "9139e81b374e2d587db130f6a6b7c21be7bd28e640e53e494f730e761983c5c5",
+      "bytes": 3165
+    },
+    {
+      "path": "src/crow_module_sdk/audit.py",
+      "sha256": "a298079655451e5ec97d36e79d482e3418978e53f9ea3f23ec7e216d69780e99",
+      "bytes": 1292
+    },
+    {
+      "path": "src/crow_module_sdk/batch_pipeline.py",
+      "sha256": "b9cc85fa50e8f50f681a769312303302daf9b472b689f81b3f8778e0481ed54a",
+      "bytes": 1954
+    },
+    {
+      "path": "src/crow_module_sdk/decision_graph.py",
+      "sha256": "cd5e4bbc6302e4735ee5f70092875bd9b578519cc6bb697e4a7c9115ac787c0f",
+      "bytes": 2948
+    },
+    {
+      "path": "src/crow_module_sdk/decision_models.py",
+      "sha256": "57b154d9c48b4e9ba09a833790d6f51363347223a242857e3cd33b51760e9979",
+      "bytes": 3019
+    },
+    {
+      "path": "src/crow_module_sdk/decision_services.py",
+      "sha256": "aa5a6dae3dc4701ec40e3df082bccaf62b634dce779414327a7f76b293e34624",
+      "bytes": 10494
+    },
+    {
+      "path": "src/crow_module_sdk/evidence_graph.py",
+      "sha256": "a5efc6a99664080dfbbba2d5231ddc8a80258b08014c6bb0c6966dc45b8b825b",
+      "bytes": 1944
+    },
+    {
+      "path": "src/crow_module_sdk/explain.py",
+      "sha256": "a19b0629d10a89bf4071545865462895b8ff6fe5c0d7fa9d5af14195c596f772",
+      "bytes": 818
+    },
+    {
+      "path": "src/crow_module_sdk/graph_builder.py",
+      "sha256": "48ce9d120ab7c990ba9216782944a4c8378319f89824b333e2f9a92d7fa540bc",
+      "bytes": 2792
+    },
+    {
+      "path": "src/crow_module_sdk/invalidation.py",
+      "sha256": "93fcc2de298025f46362bf924fba327dab5865d3b416327aca08e17490b94c1b",
+      "bytes": 1506
+    },
+    {
+      "path": "src/crow_module_sdk/models.py",
+      "sha256": "8ee146ee2ede7851cb70c3d09075cf944f371c8061fea6ceff8809711b801298",
+      "bytes": 2140
+    },
+    {
+      "path": "src/crow_module_sdk/module_registry.py",
+      "sha256": "572cb9ae61ead637accd9aa7cfb688e3f3ab032a6ab85fe5542df8f5d2586724",
+      "bytes": 2148
+    },
+    {
+      "path": "src/crow_module_sdk/persistence.py",
+      "sha256": "7ae6e04c738cb344b420f7f23face9c4696074aebde86e93142ea44113b5aa53",
+      "bytes": 3680
+    },
+    {
+      "path": "src/crow_module_sdk/pipeline.py",
+      "sha256": "20ffa560965a71f2eeef9eca2e1248447a34f4440cbc2de64f0855c0b0529e9d",
+      "bytes": 4963
+    },
+    {
+      "path": "src/crow_module_sdk/plugin.py",
+      "sha256": "1611b878b8a8379cacd892a40675549de81073eebabeeb9f28bb4c46c570b5dd",
+      "bytes": 476
+    },
+    {
+      "path": "src/crow_module_sdk/project.py",
+      "sha256": "7777d6a2bddb41feba1725b9b4419d0fde1e6f5ccf34df9886cf6099e2a77c37",
+      "bytes": 13287
+    },
+    {
+      "path": "src/crow_module_sdk/project_persistence.py",
+      "sha256": "7d4704c0cc913f18c64441487f852689988b9adc21f5ccf0bf32cb7d89b7d2b3",
+      "bytes": 6303
+    },
+    {
+      "path": "src/crow_module_sdk/project_transaction.py",
+      "sha256": "f2f57b6689c7b975edd02e2b1094ee343acb42cbbeff00ed60a38adebea0dfc8",
+      "bytes": 3199
+    },
+    {
+      "path": "src/crow_module_sdk/py.typed",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "src/crow_observation_engine/__init__.py",
+      "sha256": "823bd48c152c9d6c6bed76d57e12a0cfc88c3d5393a869f12692ae0160d3dca8",
+      "bytes": 677
+    },
+    {
+      "path": "src/crow_observation_engine/extractors.py",
+      "sha256": "abac9181912d7b4f6e5d7a2122ae545580c00a87005bb397d0ffeefa5d88bd89",
+      "bytes": 4814
+    },
+    {
+      "path": "src/crow_observation_engine/models.py",
+      "sha256": "e60bb6045065218089e738d868d766fc6acef21dda2785c841373764053b8b4c",
+      "bytes": 1586
+    },
+    {
+      "path": "src/crow_observation_engine/py.typed",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "src/crow_observation_engine/service.py",
+      "sha256": "1f2f4d5ccc3b12ad0385a068096f479f9e5a96df7ff2dee50e56d0b3c92d61f5",
+      "bytes": 3515
+    },
+    {
+      "path": "src/crow_scope_impact/__init__.py",
+      "sha256": "7720ca1b46e8233ea4149d0f0692642fe93dbc13212dd39bcf4f85ffb2cb3a71",
+      "bytes": 773
+    },
+    {
+      "path": "src/crow_scope_impact/engine.py",
+      "sha256": "602b07d9dd93feed48898047d7bfb883fae1b7f3cc374c6c174fe8d4890252ef",
+      "bytes": 6111
+    },
+    {
+      "path": "src/crow_scope_impact/models.py",
+      "sha256": "511078debd3f91381d4945264327cfd5c37fa1b5af1427db44e11a672951b536",
+      "bytes": 2153
+    },
+    {
+      "path": "src/crow_scope_impact/py.typed",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "src/crow_scope_impact/service.py",
+      "sha256": "d2a94466125210662cf4e0abee1925bb1fa4a180a222b31c76e7bab6c7e9b0ed",
+      "bytes": 6345
+    },
+    {
+      "path": "src/crow_technical_delta/__init__.py",
+      "sha256": "7d5e23fe3c24e5a9f9ed7dc597e211ea8307c97c70808917070b9d9d9654bd83",
+      "bytes": 980
+    },
+    {
+      "path": "src/crow_technical_delta/compare.py",
+      "sha256": "8f996644f4ddb65ab7916cf0271892f57a6628a6273d3b6a292fe87bbc3a6980",
+      "bytes": 7515
+    },
+    {
+      "path": "src/crow_technical_delta/models.py",
+      "sha256": "01b550a1de99593acfe33ea772ae5a97916d27b96233569bef64d1c5762576d4",
+      "bytes": 2244
+    },
+    {
+      "path": "src/crow_technical_delta/py.typed",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "src/crow_technical_delta/semantics.py",
+      "sha256": "f224c0d96d173f9e7c57cdd093e6da0da333095a8899c3d167dec01f04d9a70a",
+      "bytes": 2009
+    },
+    {
+      "path": "src/crow_technical_delta/service.py",
+      "sha256": "81ac38765f2bb0dae723858f240f611ebc25e96d0c9847cb67a26de7e177d8a1",
+      "bytes": 6615
+    },
+    {
+      "path": "src/crow_technical_review/__init__.py",
+      "sha256": "fb894c440e8928f92ce51e74728662aceb7246a1ceaa162c5333b7ea578f5c7a",
+      "bytes": 697
+    },
+    {
+      "path": "src/crow_technical_review/models.py",
+      "sha256": "ebdc399de505339901b9954c2b303ffa194e302fa57c97f0688dd33ad007a642",
+      "bytes": 1207
+    },
+    {
+      "path": "src/crow_technical_review/py.typed",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "src/crow_technical_review/service.py",
+      "sha256": "0347e9938ab92d0e30c2d8b6042451b037522a825094d1ae32c0370094fa6678",
+      "bytes": 4115
+    },
+    {
+      "path": "src/crow_technical_review/workflow.py",
+      "sha256": "b96825774792589570114255ca415b06cf06c8671ac446f036790b8afffca6b2",
+      "bytes": 4873
+    },
+    {
+      "path": "src/crow_technical_validation/__init__.py",
+      "sha256": "d551593e95568b4976bcea2fae9f93f0aa1f182b6cdd632dff4b34574fb53d8e",
+      "bytes": 766
+    },
+    {
+      "path": "src/crow_technical_validation/models.py",
+      "sha256": "0c2d90af2b7356d75f74ebe81ac98e4eeed459475625ba25a5082ce6c17e2549",
+      "bytes": 1903
+    },
+    {
+      "path": "src/crow_technical_validation/py.typed",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "src/crow_technical_validation/service.py",
+      "sha256": "2854fa6dbbc9a7d6c0bc6956c953b0f67c3aa8af0d4ea148f340053f9cf16a2e",
+      "bytes": 6608
+    },
+    {
+      "path": "src/crow_technical_validation/validator.py",
+      "sha256": "da25de7a5305001b7cc6f82ef4a4fe09a650def0df11e61a2adb04559d61015c",
+      "bytes": 5487
+    },
+    {
+      "path": "src/crow_workbench/__init__.py",
+      "sha256": "4d2b4411c7f7a4937c865fbb818baa2de08c8b4736f39d04c5631c6a60e5db10",
+      "bytes": 95
+    },
+    {
+      "path": "src/crow_workbench/__main__.py",
+      "sha256": "bef319a16a6f60fa8e86ddde368199afc7599f028b4016a1cef10e23ca6993da",
+      "bytes": 198
+    },
+    {
+      "path": "src/crow_workbench/app.py",
+      "sha256": "0c2c72edf2b3c4b8efa6c8f799378b2ab6ac656d18249dd5450e0893d3b89a1f",
+      "bytes": 49230
+    },
+    {
+      "path": "src/crow_workbench/static/app.js",
+      "sha256": "646d9b637419794f3b81386dc1081c7cbe8e271330898fc4517e4055dc69c604",
+      "bytes": 23939
+    },
+    {
+      "path": "src/crow_workbench/static/index.html",
+      "sha256": "e58ff6b9227ea63ecd0cd4ad7ca4d99f0e2b148db25107ca213fe826c5fedb5b",
+      "bytes": 9115
+    },
+    {
+      "path": "src/crow_workbench/static/styles.css",
+      "sha256": "23d131b3760e2aba02597f45b65a18f722ce4db9cc25b546f3e4e42003820057",
+      "bytes": 12795
+    },
+    {
+      "path": "start-workbench.bat",
+      "sha256": "a2458c3c09cdd6f606381be9ebb9ef951f76fea5b5cff20f8ddc02fec96dc4a1",
+      "bytes": 72
+    },
+    {
+      "path": "start-workbench.sh",
+      "sha256": "084403939b8990813eb2507ab4e50d3e31046a1e1d4348f1b2cab11eed9398a7",
+      "bytes": 95
+    },
+    {
+      "path": "templates/crow-module-template/README.md",
+      "sha256": "39e400c5b1a1d0ebc114ed60464ad631d5f7ff12b11b3b46ba41062a04ea7fa8",
+      "bytes": 125
+    },
+    {
+      "path": "templates/crow-module-template/module.yaml",
+      "sha256": "3ef2bd322b1b4f64b7dd7aa7920b9308b03e9191b2936c07a90e17a8b274ca61",
+      "bytes": 234
+    },
+    {
+      "path": "tests/geometry_framework/test_geometry_framework.py",
+      "sha256": "71e669d8879cd4fe880c1c76712836ef198b1683edc1d4c83558eaf46b737b18",
+      "bytes": 13237
+    },
+    {
+      "path": "tests/import_framework/test_framework.py",
+      "sha256": "a33cc84457e90c48ee7202f951c0d852ea413ad7130706e553d57974e4743ee6",
+      "bytes": 2718
+    },
+    {
+      "path": "tests/snapshots/claim_to_estimate_exports.json",
+      "sha256": "9e81af1118f6b75cc17064a85c3ed7b1b11931e328257f5c763dea9b0e4aec95",
+      "bytes": 1196
+    },
+    {
+      "path": "tests/test_accepted_claims.py",
+      "sha256": "d395c324a13dca1f285eb0ebb1a2337bd64ba442b3746e1cb58766a718a78c05",
+      "bytes": 3867
+    },
+    {
+      "path": "tests/test_accepted_claims_persistence.py",
+      "sha256": "40ac2b0a7cf9bd557a5c07773446f60549f7ad96a88c03ea13f3d946344ff389",
+      "bytes": 357
+    },
+    {
+      "path": "tests/test_audit_events.py",
+      "sha256": "d96ee24af4f02cdc90ab411c303fd69d18e14802c9ea466b91848b639fad2323",
+      "bytes": 549
+    },
+    {
+      "path": "tests/test_authority_discovery.py",
+      "sha256": "f4048ebd96a0bb0df8620395d1786af62f50061eef9883dd1a73a43885141ab1",
+      "bytes": 2845
+    },
+    {
+      "path": "tests/test_authority_discovery_service.py",
+      "sha256": "74a92626b35c4e04ea9dd3dc0bb4a41028c8cfdee1e8966049c68f998848ae67",
+      "bytes": 1295
+    },
+    {
+      "path": "tests/test_authority_framework.py",
+      "sha256": "5900317db16bb77e32ca28cf853df063469393f970058ee0ac58947d80a71c06",
+      "bytes": 923
+    },
+    {
+      "path": "tests/test_authority_manifest.py",
+      "sha256": "9664b00f60712918dec243d45f8dca9b51180d60fb02b14d1982bfd7817a9bc0",
+      "bytes": 1117
+    },
+    {
+      "path": "tests/test_authority_persistence.py",
+      "sha256": "a2729e72ffae0a1c8cb3e914dda163a28db3ee407371e1710fe9c1cd348963c3",
+      "bytes": 461
+    },
+    {
+      "path": "tests/test_authority_resolution.py",
+      "sha256": "fcefbe1e8dee84101ab4b1f6c736e4a343857bca1def7907ba0a044334eb671f",
+      "bytes": 4774
+    },
+    {
+      "path": "tests/test_batch_pipeline.py",
+      "sha256": "74804ea81282362b7f1ad9f4dea681358b700b0a498d728e3556678e13f771f3",
+      "bytes": 2105
+    },
+    {
+      "path": "tests/test_claim_cli.py",
+      "sha256": "3dc28e5cd18052258a299a460229de2b5f3331faec133c239a6dacdac1e8c0d0",
+      "bytes": 1333
+    },
+    {
+      "path": "tests/test_claim_extractor.py",
+      "sha256": "fb5225f41d45b1ea20a12cdd7f093d4cea2609cbe3eb4320e9e278d67aff8e97",
+      "bytes": 2943
+    },
+    {
+      "path": "tests/test_claim_persistence.py",
+      "sha256": "49179553ef94a227c0c384ae4f601db00d046f511e885f9a47c351e596d5b41a",
+      "bytes": 1780
+    },
+    {
+      "path": "tests/test_cli.py",
+      "sha256": "d7e8b2990f48a1526070d220d34799f2f228644fddf1e1dba589284f51a38f0f",
+      "bytes": 458
+    },
+    {
+      "path": "tests/test_cli_list.py",
+      "sha256": "39b72e0d9012b49b68464addcad62553b7daf9c531bdecb7088f27d5040f8517",
+      "bytes": 256
+    },
+    {
+      "path": "tests/test_commercial_adjustment_engine.py",
+      "sha256": "0877c8faa18c2b3f122ecb8d0fd3bcc6eec79fac6c143de9cc2bfa776c084ec9",
+      "bytes": 4727
+    },
+    {
+      "path": "tests/test_commercial_adjustment_service.py",
+      "sha256": "cd7622315ec7f4019494c70dc29f3789b2e0a3be127bfab4a182d310605bcc87",
+      "bytes": 1397
+    },
+    {
+      "path": "tests/test_commercial_impact_engine.py",
+      "sha256": "bcf23b9fc642f482b91affe3be14e817b684cda6b0dfbb319e94fe30f2d576f3",
+      "bytes": 4537
+    },
+    {
+      "path": "tests/test_commercial_impact_service.py",
+      "sha256": "052dbfac1fe5865dc3352ccd17ee0011fbc41ebe56371541c3aa935d69912f90",
+      "bytes": 1252
+    },
+    {
+      "path": "tests/test_commercial_review.py",
+      "sha256": "4f9bea8b7cb44b1554d862aac8fa42fe039e6768d63c916cf7bf4dd9747779ce",
+      "bytes": 3102
+    },
+    {
+      "path": "tests/test_commercial_review_service.py",
+      "sha256": "23af2fee2fd7f4fc34be97b3827ba772ec2aac9cac8acc287fd4381307a1e8e5",
+      "bytes": 1250
+    },
+    {
+      "path": "tests/test_decision_engine.py",
+      "sha256": "90013cef2e06ce4ef7eabaca60670b009c371d9796034a04138b949f6fbef88e",
+      "bytes": 4094
+    },
+    {
+      "path": "tests/test_decision_graph.py",
+      "sha256": "f54ca1da1e6d318665e2a69e44834e26332c78081da01a055857686d34c456cd",
+      "bytes": 575
+    },
+    {
+      "path": "tests/test_decision_operators.py",
+      "sha256": "f98cca47b6ed5d9aac1bdda3805b856367c2dcc72c4ee447c98ac25ff4f58009",
+      "bytes": 873
+    },
+    {
+      "path": "tests/test_decision_service.py",
+      "sha256": "e0f47b372a8f09dd9409373e7d6756ec61ce4ec19bfab6bccb90efe7ab13716f",
+      "bytes": 1028
+    },
+    {
+      "path": "tests/test_decision_services.py",
+      "sha256": "24ad718789ee16d3b1dc9af4c7e12fa8ba46e298661237835932467e54c80160",
+      "bytes": 4381
+    },
+    {
+      "path": "tests/test_document_cli.py",
+      "sha256": "8a3ad4b5813dc9afe24e7a4d21e741f97bab4b6f2c69e39c9a19e53802938d84",
+      "bytes": 611
+    },
+    {
+      "path": "tests/test_document_intake.py",
+      "sha256": "8ddb85f3b589bffe9c9d2153fbae57b73bfc604f9f26b6cd5b937ff99e382447",
+      "bytes": 2072
+    },
+    {
+      "path": "tests/test_document_model.py",
+      "sha256": "065be809b2b36fcbd58dfbc85faa858dd94d48ff97b326b32557ebbc8133baab",
+      "bytes": 1573
+    },
+    {
+      "path": "tests/test_document_relations.py",
+      "sha256": "bd26ab0dd0ca56718af6a4e1c37a8a3d368a5fd3fefdece5de8f9dcd3b16e26d",
+      "bytes": 835
+    },
+    {
+      "path": "tests/test_estimate_line_generator.py",
+      "sha256": "dc9668553f71be560035d794ce6506b8e39ca69c56f44db4bef10cd9f3b6fe4e",
+      "bytes": 5101
+    },
+    {
+      "path": "tests/test_estimate_line_service.py",
+      "sha256": "7391c656a63f623673a9a497928879dff6a15bdbac6cb0629a63ef7776d731c9",
+      "bytes": 1130
+    },
+    {
+      "path": "tests/test_estimate_revision.py",
+      "sha256": "c40d6e360e2cb6c6038315af63c125b0d5ccab955baef21dbc949e0ccc1e234e",
+      "bytes": 4481
+    },
+    {
+      "path": "tests/test_estimate_structure.py",
+      "sha256": "84b4c246f242b18fb2d20dfc1af97b653eb20fbcd2f07f3dd8c8450ce0846535",
+      "bytes": 3299
+    },
+    {
+      "path": "tests/test_evidence_graph.py",
+      "sha256": "78f50e36145a489d1db23749b06f263055dfb78c9116e951b9b15e964ef88a53",
+      "bytes": 1178
+    },
+    {
+      "path": "tests/test_explain.py",
+      "sha256": "e6c2f962bf6583e4e19b116923dc6bb4d585c856ec6185c73dac3bc65680886d",
+      "bytes": 608
+    },
+    {
+      "path": "tests/test_export_snapshots.py",
+      "sha256": "c8ae51e7bcddc30116a7d973eedb5c2da4805c4b37ded977b3a07f9d98d6f134",
+      "bytes": 1676
+    },
+    {
+      "path": "tests/test_fusion_cli.py",
+      "sha256": "2a41e5c3a9d888c719ce26229fb811f7ed6cc30d2efc6319554b1ef16ee42382",
+      "bytes": 1363
+    },
+    {
+      "path": "tests/test_fusion_persistence.py",
+      "sha256": "aa69daf8f828a4f764d6d5f61ab5f6d96c9f7bc1cad3415034999312263f0da8",
+      "bytes": 1177
+    },
+    {
+      "path": "tests/test_graph_builder.py",
+      "sha256": "d60ca9899e66efaf256a1e528fab78cbd584f7f04a490e9d74c27330d381b360",
+      "bytes": 1505
+    },
+    {
+      "path": "tests/test_idempotency_and_invalidation.py",
+      "sha256": "c8c85334c1440a29a466fba33268e8039a6f47d770260f1b3413fe5ae23b3704",
+      "bytes": 2295
+    },
+    {
+      "path": "tests/test_import_guard.py",
+      "sha256": "03470bdaa47a9661d8d378cd59ae79b66728fca456655b64a1abd8588d72e409",
+      "bytes": 672
+    },
+    {
+      "path": "tests/test_import_sessions.py",
+      "sha256": "eb2b3fb9088e710993af883d8d846b1c16d74db287db3be4751637a348c2b8b6",
+      "bytes": 1953
+    },
+    {
+      "path": "tests/test_knowledge_fusion.py",
+      "sha256": "800d4216d7d91de442591046d0437aa3d48abf576fd8d747b3f101da2cec2645",
+      "bytes": 3125
+    },
+    {
+      "path": "tests/test_migrations.py",
+      "sha256": "09a0285062f3d558ef06b798577f4de74a36d77e169107c0d836eac312c7ab5c",
+      "bytes": 1099
+    },
+    {
+      "path": "tests/test_models.py",
+      "sha256": "dbe9d50fcf174b476bb67b5d5f2540b86aaf908d69feaeae6e1b1f326d5ed5f4",
+      "bytes": 386
+    },
+    {
+      "path": "tests/test_module_registry.py",
+      "sha256": "cc6a24c80ebbf4c847a94c8df514b9ab1052c452cdc952210e8e773405537226",
+      "bytes": 638
+    },
+    {
+      "path": "tests/test_multi_claim_decisions.py",
+      "sha256": "4c837ba2005bb22356768a8669fe48991ecd3674a7b7e9189c6bad748ff20803",
+      "bytes": 5502
+    },
+    {
+      "path": "tests/test_observation_cli.py",
+      "sha256": "438c2a2ee7f32d6c277e18e1c073209c6e400f319fd3a616ec4a7818a07e3593",
+      "bytes": 1214
+    },
+    {
+      "path": "tests/test_observation_extractors.py",
+      "sha256": "1a7775836fda7ed8ddab7132395242142704bb6efb148ab14af0b8d2431595ff",
+      "bytes": 2080
+    },
+    {
+      "path": "tests/test_observation_service.py",
+      "sha256": "ebfd72f6f3e0508122a1f6c3c28c81d41509f318d69d1e3af952dbe602f0d18f",
+      "bytes": 1548
+    },
+    {
+      "path": "tests/test_persistence.py",
+      "sha256": "5c42a6c1d294d3267a9e3b4714ea80d0ccc92ecc51e295ff74d9cbbc716b192a",
+      "bytes": 1184
+    },
+    {
+      "path": "tests/test_pipeline_golden.py",
+      "sha256": "3482c1fd793ce98a6d1e5d3d783fab23b96139214177582d4cfe58a12db9f3bd",
+      "bytes": 1750
+    },
+    {
+      "path": "tests/test_project_model.py",
+      "sha256": "9565e07df85bc48746285b3e0f6f9a605ed9f7d6baf74a5a33de3a3fa8cb0172",
+      "bytes": 3521
+    },
+    {
+      "path": "tests/test_project_persistence.py",
+      "sha256": "4a935b3bf3a831b648b1e6d77e58f0ce267f521daf5a09830d3b3c0babd42a38",
+      "bytes": 1382
+    },
+    {
+      "path": "tests/test_project_revision.py",
+      "sha256": "a6182090b9d417909a17b161e47b1a1d4d4613b022f6fdac66d931b92ad346ae",
+      "bytes": 2154
+    },
+    {
+      "path": "tests/test_project_transaction.py",
+      "sha256": "530cf35053ea1100b7bceb3b133ab4ca483429f35e346aa75af363c3c9b4e634",
+      "bytes": 2934
+    },
+    {
+      "path": "tests/test_release_review.py",
+      "sha256": "21865e881bbfdcf49337e40e4bb41f82441fd4ac39ec5a1879712181923e5343",
+      "bytes": 282
+    },
+    {
+      "path": "tests/test_revision_ordering.py",
+      "sha256": "e6ce4187da8710ab6a3881e5e6701e860945c042c23e1007ae33a46521211165",
+      "bytes": 375
+    },
+    {
+      "path": "tests/test_scope_impact_engine.py",
+      "sha256": "8e1c6e0773a8ef9be4e870f45dbda318230244a1d2f7dff0328c9a771fdbee62",
+      "bytes": 4822
+    },
+    {
+      "path": "tests/test_scope_impact_service.py",
+      "sha256": "54f62b6a426399d6c4c3f42d4380db1590d69f8d5d60fef25816a05263144aff",
+      "bytes": 1060
+    },
+    {
+      "path": "tests/test_technical_delta.py",
+      "sha256": "3f8288e0db76f553515c126d2cecb95efd095a3d740834a10660a7f4de8a5db3",
+      "bytes": 6945
+    },
+    {
+      "path": "tests/test_technical_delta_semantics.py",
+      "sha256": "6020f0e8f5c39eecbd6b88bf12d87b216ef69083cf512dc83aae1a8aaf172826",
+      "bytes": 1550
+    },
+    {
+      "path": "tests/test_technical_delta_service.py",
+      "sha256": "816e1ea285c0cb221bd7e75ee36d88a266bc4269e0da8aeeb95b2911a1cc27d3",
+      "bytes": 966
+    },
+    {
+      "path": "tests/test_technical_review.py",
+      "sha256": "89fd65169d24ac2c236a1d7630ebb8404fc0234916d7ac08ceed372b8e92ed11",
+      "bytes": 3480
+    },
+    {
+      "path": "tests/test_technical_review_service.py",
+      "sha256": "39998a832f923a79f74f8c3f939f7038364519c219cb012a20c464f1761c33b7",
+      "bytes": 1823
+    },
+    {
+      "path": "tests/test_technical_validation.py",
+      "sha256": "ab050763e2bd4ee46c8adca0c0c1c2c701fabac80b370687de4d9b1221b70f79",
+      "bytes": 4095
+    },
+    {
+      "path": "tests/test_technical_validation_service.py",
+      "sha256": "f87004a8fd5a18e788d0b188dfd9d9781f3ef55d2af30a0b2efe673562326948",
+      "bytes": 1071
+    },
+    {
+      "path": "tests/test_text_extraction.py",
+      "sha256": "9486bfff91ae114fce80142d47b90f12d15ce6b30815f1dc3adb55eed311e8b0",
+      "bytes": 745
+    },
+    {
+      "path": "tests/test_trust.py",
+      "sha256": "1bc94e5eeaa61cc8d429d63ffb48324b602268891891d1508a159c05af310f32",
+      "bytes": 1903
+    },
+    {
+      "path": "tests/test_versioning.py",
+      "sha256": "5674bb6f1cc77a5f951fa6adfc1a31db2fc8525a8a519d4b95cb7d92cc39a71f",
+      "bytes": 400
+    },
+    {
+      "path": "tests/test_workbench.py",
+      "sha256": "c53b2ffb9ae41b555f8623a6a31782f86c178e341178ca287d561081fc1770fb",
+      "bytes": 9870
+    }
+  ]
+}

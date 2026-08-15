@@ -1,0 +1,35 @@
+{
+  "release": "0.6.0-alpha.17",
+  "sprint": "B10.1 Commercial Impact Foundation",
+  "quality": {
+    "ruff": "pass",
+    "mypy_strict": "pass",
+    "pytest": "163 passed",
+    "wheel": "pass",
+    "sdist": "pass"
+  },
+  "integration_demo": {
+    "project_id": "demo",
+    "baseline_id": "baseline.contract",
+    "currency": "SEK",
+    "total": 3750.0,
+    "items": 1,
+    "unresolved": 0,
+    "by_status": {
+      "priced": 1
+    },
+    "by_cost_type": {
+      "labour": 3750.0
+    }
+  },
+  "commercial_impact": {
+    "pricing_status": "priced",
+    "cost_type": "labour",
+    "quantity": 3.0,
+    "unit": "M/S",
+    "unit_rate": 1250.0,
+    "currency": "SEK",
+    "amount": 3750.0,
+    "requires_review": false
+  }
+}

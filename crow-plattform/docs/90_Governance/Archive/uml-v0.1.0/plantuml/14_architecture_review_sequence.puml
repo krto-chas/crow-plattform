@@ -1,0 +1,28 @@
+@startuml
+skinparam backgroundColor white
+skinparam shadowing false
+skinparam roundcorner 8
+skinparam defaultFontName Arial
+skinparam packageStyle rectangle
+skinparam componentStyle rectangle
+skinparam ArrowColor #444444
+skinparam BorderColor #333333
+skinparam classAttributeIconSize 0
+title Architecture Review and Approval Sequence
+participant Architect
+participant "Architecture Repository" as AR
+participant "Conformance Engine" as CE
+participant "Domain Council" as DC
+participant "Architecture Board" as AB
+participant "Assurance Service" as AS
+Architect -> AR : submit architecture change
+AR -> CE : validate standards and traceability
+CE --> AR : conformance report
+AR -> DC : request domain review
+DC --> AR : recommendation
+AR -> AB : decision package
+AB -> AS : request assurance evidence
+AS --> AB : confidence assessment
+AB --> Architect : approve / condition / reject
+AB -> AR : publish decision and rationale
+@enduml
