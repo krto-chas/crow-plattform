@@ -1,0 +1,46 @@
+{
+  "release": "0.6.0-alpha.21",
+  "sprint": "B11.2 Estimate Structure and Bill of Quantities",
+  "quality": {
+    "ruff": "pass",
+    "mypy_strict": "pass",
+    "pytest": "187 passed",
+    "wheel": "pass",
+    "sdist": "pass"
+  },
+  "integration_demo": {
+    "project_id": "demo",
+    "estimate_id": "EST-2026-001",
+    "structure_id": "STRUCTURE-2026-001",
+    "currency": "SEK",
+    "sections": 1,
+    "groups": 1,
+    "lines": 1,
+    "net_total": 3000.0,
+    "adjustment_total": 300.0,
+    "grand_total": 3300.0
+  },
+  "hierarchy": [
+    {
+      "position": "1",
+      "code": "10",
+      "title": "Produktion",
+      "groups": [
+        {
+          "position": "1.1",
+          "code": "10",
+          "title": "Arbete",
+          "lines": [
+            {
+              "position": "1.1.1",
+              "description": "Ventilation adjustment",
+              "total_amount": 3300.0
+            }
+          ],
+          "grand_total": 3300.0
+        }
+      ],
+      "grand_total": 3300.0
+    }
+  ]
+}

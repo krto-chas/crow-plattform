@@ -1,0 +1,28 @@
+{
+  "release": "0.6.0-alpha.16",
+  "sprint": "B9.3 Quantity and Scope Impact",
+  "quality": {
+    "ruff": "pass",
+    "mypy_strict": "pass",
+    "pytest": "155 passed",
+    "wheel": "pass",
+    "sdist": "pass"
+  },
+  "integration_demo": {
+    "project_id": "demo",
+    "baseline_id": "baseline.contract",
+    "total": 1,
+    "review_required": 0,
+    "by_type": {
+      "changed_work": 1
+    }
+  },
+  "scope_impact": {
+    "impact_type": "changed_work",
+    "object_ref": "AHU-03",
+    "property_name": "air_velocity",
+    "quantity": 3.0,
+    "unit": "M/S",
+    "requires_review": false
+  }
+}

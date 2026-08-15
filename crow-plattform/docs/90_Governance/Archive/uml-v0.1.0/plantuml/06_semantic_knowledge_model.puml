@@ -1,0 +1,28 @@
+@startuml
+skinparam backgroundColor white
+skinparam shadowing false
+skinparam roundcorner 8
+skinparam defaultFontName Arial
+skinparam packageStyle rectangle
+skinparam componentStyle rectangle
+skinparam ArrowColor #444444
+skinparam BorderColor #333333
+skinparam classAttributeIconSize 0
+title Semantic and Knowledge Class Model
+class CanonicalConcept
+class LocalConcept
+class SemanticMapping
+class Ontology
+class KnowledgeAsset
+class ProvenanceRecord
+class Evidence
+class KnowledgeSteward
+Ontology "1" o-- "*" CanonicalConcept
+LocalConcept "*" --> "*" CanonicalConcept : mapped by
+SemanticMapping "*" --> "1" LocalConcept
+SemanticMapping "*" --> "1" CanonicalConcept
+KnowledgeAsset "*" --> "1..*" CanonicalConcept
+KnowledgeAsset "1" o-- "1" ProvenanceRecord
+KnowledgeAsset "1" o-- "0..*" Evidence
+KnowledgeSteward "1" --> "*" KnowledgeAsset
+@enduml

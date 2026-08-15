@@ -1,0 +1,3 @@
+[
+  {"id":"vent.rec.system-link","rule_id":"vent.component.must_belong_to_system","steps":["Kontrollera DWG och IFC","Verifiera systembeteckning","Skapa spårbar systemrelation"]}
+]

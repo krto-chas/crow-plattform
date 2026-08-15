@@ -1,0 +1,29 @@
+@startuml
+skinparam backgroundColor white
+skinparam shadowing false
+skinparam roundcorner 8
+skinparam defaultFontName Arial
+skinparam packageStyle rectangle
+skinparam componentStyle rectangle
+skinparam ArrowColor #444444
+skinparam BorderColor #333333
+skinparam classAttributeIconSize 0
+title Federation Domain Class Model
+class Ecosystem
+class Federation
+class Participant
+class FederationAgreement
+class SharedCapability
+class GovernanceDomain
+class DecisionRight
+class Policy
+class TrustRelationship
+Ecosystem "1" o-- "1..*" Federation
+Federation "1" o-- "2..*" Participant
+Federation "1" o-- "1..*" FederationAgreement
+Federation "1" o-- "*" SharedCapability
+Federation "1" o-- "*" GovernanceDomain
+GovernanceDomain "1" o-- "*" DecisionRight
+GovernanceDomain "1" o-- "*" Policy
+Participant "*" -- "*" TrustRelationship
+@enduml

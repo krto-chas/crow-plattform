@@ -1,0 +1,29 @@
+{
+  "schema": "crow-rule-pack-v0.1",
+  "id": "crow.core.quality",
+  "version": "0.1.0",
+  "rules": [
+    {
+      "id": "core.component.must_belong_to_system",
+      "version": "1.0.0",
+      "title": "Komponent saknar systemkoppling",
+      "description": "En teknisk komponent ska vara kopplad till minst ett tekniskt system.",
+      "selector": {"object_type": "component"},
+      "requirements": [{"kind": "relation", "relation_type": "belongs_to", "direction": "outgoing", "target_object_type": "technical_system", "operator": "exists"}],
+      "severity": "warning",
+      "confidence": 1.0,
+      "recommendation": "Koppla komponenten till verifierat tekniskt system."
+    },
+    {
+      "id": "core.component.must_have_evidence",
+      "version": "1.0.0",
+      "title": "Komponent saknar evidens",
+      "description": "Komponenten saknar spårbar källevidens.",
+      "selector": {"object_type": "component"},
+      "requirements": [{"kind": "evidence", "operator": "exists"}],
+      "severity": "info",
+      "confidence": 1.0,
+      "recommendation": "Knyt komponenten till DWG-, IFC-, PDF- eller manuell evidens."
+    }
+  ]
+}

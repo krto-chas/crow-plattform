@@ -1,0 +1,31 @@
+@startuml
+skinparam backgroundColor white
+skinparam shadowing false
+skinparam roundcorner 8
+skinparam defaultFontName Arial
+skinparam packageStyle rectangle
+skinparam componentStyle rectangle
+skinparam ArrowColor #444444
+skinparam BorderColor #333333
+skinparam classAttributeIconSize 0
+title Federated Reference Deployment
+node "Participant A" { node "Local Platform A" { [Local Services A] } }
+node "Participant B" { node "Local Platform B" { [Local Services B] } }
+node "Participant C" { node "Local Platform C" { [Local Services C] } }
+cloud "Federation Network" as FN
+node "Shared Federation Services" {
+ [Identity & Trust]
+ [Semantic Registry]
+ [Knowledge Services]
+ [Governance & Assurance]
+ [Reasoning Coordination]
+}
+[Local Services A] --> FN
+[Local Services B] --> FN
+[Local Services C] --> FN
+FN --> [Identity & Trust]
+FN --> [Semantic Registry]
+FN --> [Knowledge Services]
+FN --> [Governance & Assurance]
+FN --> [Reasoning Coordination]
+@enduml

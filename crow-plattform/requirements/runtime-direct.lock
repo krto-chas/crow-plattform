@@ -1,0 +1,16 @@
+# Pass 113 runtime dependency constraints.
+#
+# These exact pins cover every external runtime dependency declared by the
+# Crow Platform package and its current first-party production modules.
+# Versions reflect the dependency resolver output observed on Pass 113 CI.
+# Transitive dependencies remain resolver-selected and are recorded by the
+# image-level pip-freeze inventory; this file does not claim a hash-locked
+# transitive graph.
+
+fastapi==0.141.1
+fpdf2==2.8.8
+httpx==0.28.1
+openpyxl==3.1.5
+pypdf==6.16.0
+python-multipart==0.0.32
+uvicorn==0.52.3

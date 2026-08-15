@@ -1,0 +1,15 @@
+{
+  "milestone": "Crow Platform 2.0 - Building Graph RC1 Sprint 4",
+  "component": "Component Graph",
+  "tests": {"passed": 255, "failed": 0},
+  "compileall": "passed",
+  "capabilities": [
+    "technical components",
+    "system membership",
+    "building placement",
+    "component relations",
+    "evidence-backed properties",
+    "component tracing",
+    "REST API"
+  ]
+}

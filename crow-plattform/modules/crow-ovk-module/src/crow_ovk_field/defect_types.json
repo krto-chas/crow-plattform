@@ -1,0 +1,93 @@
+{
+  "meta": {
+    "version": "0.3",
+    "description": "Installationsdata for OVK field defect classification. Labels are operational categories, not legal conclusions."
+  },
+  "defect_types": [
+    {
+      "id": "contaminated_supply_terminal",
+      "label": "Smutsigt tilluftsdon",
+      "description": "Synlig nedsmutsning eller beläggning på tilluftsdon."
+    },
+    {
+      "id": "contaminated_extract_terminal",
+      "label": "Smutsigt frånluftsdon",
+      "description": "Synlig nedsmutsning eller beläggning på frånluftsdon."
+    },
+    {
+      "id": "blocked_terminal",
+      "label": "Blockerat don",
+      "description": "Don eller luftväg är helt eller delvis blockerad."
+    },
+    {
+      "id": "damaged_terminal",
+      "label": "Skadat don",
+      "description": "Don är mekaniskt skadat eller saknar del."
+    },
+    {
+      "id": "missing_terminal",
+      "label": "Saknat don",
+      "description": "Förväntat don saknas på kontrollplatsen."
+    },
+    {
+      "id": "incorrect_airflow",
+      "label": "Avvikande luftflöde",
+      "description": "Mätvärde eller observerat flöde avviker från projekterat eller beslutat värde."
+    },
+    {
+      "id": "air_leakage",
+      "label": "Luftläckage",
+      "description": "Observerat läckage från kanal, anslutning eller komponent."
+    },
+    {
+      "id": "noise_vibration",
+      "label": "Buller eller vibration",
+      "description": "Observerat onormalt ljud eller vibration från ventilationsinstallation."
+    },
+    {
+      "id": "access_obstructed",
+      "label": "Bristande åtkomlighet",
+      "description": "Komponent eller kontrollpunkt kan inte nås eller kontrolleras säkert."
+    },
+    {
+      "id": "missing_marking",
+      "label": "Märkning saknas",
+      "description": "System, komponent eller kontrollpunkt saknar nödvändig identifiering i fält."
+    },
+    {
+      "id": "moisture_condensation",
+      "label": "Fukt eller kondens",
+      "description": "Synlig fukt, kondens eller fuktrelaterat spår vid ventilationsinstallation."
+    },
+    {
+      "id": "other_observation",
+      "label": "Annan observation",
+      "description": "Fältobservation som ännu inte har en mer specifik klassificering."
+    },
+    {
+      "id": "kitchen_fan_central_system",
+      "label": "Köksfläkt ansluten mot centralt system",
+      "description": "Fläkt installerad i kök trots central ventilation i fastigheten."
+    },
+    {
+      "id": "window_vent_missing",
+      "label": "Fönsterventil saknas",
+      "description": "Förväntad fönsterventil finns inte på plats."
+    },
+    {
+      "id": "terminal_not_measurable",
+      "label": "Don ej mätbart",
+      "description": "Donet kunde inte mätas vid förrättningen; orsak dokumenteras med foto."
+    },
+    {
+      "id": "general_damage_observation",
+      "label": "Allmän skadeobservation",
+      "description": "Övrig observerad skada eller brist i lägenheten, t.ex. vattenläckage, som noteras och fotograferas."
+    },
+    {
+      "id": "equipment_nameplate",
+      "label": "Märkskylt dokumenterad",
+      "description": "Fotodokumentation av utrustningens märkskylt. Ingen brist."
+    }
+  ]
+}

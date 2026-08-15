@@ -1,0 +1,16 @@
+{
+  "release": "0.7.0-alpha.1+pass41",
+  "sprint": "Pass 41 Multi-source takeoff consolidation",
+  "quality": {
+    "ruff": "pass",
+    "mypy_strict": "pass (201 files, incl. crow_takeoff_consolidation)",
+    "pytest": "407 passed, 1 warning in 11.74s",
+    "architecture_review": "PASS ARC-001..ARC-004"
+  },
+  "new_package": "crow_takeoff_consolidation",
+  "new_tests": 6,
+  "release_declared": false,
+  "changed_files": [
+    "pyproject.toml (mypy packages + registrering)"
+  ]
+}

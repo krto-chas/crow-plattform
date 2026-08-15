@@ -1,0 +1,28 @@
+{
+  "release": "0.6.0-alpha.15",
+  "sprint": "B9.2 Structured Technical Delta Semantics",
+  "quality": {
+    "ruff": "pass",
+    "mypy_strict": "pass",
+    "pytest": "148 passed",
+    "wheel": "pass",
+    "sdist": "pass"
+  },
+  "integration_demo": {
+    "project_id": "demo",
+    "baseline_id": "baseline.contract",
+    "total": 1,
+    "changed": 1,
+    "by_type": {
+      "modified": 1
+    }
+  },
+  "structured_delta": {
+    "object_ref": "AHU-03",
+    "property_name": "air_velocity",
+    "baseline_quantity": 5.0,
+    "approved_quantity": 8.0,
+    "quantity_delta": 3.0,
+    "change_direction": "increase"
+  }
+}

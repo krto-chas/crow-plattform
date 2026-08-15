@@ -1,0 +1,243 @@
+{
+  "meta": {
+    "version": "0.1",
+    "verified_on": "2026-08-09",
+    "description": "Versionsmedvetet referensregister för OVK, ventilation och närliggande arbetsmiljöregler. Innehåller metadata och hänvisningar, inte ersättning för officiell författningstext."
+  },
+  "sources": [
+    {
+      "source_id": "PBL-2010-900",
+      "title": "Plan- och bygglag (2010:900)",
+      "issuer": "Sveriges riksdag",
+      "status": "current",
+      "source_url": "https://www.riksdagen.se/sv/dokument-och-lagar/dokument/svensk-forfattningssamling/plan-och-bygglag-2010900_sfs-2010-900/",
+      "effective_from": "2011-05-02",
+      "effective_to": null,
+      "supersedes": [],
+      "amended_by": [],
+      "topics": ["ovk", "ventilation", "building_owner", "supervision"],
+      "references": [
+        {
+          "reference_id": "PBL:8:25",
+          "locator": "8 kap. 25 §",
+          "topics": ["ovk", "building_owner", "control"],
+          "note": "Byggnadens ägare ska se till att föreskriven funktionskontroll av ventilationssystem utförs av funktionskontrollant."
+        }
+      ],
+      "note": "Överordnad lag för OVK. Kontrollera alltid aktuell konsoliderad lydelse."
+    },
+    {
+      "source_id": "PBF-2011-338",
+      "title": "Plan- och byggförordning (2011:338)",
+      "issuer": "Sveriges riksdag",
+      "status": "current",
+      "source_url": "https://www.riksdagen.se/sv/dokument-och-lagar/dokument/svensk-forfattningssamling/plan-och-byggforordning-2011338_sfs-2011-338/",
+      "effective_from": "2011-05-02",
+      "effective_to": null,
+      "supersedes": [],
+      "amended_by": [],
+      "topics": ["ovk", "inspection", "protocol", "building_owner"],
+      "references": [
+        {
+          "reference_id": "PBF:5:1-7",
+          "locator": "5 kap. 1–7 §§",
+          "topics": ["ovk", "inspection", "protocol"],
+          "note": "Grundbestämmelser om första och återkommande funktionskontroll av ventilationssystem."
+        },
+        {
+          "reference_id": "PBF:5:18",
+          "locator": "5 kap. 18 §",
+          "topics": ["ovk", "authorization"],
+          "note": "Bemyndigande för Boverket att meddela OVK-föreskrifter om bland annat undantag och intervall."
+        }
+      ],
+      "note": "Central för vad som ska kontrolleras och hur OVK-systemet är reglerat."
+    },
+    {
+      "source_id": "BFS-2011-16-OVK",
+      "title": "Boverkets föreskrifter och allmänna råd (2011:16) om funktionskontroll av ventilationssystem och certifiering av sakkunniga funktionskontrollanter",
+      "issuer": "Boverket",
+      "status": "current",
+      "source_url": "https://www.boverket.se/sv/PBL-kunskapsbanken/regler-om-byggande/ovk/",
+      "effective_from": "2011-11-01",
+      "effective_to": null,
+      "supersedes": [],
+      "amended_by": ["BFS 2012:6", "BFS 2017:10", "BFS 2023:4", "BFS 2025:6"],
+      "topics": ["ovk", "intervals", "exemptions", "certification"],
+      "references": [],
+      "note": "Kanonisk OVK-föreskrift. Boverkets författningsregister visar ändringar till och med BFS 2025:6."
+    },
+    {
+      "source_id": "BFS-2012-7-OVKAR",
+      "title": "Boverkets allmänna råd (2012:7) om funktionskontroll av ventilationssystem",
+      "issuer": "Boverket",
+      "status": "guidance",
+      "source_url": "https://www.boverket.se/sv/PBL-kunskapsbanken/regler-om-byggande/ovk/",
+      "effective_from": "2012-05-01",
+      "effective_to": null,
+      "supersedes": [],
+      "amended_by": [],
+      "topics": ["ovk", "inspection_scope", "documentation", "maintenance"],
+      "references": [
+        {
+          "reference_id": "OVKAR:PBF-5:2-1",
+          "locator": "Allmänt råd till PBF 5 kap. 2 § 1",
+          "topics": ["first_inspection", "drawings", "balancing", "airflow"],
+          "note": "Vägledning om bland annat projekteringshandlingar, injustering, luftföring, drag, lukt, ljud samt utrymme för skötsel och underhåll."
+        },
+        {
+          "reference_id": "OVKAR:PBF-5:2-3",
+          "locator": "Allmänt råd till PBF 5 kap. 2 § 3",
+          "topics": ["instructions", "maintenance", "system_documentation"],
+          "note": "Vägledning om orienteringsplan, systemöversikt, driftkort, flödesschema, funktions- och skötselanvisningar."
+        }
+      ],
+      "note": "Allmänna råd är vägledning och ska inte presenteras som bindande föreskrift."
+    },
+    {
+      "source_id": "BFS-2024-8-HHM",
+      "title": "Boverkets föreskrifter om skydd med hänsyn till hygien, hälsa och miljö samt hushållning med vatten och avfall (BFS 2024:8)",
+      "issuer": "Boverket",
+      "status": "current",
+      "source_url": "https://www.boverket.se/sv/PBL-kunskapsbanken/regler-om-byggande/hygien-halsa-och-miljo/",
+      "effective_from": "2025-07-01",
+      "effective_to": null,
+      "supersedes": ["BFS-2011-6-BBR"],
+      "amended_by": [],
+      "topics": ["ventilation", "air", "indoor_environment", "moisture", "new_building_rules"],
+      "references": [],
+      "note": "Del av Boverkets nya byggregler. Från 1 juli 2026 gäller de nya byggreglerna fullt ut för nya ärenden."
+    },
+    {
+      "source_id": "BFS-2011-6-BBR",
+      "title": "Boverkets byggregler (BBR), BFS 2011:6",
+      "issuer": "Boverket",
+      "status": "historical",
+      "source_url": "https://www.boverket.se/sv/byggande/regler-for-byggande/om-boverkets--byggregler-bbr/",
+      "effective_from": "2011-05-02",
+      "effective_to": "2026-06-30",
+      "supersedes": [],
+      "amended_by": ["BFS 2024:14"],
+      "topics": ["ventilation", "air", "indoor_environment", "legacy", "historical_requirements"],
+      "references": [],
+      "note": "Historiskt referensverk. BBR upphörde att gälla efter övergångsperioden den 30 juni 2026 men behövs för äldre byggnader, äldre ärenden och historisk kravspårning."
+    },
+    {
+      "source_id": "AFS-2023-12",
+      "title": "AFS 2023:12 Utformning av arbetsplatser",
+      "issuer": "Arbetsmiljöverket",
+      "status": "current",
+      "source_url": "https://www.av.se/arbetsmiljoarbete-och-inspektioner/publikationer/foreskrifter/afs-202312/",
+      "effective_from": "2025-01-01",
+      "effective_to": null,
+      "supersedes": ["AFS-2020-1"],
+      "amended_by": [],
+      "topics": ["workplace", "ventilation", "air_quality", "outdoor_air", "process_ventilation"],
+      "references": [
+        {
+          "reference_id": "AFS-2023-12:5:2",
+          "locator": "5 kap. 2 §",
+          "topics": ["air_quality"],
+          "note": "Krav på tillfredsställande luftkvalitet i vistelsezonen under arbete."
+        },
+        {
+          "reference_id": "AFS-2023-12:5:3",
+          "locator": "5 kap. 3 §",
+          "topics": ["ventilation", "pollutant_transport"],
+          "note": "Ventilationssystem ska bidra till bra inomhusklimat, tillföra tillräcklig uteluft och föra bort luftföroreningar."
+        },
+        {
+          "reference_id": "AFS-2023-12:5:4",
+          "locator": "5 kap. 4 §",
+          "topics": ["outdoor_air", "airflow"],
+          "note": "Anger normalt minsta uteluftsflöde under arbete: personkomponent plus golvareakomponent."
+        }
+      ],
+      "note": "Gällande arbetsplatsregelverk. Ersatte AFS 2020:1 från 1 januari 2025."
+    },
+    {
+      "source_id": "AFS-2020-1",
+      "title": "AFS 2020:1 Arbetsplatsens utformning",
+      "issuer": "Arbetsmiljöverket",
+      "status": "historical",
+      "source_url": "https://www.av.se/inomhusmiljo/arbetsplatsensutformning/",
+      "effective_from": "2021-01-01",
+      "effective_to": "2024-12-31",
+      "supersedes": [],
+      "amended_by": [],
+      "topics": ["workplace", "ventilation", "legacy"],
+      "references": [],
+      "note": "Upphävd när AFS 2023:12 trädde i kraft. Behålls för historisk kravspårning."
+    },
+    {
+      "source_id": "AFS-2023-10",
+      "title": "AFS 2023:10 Risker i arbetsmiljön",
+      "issuer": "Arbetsmiljöverket",
+      "status": "current",
+      "source_url": "https://www.av.se/arbetsmiljoarbete-och-inspektioner/publikationer/foreskrifter/afs-202310/",
+      "effective_from": "2025-01-01",
+      "effective_to": null,
+      "supersedes": [],
+      "amended_by": ["AFS 2025:1"],
+      "topics": ["workplace", "air_pollution", "chemical_risks", "process_ventilation"],
+      "references": [
+        {
+          "reference_id": "AFS-2023-10:CHEM:10-16",
+          "locator": "Bestämmelser om kemiska riskkällor, 10–16 §§",
+          "topics": ["air_pollution", "exposure", "measurement", "process_ventilation"],
+          "note": "Bedömning mot hygieniska gränsvärden, mätning och åtgärder för att minska luftföroreningar."
+        }
+      ],
+      "note": "Relevant vid arbetsplatser där luftföroreningar eller processventilation ingår i OVK-/ventilationsbedömningen."
+    },
+    {
+      "source_id": "AFS-2023-14",
+      "title": "AFS 2023:14 Gränsvärden för luftvägsexponering i arbetsmiljön",
+      "issuer": "Arbetsmiljöverket",
+      "status": "current",
+      "source_url": "https://www.av.se/arbetsmiljoarbete-och-inspektioner/publikationer/foreskrifter/afs-202314/",
+      "effective_from": "2025-01-01",
+      "effective_to": null,
+      "supersedes": ["AFS-2018-1"],
+      "amended_by": ["AFS 2025:2", "AFS 2025:5"],
+      "topics": ["workplace", "air_pollution", "exposure_limits"],
+      "references": [
+        {
+          "reference_id": "AFS-2023-14:APPENDIX-1",
+          "locator": "Bilaga 1",
+          "topics": ["exposure_limits"],
+          "note": "Gränsvärdeslista för luftföroreningar; kontrollera aktuell konsoliderad version och ämnesspecifika ikraftträdandedatum."
+        }
+      ],
+      "note": "Vissa gränsvärden har särskilda senare tillämpningsdatum; biblioteket får därför aldrig frysa numeriska gränsvärden utan versionsangivelse."
+    },
+    {
+      "source_id": "AFS-2023-3",
+      "title": "AFS 2023:3 Projektering och byggarbetsmiljösamordning – grundläggande skyldigheter",
+      "issuer": "Arbetsmiljöverket",
+      "status": "current",
+      "source_url": "https://www.av.se/afs-20233/",
+      "effective_from": "2025-01-01",
+      "effective_to": null,
+      "supersedes": [],
+      "amended_by": ["AFS 2024:1"],
+      "topics": ["workplace", "design", "construction", "maintenance_access"],
+      "references": [],
+      "note": "Relevant när ventilationens utformning, åtkomlighet och arbetsmiljö i bruksskedet bedöms i samband med projektering eller ändring."
+    },
+    {
+      "source_id": "AFS-2023-11",
+      "title": "AFS 2023:11 Arbetsutrustning och personlig skyddsutrustning – säker användning",
+      "issuer": "Arbetsmiljöverket",
+      "status": "current",
+      "source_url": "https://www.av.se/arbetsmiljoarbete-och-inspektioner/publikationer/foreskrifter/afs-202311/",
+      "effective_from": "2025-01-01",
+      "effective_to": null,
+      "supersedes": [],
+      "amended_by": ["AFS 2024:4"],
+      "topics": ["workplace", "equipment", "maintenance", "inspection_safety"],
+      "references": [],
+      "note": "Sekundärt referensverk för säker användning, service, underhåll och besiktning av arbetsutrustning."
+    }
+  ]
+}

@@ -1,0 +1,23 @@
+{
+  "client_question": {
+    "body": "Projektunderlaget innehåller en motstridighet kopplad till 'Alternativt tekniskt utförande'. Vänligen bekräfta vilket utförande som ska ligga till grund för anbud och produktion.",
+    "id": "question:ata:commercial-impact:technical-delta:spec-size:drawing-size",
+    "source_opportunity_id": "ata:commercial-impact:technical-delta:spec-size:drawing-size",
+    "subject": "Klargörande av motstridiga handlingar"
+  },
+  "estimate_line": {
+    "currency": "SEK",
+    "description": "Kostnadsdelta för alternativt utförande",
+    "id": "estimate:ata:commercial-impact:technical-delta:spec-size:drawing-size",
+    "quantity": "1",
+    "source_opportunity_id": "ata:commercial-impact:technical-delta:spec-size:drawing-size",
+    "total": "18420.00",
+    "unit": "st",
+    "unit_price": "18420.00"
+  },
+  "reservation": {
+    "body": "Reservation görs för 'Alternativt tekniskt utförande' till dess att motstridigheten i projektunderlaget har klarlagts skriftligen.",
+    "id": "reservation:ata:commercial-impact:technical-delta:spec-size:drawing-size",
+    "source_opportunity_id": "ata:commercial-impact:technical-delta:spec-size:drawing-size"
+  }
+}

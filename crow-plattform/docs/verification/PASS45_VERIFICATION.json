@@ -1,0 +1,12 @@
+{
+  "release": "0.7.0-alpha.1+pass45",
+  "sprint": "Pass 45 Kalkyl frontend in Workbench",
+  "quality": {
+    "ruff": "pass",
+    "mypy_strict": "pass (204 files)",
+    "pytest": "420 passed, 1 warning in 12.57s"
+  },
+  "endpoint": "POST /api/projects/{project_id}/takeoff",
+  "ui": "Kalkyl view (rail Σ): sources, price book template, status badges, client questions, CSV export",
+  "release_declared": false
+}

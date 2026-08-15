@@ -1,0 +1,34 @@
+{
+  "release": "0.6.0-alpha.18",
+  "sprint": "B10.2 Commercial Adjustments",
+  "quality": {
+    "ruff": "pass",
+    "mypy_strict": "pass",
+    "pytest": "170 passed",
+    "wheel": "pass",
+    "sdist": "pass"
+  },
+  "integration_demo": {
+    "project_id": "demo",
+    "currency": "SEK",
+    "net_total": 1000.0,
+    "adjustment_total": 134.0,
+    "grand_total": 1134.0,
+    "adjusted_items": 1,
+    "unresolved": 0,
+    "by_kind": {
+      "markup": 80.0,
+      "risk": 54.0
+    }
+  },
+  "adjusted_item": {
+    "net_amount": 1000.0,
+    "adjustment_count": 2,
+    "adjustment_amounts": [
+      80.0,
+      54.0
+    ],
+    "adjusted_total": 1134.0,
+    "currency": "SEK"
+  }
+}

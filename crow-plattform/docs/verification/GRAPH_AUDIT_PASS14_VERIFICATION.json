@@ -1,0 +1,26 @@
+{
+  "baseline": "0.7.0-alpha.1",
+  "change": "Workbench ventilation graph audit API and immutable audit history",
+  "implemented": [
+    "live evidence-first ventilation graph audit endpoint",
+    "graph checksum bound to each audit result",
+    "immutable persisted audit runs keyed by graph checksum and rule version",
+    "deduplication of unchanged audit runs",
+    "project-scoped audit history endpoint",
+    "regression tests for live audit, persistence, deduplication and changed-graph history"
+  ],
+  "verification": {
+    "ruff": "pass",
+    "mypy": "pass (157 configured source files)",
+    "pytest": "334 passed",
+    "rc_009": "pass",
+    "build": "wheel and sdist built"
+  },
+  "not_implemented": [
+    "graphical Workbench audit view",
+    "finding review decisions",
+    "automatic remediation",
+    "geometric or AI inference",
+    "technical design defect assertions from missing evidence"
+  ]
+}

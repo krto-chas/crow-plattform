@@ -1,0 +1,28 @@
+{
+  "pass": 31,
+  "baseline": "0.7.0-alpha.1",
+  "module": "crow_graph_explorer",
+  "implemented": [
+    "read-only Building Graph projection",
+    "object, relation, property and evidence summaries",
+    "discipline, object type and relation type filters",
+    "dangling relation and missing evidence visibility",
+    "Workbench Building Graph Explorer view",
+    "node inspector with properties and evidence sources",
+    "GET /api/projects/{project_id}/graph/explorer"
+  ],
+  "non_claims": [
+    "no graph mutation",
+    "no evidence mutation",
+    "no inference",
+    "no persisted visual layout",
+    "no automatic repair"
+  ],
+  "verification": {
+    "ruff": "pass",
+    "mypy_strict": "pass (179 source files)",
+    "pytest": "386 passed",
+    "javascript_syntax": "pass",
+    "build": "wheel and sdist built"
+  }
+}

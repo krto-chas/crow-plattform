@@ -1,0 +1,26 @@
+{
+  "baseline": "0.7.0-alpha.1",
+  "pass": 11,
+  "scope": "Workbench identity review API",
+  "implemented": [
+    "List pending same_as_candidate relations",
+    "Persist explicit identity review decisions",
+    "Create same_as_confirmed or not_same_as relation through IdentityReviewService",
+    "Reject duplicate review decisions",
+    "Expose durable review history per project"
+  ],
+  "verification": {
+    "ruff": "pass",
+    "mypy": "pass (154 configured source files)",
+    "pytest": "323 passed",
+    "rc_009": "pass",
+    "architecture": "ARC-001 through ARC-004 pass",
+    "build": "wheel and sdist built"
+  },
+  "not_implemented": [
+    "Workbench browser user interface for identity decisions",
+    "automatic identity confirmation",
+    "physical merge of source observations",
+    "geometry-based identity matching"
+  ]
+}

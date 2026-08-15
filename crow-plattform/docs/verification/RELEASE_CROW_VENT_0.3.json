@@ -1,0 +1,19 @@
+{
+  "module": "Crow Vent",
+  "version": "0.3",
+  "schema": "crow-vent-v0.3",
+  "capabilities": [
+    "quantity takeoff",
+    "component and dimension grouping",
+    "length aggregation from evidence",
+    "measurement coverage metrics",
+    "UTF-8 CSV export",
+    "Workbench quantity view"
+  ],
+  "verification": {
+    "tests_passed": 238,
+    "python_compileall": "passed",
+    "javascript_syntax": "passed",
+    "zip_integrity": "pending"
+  }
+}

@@ -1,0 +1,21 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "crow-pressure-test-module"
+version = "1.0.0"
+description = "Crow Provtryckning domain module"
+requires-python = ">=3.11"
+dependencies = ["crow-plattform>=0.7.0a1,<0.8", "openpyxl>=3.1"]
+
+[project.entry-points."crow.modules"]
+provtryckning = "crow_pressure_test_module.plugin:CrowPressureTestModulePlugin"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+crow_pressure_test_module = ["py.typed"]
+crow_pressure_test = ["py.typed", "tathetsprovning_lexikon.json"]
+crow_offer_export = ["py.typed"]

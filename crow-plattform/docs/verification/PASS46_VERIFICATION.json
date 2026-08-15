@@ -1,0 +1,18 @@
+{
+  "release": "0.7.0-alpha.1+pass46",
+  "sprint": "Pass 46 Repo cleanup and distribution rename",
+  "quality": {
+    "ruff": "pass",
+    "mypy_strict": "pass (204 files)",
+    "pytest": "420 passed, 1 warning in 15.61s",
+    "architecture_review": "PASS ARC-001..ARC-004",
+    "module_discovery": "crow.vent 1.0.0",
+    "e2e_baseline_rc009": "pass"
+  },
+  "root_entries": {
+    "before": 107,
+    "after": 17
+  },
+  "distribution_renamed": "crow-sprint-a -> crow-plattform",
+  "release_declared": false
+}

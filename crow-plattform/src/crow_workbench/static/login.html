@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="sv">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Logga in · Crow Platform</title>
+  <style>
+    :root { font-family: Inter, ui-sans-serif, system-ui, sans-serif; color: #18202a; background: #f4f6f8; }
+    * { box-sizing: border-box; }
+    body { margin: 0; min-height: 100vh; display: grid; place-items: center; padding: 24px; }
+    main { width: min(420px, 100%); background: white; border: 1px solid #dce2e8; border-radius: 14px; padding: 28px; box-shadow: 0 10px 30px rgba(20,30,40,.08); }
+    h1 { margin: 0 0 8px; }
+    p { color: #647180; }
+    label { display: block; margin: 16px 0 6px; font-weight: 600; }
+    input { width: 100%; border: 1px solid #cbd4dc; border-radius: 8px; padding: 11px 12px; font: inherit; }
+    button { width: 100%; margin-top: 20px; border: 0; border-radius: 8px; background: #1d5b79; color: white; padding: 11px 13px; cursor: pointer; font: inherit; }
+    .error { margin-top: 16px; background: #fff0f0; border: 1px solid #f0caca; color: #8a2626; padding: 12px; border-radius: 8px; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Crow Platform</h1>
+    <p>Logga in för att öppna din arbetsyta.</p>
+    <form id="login">
+      <label for="username">Användarnamn</label>
+      <input id="username" name="username" autocomplete="username" required autofocus>
+      <label for="password">Lösenord</label>
+      <input id="password" name="password" type="password" autocomplete="current-password" required>
+      <button type="submit">Logga in</button>
+      <div id="message"></div>
+    </form>
+  </main>
+  <script>
+    const form = document.getElementById("login");
+    const message = document.getElementById("message");
+    form.addEventListener("submit", async event => {
+      event.preventDefault();
+      message.innerHTML = "";
+      const data = new FormData(form);
+      const response = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({username: data.get("username"), password: data.get("password")})
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        message.innerHTML = `<div class="error">${String(payload.detail || "Inloggningen misslyckades")}</div>`;
+        return;
+      }
+      location.replace(payload.destination || "/app");
+    });
+  </script>
+</body>
+</html>

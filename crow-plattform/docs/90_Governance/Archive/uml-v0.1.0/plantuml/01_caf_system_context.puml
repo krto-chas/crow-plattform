@@ -1,0 +1,25 @@
+@startuml
+skinparam backgroundColor white
+skinparam shadowing false
+skinparam roundcorner 8
+skinparam defaultFontName Arial
+skinparam packageStyle rectangle
+skinparam componentStyle rectangle
+skinparam ArrowColor #444444
+skinparam BorderColor #333333
+skinparam classAttributeIconSize 0
+title CAF System Context
+actor "Enterprise Architect" as EA
+actor "Architecture Board" as AB
+actor "Federation Participant" as FP
+rectangle "Crow Architecture Framework" as CAF
+cloud "External Standards\nISO, W3C, COBIT" as EXT
+rectangle "Enterprise Systems" as ES
+rectangle "Federated Ecosystem" as FE
+EA --> CAF : models and governs
+AB --> CAF : approves standards
+FP --> FE : participates
+CAF --> ES : guides architecture
+CAF --> FE : defines federation
+CAF ..> EXT : maps and aligns
+@enduml

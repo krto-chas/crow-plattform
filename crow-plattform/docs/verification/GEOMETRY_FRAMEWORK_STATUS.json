@@ -1,0 +1,20 @@
+{
+  "component": "Crow Geometry Framework",
+  "version": "0.1.0",
+  "capabilities": [
+    "normalized_2d_geometry",
+    "layer_model",
+    "object_identity",
+    "bounds",
+    "dxf_adapter",
+    "dwg_metadata_adapter",
+    "dwg_conversion_adapter_contract",
+    "workbench_cad_explorer"
+  ],
+  "reference_validation": {
+    "file": "V-50-1-01.dwg",
+    "dwg_header": "AC1032",
+    "sha256": "7c662ca1b7ca998ae20a91d8a13de4eaafe0a916f5d025f1feca7a117e071113"
+  },
+  "dwg_geometry_policy": "Geometry is exposed only through an installed ODA, RealDWG or LibreDWG adapter; original DWG remains immutable evidence."
+}

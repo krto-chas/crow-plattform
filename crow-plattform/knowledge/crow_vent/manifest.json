@@ -1,0 +1,10 @@
+{
+  "id": "crow.vent",
+  "name": "Crow Vent",
+  "version": "1.0.0-rc1",
+  "requires": ["crow.platform>=0.7", "building_graph>=1.0"],
+  "ontology": "ontology.json",
+  "symbols": "symbols.json",
+  "rules": "rules.json",
+  "recommendations": "recommendations.json"
+}
