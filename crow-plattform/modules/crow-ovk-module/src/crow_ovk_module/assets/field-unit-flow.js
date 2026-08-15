@@ -68,7 +68,8 @@ async function addFieldUnit(kind) {
     checked_at: null,
     bom_at: null,
     bom_note: '',
-    key: null
+    key: null,
+    system_type: null
   };
   state.units.push(unit);
   await persist();

@@ -54,7 +54,7 @@ def ovk_field_router(data_root: Path) -> APIRouter:
         return Response(
             _asset_text("field-sw.js"),
             media_type="application/javascript",
-            headers={"Service-Worker-Allowed": "/ovk/"},
+            headers={"Service-Worker-Allowed": "/ovk/", "Cache-Control": "no-cache"},
         )
 
     @router.get("/api/ovk/field/checklists", response_model=None)
@@ -173,6 +173,7 @@ def _field_data_from_payload(payload: dict[str, Any]) -> FieldInspectionData:
             bom_at=_optional_str(item.get("bom_at")),
             bom_note=str(item.get("bom_note", "")),
             key=_key_from_payload(item.get("key")),
+            system_type=_optional_str(item.get("system_type")),
         )
         for item in _dict_items(payload.get("units", []), "units")
     )
@@ -314,6 +315,7 @@ def _field_data_to_payload(data: FieldInspectionData) -> dict[str, Any]:
                 "checked_at": item.checked_at,
                 "bom_at": item.bom_at,
                 "bom_note": item.bom_note,
+                "system_type": item.system_type,
                 "key": (
                     {
                         "received": item.key.received,

@@ -62,7 +62,7 @@ def ovk_field_context_page_router() -> APIRouter:
     router = APIRouter()
 
     @router.get("/ovk/falt", response_class=HTMLResponse)
-    def field_page() -> str:
+    def field_page() -> HTMLResponse:
         html = _asset_text("field.html")
         marker = '<script src="/ovk/falt/app.js"></script>'
         replacement = (
@@ -71,25 +71,37 @@ def ovk_field_context_page_router() -> APIRouter:
             + '\n<script src="/ovk/falt/unit-flow.js"></script>'
             + '\n<script src="/ovk/falt/auth.js"></script>'
         )
-        return html.replace(marker, replacement, 1)
+        return HTMLResponse(html.replace(marker, replacement, 1), headers=_NO_CACHE)
 
     @router.get("/ovk/falt/app.js", response_class=Response)
     def field_runtime_app() -> Response:
-        return Response(_field_runtime_script(), media_type="application/javascript")
+        return _script_response(_field_runtime_script())
 
     @router.get("/ovk/falt/context.js", response_class=Response)
     def field_context_app() -> Response:
-        return Response(_asset_text("field-context.js"), media_type="application/javascript")
+        return _script_response(_asset_text("field-context.js"))
 
     @router.get("/ovk/falt/unit-flow.js", response_class=Response)
     def field_unit_flow_app() -> Response:
-        return Response(_asset_text("field-unit-flow.js"), media_type="application/javascript")
+        return _script_response(_asset_text("field-unit-flow.js"))
 
     @router.get("/ovk/falt/auth.js", response_class=Response)
     def field_auth_app() -> Response:
-        return Response(_asset_text("field-auth.js"), media_type="application/javascript")
+        return _script_response(_asset_text("field-auth.js"))
 
     return router
+
+
+_NO_CACHE = {"Cache-Control": "no-cache"}
+
+
+def _script_response(script: str) -> Response:
+    """JS-svar med no-cache: browserns HTTP-cache får aldrig frysa fältskripten.
+
+    Utan detta kan gamla app.js/sw.js ligga kvar i heuristisk cache i upp
+    till ett dygn och deployade fixar når aldrig telefonen.
+    """
+    return Response(script, media_type="application/javascript", headers=_NO_CACHE)
 
 
 def _field_runtime_script() -> str:
