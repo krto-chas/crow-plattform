@@ -118,7 +118,8 @@ def test_field_page_exposes_offline_app_shell(tmp_path: Path) -> None:
     assert worker.status_code == 200
     assert worker.headers["service-worker-allowed"] == "/ovk/"
     assert "crow-ovk-field-shell-" in worker.text
-    assert "v6" in worker.text
+    assert "v7" in worker.text
+    assert "v6" not in worker.text
     assert "const FIELD_PAGE='/ovk/falt'" in worker.text
     assert "'/ovk/falt/context.js'" in worker.text
     assert "'/ovk/falt/unit-flow.js'" in worker.text
@@ -218,3 +219,60 @@ def test_field_payload_rejects_wrong_photo_unit_number(tmp_path: Path) -> None:
     response = _client(tmp_path).post("/api/ovk/field/validate", json=payload)
     assert response.status_code == 422
     assert response.json()["detail"]["code"] == "INVALID_OVK_FIELD_DATA"
+
+
+def test_field_app_marks_visited_rooms_and_clears_bom_units(tmp_path: Path) -> None:
+    client = _client(tmp_path)
+    app = client.get("/ovk/falt/app.js")
+    assert app.status_code == 200
+    # Besökta rum: chip får done-klass och räknarbadge per rum.
+    assert "function roomStats(roomId)" in app.text
+    assert "' done'" in app.text
+    assert 'class="rbadge"' in app.text
+    # BOM rensar mätningar/anmärkningar lokalt så serverns
+    # statuskonsistensvalidering inte avvisar snapshot-synken med 422.
+    assert "BOM: '+meas.length+' mätningar" in app.text
+    assert (
+        "state.measurements=state.measurements.filter(item=>item.unit_id!==unit.unit_id)"
+        in app.text
+    )
+    assert "state.findings=state.findings.filter(item=>item.unit_id!==unit.unit_id)" in app.text
+    assert "photo.finding_id=null" in app.text
+    # Restore bevarar laddade checklists i båda vägarna,
+    # annars skapar "+ Fläktrum" noll kontrollpunkter efter återställning.
+    assert app.text.count("checklists:state.checklists") >= 2
+    # Läsbara synkfel i stället för rå JSON.
+    assert "function crowErrorText(error)" in app.text
+    assert "crowErrorText(error)" in app.text
+    assert "'Synkfel: '+String(error)" not in app.text
+    # Fönsterventilkontroll dedupliceras per rum.
+    assert "function setWindowVent(roomId,present)" in app.text
+
+    page = client.get("/ovk/falt")
+    assert page.status_code == 200
+    assert ".chip.done" in page.text
+    assert ".rbadge" in page.text
+
+    auth = client.get("/ovk/falt/auth.js")
+    assert auth.status_code == 200
+    assert "crowErrorText(error)" in auth.text
+
+
+def test_field_sync_accepts_bom_unit_without_findings_or_measurements(tmp_path: Path) -> None:
+    client = _client(tmp_path)
+    payload: dict[str, object] = {
+        "inspection_id": "ovk-bom",
+        "units": [
+            {
+                "unit_id": "unit-1",
+                "number": "1101",
+                "kind": "apartment",
+                "status": "bom",
+                "bom_at": "2026-08-15T09:00:00+02:00",
+                "bom_note": "Ingen hemma",
+            }
+        ],
+    }
+    response = client.put("/api/ovk/field/sync/ovk-bom", json=payload)
+    assert response.status_code == 200
+    assert response.json()["synced"] is True
