@@ -57,6 +57,9 @@ class KeyLog:
             raise ValueError("master key use requires a written note")
 
 
+_UNIT_SYSTEM_TYPES = ("S", "F", "FX", "FT", "FTX")
+
+
 @dataclass(frozen=True, slots=True)
 class FieldUnit:
     unit_id: str
@@ -69,6 +72,11 @@ class FieldUnit:
     bom_at: str | None = None
     bom_note: str = ""
     key: KeyLog | None = None
+    system_type: str | None = None
+    """Avvikande systemtyp för enheten (t.ex. vinds-/källarlägenhet).
+
+    None = fastighetens systemtyp gäller. Uppgiften är STATED av besiktningsmannen.
+    """
 
     def __post_init__(self) -> None:
         if not self.unit_id.strip():
@@ -77,6 +85,10 @@ class FieldUnit:
             raise ValueError("inspection_id must not be empty")
         if not self.number.strip():
             raise ValueError("unit number must not be empty")
+        if self.system_type is not None and self.system_type not in _UNIT_SYSTEM_TYPES:
+            raise ValueError(
+                f"unit system_type {self.system_type!r} must be one of {_UNIT_SYSTEM_TYPES}"
+            )
         if (
             self.status in (UnitStatus.UA, UnitStatus.ANMARKNING)
             and not (self.checked_at or "").strip()

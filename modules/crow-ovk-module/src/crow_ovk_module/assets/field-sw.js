@@ -1,5 +1,5 @@
 const CACHE_PREFIX='crow-ovk-field-shell-';
-const CACHE=CACHE_PREFIX+'v6';
+const CACHE=CACHE_PREFIX+'v8';
 const FIELD_PAGE='/ovk/falt';
 const STATIC_PATHS=new Set([
   '/ovk/falt/app.js',
@@ -65,14 +65,21 @@ self.addEventListener('fetch',event=>{
   }
 
   if(STATIC_PATHS.has(url.pathname)){
+    // Network-first: deployade skriptfixar når klienten direkt,
+    // cachen är enbart offline-fallback.
     event.respondWith(
-      caches.open(CACHE).then(async cache=>{
-        const cached=await cache.match(url.pathname);
-        if(cached)return cached;
-        const response=await fetch(request);
-        if(response.ok)await cache.put(url.pathname,response.clone());
-        return response;
-      })
+      fetch(request)
+        .then(async response=>{
+          if(response.ok){
+            const cache=await caches.open(CACHE);
+            await cache.put(url.pathname,response.clone());
+          }
+          return response;
+        })
+        .catch(async()=>{
+          const cached=await caches.open(CACHE).then(cache=>cache.match(url.pathname));
+          return cached||new Response('// offline',{headers:{'content-type':'application/javascript'}});
+        })
     );
     return;
   }

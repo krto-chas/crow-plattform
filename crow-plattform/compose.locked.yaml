@@ -1,5 +1,0 @@
-services:
-  crow-platform:
-    build:
-      context: .
-      dockerfile: deploy/Dockerfile.locked

@@ -118,7 +118,7 @@ syncDraft = async function () {
         'Sessionen saknas eller har gått ut. Ronderingen är kvar lokalt. Logga in igen och återgå till Fältläge för att synka.';
       return;
     }
-    $('syncStatus').textContent = 'Synkfel: ' + String(error);
+    $('syncStatus').textContent = 'Synkfel: ' + crowErrorText(error);
   }
 };
 
