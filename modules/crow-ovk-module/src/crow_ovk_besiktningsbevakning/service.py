@@ -63,6 +63,7 @@ def _intyg_item(
             inspection_id=intyg.inspection_id,
             status=WatchStatus.OMBESIKTNING_KRAVS,
             basis=intyg.next_inspection.basis,
+            delbesiktning=intyg.delbesiktning,
         )
     due_date = intyg.next_inspection.due_date
     if due_date is None:
@@ -75,6 +76,7 @@ def _intyg_item(
             inspection_id=intyg.inspection_id,
             status=WatchStatus.INGEN_FRIST,
             basis=intyg.next_inspection.basis,
+            delbesiktning=intyg.delbesiktning,
         )
     return WatchItem(
         project_id=intyg.project_id,
@@ -88,6 +90,7 @@ def _intyg_item(
         due_date=due_date,
         interval_years=intyg.next_inspection.interval_years,
         days_until=(due_date - today).days,
+        delbesiktning=intyg.delbesiktning,
     )
 
 

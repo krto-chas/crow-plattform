@@ -8,7 +8,12 @@ from typing import Any
 from crow_ovk import EvidenceOrigin, InspectionConclusion
 from crow_ovk_pricing import BuildingCategory, InspectionType, OvkTaxa, VentilationSystemType
 from crow_ovk_pricing import load_taxa as load_ovk_taxa
-from crow_ovk_workflow import OvkWorkflowRecord
+from crow_ovk_workflow import (
+    AggregatCoverage,
+    AggregatStatus,
+    FastighetsnivaStatus,
+    OvkWorkflowRecord,
+)
 
 from .models import (
     SCHEMA_VERSION,
@@ -73,6 +78,9 @@ def build_intyg(
         systems=systems,
         taxa=taxa or load_ovk_taxa(),
     )
+    coverage = record.coverage
+    if coverage is None:  # pragma: no cover - protocol_ready garanterar täckning
+        raise ValueError("protocol-ready record utan täckning är ogiltigt")
     return OvkIntyg(
         intyg_id=intyg_id,
         inspection_id=record.inspection.inspection_id,
@@ -89,6 +97,9 @@ def build_intyg(
         result=result,
         next_inspection=next_inspection,
         address=record.inspection.ovk_object.address,
+        delbesiktning=coverage.is_delbesiktning,
+        fastighetsniva=coverage.fastighetsniva,
+        uninspected_aggregat=coverage.uninspected,
     )
 
 
@@ -198,6 +209,18 @@ def intyg_to_payload(intyg: OvkIntyg) -> dict[str, Any]:
             for system in intyg.systems
         ],
         "result": intyg.result.value,
+        "delbesiktning": intyg.delbesiktning,
+        "fastighetsniva": intyg.fastighetsniva.value,
+        "uninspected_aggregat": [
+            {
+                "aggregat_id": item.aggregat_id,
+                "label": item.label,
+                "status": item.status.value,
+                "justification": item.justification,
+                "stated_by": item.stated_by,
+            }
+            for item in intyg.uninspected_aggregat
+        ],
         "next_inspection": {
             "interval_years": intyg.next_inspection.interval_years,
             "due_date": (
@@ -246,6 +269,25 @@ def intyg_from_payload(payload: dict[str, Any]) -> OvkIntyg:
             basis=_required_text(next_payload, "basis"),
         ),
         address=_optional_text(payload.get("address")),
+        delbesiktning=bool(payload.get("delbesiktning", False)),
+        fastighetsniva=FastighetsnivaStatus(
+            str(
+                payload.get(
+                    "fastighetsniva", FastighetsnivaStatus.SYSTEMFORTECKNING_EJ_BEKRAFTAD.value
+                )
+            )
+        ),
+        uninspected_aggregat=tuple(
+            AggregatCoverage(
+                aggregat_id=str(item.get("aggregat_id", "")),
+                label=str(item.get("label", "")),
+                status=AggregatStatus(str(item.get("status", ""))),
+                justification=str(item.get("justification", "")),
+                stated_by=str(item.get("stated_by", "")),
+            )
+            for item in payload.get("uninspected_aggregat", [])
+            if isinstance(item, dict)
+        ),
     )
 
 

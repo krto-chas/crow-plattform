@@ -8,6 +8,7 @@ from enum import StrEnum
 
 from crow_ovk import EvidenceOrigin
 from crow_ovk_pricing import InspectionType
+from crow_ovk_workflow import AggregatCoverage, FastighetsnivaStatus
 
 SCHEMA_VERSION = "crow-ovk-intyg-v0.1"
 
@@ -76,6 +77,9 @@ class OvkIntyg:
     result: IntygResult
     next_inspection: NextInspection
     address: str | None = None
+    delbesiktning: bool = False
+    fastighetsniva: FastighetsnivaStatus = FastighetsnivaStatus.SYSTEMFORTECKNING_EJ_BEKRAFTAD
+    uninspected_aggregat: tuple[AggregatCoverage, ...] = ()
 
     def __post_init__(self) -> None:
         if not self.intyg_id.strip():
@@ -84,3 +88,10 @@ class OvkIntyg:
             raise ValueError("fastighetsbeteckning is required")
         if self.issued_date < self.inspection_date:
             raise ValueError("issued_date cannot precede inspection_date")
+        if self.delbesiktning != bool(self.uninspected_aggregat):
+            raise ValueError(
+                "delbesiktningsmarkering och listan över ej besiktigade aggregat "
+                "måste vara konsistenta"
+            )
+        if self.delbesiktning and self.fastighetsniva is FastighetsnivaStatus.SAMTLIGA_BESIKTADE:
+            raise ValueError("intyg med delbesiktningsmarkering kan inte hävda samtliga_besiktade")

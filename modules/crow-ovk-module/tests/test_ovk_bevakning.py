@@ -32,10 +32,15 @@ from crow_ovk_intyg import (
 )
 from crow_ovk_pricing import BuildingCategory, InspectionType
 from crow_ovk_workflow import (
+    AggregatCoverage,
+    AggregatStatus,
+    BekraftelseRoll,
+    InspectionCoverage,
     OvkReinspectionRepository,
     OvkReviewDecision,
     OvkWorkflowRecord,
     ReviewStatus,
+    SystemForteckningBekraftelse,
     build_record,
     open_case,
 )
@@ -93,6 +98,17 @@ def _record(
                 reason="unlabelled_airflow_value",
                 status=ReviewStatus.ACCEPTED,
                 reviewer="tester",
+            ),
+        ),
+        coverage=InspectionCoverage(
+            inspection_id="bevakning-fixture",
+            aggregat=(
+                AggregatCoverage(
+                    aggregat_id="agg-1", label="LB01", status=AggregatStatus.BESIKTIGAD
+                ),
+            ),
+            system_list_confirmation=SystemForteckningBekraftelse(
+                confirmed_by="Test Besiktningsman", role=BekraftelseRoll.BESIKTNINGSMAN
             ),
         ),
     )

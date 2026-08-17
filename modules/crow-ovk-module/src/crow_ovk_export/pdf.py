@@ -6,7 +6,7 @@ from fpdf import FPDF
 
 from crow_ovk import CheckStatus, FindingSeverity, InspectionConclusion
 from crow_ovk_intyg import IntygResult, OvkIntyg
-from crow_ovk_workflow import OvkWorkflowRecord
+from crow_ovk_workflow import AggregatStatus, FastighetsnivaStatus, OvkWorkflowRecord
 
 _CHECK_LABELS = {
     CheckStatus.PASS: "Godkänd",
@@ -25,6 +25,18 @@ _CONCLUSION_LABELS = {
     InspectionConclusion.APPROVED: "GODKÄND",
     InspectionConclusion.DEFICIENCIES: "EJ GODKÄND - BRISTER",
     InspectionConclusion.PENDING: "EJ AVSLUTAD",
+}
+
+_AGGREGAT_LABELS = {
+    AggregatStatus.BESIKTIGAD: "Besiktigad",
+    AggregatStatus.EJ_BESIKTIGAD: "EJ BESIKTIGAD",
+    AggregatStatus.EJ_TILLAMPLIG: "Ej tillämplig",
+}
+
+_FASTIGHETSNIVA_LABELS = {
+    FastighetsnivaStatus.SAMTLIGA_BESIKTADE: "Samtliga system i fastigheten besiktigade",
+    FastighetsnivaStatus.DELVIS_BESIKTADE: "DELVIS BESIKTIGADE - delbesiktning",
+    FastighetsnivaStatus.SYSTEMFORTECKNING_EJ_BEKRAFTAD: ("Systemförteckningen ej bekräftad"),
 }
 
 _RESULT_LABELS = {
@@ -145,6 +157,27 @@ def protocol_pdf(record: OvkWorkflowRecord) -> bytes:
         pdf.set_font("helvetica", size=10)
         pdf.cell(0, 7, "Inga anmärkningar.", new_x="LMARGIN", new_y="NEXT")
 
+    _heading(pdf, "Besiktningstäckning - fläktar/aggregat")
+    if record.coverage is not None and record.coverage.aggregat:
+        _table_header(pdf, (("Aggregat", 40), ("Status", 45), ("Motivering (STATED)", 105)))
+        for item in record.coverage.aggregat:
+            note = (
+                f"{item.justification} - {item.stated_by}"
+                if item.status is AggregatStatus.EJ_BESIKTIGAD
+                else "-"
+            )
+            _table_row(pdf, ((item.label, 40), (_AGGREGAT_LABELS[item.status], 45), (note, 105)))
+        _kv(pdf, "Fastighetsnivå", _FASTIGHETSNIVA_LABELS[record.coverage.fastighetsniva])
+    else:
+        pdf.set_font("helvetica", size=10)
+        pdf.cell(
+            0,
+            7,
+            "Täckning saknas - protokollet kan inte färdigställas.",
+            new_x="LMARGIN",
+            new_y="NEXT",
+        )
+
     _result_banner(
         pdf,
         _CONCLUSION_LABELS[inspection.conclusion],
@@ -209,6 +242,26 @@ def intyg_pdf(intyg: OvkIntyg) -> bytes:
         _RESULT_LABELS[intyg.result],
         positive=intyg.result is IntygResult.GODKAND,
     )
+
+    _heading(pdf, "Besiktningsomfattning")
+    _kv(pdf, "Fastighetsnivå", _FASTIGHETSNIVA_LABELS[intyg.fastighetsniva])
+    if intyg.delbesiktning:
+        pdf.set_font("helvetica", style="B", size=10)
+        pdf.set_text_color(146, 64, 14)
+        pdf.cell(
+            0,
+            7,
+            "DELBESIKTNING - delar av systemet har inte besiktigats.",
+            new_x="LMARGIN",
+            new_y="NEXT",
+        )
+        pdf.set_text_color(24, 33, 43)
+        _table_header(pdf, (("Aggregat", 40), ("Motivering (STATED)", 110), ("Angiven av", 40)))
+        for item in intyg.uninspected_aggregat:
+            _table_row(
+                pdf,
+                ((item.label, 40), (item.justification, 110), (item.stated_by, 40)),
+            )
 
     _heading(pdf, "Nästa besiktning")
     _kv(

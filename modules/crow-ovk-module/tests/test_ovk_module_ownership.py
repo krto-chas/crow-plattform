@@ -27,7 +27,15 @@ from crow_ovk_pricing import (
     build_quote,
     load_taxa,
 )
-from crow_ovk_workflow import build_record, record_to_payload
+from crow_ovk_workflow import (
+    AggregatCoverage,
+    AggregatStatus,
+    BekraftelseRoll,
+    InspectionCoverage,
+    SystemForteckningBekraftelse,
+    build_record,
+    record_to_payload,
+)
 
 
 def _module_path(package_file: str | None) -> str:
@@ -94,6 +102,17 @@ def test_relocated_workflow_preserves_serialization() -> None:
         inspection_id="inspection-1",
         ovk_object=OvkObject("object-1", "project-1", "building-1", "Testobjekt"),
         checkpoints=(OvkCheckpoint("checkpoint-1", "Kontrollpunkt", CheckStatus.PASS),),
+        coverage=InspectionCoverage(
+            inspection_id="bevakning-fixture",
+            aggregat=(
+                AggregatCoverage(
+                    aggregat_id="agg-1", label="LB01", status=AggregatStatus.BESIKTIGAD
+                ),
+            ),
+            system_list_confirmation=SystemForteckningBekraftelse(
+                confirmed_by="Test Besiktningsman", role=BekraftelseRoll.BESIKTNINGSMAN
+            ),
+        ),
     )
     payload = record_to_payload(record)
     assert payload["inspection"]["inspection_id"] == "inspection-1"
