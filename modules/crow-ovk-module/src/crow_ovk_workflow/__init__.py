@@ -1,3 +1,15 @@
+from .coverage import (
+    AggregatCoverage,
+    AggregatStatus,
+    BekraftelseRoll,
+    CoverageError,
+    FastighetsnivaStatus,
+    InspectionCoverage,
+    SystemForteckningBekraftelse,
+    coverage_from_payload,
+    coverage_to_payload,
+    validate_coverage_for_finalization,
+)
 from .models import OvkReviewDecision, OvkWorkflowRecord, ReviewStatus
 from .protocol import protocol_html
 from .reinspection import (
@@ -19,6 +31,16 @@ from .service import build_record, record_from_payload, record_to_payload
 
 __all__ = [
     "REINSPECTION_SCHEMA_VERSION",
+    "AggregatCoverage",
+    "AggregatStatus",
+    "BekraftelseRoll",
+    "CoverageError",
+    "FastighetsnivaStatus",
+    "InspectionCoverage",
+    "SystemForteckningBekraftelse",
+    "coverage_from_payload",
+    "coverage_to_payload",
+    "validate_coverage_for_finalization",
     "CaseStatus",
     "OvkReinspectionCase",
     "OvkReinspectionRepository",

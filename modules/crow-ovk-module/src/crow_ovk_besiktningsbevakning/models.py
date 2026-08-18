@@ -35,6 +35,8 @@ class WatchItem:
     due_date: date | None = None
     interval_years: int | None = None
     days_until: int | None = None
+    delbesiktning: bool = False
+    """Källintyget bär delbesiktningsmarkering: delar av systemet obesiktigade."""
 
     def __post_init__(self) -> None:
         if not self.basis.strip():

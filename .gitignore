@@ -27,3 +27,4 @@ env/
 
 # Local deployment secrets
 .env
+*.patch

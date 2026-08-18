@@ -13,10 +13,15 @@ from crow_ovk import (
     VentilationSystemRef,
 )
 from crow_ovk_workflow import (
+    AggregatCoverage,
+    AggregatStatus,
+    BekraftelseRoll,
+    InspectionCoverage,
     OvkReviewDecision,
     OvkWorkflowRecord,
     OvkWorkflowRepository,
     ReviewStatus,
+    SystemForteckningBekraftelse,
     build_record,
     protocol_html,
 )
@@ -51,6 +56,17 @@ def _record(*, review_status: ReviewStatus = ReviewStatus.ACCEPTED) -> OvkWorkfl
                 reviewer="tester" if review_status is not ReviewStatus.PENDING else None,
             ),
         ),
+        coverage=InspectionCoverage(
+            inspection_id="ovk-001",
+            aggregat=(
+                AggregatCoverage(
+                    aggregat_id="agg-1", label="FTX01", status=AggregatStatus.BESIKTIGAD
+                ),
+            ),
+            system_list_confirmation=SystemForteckningBekraftelse(
+                confirmed_by="Test Besiktningsman", role=BekraftelseRoll.BESIKTNINGSMAN
+            ),
+        ),
     )
 
 
@@ -76,6 +92,17 @@ def test_empty_checkpoint_set_is_pending() -> None:
             project_id="p1",
             building_id="building-1",
             name="Testobjekt",
+        ),
+        coverage=InspectionCoverage(
+            inspection_id="ovk-001",
+            aggregat=(
+                AggregatCoverage(
+                    aggregat_id="agg-1", label="FTX01", status=AggregatStatus.BESIKTIGAD
+                ),
+            ),
+            system_list_confirmation=SystemForteckningBekraftelse(
+                confirmed_by="Test Besiktningsman", role=BekraftelseRoll.BESIKTNINGSMAN
+            ),
         ),
     )
     assert record.inspection.conclusion.value == "pending"
@@ -145,6 +172,22 @@ def _workflow_payload(
             "measurements": [],
             "findings": [],
             "actions": [],
+        },
+        "coverage": {
+            "inspection_id": "ovk-001",
+            "aggregat": [
+                {
+                    "aggregat_id": "agg-1",
+                    "label": "FTX01",
+                    "status": "besiktigad",
+                    "justification": "",
+                    "stated_by": "",
+                }
+            ],
+            "system_list_confirmation": {
+                "confirmed_by": "Test Besiktningsman",
+                "role": "besiktningsman",
+            },
         },
         "review": [
             {

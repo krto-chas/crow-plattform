@@ -17,13 +17,18 @@ from crow_ovk import (
     VentilationSystemRef,
 )
 from crow_ovk_workflow import (
+    AggregatCoverage,
+    AggregatStatus,
+    BekraftelseRoll,
     CaseStatus,
+    InspectionCoverage,
     OvkReinspectionRepository,
     OvkReviewDecision,
     OvkWorkflowRecord,
     OvkWorkflowRepository,
     RemedyState,
     ReviewStatus,
+    SystemForteckningBekraftelse,
     build_record,
     case_from_payload,
     case_to_payload,
@@ -83,6 +88,17 @@ def _record(
                 reason="unlabelled_airflow_value",
                 status=review_status,
                 reviewer="tester",
+            ),
+        ),
+        coverage=InspectionCoverage(
+            inspection_id="ovk-001",
+            aggregat=(
+                AggregatCoverage(
+                    aggregat_id="agg-1", label="FTX01", status=AggregatStatus.BESIKTIGAD
+                ),
+            ),
+            system_list_confirmation=SystemForteckningBekraftelse(
+                confirmed_by="Test Besiktningsman", role=BekraftelseRoll.BESIKTNINGSMAN
             ),
         ),
     )

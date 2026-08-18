@@ -19,6 +19,7 @@ from crow_ovk import (
     inspection_to_payload,
 )
 
+from .coverage import InspectionCoverage, coverage_from_payload, coverage_to_payload
 from .models import OvkReviewDecision, OvkWorkflowRecord, ReviewStatus
 
 SCHEMA_VERSION = "crow-ovk-workflow-v0.1"
@@ -34,6 +35,7 @@ def build_record(
     findings: tuple[OvkFinding, ...] = (),
     actions: tuple[OvkAction, ...] = (),
     review: tuple[OvkReviewDecision, ...] = (),
+    coverage: InspectionCoverage | None = None,
     updated_at: str | None = None,
 ) -> OvkWorkflowRecord:
     inspection = build_inspection(
@@ -62,6 +64,7 @@ def build_record(
         inspection=inspection,
         review=review,
         updated_at=updated_at or datetime.now(UTC).isoformat(),
+        coverage=coverage,
     )
 
 
@@ -81,7 +84,9 @@ def record_to_payload(record: OvkWorkflowRecord) -> dict[str, Any]:
             }
             for item in record.review
         ],
+        "coverage": (coverage_to_payload(record.coverage) if record.coverage is not None else None),
         "unresolved_review_count": record.unresolved_review_count,
+        "coverage_complete": record.coverage_complete,
         "protocol_ready": record.protocol_ready,
         "updated_at": record.updated_at,
     }
@@ -107,6 +112,10 @@ def record_from_payload(payload: dict[str, Any]) -> OvkWorkflowRecord:
     findings = tuple(_finding(item) for item in _list(inspection.get("findings"), "findings"))
     actions = tuple(_action(item) for item in _list(inspection.get("actions"), "actions"))
     review = tuple(_review(item) for item in _list(payload.get("review"), "review"))
+    coverage_payload = payload.get("coverage")
+    coverage: InspectionCoverage | None = None
+    if coverage_payload is not None:
+        coverage = coverage_from_payload(_mapping(coverage_payload, "coverage"))
     return build_record(
         inspection_id=_required_text(inspection, "inspection_id"),
         ovk_object=ovk_object,
@@ -117,6 +126,7 @@ def record_from_payload(payload: dict[str, Any]) -> OvkWorkflowRecord:
         actions=actions,
         review=review,
         updated_at=_optional_text(payload.get("updated_at")),
+        coverage=coverage,
     )
 
 
