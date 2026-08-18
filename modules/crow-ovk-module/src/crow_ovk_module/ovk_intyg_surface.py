@@ -5,6 +5,11 @@ from datetime import date
 from pathlib import Path
 from typing import Any
 
+from crow_ovk_fastighet import (
+    BesiktningsmanRepository,
+    FastighetRepository,
+    funktionskontrollant_from,
+)
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import HTMLResponse
 
@@ -25,6 +30,61 @@ def ovk_intyg_router(data_root: Path) -> APIRouter:
     router = APIRouter()
     workflow_repository = OvkWorkflowRepository(data_root)
     intyg_repository = OvkIntygRepository(data_root)
+    fastighet_repository = FastighetRepository(data_root)
+    besiktningsman_repository = BesiktningsmanRepository(data_root)
+
+    def _resolve_fastighetsbeteckning(project_id: str, payload: dict[str, Any]) -> str:
+        fastighet_id = payload.get("fastighet_id")
+        if isinstance(fastighet_id, str) and fastighet_id.strip():
+            try:
+                fastighet = fastighet_repository.load(project_id, fastighet_id.strip())
+            except FileNotFoundError as exc:
+                raise HTTPException(
+                    status_code=404, detail={"code": "FASTIGHET_NOT_FOUND"}
+                ) from exc
+            return fastighet.fastighetsbeteckning
+        return _required(payload, "fastighetsbeteckning")
+
+    def _resolve_byggnadsagare(project_id: str, payload: dict[str, Any]) -> Byggnadsagare:
+        fastighet_id = payload.get("fastighet_id")
+        if isinstance(fastighet_id, str) and fastighet_id.strip():
+            fastighet = fastighet_repository.load(project_id, fastighet_id.strip())
+            if fastighet.byggnadsagare_namn.strip():
+                contact_parts = [
+                    part
+                    for part in (
+                        fastighet.byggnadsagare_adress.gata,
+                        fastighet.byggnadsagare_adress.postnr,
+                        fastighet.byggnadsagare_adress.ort,
+                    )
+                    if part.strip()
+                ]
+                return Byggnadsagare(
+                    name=fastighet.byggnadsagare_namn,
+                    contact=" ".join(contact_parts) or None,
+                )
+        return Byggnadsagare(
+            name=_required(payload, "byggnadsagare_name"),
+            contact=_optional(payload.get("byggnadsagare_contact")),
+        )
+
+    def _resolve_kontrollant(payload: dict[str, Any]) -> Funktionskontrollant:
+        besiktningsman_id = payload.get("besiktningsman_id")
+        if isinstance(besiktningsman_id, str) and besiktningsman_id.strip():
+            try:
+                person = besiktningsman_repository.load(besiktningsman_id.strip())
+            except FileNotFoundError as exc:
+                raise HTTPException(
+                    status_code=404, detail={"code": "BESIKTNINGSMAN_NOT_FOUND"}
+                ) from exc
+            return funktionskontrollant_from(person)
+        return Funktionskontrollant(
+            name=_required(payload, "kontrollant_name"),
+            behorighet=Behorighet(_required(payload, "kontrollant_behorighet")),
+            certification_body=_required(payload, "kontrollant_certification_body"),
+            certificate_number=_required(payload, "kontrollant_certificate_number"),
+            certificate_valid_to=_optional_date(payload.get("kontrollant_certificate_valid_to")),
+        )
 
     @router.get("/ovk/intyg", response_class=HTMLResponse)
     def intyg_page() -> str:
@@ -90,20 +150,9 @@ def ovk_intyg_router(data_root: Path) -> APIRouter:
             intyg = build_intyg(
                 intyg_id=_required(payload, "intyg_id"),
                 record=record,
-                fastighetsbeteckning=_required(payload, "fastighetsbeteckning"),
-                byggnadsagare=Byggnadsagare(
-                    name=_required(payload, "byggnadsagare_name"),
-                    contact=_optional(payload.get("byggnadsagare_contact")),
-                ),
-                funktionskontrollant=Funktionskontrollant(
-                    name=_required(payload, "kontrollant_name"),
-                    behorighet=Behorighet(_required(payload, "kontrollant_behorighet")),
-                    certification_body=_required(payload, "kontrollant_certification_body"),
-                    certificate_number=_required(payload, "kontrollant_certificate_number"),
-                    certificate_valid_to=_optional_date(
-                        payload.get("kontrollant_certificate_valid_to")
-                    ),
-                ),
+                fastighetsbeteckning=_resolve_fastighetsbeteckning(project_id, payload),
+                byggnadsagare=_resolve_byggnadsagare(project_id, payload),
+                funktionskontrollant=_resolve_kontrollant(payload),
                 inspection_type=InspectionType(_required(payload, "inspection_type")),
                 inspection_date=_required_date(payload, "inspection_date"),
                 building_category=BuildingCategory(_required(payload, "building_category")),
