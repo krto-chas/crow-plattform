@@ -86,6 +86,17 @@ def test_core_route_claim_removes_only_claimed_method() -> None:
     assert len(_matching_routes(app, "POST", "/probe")) == 1
 
 
+def test_unmatched_core_route_claim_is_rejected() -> None:
+    app = FastAPI()
+
+    @app.get("/probe")
+    def probe() -> dict[str, bool]:
+        return {"ok": True}
+
+    with pytest.raises(RuntimeError, match="did not match an existing route"):
+        _remove_core_routes(app, (CoreRouteClaim("DELETE", "/probe"),))
+
+
 def test_duplicate_core_route_ownership_is_rejected() -> None:
     owners: dict[CoreRouteClaim, str] = {}
     claim = CoreRouteClaim("GET", "/probe")
