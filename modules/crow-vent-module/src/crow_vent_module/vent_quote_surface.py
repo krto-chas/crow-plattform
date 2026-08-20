@@ -2,18 +2,20 @@ from __future__ import annotations
 
 from decimal import Decimal
 from importlib import resources
+from pathlib import Path
 from typing import Any
-from urllib.parse import quote
 
-import httpx
-from fastapi import APIRouter, Request
+from fastapi import APIRouter
 from fastapi.responses import HTMLResponse, JSONResponse, Response
 
 from crow_vent_quote import VentQuoteRequest, build_vent_quote, quote_to_payload
 
+from .project_runtime import VentProjectRuntime
 
-def vent_quote_router() -> APIRouter:
+
+def vent_quote_router(data_root: Path) -> APIRouter:
     router = APIRouter()
+    runtime = VentProjectRuntime(data_root)
 
     @router.get("/vent/offert", response_class=HTMLResponse)
     def vent_quote_page() -> str:
@@ -28,24 +30,11 @@ def vent_quote_router() -> APIRouter:
         )
 
     @router.post("/api/vent/projects/{project_id}/quote", response_model=None)
-    async def vent_quote(project_id: str, request: Request) -> JSONResponse:
-        payload: Any = await request.json()
+    def vent_quote(project_id: str, payload: dict[str, Any]) -> JSONResponse:
         takeoff_input = dict(payload.get("takeoff", {}))
         quote_input = dict(payload.get("quote", {}))
 
-        transport = httpx.ASGITransport(app=request.app)
-        async with httpx.AsyncClient(
-            transport=transport,
-            base_url="http://crow.internal",
-        ) as client:
-            response = await client.post(
-                f"/api/projects/{quote(project_id, safe='')}/takeoff",
-                json=takeoff_input,
-            )
-        if response.status_code != 200:
-            return JSONResponse(status_code=response.status_code, content=response.json())
-
-        priced = response.json().get("priced")
+        priced = runtime.takeoff(project_id, takeoff_input).get("priced")
         if priced is None:
             return JSONResponse(
                 status_code=422,

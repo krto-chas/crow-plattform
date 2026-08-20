@@ -38,6 +38,26 @@ def test_catalog_resolves_product_page_routes() -> None:
     assert catalog.module_for_route_path("/app") is None
 
 
+def test_catalog_resolves_legacy_vent_api_route_templates() -> None:
+    catalog = load_product_module_catalog()
+    checksum = "a" * 64
+    paths = (
+        "/api/projects/demo/takeoff",
+        f"/api/projects/demo/vent/{checksum}",
+        f"/api/projects/demo/vent/{checksum}/quantity.csv",
+        f"/api/projects/demo/vent/{checksum}/review",
+    )
+
+    for path in paths:
+        module = catalog.module_for_api_path(path)
+        assert module is not None
+        assert module.id == "vent"
+
+    assert catalog.module_for_api_path("/api/projects") is None
+    assert catalog.module_for_api_path("/api/projects/demo") is None
+    assert catalog.module_for_api_path("/api/projects/demo/imports") is None
+
+
 def test_missing_entitlement_file_fails_closed(tmp_path: Path) -> None:
     catalog = load_product_module_catalog()
     entitlements = load_customer_entitlements(tmp_path / "config", "acme", catalog=catalog)
@@ -62,7 +82,9 @@ def test_me_modules_returns_only_active_entitled_modules(
     client = TestClient(create_app(tmp_path))
     response = client.get("/api/me/modules")
     assert response.status_code == 200
-    assert [item["id"] for item in response.json()["modules"]] == ["vent"]
+    modules = response.json()["modules"]
+    assert [item["id"] for item in modules] == ["vent"]
+    assert "/api/projects/{project_id}/takeoff" in modules[0]["api_routes"]
 
 
 def test_module_api_is_denied_without_entitlement(tmp_path: Path, monkeypatch: object) -> None:
@@ -74,6 +96,20 @@ def test_module_api_is_denied_without_entitlement(tmp_path: Path, monkeypatch: o
     assert response.json()["detail"] == {"code": "MODULE_NOT_ACTIVE", "module": "vent"}
 
 
+def test_legacy_vent_api_is_denied_without_entitlement(tmp_path: Path, monkeypatch: object) -> None:
+    monkeypatch.setenv("CROW_MODE", "local")  # type: ignore[attr-defined]
+    monkeypatch.setenv("CROW_CUSTOMER_ID", "acme")  # type: ignore[attr-defined]
+    client = TestClient(create_app(tmp_path))
+
+    response = client.post(
+        "/api/projects/adhoc/takeoff",
+        json={"table_rows": [["T-125", "10", "m"]]},
+    )
+
+    assert response.status_code == 403
+    assert response.json()["detail"] == {"code": "MODULE_NOT_ACTIVE", "module": "vent"}
+
+
 def test_module_api_is_available_with_entitlement(tmp_path: Path, monkeypatch: object) -> None:
     monkeypatch.setenv("CROW_MODE", "local")  # type: ignore[attr-defined]
     monkeypatch.setenv("CROW_CUSTOMER_ID", "acme")  # type: ignore[attr-defined]
@@ -81,6 +117,21 @@ def test_module_api_is_available_with_entitlement(tmp_path: Path, monkeypatch: o
     client = TestClient(create_app(tmp_path))
     response = client.get("/api/vent/registry")
     assert response.status_code == 200
+
+
+def test_legacy_vent_api_is_available_with_entitlement(tmp_path: Path, monkeypatch: object) -> None:
+    monkeypatch.setenv("CROW_MODE", "local")  # type: ignore[attr-defined]
+    monkeypatch.setenv("CROW_CUSTOMER_ID", "acme")  # type: ignore[attr-defined]
+    _write_entitlements(tmp_path, "acme", [{"id": "vent", "active": True}])
+    client = TestClient(create_app(tmp_path))
+
+    response = client.post(
+        "/api/projects/adhoc/takeoff",
+        json={"table_rows": [["T-125", "10", "m"]]},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["consolidated"]["line_count"] == 1
 
 
 def test_module_page_redirects_without_entitlement(tmp_path: Path, monkeypatch: object) -> None:

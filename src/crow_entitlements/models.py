@@ -17,12 +17,24 @@ class ProductModule:
     status: ProductModuleStatus
     route: str
     api_prefixes: tuple[str, ...]
+    api_routes: tuple[str, ...] = ()
     data_dependencies: tuple[str, ...] = ()
     requires_modules: tuple[str, ...] = ()
     runtime_module_id: str | None = None
 
     def matches_api_path(self, path: str) -> bool:
-        return any(path == prefix or path.startswith(f"{prefix}/") for prefix in self.api_prefixes)
+        return self.api_match_specificity(path) >= 0
+
+    def api_match_specificity(self, path: str) -> int:
+        matches = [
+            len(prefix)
+            for prefix in self.api_prefixes
+            if path == prefix or path.startswith(f"{prefix}/")
+        ]
+        matches.extend(
+            len(template) for template in self.api_routes if _matches_route_template(template, path)
+        )
+        return max(matches, default=-1)
 
     def matches_route_path(self, path: str) -> bool:
         return path == self.route or path.startswith(f"{self.route}/")
@@ -48,7 +60,7 @@ class ProductModuleCatalog:
         matches = [module for module in self.modules if module.matches_api_path(path)]
         if not matches:
             return None
-        return max(matches, key=lambda module: max(len(prefix) for prefix in module.api_prefixes))
+        return max(matches, key=lambda module: module.api_match_specificity(path))
 
     def module_for_route_path(self, path: str) -> ProductModule | None:
         matches = [module for module in self.modules if module.matches_route_path(path)]
@@ -88,3 +100,19 @@ class CustomerContext:
     customer_id: str
     user_id: str | None = None
     roles: tuple[str, ...] = ()
+
+
+def _matches_route_template(template: str, path: str) -> bool:
+    template_segments = template.strip("/").split("/")
+    path_segments = path.strip("/").split("/")
+    if len(template_segments) != len(path_segments):
+        return False
+    for template_segment, path_segment in zip(template_segments, path_segments, strict=True):
+        is_parameter = template_segment.startswith("{") and template_segment.endswith("}")
+        if is_parameter:
+            if not path_segment:
+                return False
+            continue
+        if template_segment != path_segment:
+            return False
+    return True

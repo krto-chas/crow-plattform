@@ -87,6 +87,39 @@ def test_vent_drawing_analysis_alias_is_entitlement_protected(
     assert response.json()["detail"] == {"code": "MODULE_NOT_ACTIVE", "module": "vent"}
 
 
+def test_vent_owned_takeoff_preserves_legacy_route(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("CROW_CUSTOMER_ID", "acme")
+    _enable_vent(tmp_path)
+    client = TestClient(create_app(tmp_path))
+    body = {"table_rows": [["T-125", "10", "m"]]}
+
+    product = client.post("/api/vent/projects/adhoc/takeoff", json=body)
+    legacy = client.post("/api/projects/adhoc/takeoff", json=body)
+
+    assert product.status_code == 200
+    assert legacy.status_code == 200
+    assert product.json() == legacy.json()
+    assert product.json()["consolidated"]["line_count"] == 1
+
+
+def test_vent_registry_is_entitlement_protected(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("CROW_CUSTOMER_ID", "acme")
+    client = TestClient(create_app(tmp_path))
+
+    denied = client.get("/api/vent/registry")
+    _enable_vent(tmp_path)
+    allowed = client.get("/api/vent/registry")
+
+    assert denied.status_code == 403
+    assert allowed.status_code == 200
+    assert allowed.json()["version"] == "crow-vent-registry-v0.2"
+    assert allowed.json()["count"] > 0
+
+
 def test_vent_quote_works_in_session_mode(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("CROW_AUTH_MODE", "session")
     monkeypatch.setenv("CROW_SESSION_SECRET", "0123456789abcdef0123456789abcdef")
