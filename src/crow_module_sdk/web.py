@@ -14,6 +14,16 @@ class CoreRouteClaim:
     method: str
     path: str
 
+    def __post_init__(self) -> None:
+        method = self.method.strip().upper()
+        path = self.path.strip()
+        if not method:
+            raise ValueError("Core route claim method must not be empty")
+        if not path.startswith("/"):
+            raise ValueError("Core route claim path must be absolute")
+        object.__setattr__(self, "method", method)
+        object.__setattr__(self, "path", path)
+
 
 @runtime_checkable
 class CrowWebModule(Protocol):
