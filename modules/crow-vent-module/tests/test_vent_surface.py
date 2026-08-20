@@ -38,7 +38,10 @@ def test_vent_dashboard_script_connects_geometry_to_takeoff(
     response = client.get("/vent/assets/dashboard.js")
     assert response.status_code == 200
     assert "geometry_checksums" in response.text
-    assert "/vent/${enc(checksum)}" in response.text
+    assert (
+        "/api/vent/projects/${enc(state.projectId)}/drawings/${enc(checksum)}/model"
+        in response.text
+    )
     assert "/api/vent/projects/${enc(state.projectId)}/takeoff" in response.text
 
 
@@ -49,6 +52,17 @@ def test_shared_product_styles_are_served(tmp_path: Path, monkeypatch: object) -
     assert response.status_code == 200
     assert ".product-shell" in response.text
     assert ".product-sidebar" in response.text
+
+
+def test_vent_drawing_alias_is_denied_without_entitlement(
+    tmp_path: Path, monkeypatch: object
+) -> None:
+    monkeypatch.setenv("CROW_CUSTOMER_ID", "acme")  # type: ignore[attr-defined]
+    client = TestClient(create_app(tmp_path))
+    checksum = "0" * 64
+    response = client.get(f"/api/vent/projects/adhoc/drawings/{checksum}/model")
+    assert response.status_code == 403
+    assert response.json()["detail"] == {"code": "MODULE_NOT_ACTIVE", "module": "vent"}
 
 
 def test_vent_takeoff_alias_is_denied_without_entitlement(
