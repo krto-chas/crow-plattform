@@ -20,6 +20,9 @@ def test_workbench_mounts_module_routes_from_registry(tmp_path: Path) -> None:
     paths = set(app.openapi()["paths"])
 
     assert "/vent" in paths
+    assert "/api/vent/projects/{project_id}/drawings/{checksum}/model" in paths
+    assert "/api/vent/projects/{project_id}/takeoff" in paths
+    assert "/api/vent/projects/{project_id}/quote" in paths
     assert "/provtryckning" in paths
     assert "/ovk" in paths
     assert "/ovk/besiktning" in paths

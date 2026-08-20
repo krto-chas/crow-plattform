@@ -16,7 +16,7 @@ vent = "crow_vent_module.plugin:CrowVentModulePlugin"
 where = ["src"]
 
 [tool.setuptools.package-data]
-crow_vent_module = ["py.typed"]
+crow_vent_module = ["py.typed", "assets/*.html", "assets/*.js"]
 crow_vent = ["py.typed", "vent_beteckningar_lexikon.json"]
 crow_vent_drawing = ["py.typed"]
 crow_riser_model = ["py.typed"]
