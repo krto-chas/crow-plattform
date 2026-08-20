@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="sv">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Crow Vent</title>
+  <link rel="stylesheet" href="/static/product.css">
+</head>
+<body>
+<div class="product-shell">
+  <aside class="product-sidebar">
+    <h1>Crow</h1>
+    <nav>
+      <a href="/app">Projekt</a>
+      <a class="active" href="/vent">Ventilation</a>
+      <a href="#ritningar">Ritningar &amp; system</a>
+      <a href="#kalkyl">Mängdning &amp; kalkyl</a>
+      <a id="quoteNav" href="/vent/offert">Offert</a>
+      <a id="workbenchNav" href="/workbench">Workbench</a>
+      <a href="/ovk">OVK</a>
+    </nav>
+  </aside>
+
+  <main class="product-main">
+    <div class="eyebrow">VENTILATION</div>
+    <h1>Vent-arbetsyta</h1>
+    <p class="muted">Analysera projektets ventilationsritningar, bygg systemmodell och använd samma underlag vidare till mängdning, kalkyl och offert.</p>
+
+    <section class="panel projectbar">
+      <div>
+        <label for="project">Projekt</label>
+        <select id="project"><option value="">Laddar projekt…</option></select>
+      </div>
+      <div class="actions">
+        <a class="button secondary" id="openWorkbench" href="/workbench">Öppna Workbench</a>
+        <a class="button secondary" id="openQuote" href="/vent/offert">Öppna offert</a>
+      </div>
+    </section>
+
+    <div id="status" class="status">Laddar…</div>
+
+    <section class="metrics">
+      <article class="card metric"><span>CAD-underlag</span><strong id="drawingCount">—</strong></article>
+      <article class="card metric"><span>Identifierade system</span><strong id="systemCount">—</strong></article>
+      <article class="card metric"><span>Komponenter</span><strong id="componentCount">—</strong></article>
+      <article class="card metric"><span>Granskningspunkter</span><strong id="reviewCount">—</strong></article>
+    </section>
+
+    <section class="grid">
+      <article class="card">
+        <h3>Ritningsanalys</h3>
+        <p class="muted">Välj ett DXF-underlag och bygg Vent-modellen med system, komponenter, relationer och mängder.</p>
+        <a class="button" href="#ritningar">Öppna ritningar</a>
+      </article>
+      <article class="card">
+        <h3>Mängdning &amp; kalkyl</h3>
+        <p class="muted">Kombinera ritningsmängder med mängdförteckning och beskrivning och prissätt resultatet.</p>
+        <a class="button" href="#kalkyl">Öppna kalkyl</a>
+      </article>
+      <article class="card">
+        <h3>Offert</h3>
+        <p class="muted">Bygg offert från en prissatt Vent-kalkyl med explicita påslag och reservationer.</p>
+        <a class="button" id="actionQuote" href="/vent/offert">Öppna offert</a>
+      </article>
+    </section>
+
+    <section id="ritningar" class="split">
+      <article class="panel">
+        <div class="section-title">
+          <div><h2>Projektets ritningar</h2><p class="muted">DXF kan analyseras direkt. Övriga CAD-format visas som registrerat underlag.</p></div>
+        </div>
+        <div id="drawings" class="empty">Välj projekt.</div>
+      </article>
+      <article class="panel">
+        <div class="section-title">
+          <div><h2>Senaste Vent-analys</h2><p id="analysisMeta" class="muted">Ingen ritning analyserad.</p></div>
+        </div>
+        <div id="analysis" class="empty">Välj en DXF-ritning och kör analys.</div>
+      </article>
+    </section>
+
+    <section id="kalkyl" class="panel" style="margin-top:18px">
+      <div class="section-title">
+        <div><h2>Mängdning &amp; kalkyl</h2><p class="muted">Valda DXF-ritningar används som geometriunderlag. Manuell mängdförteckning och beskrivning är kompletterande källor.</p></div>
+      </div>
+      <div class="form-grid">
+        <div>
+          <label>Ritningskällor</label>
+          <div id="calcSources" class="empty">Välj projekt.</div>
+          <label for="table">Mängdförteckning</label>
+          <textarea id="table" placeholder="T-125;132;m&#10;TD1;24;st"></textarea>
+          <label for="text">Beskrivningstext</label>
+          <textarea id="text" placeholder="24 st TD1"></textarea>
+          <label for="prices">Prisbok (JSON)</label>
+          <textarea id="prices" placeholder='{"labour_rate_per_hour":520,"entries":[]}'></textarea>
+          <div class="actions">
+            <button id="run" type="button">Kör kalkyl</button>
+            <button id="csv" class="secondary" type="button" disabled>Exportera CSV</button>
+          </div>
+          <div id="calcStatus" class="status">Klar för indata.</div>
+        </div>
+        <div>
+          <section class="metrics" style="margin-top:0">
+            <article class="card metric"><span>Rader</span><strong id="calcRows">—</strong></article>
+            <article class="card metric"><span>Prissatta</span><strong id="calcPriced">—</strong></article>
+            <article class="card metric"><span>Arbetstid</span><strong id="calcHours">—</strong></article>
+            <article class="card metric"><span>Totalt</span><strong id="calcTotal">—</strong></article>
+          </section>
+          <div class="table-wrap" style="margin-top:14px">
+            <table>
+              <thead><tr><th>Post</th><th>Mängd</th><th>Enhet</th><th>Status</th></tr></thead>
+              <tbody id="resultRows"><tr><td colspan="4" class="muted">Ingen kalkyl körd.</td></tr></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+</div>
+<script src="/vent/assets/dashboard.js"></script>
+</body>
+</html>
