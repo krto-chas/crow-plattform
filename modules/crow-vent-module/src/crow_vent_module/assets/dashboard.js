@@ -111,7 +111,7 @@ async function analyzeDrawing(checksum) {
   const asset = state.imports.find(item => item.checksum_sha256 === checksum);
   setStatus('status', `Analyserar ${asset?.filename || 'ritning'}…`);
   try {
-    const model = await api(`/api/projects/${enc(state.projectId)}/vent/${enc(checksum)}`);
+    const model = await api(`/api/vent/projects/${enc(state.projectId)}/drawings/${enc(checksum)}/model`);
     state.lastModel = model;
     renderAnalysis(model, asset);
     setStatus('status', 'Vent-analysen är laddad.', 'ok');
