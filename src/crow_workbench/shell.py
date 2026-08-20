@@ -19,6 +19,13 @@ from crow_module_sdk.module_registry import ModuleRegistry
 from crow_module_sdk.web import CrowWebModule
 
 _ADMIN_ROLE = "platform-admin"
+_CORE_VENT_PRODUCT_PATHS = {
+    "/api/vent/registry",
+    "/api/projects/{project_id}/vent/{checksum}",
+    "/api/projects/{project_id}/takeoff",
+    "/api/projects/{project_id}/vent/{checksum}/quantity.csv",
+    "/api/projects/{project_id}/vent/{checksum}/review",
+}
 
 
 def create_app(data_root: Path | None = None, config_root: Path | None = None) -> FastAPI:
@@ -28,6 +35,7 @@ def create_app(data_root: Path | None = None, config_root: Path | None = None) -
     static_root = Path(__file__).parent / "static"
 
     _remove_core_index(app)
+    _remove_core_vent_product_routes(app)
 
     registry = ModuleRegistry()
     for registered in registry.discover():
@@ -150,6 +158,15 @@ def _remove_core_index(app: FastAPI) -> None:
             getattr(route, "path", None) == "/"
             and "GET" in (getattr(route, "methods", None) or set())
         )
+    ]
+
+
+def _remove_core_vent_product_routes(app: FastAPI) -> None:
+    """Remove legacy core-owned Vent product routes before module composition."""
+    app.router.routes[:] = [
+        route
+        for route in app.router.routes
+        if getattr(route, "path", None) not in _CORE_VENT_PRODUCT_PATHS
     ]
 
 
