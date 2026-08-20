@@ -22,8 +22,33 @@ def test_vent_page_is_served_from_product_route(tmp_path: Path, monkeypatch: obj
     client = TestClient(create_app(tmp_path))
     response = client.get("/vent")
     assert response.status_code == 200
-    assert "Mängdning & kalkyl" in response.text
-    assert "/api/vent/projects/" in response.text
+    assert "Vent-arbetsyta" in response.text
+    assert "Ritningar &amp; system" in response.text
+    assert "Mängdning &amp; kalkyl" in response.text
+    assert "/static/product.css" in response.text
+    assert "/vent/assets/dashboard.js" in response.text
+
+
+def test_vent_dashboard_script_connects_geometry_to_takeoff(
+    tmp_path: Path, monkeypatch: object
+) -> None:
+    monkeypatch.setenv("CROW_CUSTOMER_ID", "acme")  # type: ignore[attr-defined]
+    _enable_vent(tmp_path)
+    client = TestClient(create_app(tmp_path))
+    response = client.get("/vent/assets/dashboard.js")
+    assert response.status_code == 200
+    assert "geometry_checksums" in response.text
+    assert "/vent/${enc(checksum)}" in response.text
+    assert "/api/vent/projects/${enc(state.projectId)}/takeoff" in response.text
+
+
+def test_shared_product_styles_are_served(tmp_path: Path, monkeypatch: object) -> None:
+    monkeypatch.setenv("CROW_CUSTOMER_ID", "acme")  # type: ignore[attr-defined]
+    client = TestClient(create_app(tmp_path))
+    response = client.get("/static/product.css")
+    assert response.status_code == 200
+    assert ".product-shell" in response.text
+    assert ".product-sidebar" in response.text
 
 
 def test_vent_takeoff_alias_is_denied_without_entitlement(
