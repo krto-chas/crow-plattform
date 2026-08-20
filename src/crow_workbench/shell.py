@@ -236,9 +236,7 @@ def _remove_core_routes(
 
 def _paths_containing(app: FastAPI, text: str) -> tuple[str, ...]:
     return tuple(
-        str(route.path)
-        for route in app.router.routes
-        if text in str(getattr(route, "path", ""))
+        str(route.path) for route in app.router.routes if text in str(getattr(route, "path", ""))
     )
 
 
