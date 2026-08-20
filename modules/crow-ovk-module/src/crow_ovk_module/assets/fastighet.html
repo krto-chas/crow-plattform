@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="sv">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Crow OVK · Fastighet</title>
+  <style>
+    :root{font-family:Inter,system-ui,sans-serif;color:#18212b;background:#f4f6f8}*{box-sizing:border-box}body{margin:0}.shell{display:grid;grid-template-columns:230px 1fr;min-height:100vh}aside{background:#17202a;color:#fff;padding:24px}aside h1{font-size:20px;margin:0 0 28px}nav a{display:block;color:#dce5ed;text-decoration:none;padding:10px 0}nav a.active{font-weight:700;color:#fff}main{padding:32px;max-width:1300px}.eyebrow{font-size:12px;letter-spacing:.12em;color:#687684}.panel{background:#fff;border:1px solid #dfe5ea;border-radius:10px;padding:20px;margin-top:18px}label{display:block;font-size:13px;font-weight:600;margin:10px 0 4px}input,select{width:100%;padding:9px;border:1px solid #cbd4dc;border-radius:6px}.row{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px}.button{display:inline-block;border:0;border-radius:6px;background:#17202a;color:#fff;padding:9px 12px;cursor:pointer;margin-top:12px}.secondary{background:#e8edf1;color:#25313d}.muted{color:#607080}.status{padding:12px;border-radius:6px;background:#eef2f5;margin-top:12px}.warn{background:#fff4cf}.item{border-top:1px solid #e6eaee;padding:10px 0;cursor:pointer}.item:first-child{border-top:0}.pill{display:inline-block;padding:3px 7px;border-radius:999px;background:#eef2f5;font-size:11px;margin-left:6px}.bygg{border:1px dashed #cbd4dc;border-radius:8px;padding:12px;margin-top:10px}.split{display:grid;grid-template-columns:1fr 1fr;gap:18px}@media(max-width:1000px){.shell{grid-template-columns:1fr}aside{display:none}.split{grid-template-columns:1fr}}
+  </style>
+</head>
+<body>
+<div class="shell">
+  <aside><h1>Crow</h1><nav><a href="/app">Projekt</a><a href="/ovk">OVK</a><a class="active" href="/ovk/fastighet">Fastighet</a></nav></aside>
+  <main>
+    <div class="eyebrow">OVK · KONTOR ELLER FÄLT</div>
+    <h1>Fastighet &amp; besiktningsmän</h1>
+    <p class="muted">Fastighetsdata enligt protokollmallens A-del. Uppgifterna återanvänds i protokoll och intyg.</p>
+
+    <section class="panel">
+      <div class="row">
+        <div><label for="project">Projekt</label><select id="project"><option value="">Laddar…</option></select></div>
+        <div><label for="fastighetList">Fastighet</label><select id="fastighetList"><option value="">— Ny fastighet —</option></select></div>
+      </div>
+      <div id="status" class="status">Välj projekt.</div>
+    </section>
+
+    <div class="split">
+      <section class="panel">
+        <h2>Fastighet</h2>
+        <div class="row">
+          <div><label>Fastighets-ID</label><input id="fastighetId" placeholder="t.ex. berget-1"></div>
+          <div><label>Referensnr</label><input id="referensnr"></div>
+        </div>
+        <label>Fastighetsbeteckning *</label><input id="beteckning" placeholder="t.ex. Berget 1">
+        <div class="row">
+          <div><label>Byggnadens adress</label><input id="bGata"></div>
+          <div><label>Postnr</label><input id="bPostnr"></div>
+          <div><label>Ort</label><input id="bOrt"></div>
+        </div>
+        <label>Byggnadsägare</label><input id="agare">
+        <div class="row">
+          <div><label>Ägarens postadress</label><input id="aGata"></div>
+          <div><label>Postnr</label><input id="aPostnr"></div>
+          <div><label>Ort</label><input id="aOrt"></div>
+        </div>
+        <div class="row">
+          <div><label>Faktureringsadress</label><input id="fGata"></div>
+          <div><label>Postnr</label><input id="fPostnr"></div>
+          <div><label>Ort</label><input id="fOrt"></div>
+        </div>
+        <div class="row">
+          <div><label>Förvaltare</label><input id="forvNamn"></div>
+          <div><label>Telefon</label><input id="forvTel"></div>
+          <div><label>E-post</label><input id="forvEpost"></div>
+        </div>
+
+        <h3>Byggnader</h3>
+        <div id="byggnader"></div>
+        <button class="button secondary" id="addByggnad">+ Byggnad</button>
+        <br>
+        <button class="button" id="saveFastighet">Spara fastighet</button>
+      </section>
+
+      <section class="panel">
+        <h2>Besiktningsmän <span class="pill">företagsregister</span></h2>
+        <div id="personList" class="muted">Laddar…</div>
+        <div class="row">
+          <div><label>ID</label><input id="pId" placeholder="t.ex. stina-b"></div>
+          <div><label>Namn *</label><input id="pNamn"></div>
+        </div>
+        <div class="row">
+          <div><label>Behörighet</label><select id="pBeh"><option value="N">N</option><option value="K">K</option></select></div>
+          <div><label>Certifieringsorgan *</label><input id="pOrgan" placeholder="t.ex. RISE"></div>
+          <div><label>Certnummer *</label><input id="pCert"></div>
+          <div><label>Giltig till</label><input id="pGiltig" type="date"></div>
+        </div>
+        <div class="row">
+          <div><label>Telefon</label><input id="pTel"></div>
+          <div><label>E-post</label><input id="pEpost"></div>
+          <div><label>Företag</label><input id="pForetag"></div>
+        </div>
+        <button class="button" id="savePerson">Spara besiktningsman</button>
+        <div id="personStatus" class="status">—</div>
+      </section>
+    </div>
+  </main>
+</div>
+<script src="/ovk/fastighet/app.js"></script>
+</body>
+</html>
