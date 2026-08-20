@@ -70,7 +70,10 @@ def test_platform_composes_vent_product_routes_from_module(tmp_path: Path) -> No
     for method, path in expected:
         matching = _matching_routes(app, method, path)
         assert len(matching) == 1, (
-            f"Missing composed route: {method} {path}; candidates={_route_debug(app, path)!r}"
+            f"Missing composed route: {method} {path}; "
+            f"candidates={_route_debug(app, path)!r}; "
+            f"vent_routes={_routes_containing(app, 'vent')!r}; "
+            f"discovered={_discovered_module_ids()!r}"
         )
         assert matching[0].endpoint.__module__.startswith("crow_vent_module")
 
@@ -125,3 +128,19 @@ def _route_debug(app: FastAPI, path: str) -> list[tuple[str, tuple[str, ...], st
         endpoint = getattr(route, "endpoint", None)
         result.append((type(route).__name__, methods, getattr(endpoint, "__module__", "")))
     return result
+
+
+def _routes_containing(app: FastAPI, text: str) -> list[tuple[str, tuple[str, ...], str]]:
+    result: list[tuple[str, tuple[str, ...], str]] = []
+    for route in app.router.routes:
+        path = str(getattr(route, "path", ""))
+        if text not in path:
+            continue
+        methods = tuple(sorted(getattr(route, "methods", None) or ()))
+        endpoint = getattr(route, "endpoint", None)
+        result.append((path, methods, getattr(endpoint, "__module__", "")))
+    return result
+
+
+def _discovered_module_ids() -> tuple[str, ...]:
+    return tuple(item.module_id for item in ModuleRegistry().discover())
