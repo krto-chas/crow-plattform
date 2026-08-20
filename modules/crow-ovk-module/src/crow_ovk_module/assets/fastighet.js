@@ -6,6 +6,14 @@ let byggnader=[];
 function errText(error){const text=error&&error.message?error.message:String(error);try{const data=JSON.parse(text);const detail=data.detail||data;return (detail.code?detail.code+' · ':'')+(detail.message||'Servern avvisade anropet.')}catch(_){return text}}
 async function jsonFetch(url,options){const response=await fetch(url,options);const body=await response.text();if(!response.ok)throw new Error(body);return body?JSON.parse(body):{}}
 
+function slugify(value){return String(value).toLowerCase().replace(/[åä]/g,'a').replace(/ö/g,'o').replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'')||'fastighet'}
+function hasFormContent(){return Boolean($('beteckning').value.trim()||$('fastighetId').value.trim()||$('agare').value.trim()||$('bGata').value.trim()||byggnader.some(item=>String(item.internt_namn||'').trim()))}
+async function ensureProject(){const selected=$('project').value;if(selected)return selected;const beteckning=$('beteckning').value.trim();if(!beteckning)return null;
+  const name=beteckning;const slug=slugify(beteckning);
+  try{const created=await jsonFetch('/api/projects',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({name,project_id:slug})});
+    await loadProjects();$('project').value=created.project_id||slug;return $('project').value}
+  catch(error){const text=String(error&&error.message||error);if(text.includes('409')||text.includes('används redan')){await loadProjects();$('project').value=slug;if($('project').value===slug)return slug}
+    throw error}}
 function renderByggnader(){$('byggnader').innerHTML=byggnader.map((item,index)=>'<div class="bygg" data-index="'+index+'">'
   +'<div class="row">'
   +'<div><label>Internt namn *</label><input data-field="internt_namn" value="'+esc(item.internt_namn)+'"></div>'
@@ -43,13 +51,15 @@ async function loadFastighetList(){const project=$('project').value;if(!project)
   $('fastighetList').innerHTML='<option value="">— Ny fastighet —</option>'+items.map(item=>'<option value="'+esc(item.fastighet_id)+'">'+esc(item.fastighetsbeteckning)+'</option>').join('');
   $('status').className='status';$('status').textContent=items.length+' fastighet(er) i projektet.'}catch(error){$('status').className='status warn';$('status').textContent=errText(error)}}
 
-$('project').onchange=()=>{fillFastighet({});loadFastighetList()};
-$('fastighetList').onchange=async()=>{const project=$('project').value;const id=$('fastighetList').value;if(!id){fillFastighet({});return}
+$('project').onchange=()=>{if(!hasFormContent())fillFastighet({});loadFastighetList()};
+$('fastighetList').onchange=async()=>{const project=$('project').value;const id=$('fastighetList').value;if(!id){if(!hasFormContent())fillFastighet({});return}
+  if(hasFormContent()&&$('fastighetId').value.trim()!==id&&!confirm('Formuläret innehåller uppgifter. Ersätt med sparad fastighet '+id+'?')){$('fastighetList').value='';return}
   try{fillFastighet(await jsonFetch('/api/ovk/projects/'+enc(project)+'/fastighet/'+enc(id)))}catch(error){$('status').className='status warn';$('status').textContent=errText(error)}};
 
-$('saveFastighet').onclick=async()=>{const project=$('project').value;const id=$('fastighetId').value.trim();
-  if(!project){$('status').className='status warn';$('status').textContent='Välj projekt först.';return}
-  if(!id){$('status').className='status warn';$('status').textContent='Ange fastighets-ID.';return}
+$('saveFastighet').onclick=async()=>{if(!$('beteckning').value.trim()){$('status').className='status warn';$('status').textContent='Ange fastighetsbeteckning.';return}
+  let project;try{project=await ensureProject()}catch(error){$('status').className='status warn';$('status').textContent='Kunde inte skapa projekt: '+errText(error);return}
+  if(!project){$('status').className='status warn';$('status').textContent='Välj projekt eller ange fastighetsbeteckning.';return}
+  let id=$('fastighetId').value.trim();if(!id){id=slugify($('beteckning').value);$('fastighetId').value=id}
   try{await jsonFetch('/api/ovk/projects/'+enc(project)+'/fastighet/'+enc(id),{method:'PUT',headers:{'content-type':'application/json'},body:JSON.stringify(buildFastighet())});
   $('status').className='status';$('status').textContent='Fastigheten sparad.';loadFastighetList()}catch(error){$('status').className='status warn';$('status').textContent='Kunde inte spara: '+errText(error)}};
 

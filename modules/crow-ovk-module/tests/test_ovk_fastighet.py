@@ -172,6 +172,12 @@ def test_surface_saves_lists_and_reloads_fastighet(
     app_js = client.get("/ovk/fastighet/app.js")
     assert app_js.status_code == 200
     assert app_js.headers["cache-control"] == "no-cache"
+    # Inget projekt valt: projektet skapas automatiskt från fastighetsbeteckningen.
+    assert "async function ensureProject()" in app_js.text
+    assert "slugify($('beteckning').value)" in app_js.text
+    # Projektbyte får inte radera ifyllda uppgifter.
+    assert "function hasFormContent()" in app_js.text
+    assert "if(!hasFormContent())fillFastighet({})" in app_js.text
 
 
 def test_surface_besiktningsman_registry_roundtrip(
