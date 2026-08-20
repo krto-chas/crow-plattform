@@ -77,7 +77,5 @@ def vent_quote_router() -> APIRouter:
 
 def _asset_text(filename: str) -> str:
     return (
-        resources.files("crow_vent_module")
-        .joinpath("assets", filename)
-        .read_text(encoding="utf-8")
+        resources.files("crow_vent_module").joinpath("assets", filename).read_text(encoding="utf-8")
     )
