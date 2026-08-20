@@ -1,0 +1,226 @@
+name: Pass106 core decoupling transform
+
+on:
+  push:
+    branches: [pass106-core-vent-decoupling]
+
+permissions:
+  contents: write
+
+jobs:
+  transform:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: pass106-core-vent-decoupling
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Apply deterministic transform
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+
+          app_path = Path("src/crow_workbench/app.py")
+          text = app_path.read_text(encoding="utf-8")
+          if "from crow_vent import (" not in text:
+              print("app.py already transformed")
+              raise SystemExit(0)
+
+          old = "from crow_graph_explorer import GraphExplorerBuilder\nfrom crow_graph_timeline import GraphTimelineBuilder\n"
+          new = """from crow_graph_explorer import GraphExplorerBuilder
+          from crow_graph_rules import (
+              GraphAuditDiffer,
+              GraphAuditProfile,
+              GraphResolutionVerificationService,
+              GraphRuleEngine,
+          )
+          from crow_graph_timeline import GraphTimelineBuilder
+          """
+          assert text.count(old) == 1
+          text = text.replace(old, new)
+
+          text, count = re.subn(
+              r"from crow_vent import \(\n(?:    .*\n)+\)\nfrom crow_vent\.graph_audit import VENT_GRAPH_RULES\n",
+              "",
+              text,
+          )
+          assert count == 1, count
+
+          old = "def create_app(data_root: Path | None = None) -> FastAPI:\n"
+          new = """def create_app(
+              data_root: Path | None = None,
+              *,
+              graph_audit_profiles: tuple[GraphAuditProfile, ...] = (),
+          ) -> FastAPI:
+          """
+          assert text.count(old) == 1
+          text = text.replace(old, new)
+
+          marker = "    import_registry = create_default_registry()\n"
+          insertion = """    import_registry = create_default_registry()
+              domain_graph_rules = tuple(
+                  rule for profile in graph_audit_profiles for rule in profile.rules
+              )
+              graph_audit_summary_categories = tuple(
+                  dict.fromkeys(
+                      category
+                      for profile in graph_audit_profiles
+                      for category in profile.summary_categories
+                  )
+              )
+              if len(graph_audit_profiles) == 1:
+                  graph_audit_prefix = graph_audit_profiles[0].audit_prefix
+                  graph_audit_ruleset_version = graph_audit_profiles[0].ruleset_version
+              else:
+                  graph_audit_prefix = "graph"
+                  profile_key = "|".join(
+                      f"{profile.profile_id}@{profile.ruleset_version}"
+                      for profile in graph_audit_profiles
+                  )
+                  graph_audit_ruleset_version = (
+                      f"composite-{sha256(profile_key.encode('utf-8')).hexdigest()[:12]}"
+                      if profile_key
+                      else "none"
+                  )
+              graph_audit_metadata: dict[str, Any] = {}
+              for profile in graph_audit_profiles:
+                  graph_audit_metadata.update(profile.metadata)
+              graph_audit_pattern = f"{graph_audit_prefix}-audit-*.json"
+          """
+          assert text.count(marker) == 1
+          text = text.replace(marker, insertion)
+
+          old_fn = re.compile(
+              r"    def serialize_graph_audit\(project_id: str\) -> dict\[str, Any\]:\n"
+              r"(?:        .*\n)+?"
+              r"        }\n\n"
+              r"    def persist_graph_audit",
+          )
+          match = old_fn.search(text)
+          assert match is not None
+          replacement = """    def serialize_graph_audit(project_id: str) -> dict[str, Any]:
+              graph = building_graph_repository(project_id).load()
+              evaluation = GraphRuleEngine().evaluate(graph, domain_graph_rules)
+              summary = dict(evaluation.summary)
+              for category in graph_audit_summary_categories:
+                  summary.setdefault(category, 0)
+              graph_payload = json.dumps(graph, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
+              graph_checksum = sha256(graph_payload.encode("utf-8")).hexdigest()
+              return {
+                  "project_id": _safe_project_id(project_id),
+                  "graph_checksum": graph_checksum,
+                  "summary": summary,
+                  "metadata": {
+                      **evaluation.metadata,
+                      **graph_audit_metadata,
+                      "rule_version": graph_audit_ruleset_version,
+                      "profiles": [profile.profile_id for profile in graph_audit_profiles],
+                  },
+                  "findings": [_jsonable(asdict(item)) for item in evaluation.findings],
+              }
+
+              def persist_graph_audit"""
+          text = text[:match.start()] + replacement + text[match.end():]
+
+          assert 'audit_id = f"vent:audit:' in text
+          text = text.replace(
+              'audit_id = f"vent:audit:{sha256(audit_key.encode(\'utf-8\')).hexdigest()[:20]}"',
+              'audit_id = f"{graph_audit_prefix}:audit:{sha256(audit_key.encode(\'utf-8\')).hexdigest()[:20]}"',
+              1,
+          )
+          text = text.replace('"vent-audit-*.json"', "graph_audit_pattern")
+          text = text.replace("(*VENT_GRAPH_RULES, *evidence_rules)", "(*domain_graph_rules, *evidence_rules)")
+          text = text.replace("len(VENT_GRAPH_RULES) + 4", "len(domain_graph_rules) + 4")
+          text = text.replace("VentAuditDiffer()", "GraphAuditDiffer()")
+          text = text.replace(
+              "VentResolutionVerificationService().decide(",
+              "GraphResolutionVerificationService(namespace=graph_audit_prefix).decide(",
+          )
+          text = text.replace(
+              '"review_id": f"vent:finding-review:{review_digest}",',
+              '"review_id": f"{graph_audit_prefix}:finding-review:{review_digest}",',
+          )
+
+          tail = re.compile(
+              r"\n    @app\.get\(\"/api/vent/registry\"\)\n.*?\n    return app\n\n\napp = create_app\(\)\n",
+              re.S,
+          )
+          text, count = tail.subn("\n    return app\n\n\napp = create_app()\n", text)
+          assert count == 1, count
+
+          forbidden = (
+              "from crow_vent",
+              "crow_vent.",
+              "VENT_GRAPH_RULES",
+              "VentAuditDiffer",
+              "VentGraphAudit",
+              "VentResolutionVerificationService",
+              "build_vent_model",
+              "component_registry",
+              "quantity_takeoff_csv",
+              '@app.get("/api/vent/registry")',
+              '@app.get("/api/projects/{project_id}/vent/{checksum}")',
+              '@app.post("/api/projects/{project_id}/takeoff")',
+          )
+          for value in forbidden:
+              assert value not in text, value
+          app_path.write_text(text, encoding="utf-8")
+
+          shell_path = Path("src/crow_workbench/shell.py")
+          shell = shell_path.read_text(encoding="utf-8")
+          old = """    app = _create_core_app(root)
+              static_root = Path(__file__).parent / "static"
+
+              _remove_core_index(app)
+
+              registry = ModuleRegistry()
+              registered_modules = registry.discover()
+              core_route_owners: dict[CoreRouteClaim, str] = {}
+          """
+          new = """    registry = ModuleRegistry()
+              registered_modules = registry.discover()
+              core_route_owners: dict[CoreRouteClaim, str] = {}
+          """
+          assert shell.count(old) == 1
+          shell = shell.replace(old, new)
+          old = """    _remove_core_routes(app, tuple(core_route_owners))
+              app.state.crow_graph_audit_profiles = tuple(
+                  profile for _, profile in graph_audit_profiles.values()
+              )
+          """
+          new = """    profiles = tuple(profile for _, profile in graph_audit_profiles.values())
+              app = _create_core_app(root, profiles)
+              static_root = Path(__file__).parent / "static"
+              _remove_core_index(app)
+              _remove_core_routes(app, tuple(core_route_owners))
+              app.state.crow_graph_audit_profiles = profiles
+          """
+          assert shell.count(old) == 1
+          shell = shell.replace(old, new)
+          shell = shell.replace(
+              "def _create_core_app(root: Path) -> FastAPI:\n",
+              "def _create_core_app(\n    root: Path, graph_audit_profiles: tuple[GraphAuditProfile, ...]\n) -> FastAPI:\n",
+              1,
+          )
+          shell = shell.replace(
+              "    return create_core_app(root)\n",
+              "    return create_core_app(root, graph_audit_profiles=graph_audit_profiles)\n",
+              1,
+          )
+          shell_path.write_text(shell, encoding="utf-8")
+          PY
+      - name: Commit transformed sources
+        run: |
+          if git diff --quiet; then
+            echo "No transform changes"
+            exit 0
+          fi
+          git config user.name "Crow Pass106 automation"
+          git config user.email "actions@users.noreply.github.com"
+          git add -- src/crow_workbench/app.py src/crow_workbench/shell.py
+          git diff --cached --check
+          git commit -m "refactor(workbench): decouple core from Vent runtime"
+          git push origin HEAD:pass106-core-vent-decoupling
