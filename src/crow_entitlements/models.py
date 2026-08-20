@@ -107,7 +107,14 @@ def _matches_route_template(template: str, path: str) -> bool:
     path_segments = path.strip("/").split("/")
     if len(template_segments) != len(path_segments):
         return False
-    return all(
-        segment.startswith("{") and segment.endswith("}") or segment == value
-        for segment, value in zip(template_segments, path_segments, strict=True)
-    )
+    for template_segment, path_segment in zip(
+        template_segments, path_segments, strict=True
+    ):
+        is_parameter = template_segment.startswith("{") and template_segment.endswith("}")
+        if is_parameter:
+            if not path_segment:
+                return False
+            continue
+        if template_segment != path_segment:
+            return False
+    return True
