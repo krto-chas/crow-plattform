@@ -1,6 +1,6 @@
 {
   "meta": {
-    "version": "0.3",
+    "version": "0.4",
     "description": "Product metadata layered on top of the canonical crow.modules runtime registry"
   },
   "modules": [
@@ -10,6 +10,12 @@
       "status": "active",
       "route": "/vent",
       "api_prefixes": ["/api/vent"],
+      "api_routes": [
+        "/api/projects/{project_id}/vent/{checksum}",
+        "/api/projects/{project_id}/takeoff",
+        "/api/projects/{project_id}/vent/{checksum}/quantity.csv",
+        "/api/projects/{project_id}/vent/{checksum}/review"
+      ],
       "data_dependencies": ["vent_model"],
       "requires_modules": [],
       "runtime_module_id": "crow.vent"
