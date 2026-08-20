@@ -3,7 +3,7 @@ from pathlib import Path
 
 from fastapi.testclient import TestClient
 
-from crow_workbench.app import create_app
+from crow_workbench.shell import create_app
 
 
 def client() -> TestClient:
