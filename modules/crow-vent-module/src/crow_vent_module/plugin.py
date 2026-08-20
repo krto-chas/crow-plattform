@@ -101,5 +101,4 @@ class CrowVentModulePlugin:
         )
 
     def routers(self, data_root: Path) -> tuple[APIRouter, ...]:
-        del data_root
-        return (vent_router(), vent_quote_router())
+        return (vent_router(data_root), vent_quote_router(data_root))
