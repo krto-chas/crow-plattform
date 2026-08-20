@@ -1,0 +1,59 @@
+name: Pass106 migration diagnostics
+
+on:
+  push:
+    branches: [pass106-core-vent-decoupling-clean]
+
+permissions:
+  contents: write
+
+jobs:
+  diagnose:
+    if: ${{ !contains(github.event.head_commit.message, '[pass106-diagnostic]') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: pass106-core-vent-decoupling-clean
+      - name: Count migration markers
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          app = Path('src/crow_workbench/app.py').read_text(encoding='utf-8')
+          workbench = Path('tests/test_workbench.py').read_text(encoding='utf-8')
+          canonical = Path('tests/test_crow_canonical.py').read_text(encoding='utf-8')
+          markers = {
+              'graph_import': 'from crow_graph_explorer import GraphExplorerBuilder\n',
+              'vent_import_start': 'from crow_vent import (\n',
+              'vent_rules_import': 'from crow_vent.graph_audit import VENT_GRAPH_RULES\n',
+              'serialize_graph_audit': '    def serialize_graph_audit(project_id: str) -> dict[str, Any]:\n',
+              'vent_audit_id': 'audit_id = f"vent:audit:',
+              'vent_pattern': '"vent-audit-*.json"',
+              'vent_rules_len': 'len(VENT_GRAPH_RULES) + 4',
+              'vent_rules_tuple': '(*VENT_GRAPH_RULES, *evidence_rules)',
+              'vent_differ': 'VentAuditDiffer()',
+              'vent_verifier': 'VentResolutionVerificationService().decide(',
+              'vent_review_id': '"review_id": f"vent:finding-review:{review_digest}",',
+              'legacy_registry': '    @app.get("/api/vent/registry")\n',
+              'return_marker': '    return app\n\n\napp = create_app()',
+          }
+          lines = [f'app.{name}={app.count(value)}' for name, value in markers.items()]
+          lines += [
+              f"workbench.import={workbench.count('from crow_workbench.app import create_app')}",
+              f"canonical.top_adapter={canonical.count('from crow_canonical import CanonicalGraphBridge, CanonicalObjectType, VentCanonicalAdapter')}",
+              f"canonical.simple_assembler={canonical.count('    from crow_canonical import VentCanonicalAssembler')}",
+              f"canonical.multi_assembler={canonical.count('        VentCanonicalAssembler,')}",
+              f"canonical.provenance_adapter={canonical.count('from crow_canonical import CanonicalProvenanceService, VentCanonicalAdapter')}",
+              f"legacy_adapter_exists={Path('src/crow_canonical/vent_adapter.py').exists()}",
+          ]
+          Path('.pass106-migration-diagnostic.txt').write_text('\n'.join(lines) + '\n', encoding='utf-8')
+          PY
+          cat .pass106-migration-diagnostic.txt
+      - name: Commit diagnostic
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -- .pass106-migration-diagnostic.txt
+          git commit -m "chore(pass106): record migration diagnostics [pass106-diagnostic]"
+          git push origin HEAD:pass106-core-vent-decoupling-clean
