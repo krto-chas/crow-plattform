@@ -28,14 +28,9 @@ def vent_router() -> APIRouter:
         "/api/vent/projects/{project_id}/drawings/{checksum}/model",
         response_model=None,
     )
-    async def vent_drawing_model(
-        project_id: str, checksum: str, request: Request
-    ) -> JSONResponse:
+    async def vent_drawing_model(project_id: str, checksum: str, request: Request) -> JSONResponse:
         """Entitlement-protected alias for the existing Vent drawing analysis pipeline."""
-        path = (
-            f"/api/projects/{quote(project_id, safe='')}/vent/"
-            f"{quote(checksum, safe='')}"
-        )
+        path = f"/api/projects/{quote(project_id, safe='')}/vent/{quote(checksum, safe='')}"
         transport = httpx.ASGITransport(app=request.app)
         async with httpx.AsyncClient(
             transport=transport, base_url="http://crow.internal"
@@ -60,7 +55,5 @@ def vent_router() -> APIRouter:
 
 def _asset_text(filename: str) -> str:
     return (
-        resources.files("crow_vent_module")
-        .joinpath("assets", filename)
-        .read_text(encoding="utf-8")
+        resources.files("crow_vent_module").joinpath("assets", filename).read_text(encoding="utf-8")
     )
