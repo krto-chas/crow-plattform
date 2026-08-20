@@ -1,0 +1,295 @@
+PHASE transform
+transform ok
+PHASE py_compile
+PHASE install
+Requirement already satisfied: pip in /opt/hostedtoolcache/Python/3.11.16/x64/lib/python3.11/site-packages (26.2.1)
+Obtaining file:///home/runner/work/crow-plattform/crow-plattform
+  Installing build dependencies: started
+  Installing build dependencies: finished with status 'done'
+  Checking if build backend supports build_editable: started
+  Checking if build backend supports build_editable: finished with status 'done'
+  Getting requirements to build editable: started
+  Getting requirements to build editable: finished with status 'done'
+  Preparing editable metadata (pyproject.toml): started
+  Preparing editable metadata (pyproject.toml): finished with status 'done'
+Collecting pypdf>=5.0 (from crow-plattform==0.7.0a1)
+  Downloading pypdf-6.16.1-py3-none-any.whl.metadata (7.5 kB)
+Collecting fastapi>=0.115 (from crow-plattform==0.7.0a1)
+  Downloading fastapi-0.141.1-py3-none-any.whl.metadata (27 kB)
+Collecting uvicorn>=0.30 (from crow-plattform==0.7.0a1)
+  Downloading uvicorn-0.52.4-py3-none-any.whl.metadata (6.6 kB)
+Collecting python-multipart>=0.0.9 (from crow-plattform==0.7.0a1)
+  Downloading python_multipart-0.0.32-py3-none-any.whl.metadata (2.1 kB)
+Collecting httpx>=0.27 (from crow-plattform==0.7.0a1)
+  Downloading httpx-0.28.1-py3-none-any.whl.metadata (7.1 kB)
+Collecting pytest>=8.0 (from crow-plattform==0.7.0a1)
+  Downloading pytest-9.1.1-py3-none-any.whl.metadata (7.6 kB)
+Collecting openpyxl>=3.1 (from crow-plattform==0.7.0a1)
+  Downloading openpyxl-3.1.5-py2.py3-none-any.whl.metadata (2.5 kB)
+Collecting ruff>=0.5 (from crow-plattform==0.7.0a1)
+  Downloading ruff-0.16.4-py3-none-manylinux_2_17_x86_64.manylinux2014_x86_64.whl.metadata (26 kB)
+Collecting mypy>=1.10 (from crow-plattform==0.7.0a1)
+  Downloading mypy-2.3.1-cp311-cp311-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl.metadata (2.4 kB)
+Collecting types-fpdf2 (from crow-plattform==0.7.0a1)
+  Downloading types_fpdf2-2.8.4.20260724-py3-none-any.whl.metadata (1.9 kB)
+Collecting build>=1.2 (from crow-plattform==0.7.0a1)
+  Downloading build-1.5.0-py3-none-any.whl.metadata (5.7 kB)
+Collecting packaging>=24.0 (from build>=1.2->crow-plattform==0.7.0a1)
+  Downloading packaging-26.3-py3-none-any.whl.metadata (3.5 kB)
+Collecting pyproject_hooks (from build>=1.2->crow-plattform==0.7.0a1)
+  Downloading pyproject_hooks-1.2.0-py3-none-any.whl.metadata (1.3 kB)
+Collecting starlette>=0.46.0 (from fastapi>=0.115->crow-plattform==0.7.0a1)
+  Downloading starlette-1.6.0-py3-none-any.whl.metadata (6.4 kB)
+Collecting pydantic>=2.9.0 (from fastapi>=0.115->crow-plattform==0.7.0a1)
+  Downloading pydantic-2.13.4-py3-none-any.whl.metadata (109 kB)
+Collecting typing-extensions>=4.8.0 (from fastapi>=0.115->crow-plattform==0.7.0a1)
+  Downloading typing_extensions-4.16.0-py3-none-any.whl.metadata (3.3 kB)
+Collecting typing-inspection>=0.4.2 (from fastapi>=0.115->crow-plattform==0.7.0a1)
+  Downloading typing_inspection-0.4.4-py3-none-any.whl.metadata (2.6 kB)
+Collecting annotated-doc>=0.0.2 (from fastapi>=0.115->crow-plattform==0.7.0a1)
+  Downloading annotated_doc-0.0.5-py3-none-any.whl.metadata (6.5 kB)
+Collecting anyio (from httpx>=0.27->crow-plattform==0.7.0a1)
+  Downloading anyio-4.14.2-py3-none-any.whl.metadata (4.6 kB)
+Collecting certifi (from httpx>=0.27->crow-plattform==0.7.0a1)
+  Downloading certifi-2026.7.22-py3-none-any.whl.metadata (2.5 kB)
+Collecting httpcore==1.* (from httpx>=0.27->crow-plattform==0.7.0a1)
+  Downloading httpcore-1.0.9-py3-none-any.whl.metadata (21 kB)
+Collecting idna (from httpx>=0.27->crow-plattform==0.7.0a1)
+  Downloading idna-3.19-py3-none-any.whl.metadata (9.2 kB)
+Collecting h11>=0.16 (from httpcore==1.*->httpx>=0.27->crow-plattform==0.7.0a1)
+  Downloading h11-0.16.0-py3-none-any.whl.metadata (8.3 kB)
+Collecting mypy_extensions>=1.0.0 (from mypy>=1.10->crow-plattform==0.7.0a1)
+  Downloading mypy_extensions-1.1.0-py3-none-any.whl.metadata (1.1 kB)
+Collecting pathspec>=1.0.0 (from mypy>=1.10->crow-plattform==0.7.0a1)
+  Downloading pathspec-1.1.1-py3-none-any.whl.metadata (14 kB)
+Collecting librt>=0.13.0 (from mypy>=1.10->crow-plattform==0.7.0a1)
+  Downloading librt-0.15.0-cp311-cp311-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl.metadata (1.3 kB)
+Collecting ast-serialize<1.0.0,>=0.6.0 (from mypy>=1.10->crow-plattform==0.7.0a1)
+  Downloading ast_serialize-0.8.0-cp39-abi3-manylinux_2_17_x86_64.manylinux2014_x86_64.whl.metadata (1.4 kB)
+Collecting et-xmlfile (from openpyxl>=3.1->crow-plattform==0.7.0a1)
+  Downloading et_xmlfile-2.0.0-py3-none-any.whl.metadata (2.7 kB)
+Collecting annotated-types>=0.6.0 (from pydantic>=2.9.0->fastapi>=0.115->crow-plattform==0.7.0a1)
+  Downloading annotated_types-0.8.0-py3-none-any.whl.metadata (15 kB)
+Collecting pydantic-core==2.46.4 (from pydantic>=2.9.0->fastapi>=0.115->crow-plattform==0.7.0a1)
+  Downloading pydantic_core-2.46.4-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl.metadata (6.6 kB)
+Collecting iniconfig>=1.0.1 (from pytest>=8.0->crow-plattform==0.7.0a1)
+  Downloading iniconfig-2.3.0-py3-none-any.whl.metadata (2.5 kB)
+Collecting pluggy<2,>=1.5 (from pytest>=8.0->crow-plattform==0.7.0a1)
+  Downloading pluggy-1.6.0-py3-none-any.whl.metadata (4.8 kB)
+Collecting pygments>=2.7.2 (from pytest>=8.0->crow-plattform==0.7.0a1)
+  Downloading pygments-2.21.0-py3-none-any.whl.metadata (2.5 kB)
+Collecting click>=7.0 (from uvicorn>=0.30->crow-plattform==0.7.0a1)
+  Downloading click-8.4.2-py3-none-any.whl.metadata (2.6 kB)
+Collecting Pillow>=10.3.0 (from types-fpdf2->crow-plattform==0.7.0a1)
+  Downloading pillow-12.3.0-cp311-cp311-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl.metadata (9.1 kB)
+Downloading build-1.5.0-py3-none-any.whl (26 kB)
+Downloading fastapi-0.141.1-py3-none-any.whl (131 kB)
+Downloading annotated_doc-0.0.5-py3-none-any.whl (5.3 kB)
+Downloading httpx-0.28.1-py3-none-any.whl (73 kB)
+Downloading httpcore-1.0.9-py3-none-any.whl (78 kB)
+Downloading h11-0.16.0-py3-none-any.whl (37 kB)
+Downloading mypy-2.3.1-cp311-cp311-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (15.1 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 15.1/15.1 MB 104.4 MB/s  0:00:00
+Downloading ast_serialize-0.8.0-cp39-abi3-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (1.3 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1.3/1.3 MB 170.9 MB/s  0:00:00
+Downloading librt-0.15.0-cp311-cp311-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (516 kB)
+Downloading mypy_extensions-1.1.0-py3-none-any.whl (5.0 kB)
+Downloading openpyxl-3.1.5-py2.py3-none-any.whl (250 kB)
+Downloading packaging-26.3-py3-none-any.whl (129 kB)
+Downloading pathspec-1.1.1-py3-none-any.whl (57 kB)
+Downloading pydantic-2.13.4-py3-none-any.whl (472 kB)
+Downloading pydantic_core-2.46.4-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (2.1 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 2.1/2.1 MB 208.8 MB/s  0:00:00
+Downloading annotated_types-0.8.0-py3-none-any.whl (13 kB)
+Downloading pypdf-6.16.1-py3-none-any.whl (382 kB)
+Downloading pytest-9.1.1-py3-none-any.whl (386 kB)
+Downloading pluggy-1.6.0-py3-none-any.whl (20 kB)
+Downloading iniconfig-2.3.0-py3-none-any.whl (7.5 kB)
+Downloading pygments-2.21.0-py3-none-any.whl (1.3 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1.3/1.3 MB 188.0 MB/s  0:00:00
+Downloading python_multipart-0.0.32-py3-none-any.whl (30 kB)
+Downloading ruff-0.16.4-py3-none-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (10.3 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 10.3/10.3 MB 292.2 MB/s  0:00:00
+Downloading starlette-1.6.0-py3-none-any.whl (75 kB)
+Downloading anyio-4.14.2-py3-none-any.whl (125 kB)
+Downloading idna-3.19-py3-none-any.whl (68 kB)
+Downloading typing_extensions-4.16.0-py3-none-any.whl (45 kB)
+Downloading typing_inspection-0.4.4-py3-none-any.whl (14 kB)
+Downloading uvicorn-0.52.4-py3-none-any.whl (79 kB)
+Downloading click-8.4.2-py3-none-any.whl (119 kB)
+Downloading certifi-2026.7.22-py3-none-any.whl (136 kB)
+Downloading et_xmlfile-2.0.0-py3-none-any.whl (18 kB)
+Downloading pyproject_hooks-1.2.0-py3-none-any.whl (10 kB)
+Downloading types_fpdf2-2.8.4.20260724-py3-none-any.whl (48 kB)
+Downloading pillow-12.3.0-cp311-cp311-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl (6.9 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 6.9/6.9 MB 280.1 MB/s  0:00:00
+Building wheels for collected packages: crow-plattform
+  Building editable for crow-plattform (pyproject.toml): started
+  Building editable for crow-plattform (pyproject.toml): finished with status 'done'
+  Created wheel for crow-plattform: filename=crow_plattform-0.7.0a1-0.editable-py3-none-any.whl size=2214 sha256=098040fe0d506b622f52f8b6c8563feb25fc2b01db97eca1e1e93fd46dbcf4da
+  Stored in directory: /tmp/pip-ephem-wheel-cache-bl3cf_vg/wheels/18/41/12/19c52a60f3a6251f3714d9a594565cc0457fec0ce20e6812d2
+Successfully built crow-plattform
+Installing collected packages: typing-extensions, ruff, python-multipart, pyproject_hooks, pypdf, pygments, pluggy, Pillow, pathspec, packaging, mypy_extensions, librt, iniconfig, idna, h11, et-xmlfile, click, certifi, ast-serialize, annotated-types, annotated-doc, uvicorn, typing-inspection, types-fpdf2, pytest, pydantic-core, openpyxl, mypy, httpcore, build, anyio, starlette, pydantic, httpx, fastapi, crow-plattform
+
+Successfully installed Pillow-12.3.0 annotated-doc-0.0.5 annotated-types-0.8.0 anyio-4.14.2 ast-serialize-0.8.0 build-1.5.0 certifi-2026.7.22 click-8.4.2 crow-plattform-0.7.0a1 et-xmlfile-2.0.0 fastapi-0.141.1 h11-0.16.0 httpcore-1.0.9 httpx-0.28.1 idna-3.19 iniconfig-2.3.0 librt-0.15.0 mypy-2.3.1 mypy_extensions-1.1.0 openpyxl-3.1.5 packaging-26.3 pathspec-1.1.1 pluggy-1.6.0 pydantic-2.13.4 pydantic-core-2.46.4 pygments-2.21.0 pypdf-6.16.1 pyproject_hooks-1.2.0 pytest-9.1.1 python-multipart-0.0.32 ruff-0.16.4 starlette-1.6.0 types-fpdf2-2.8.4.20260724 typing-extensions-4.16.0 typing-inspection-0.4.4 uvicorn-0.52.4
+Obtaining file:///home/runner/work/crow-plattform/crow-plattform/modules/crow-ovk-module
+  Installing build dependencies: started
+  Installing build dependencies: finished with status 'done'
+  Checking if build backend supports build_editable: started
+  Checking if build backend supports build_editable: finished with status 'done'
+  Getting requirements to build editable: started
+  Getting requirements to build editable: finished with status 'done'
+  Preparing editable metadata (pyproject.toml): started
+  Preparing editable metadata (pyproject.toml): finished with status 'done'
+Requirement already satisfied: crow-plattform<0.8,>=0.7.0a1 in /opt/hostedtoolcache/Python/3.11.16/x64/lib/python3.11/site-packages (from crow-ovk-module==1.0.0) (0.7.0a1)
+Collecting fpdf2>=2.8 (from crow-ovk-module==1.0.0)
+  Downloading fpdf2-2.8.8-py3-none-any.whl.metadata (86 kB)
+Requirement already satisfied: openpyxl>=3.1 in /opt/hostedtoolcache/Python/3.11.16/x64/lib/python3.11/site-packages (from crow-ovk-module==1.0.0) (3.1.5)
+Requirement already satisfied: pypdf>=5.0 in /opt/hostedtoolcache/Python/3.11.16/x64/lib/python3.11/site-packages (from crow-ovk-module==1.0.0) (6.16.1)
+Requirement already satisfied: fastapi>=0.115 in /opt/hostedtoolcache/Python/3.11.16/x64/lib/python3.11/site-packages (from crow-plattform<0.8,>=0.7.0a1->crow-ovk-module==1.0.0) (0.141.1)
+Requirement already satisfied: uvicorn>=0.30 in /opt/hostedtoolcache/Python/3.11.16/x64/lib/python3.11/site-packages (from crow-plattform<0.8,>=0.7.0a1->crow-ovk-module==1.0.0) (0.52.4)
+Requirement already satisfied: python-multipart>=0.0.9 in /opt/hostedtoolcache/Python/3.11.16/x64/lib/python3.11/site-packages (from crow-plattform<0.8,>=0.7.0a1->crow-ovk-module==1.0.0) (0.0.32)
+Requirement already satisfied: httpx>=0.27 in /opt/hostedtoolcache/Python/3.11.16/x64/lib/python3.11/site-packages (from crow-plattform<0.8,>=0.7.0a1->crow-ovk-module==1.0.0) (0.28.1)
+Requirement already satisfied: starlette>=0.46.0 in /opt/hostedtoolcache/Python/3.11.16/x64/lib/python3.11/site-packages (from fastapi>=0.115->crow-plattform<0.8,>=0.7.0a1->crow-ovk-module==1.0.0) (1.6.0)
+Requirement already satisfied: pydantic>=2.9.0 in /opt/hostedtoolcache/Python/3.11.16/x64/lib/python3.11/site-packages (from fastapi>=0.115->crow-plattform<0.8,>=0.7.0a1->crow-ovk-module==1.0.0) (2.13.4)
+Requirement already satisfied: typing-extensions>=4.8.0 in /opt/hostedtoolcache/Python/3.11.16/x64/lib/python3.11/site-packages (from fastapi>=0.115->crow-plattform<0.8,>=0.7.0a1->crow-ovk-module==1.0.0) (4.16.0)
+Requirement already satisfied: typing-inspection>=0.4.2 in /opt/hostedtoolcache/Python/3.11.16/x64/lib/python3.11/site-packages (from fastapi>=0.115->crow-plattform<0.8,>=0.7.0a1->crow-ovk-module==1.0.0) (0.4.4)
+Requirement already satisfied: annotated-doc>=0.0.2 in /opt/hostedtoolcache/Python/3.11.16/x64/lib/python3.11/site-packages (from fastapi>=0.115->crow-plattform<0.8,>=0.7.0a1->crow-ovk-module==1.0.0) (0.0.5)
+Collecting defusedxml (from fpdf2>=2.8->crow-ovk-module==1.0.0)
+  Downloading defusedxml-0.7.1-py2.py3-none-any.whl.metadata (32 kB)
+Requirement already satisfied: Pillow!=9.2.*,>=8.3.2 in /opt/hostedtoolcache/Python/3.11.16/x64/lib/python3.11/site-packages (from fpdf2>=2.8->crow-ovk-module==1.0.0) (12.3.0)
+Collecting fonttools>=4.34.0 (from fpdf2>=2.8->crow-ovk-module==1.0.0)
+  Downloading fonttools-4.63.0-cp311-cp311-manylinux2014_x86_64.manylinux_2_17_x86_64.whl.metadata (118 kB)
+Requirement already satisfied: anyio in /opt/hostedtoolcache/Python/3.11.16/x64/lib/python3.11/site-packages (from httpx>=0.27->crow-plattform<0.8,>=0.7.0a1->crow-ovk-module==1.0.0) (4.14.2)
+Requirement already satisfied: certifi in /opt/hostedtoolcache/Python/3.11.16/x64/lib/python3.11/site-packages (from httpx>=0.27->crow-plattform<0.8,>=0.7.0a1->crow-ovk-module==1.0.0) (2026.7.22)
+Requirement already satisfied: httpcore==1.* in /opt/hostedtoolcache/Python/3.11.16/x64/lib/python3.11/site-packages (from httpx>=0.27->crow-plattform<0.8,>=0.7.0a1->crow-ovk-module==1.0.0) (1.0.9)
+Requirement already satisfied: idna in /opt/hostedtoolcache/Python/3.11.16/x64/lib/python3.11/site-packages (from httpx>=0.27->crow-plattform<0.8,>=0.7.0a1->crow-ovk-module==1.0.0) (3.19)
+Requirement already satisfied: h11>=0.16 in /opt/hostedtoolcache/Python/3.11.16/x64/lib/python3.11/site-packages (from httpcore==1.*->httpx>=0.27->crow-plattform<0.8,>=0.7.0a1->crow-ovk-module==1.0.0) (0.16.0)
+Requirement already satisfied: et-xmlfile in /opt/hostedtoolcache/Python/3.11.16/x64/lib/python3.11/site-packages (from openpyxl>=3.1->crow-ovk-module==1.0.0) (2.0.0)
+Requirement already satisfied: annotated-types>=0.6.0 in /opt/hostedtoolcache/Python/3.11.16/x64/lib/python3.11/site-packages (from pydantic>=2.9.0->fastapi>=0.115->crow-plattform<0.8,>=0.7.0a1->crow-ovk-module==1.0.0) (0.8.0)
+Requirement already satisfied: pydantic-core==2.46.4 in /opt/hostedtoolcache/Python/3.11.16/x64/lib/python3.11/site-packages (from pydantic>=2.9.0->fastapi>=0.115->crow-plattform<0.8,>=0.7.0a1->crow-ovk-module==1.0.0) (2.46.4)
+Requirement already satisfied: click>=7.0 in /opt/hostedtoolcache/Python/3.11.16/x64/lib/python3.11/site-packages (from uvicorn>=0.30->crow-plattform<0.8,>=0.7.0a1->crow-ovk-module==1.0.0) (8.4.2)
+Downloading fpdf2-2.8.8-py3-none-any.whl (337 kB)
+Downloading fonttools-4.63.0-cp311-cp311-manylinux2014_x86_64.manylinux_2_17_x86_64.whl (5.1 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 5.1/5.1 MB 231.2 MB/s  0:00:00
+Downloading defusedxml-0.7.1-py2.py3-none-any.whl (25 kB)
+Building wheels for collected packages: crow-ovk-module
+  Building editable for crow-ovk-module (pyproject.toml): started
+  Building editable for crow-ovk-module (pyproject.toml): finished with status 'done'
+  Created wheel for crow-ovk-module: filename=crow_ovk_module-1.0.0-0.editable-py3-none-any.whl size=1734 sha256=c7d9fce4a245207caa0510918c584160afd96c0c45deac407b2d9357491ae1f3
+  Stored in directory: /tmp/pip-ephem-wheel-cache-xpv5m828/wheels/ed/01/46/7a76f5995c65375cdefefea8b21ff038a017c75f0f63171f40
+Successfully built crow-ovk-module
+Installing collected packages: fonttools, defusedxml, fpdf2, crow-ovk-module
+
+Successfully installed crow-ovk-module-1.0.0 defusedxml-0.7.1 fonttools-4.63.0 fpdf2-2.8.8
+Obtaining file:///home/runner/work/crow-plattform/crow-plattform/modules/crow-pressure-test-module
+  Installing build dependencies: started
+  Installing build dependencies: finished with status 'done'
+  Checking if build backend supports build_editable: started
+  Checking if build backend supports build_editable: finished with status 'done'
+  Getting requirements to build editable: started
+  Getting requirements to build editable: finished with status 'done'
+  Preparing editable metadata (pyproject.toml): started
+  Preparing editable metadata (pyproject.toml): finished with status 'done'
+Requirement already satisfied: crow-plattform<0.8,>=0.7.0a1 in /opt/hostedtoolcache/Python/3.11.16/x64/lib/python3.11/site-packages (from crow-pressure-test-module==1.0.0) (0.7.0a1)
+Requirement already satisfied: openpyxl>=3.1 in /opt/hostedtoolcache/Python/3.11.16/x64/lib/python3.11/site-packages (from crow-pressure-test-module==1.0.0) (3.1.5)
+Requirement already satisfied: pypdf>=5.0 in /opt/hostedtoolcache/Python/3.11.16/x64/lib/python3.11/site-packages (from crow-plattform<0.8,>=0.7.0a1->crow-pressure-test-module==1.0.0) (6.16.1)
+Requirement already satisfied: fastapi>=0.115 in /opt/hostedtoolcache/Python/3.11.16/x64/lib/python3.11/site-packages (from crow-plattform<0.8,>=0.7.0a1->crow-pressure-test-module==1.0.0) (0.141.1)
+Requirement already satisfied: uvicorn>=0.30 in /opt/hostedtoolcache/Python/3.11.16/x64/lib/python3.11/site-packages (from crow-plattform<0.8,>=0.7.0a1->crow-pressure-test-module==1.0.0) (0.52.4)
+Requirement already satisfied: python-multipart>=0.0.9 in /opt/hostedtoolcache/Python/3.11.16/x64/lib/python3.11/site-packages (from crow-plattform<0.8,>=0.7.0a1->crow-pressure-test-module==1.0.0) (0.0.32)
+Requirement already satisfied: httpx>=0.27 in /opt/hostedtoolcache/Python/3.11.16/x64/lib/python3.11/site-packages (from crow-plattform<0.8,>=0.7.0a1->crow-pressure-test-module==1.0.0) (0.28.1)
+Requirement already satisfied: starlette>=0.46.0 in /opt/hostedtoolcache/Python/3.11.16/x64/lib/python3.11/site-packages (from fastapi>=0.115->crow-plattform<0.8,>=0.7.0a1->crow-pressure-test-module==1.0.0) (1.6.0)
+Requirement already satisfied: pydantic>=2.9.0 in /opt/hostedtoolcache/Python/3.11.16/x64/lib/python3.11/site-packages (from fastapi>=0.115->crow-plattform<0.8,>=0.7.0a1->crow-pressure-test-module==1.0.0) (2.13.4)
+Requirement already satisfied: typing-extensions>=4.8.0 in /opt/hostedtoolcache/Python/3.11.16/x64/lib/python3.11/site-packages (from fastapi>=0.115->crow-plattform<0.8,>=0.7.0a1->crow-pressure-test-module==1.0.0) (4.16.0)
+Requirement already satisfied: typing-inspection>=0.4.2 in /opt/hostedtoolcache/Python/3.11.16/x64/lib/python3.11/site-packages (from fastapi>=0.115->crow-plattform<0.8,>=0.7.0a1->crow-pressure-test-module==1.0.0) (0.4.4)
+Requirement already satisfied: annotated-doc>=0.0.2 in /opt/hostedtoolcache/Python/3.11.16/x64/lib/python3.11/site-packages (from fastapi>=0.115->crow-plattform<0.8,>=0.7.0a1->crow-pressure-test-module==1.0.0) (0.0.5)
+Requirement already satisfied: anyio in /opt/hostedtoolcache/Python/3.11.16/x64/lib/python3.11/site-packages (from httpx>=0.27->crow-plattform<0.8,>=0.7.0a1->crow-pressure-test-module==1.0.0) (4.14.2)
+Requirement already satisfied: certifi in /opt/hostedtoolcache/Python/3.11.16/x64/lib/python3.11/site-packages (from httpx>=0.27->crow-plattform<0.8,>=0.7.0a1->crow-pressure-test-module==1.0.0) (2026.7.22)
+Requirement already satisfied: httpcore==1.* in /opt/hostedtoolcache/Python/3.11.16/x64/lib/python3.11/site-packages (from httpx>=0.27->crow-plattform<0.8,>=0.7.0a1->crow-pressure-test-module==1.0.0) (1.0.9)
+Requirement already satisfied: idna in /opt/hostedtoolcache/Python/3.11.16/x64/lib/python3.11/site-packages (from httpx>=0.27->crow-plattform<0.8,>=0.7.0a1->crow-pressure-test-module==1.0.0) (3.19)
+Requirement already satisfied: h11>=0.16 in /opt/hostedtoolcache/Python/3.11.16/x64/lib/python3.11/site-packages (from httpcore==1.*->httpx>=0.27->crow-plattform<0.8,>=0.7.0a1->crow-pressure-test-module==1.0.0) (0.16.0)
+Requirement already satisfied: et-xmlfile in /opt/hostedtoolcache/Python/3.11.16/x64/lib/python3.11/site-packages (from openpyxl>=3.1->crow-pressure-test-module==1.0.0) (2.0.0)
+Requirement already satisfied: annotated-types>=0.6.0 in /opt/hostedtoolcache/Python/3.11.16/x64/lib/python3.11/site-packages (from pydantic>=2.9.0->fastapi>=0.115->crow-plattform<0.8,>=0.7.0a1->crow-pressure-test-module==1.0.0) (0.8.0)
+Requirement already satisfied: pydantic-core==2.46.4 in /opt/hostedtoolcache/Python/3.11.16/x64/lib/python3.11/site-packages (from pydantic>=2.9.0->fastapi>=0.115->crow-plattform<0.8,>=0.7.0a1->crow-pressure-test-module==1.0.0) (2.46.4)
+Requirement already satisfied: click>=7.0 in /opt/hostedtoolcache/Python/3.11.16/x64/lib/python3.11/site-packages (from uvicorn>=0.30->crow-plattform<0.8,>=0.7.0a1->crow-pressure-test-module==1.0.0) (8.4.2)
+Building wheels for collected packages: crow-pressure-test-module
+  Building editable for crow-pressure-test-module (pyproject.toml): started
+  Building editable for crow-pressure-test-module (pyproject.toml): finished with status 'done'
+  Created wheel for crow-pressure-test-module: filename=crow_pressure_test_module-1.0.0-0.editable-py3-none-any.whl size=1832 sha256=2f94387d95769243ad1d62b901c14a61cd19b7a7e707b70502f62e57e5fc6560
+  Stored in directory: /tmp/pip-ephem-wheel-cache-s_q8y9q_/wheels/6d/1f/c6/58f1eb06ed947126489b77c4c194d72eaf83b8cf88dcf4a35e
+Successfully built crow-pressure-test-module
+Installing collected packages: crow-pressure-test-module
+Successfully installed crow-pressure-test-module-1.0.0
+Obtaining file:///home/runner/work/crow-plattform/crow-plattform/modules/crow-vent-module
+  Installing build dependencies: started
+  Installing build dependencies: finished with status 'done'
+  Checking if build backend supports build_editable: started
+  Checking if build backend supports build_editable: finished with status 'done'
+  Getting requirements to build editable: started
+  Getting requirements to build editable: finished with status 'done'
+  Preparing editable metadata (pyproject.toml): started
+  Preparing editable metadata (pyproject.toml): finished with status 'done'
+Requirement already satisfied: crow-plattform<0.8,>=0.7.0a1 in /opt/hostedtoolcache/Python/3.11.16/x64/lib/python3.11/site-packages (from crow-vent-module==1.0.0) (0.7.0a1)
+Requirement already satisfied: pypdf>=5.0 in /opt/hostedtoolcache/Python/3.11.16/x64/lib/python3.11/site-packages (from crow-plattform<0.8,>=0.7.0a1->crow-vent-module==1.0.0) (6.16.1)
+Requirement already satisfied: fastapi>=0.115 in /opt/hostedtoolcache/Python/3.11.16/x64/lib/python3.11/site-packages (from crow-plattform<0.8,>=0.7.0a1->crow-vent-module==1.0.0) (0.141.1)
+Requirement already satisfied: uvicorn>=0.30 in /opt/hostedtoolcache/Python/3.11.16/x64/lib/python3.11/site-packages (from crow-plattform<0.8,>=0.7.0a1->crow-vent-module==1.0.0) (0.52.4)
+Requirement already satisfied: python-multipart>=0.0.9 in /opt/hostedtoolcache/Python/3.11.16/x64/lib/python3.11/site-packages (from crow-plattform<0.8,>=0.7.0a1->crow-vent-module==1.0.0) (0.0.32)
+Requirement already satisfied: httpx>=0.27 in /opt/hostedtoolcache/Python/3.11.16/x64/lib/python3.11/site-packages (from crow-plattform<0.8,>=0.7.0a1->crow-vent-module==1.0.0) (0.28.1)
+Requirement already satisfied: starlette>=0.46.0 in /opt/hostedtoolcache/Python/3.11.16/x64/lib/python3.11/site-packages (from fastapi>=0.115->crow-plattform<0.8,>=0.7.0a1->crow-vent-module==1.0.0) (1.6.0)
+Requirement already satisfied: pydantic>=2.9.0 in /opt/hostedtoolcache/Python/3.11.16/x64/lib/python3.11/site-packages (from fastapi>=0.115->crow-plattform<0.8,>=0.7.0a1->crow-vent-module==1.0.0) (2.13.4)
+Requirement already satisfied: typing-extensions>=4.8.0 in /opt/hostedtoolcache/Python/3.11.16/x64/lib/python3.11/site-packages (from fastapi>=0.115->crow-plattform<0.8,>=0.7.0a1->crow-vent-module==1.0.0) (4.16.0)
+Requirement already satisfied: typing-inspection>=0.4.2 in /opt/hostedtoolcache/Python/3.11.16/x64/lib/python3.11/site-packages (from fastapi>=0.115->crow-plattform<0.8,>=0.7.0a1->crow-vent-module==1.0.0) (0.4.4)
+Requirement already satisfied: annotated-doc>=0.0.2 in /opt/hostedtoolcache/Python/3.11.16/x64/lib/python3.11/site-packages (from fastapi>=0.115->crow-plattform<0.8,>=0.7.0a1->crow-vent-module==1.0.0) (0.0.5)
+Requirement already satisfied: anyio in /opt/hostedtoolcache/Python/3.11.16/x64/lib/python3.11/site-packages (from httpx>=0.27->crow-plattform<0.8,>=0.7.0a1->crow-vent-module==1.0.0) (4.14.2)
+Requirement already satisfied: certifi in /opt/hostedtoolcache/Python/3.11.16/x64/lib/python3.11/site-packages (from httpx>=0.27->crow-plattform<0.8,>=0.7.0a1->crow-vent-module==1.0.0) (2026.7.22)
+Requirement already satisfied: httpcore==1.* in /opt/hostedtoolcache/Python/3.11.16/x64/lib/python3.11/site-packages (from httpx>=0.27->crow-plattform<0.8,>=0.7.0a1->crow-vent-module==1.0.0) (1.0.9)
+Requirement already satisfied: idna in /opt/hostedtoolcache/Python/3.11.16/x64/lib/python3.11/site-packages (from httpx>=0.27->crow-plattform<0.8,>=0.7.0a1->crow-vent-module==1.0.0) (3.19)
+Requirement already satisfied: h11>=0.16 in /opt/hostedtoolcache/Python/3.11.16/x64/lib/python3.11/site-packages (from httpcore==1.*->httpx>=0.27->crow-plattform<0.8,>=0.7.0a1->crow-vent-module==1.0.0) (0.16.0)
+Requirement already satisfied: annotated-types>=0.6.0 in /opt/hostedtoolcache/Python/3.11.16/x64/lib/python3.11/site-packages (from pydantic>=2.9.0->fastapi>=0.115->crow-plattform<0.8,>=0.7.0a1->crow-vent-module==1.0.0) (0.8.0)
+Requirement already satisfied: pydantic-core==2.46.4 in /opt/hostedtoolcache/Python/3.11.16/x64/lib/python3.11/site-packages (from pydantic>=2.9.0->fastapi>=0.115->crow-plattform<0.8,>=0.7.0a1->crow-vent-module==1.0.0) (2.46.4)
+Requirement already satisfied: click>=7.0 in /opt/hostedtoolcache/Python/3.11.16/x64/lib/python3.11/site-packages (from uvicorn>=0.30->crow-plattform<0.8,>=0.7.0a1->crow-vent-module==1.0.0) (8.4.2)
+Building wheels for collected packages: crow-vent-module
+  Building editable for crow-vent-module (pyproject.toml): started
+  Building editable for crow-vent-module (pyproject.toml): finished with status 'done'
+  Created wheel for crow-vent-module: filename=crow_vent_module-1.0.0-0.editable-py3-none-any.whl size=1741 sha256=e6c1739bfc6db22c8488b07835b109bc6e68ae61820eafbfd45c3673b9980610
+  Stored in directory: /tmp/pip-ephem-wheel-cache-3rgixn1h/wheels/79/d0/6a/dfa716e4cc254763ec0338f2d1582af4683418f1c8bf3fd2c7
+Successfully built crow-vent-module
+Installing collected packages: crow-vent-module
+Successfully installed crow-vent-module-1.0.0
+PHASE format
+1 file reformatted, 2 files left unchanged
+PHASE ruff
+All checks passed!
+PHASE core-import-boundary
+PHASE focused-tests
+............F........................................................... [ 96%]
+...                                                                      [100%]
+=================================== FAILURES ===================================
+______________ test_core_app_no_longer_defines_legacy_vent_routes ______________
+
+tmp_path = PosixPath('/tmp/pytest-of-runner/pytest-0/test_core_app_no_longer_define0')
+
+    def test_core_app_no_longer_defines_legacy_vent_routes(tmp_path: Path) -> None:
+>       app = create_core_app(tmp_path, graph_audit_profiles=())
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       TypeError: create_app() got an unexpected keyword argument 'graph_audit_profiles'
+
+tests/test_module_web_extensions.py:56: TypeError
+=============================== warnings summary ===============================
+../../../../../opt/hostedtoolcache/Python/3.11.16/x64/lib/python3.11/site-packages/fastapi/testclient.py:1
+  /opt/hostedtoolcache/Python/3.11.16/x64/lib/python3.11/site-packages/fastapi/testclient.py:1: StarletteDeprecationWarning: Using `httpx` with `starlette.testclient` is deprecated; install `httpx2` instead.
+    from starlette.testclient import TestClient as TestClient  # noqa
+
+tests/test_module_web_extensions.py::test_workbench_mounts_module_routes_from_registry
+  /opt/hostedtoolcache/Python/3.11.16/x64/lib/python3.11/site-packages/fastapi/openapi/utils.py:303: UserWarning: Duplicate Operation ID workflow_page_ovk_besiktning_get for function workflow_page at /home/runner/work/crow-plattform/crow-plattform/modules/crow-ovk-module/src/crow_ovk_module/ovk_workflow_surface.py
+    warnings.warn(message, stacklevel=1)
+
+tests/test_module_web_extensions.py::test_workbench_mounts_module_routes_from_registry
+  /opt/hostedtoolcache/Python/3.11.16/x64/lib/python3.11/site-packages/fastapi/openapi/utils.py:303: UserWarning: Duplicate Operation ID field_page_ovk_falt_get for function field_page at /home/runner/work/crow-plattform/crow-plattform/modules/crow-ovk-module/src/crow_ovk_module/ovk_field_surface.py
+    warnings.warn(message, stacklevel=1)
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED tests/test_module_web_extensions.py::test_core_app_no_longer_defines_legacy_vent_routes - TypeError: create_app() got an unexpected keyword argument 'graph_audit_profiles'
+1 failed, 74 passed, 3 warnings in 9.61s
+RESULT failure rc=1
