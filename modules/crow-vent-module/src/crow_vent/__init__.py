@@ -4,6 +4,8 @@ from .audit_verification import (
     VentResolutionVerification,
     VentResolutionVerificationService,
 )
+from .cad_text import CadVentTextPipeline, CadVentTextResult
+from .canonical import CanonicalAssembly, VentCanonicalAdapter, VentCanonicalAssembler
 from .classification import classify_candidates
 from .graph_audit import VentGraphAudit, VentGraphAuditResult, VentGraphFinding
 from .lexicon import (
@@ -21,6 +23,11 @@ from .service import build_vent_model
 from .text_interpretation import VentTextInterpretation, VentTextInterpreter
 
 __all__ = [
+    "CadVentTextPipeline",
+    "CadVentTextResult",
+    "CanonicalAssembly",
+    "VentCanonicalAdapter",
+    "VentCanonicalAssembler",
     "VentClassification",
     "VentComponentDefinition",
     "VentLexicon",
