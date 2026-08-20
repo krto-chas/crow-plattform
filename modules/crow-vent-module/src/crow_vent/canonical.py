@@ -1,9 +1,9 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
 from hashlib import sha256
 from typing import Any
 
+from crow_canonical.assembly import CanonicalAssembly
 from crow_canonical.models import (
     CanonicalEvidence,
     CanonicalObject,
@@ -110,12 +110,6 @@ class VentCanonicalAdapter:
 def _stable_id(prefix: str, *parts: str) -> str:
     digest = sha256("|".join(parts).encode("utf-8")).hexdigest()[:20]
     return f"ccm:{prefix}:{digest}"
-
-
-@dataclass(frozen=True)
-class CanonicalAssembly:
-    objects: tuple[CanonicalObject, ...]
-    relations: tuple[CanonicalRelation, ...]
 
 
 class VentCanonicalAssembler:
