@@ -292,7 +292,7 @@ def test_field_app_presets_and_unit_system_override(tmp_path: Path) -> None:
     app = client.get("/ovk/falt/app.js")
     assert app.status_code == 200
     # Badrum/WC/Kök får automatisk frånluftsmätpunkt när rummet skapas.
-    assert "PRESET_EXTRACT_ROOMS=['badrum','wc','kök']" in app.text
+    assert "PRESET_EXTRACT_ROOMS=['badrum','wc','kök','hwc','vilorum']" in app.text
     # Avvikande system per enhet (vinds-/källarlägenhet) med fastigheten som default.
     assert "function unitSystem(unit)" in app.text
     assert "system_type:system_type||null" in app.text
