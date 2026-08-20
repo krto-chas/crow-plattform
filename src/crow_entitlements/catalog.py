@@ -16,6 +16,15 @@ def load_product_module_catalog() -> ProductModuleCatalog:
     ids = [module.id for module in modules]
     if len(ids) != len(set(ids)):
         raise ValueError("Duplicate product module id")
+    exact_route_owners: dict[str, str] = {}
+    for module in modules:
+        for route in module.api_routes:
+            previous = exact_route_owners.get(route)
+            if previous is not None:
+                raise ValueError(
+                    f"API route {route!r} is assigned to both {previous!r} and {module.id!r}"
+                )
+            exact_route_owners[route] = module.id
     known = set(ids)
     for module in modules:
         unknown = sorted(set(module.requires_modules) - known)
