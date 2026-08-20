@@ -41,10 +41,14 @@ def create_app(data_root: Path | None = None, config_root: Path | None = None) -
             _register_core_route_claims(core_route_owners, registered.module_id, claims)
 
     mounted_module_ids: list[str] = []
+    module_router_paths: dict[str, tuple[str, ...]] = {}
     for registered in registered_modules:
         routers_provider = getattr(registered.plugin, "routers", None)
         if callable(routers_provider):
             routers = routers_provider(root)
+            module_router_paths[registered.module_id] = tuple(
+                str(route.path) for router in routers for route in router.routes
+            )
             for router in routers:
                 app.include_router(router)
             mounted_module_ids.append(registered.module_id)
@@ -58,6 +62,7 @@ def create_app(data_root: Path | None = None, config_root: Path | None = None) -
     app.state.crow_module_composition_debug = {
         "registered": tuple(item.module_id for item in registered_modules),
         "mounted": tuple(mounted_module_ids),
+        "router_paths": module_router_paths,
         "vent_before_takeover": routes_before_takeover,
         "vent_after_takeover": _paths_containing(app, "vent"),
     }
