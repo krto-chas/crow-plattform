@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="sv">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Crow Workbench</title>
+  <link rel="stylesheet" href="/static/product.css">
+</head>
+<body>
+<div class="product-shell">
+  <aside class="product-sidebar">
+    <h1>Crow</h1>
+    <nav>
+      <a href="/app">Projekt</a>
+      <a class="active" href="/workbench">Workbench</a>
+      <a href="/logout">Logga ut</a>
+    </nav>
+    <div class="product-subnav">
+      <span class="eyebrow">WORKBENCH</span>
+      <a href="#underlag">Projektunderlag</a>
+      <a href="#moduler">Produktmoduler</a>
+      <a id="advancedNav" href="/workbench/advanced">Avancerad vy</a>
+    </div>
+  </aside>
+
+  <main class="product-main">
+    <div class="eyebrow">GEMENSAM ARBETSYTA</div>
+    <h1>Projekt &amp; Workbench</h1>
+    <p class="muted">Samla projektets filer och öppna rätt produktmodul utan att duplicera domänfunktioner i Workbench.</p>
+
+    <section class="panel projectbar">
+      <div>
+        <label for="project">Projekt</label>
+        <select id="project"><option value="">Laddar projekt…</option></select>
+      </div>
+      <div class="actions">
+        <button id="newProject" type="button" class="secondary">Nytt projekt</button>
+        <a id="advanced" class="button secondary" href="/workbench/advanced">Avancerad vy</a>
+      </div>
+    </section>
+
+    <div id="status" class="status">Laddar…</div>
+
+    <section class="metrics">
+      <article class="card metric"><span>Dokument</span><strong id="documentCount">—</strong></article>
+      <article class="card metric"><span>Importerade filer</span><strong id="importCount">—</strong></article>
+      <article class="card metric"><span>CAD-underlag</span><strong id="cadCount">—</strong></article>
+      <article class="card metric"><span>Aktiva moduler</span><strong id="moduleCount">—</strong></article>
+    </section>
+
+    <section id="underlag" class="split">
+      <article class="panel">
+        <div class="section-title">
+          <div><h2>Projektunderlag</h2><p class="muted">PDF, CAD, kalkylunderlag och övriga projektfiler.</p></div>
+        </div>
+        <label class="button" style="text-align:center">Importera filer<input id="fileInput" type="file" multiple hidden></label>
+        <div id="imports" class="empty" style="margin-top:14px">Välj projekt.</div>
+      </article>
+
+      <article class="panel">
+        <div class="section-title">
+          <div><h2>Gemensamma verktyg</h2><p class="muted">Öppna den avancerade Workbench-vyn för generella projekt-, CAD-, evidens- och analysverktyg.</p></div>
+        </div>
+        <div class="grid" style="margin-top:0">
+          <article class="card">
+            <h3>Dokument &amp; import</h3>
+            <p class="muted">Förhandsgranska och inspektera normaliserade projektfiler.</p>
+            <a class="button secondary advanced-view" data-view="imports" href="/workbench/advanced">Öppna import</a>
+          </article>
+          <article class="card">
+            <h3>CAD &amp; geometri</h3>
+            <p class="muted">Lager, objekt, geometri och DWG/DXF/IFC-status.</p>
+            <a class="button secondary advanced-view" data-view="cad" href="/workbench/advanced">Öppna CAD</a>
+          </article>
+          <article class="card">
+            <h3>Evidens &amp; analys</h3>
+            <p class="muted">Evidence Graph, audit, review och projektets analyskedja.</p>
+            <a class="button secondary advanced-view" data-view="evidence" href="/workbench/advanced">Öppna evidens</a>
+          </article>
+        </div>
+      </article>
+    </section>
+
+    <section id="moduler" style="margin-top:18px">
+      <div class="section-title">
+        <div><h2>Produktmoduler</h2><p class="muted">Endast moduler som är aktiva för organisationen visas här.</p></div>
+      </div>
+      <div id="modules" class="grid"><article class="card muted">Laddar moduler…</article></div>
+    </section>
+  </main>
+</div>
+<script src="/static/workbench-home.js"></script>
+</body>
+</html>
