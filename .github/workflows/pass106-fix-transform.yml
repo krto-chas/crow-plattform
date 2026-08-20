@@ -1,0 +1,105 @@
+name: Pass106 repair transformed core source
+
+on:
+  push:
+    branches: [pass106-core-vent-decoupling]
+
+permissions:
+  contents: write
+
+jobs:
+  repair:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: pass106-core-vent-decoupling
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Repair and validate source shape
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path("src/crow_workbench/app.py")
+          text = path.read_text(encoding="utf-8")
+          malformed = '''    def serialize_graph_audit(project_id: str) -> dict[str, Any]:
+          graph = building_graph_repository(project_id).load()
+          evaluation = GraphRuleEngine().evaluate(graph, domain_graph_rules)
+          summary = dict(evaluation.summary)
+          for category in graph_audit_summary_categories:
+              summary.setdefault(category, 0)
+          graph_payload = json.dumps(graph, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
+          graph_checksum = sha256(graph_payload.encode("utf-8")).hexdigest()
+          return {
+              "project_id": _safe_project_id(project_id),
+              "graph_checksum": graph_checksum,
+              "summary": summary,
+              "metadata": {
+                  **evaluation.metadata,
+                  **graph_audit_metadata,
+                  "rule_version": graph_audit_ruleset_version,
+                  "profiles": [profile.profile_id for profile in graph_audit_profiles],
+              },
+              "findings": [_jsonable(asdict(item)) for item in evaluation.findings],
+          }
+          '''
+          corrected = '''    def serialize_graph_audit(project_id: str) -> dict[str, Any]:
+              graph = building_graph_repository(project_id).load()
+              evaluation = GraphRuleEngine().evaluate(graph, domain_graph_rules)
+              summary = dict(evaluation.summary)
+              for category in graph_audit_summary_categories:
+                  summary.setdefault(category, 0)
+              graph_payload = json.dumps(
+                  graph, sort_keys=True, separators=(",", ":"), ensure_ascii=False
+              )
+              graph_checksum = sha256(graph_payload.encode("utf-8")).hexdigest()
+              return {
+                  "project_id": _safe_project_id(project_id),
+                  "graph_checksum": graph_checksum,
+                  "summary": summary,
+                  "metadata": {
+                      **evaluation.metadata,
+                      **graph_audit_metadata,
+                      "rule_version": graph_audit_ruleset_version,
+                      "profiles": [profile.profile_id for profile in graph_audit_profiles],
+                  },
+                  "findings": [_jsonable(asdict(item)) for item in evaluation.findings],
+              }
+          '''
+          if malformed in text:
+              text = text.replace(malformed, corrected, 1)
+          elif corrected not in text:
+              raise AssertionError("serialize_graph_audit block is neither malformed nor corrected")
+
+          forbidden = (
+              "from crow_vent",
+              "crow_vent.",
+              "VENT_GRAPH_RULES",
+              "VentGraphAudit",
+              "VentAuditDiffer",
+              "VentResolutionVerificationService",
+              '@app.get("/api/vent/registry")',
+              '@app.get("/api/projects/{project_id}/vent/{checksum}")',
+              '@app.post("/api/projects/{project_id}/takeoff")',
+              '@app.get("/api/projects/{project_id}/vent/{checksum}/quantity.csv")',
+              '@app.get("/api/projects/{project_id}/vent/{checksum}/review")',
+          )
+          for value in forbidden:
+              assert value not in text, value
+          path.write_text(text, encoding="utf-8")
+          PY
+          python -m py_compile src/crow_workbench/app.py src/crow_workbench/shell.py
+      - name: Commit repaired source
+        run: |
+          if git diff --quiet; then
+            echo "No repair changes"
+            exit 0
+          fi
+          git config user.name "Crow Pass106 automation"
+          git config user.email "actions@users.noreply.github.com"
+          git add -- src/crow_workbench/app.py
+          git diff --cached --check
+          git commit -m "fix(workbench): repair generic graph audit runtime"
+          git push origin HEAD:pass106-core-vent-decoupling
