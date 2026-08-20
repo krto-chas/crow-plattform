@@ -81,9 +81,7 @@ def test_vent_drawing_analysis_alias_is_entitlement_protected(
     monkeypatch.setenv("CROW_CUSTOMER_ID", "acme")
     client = TestClient(create_app(tmp_path))
 
-    response = client.get(
-        f"/api/vent/projects/adhoc/drawings/{'0' * 64}/model"
-    )
+    response = client.get(f"/api/vent/projects/adhoc/drawings/{'0' * 64}/model")
 
     assert response.status_code == 403
     assert response.json()["detail"] == {"code": "MODULE_NOT_ACTIVE", "module": "vent"}
