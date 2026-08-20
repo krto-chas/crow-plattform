@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from importlib import resources
 from typing import Any
+from urllib.parse import quote
 
 import httpx
 from fastapi import APIRouter, Request
@@ -23,15 +24,35 @@ def vent_router() -> APIRouter:
             headers={"Cache-Control": "no-cache"},
         )
 
-    @router.post("/api/vent/projects/{project_id}/takeoff", response_model=None)
-    async def vent_takeoff(project_id: str, request: Request) -> JSONResponse:
-        """Stable, entitlement-protected product alias for the existing takeoff pipeline."""
-        payload: Any = await request.json()
+    @router.get(
+        "/api/vent/projects/{project_id}/drawings/{checksum}/model",
+        response_model=None,
+    )
+    async def vent_drawing_model(
+        project_id: str, checksum: str, request: Request
+    ) -> JSONResponse:
+        """Entitlement-protected alias for the existing Vent drawing analysis pipeline."""
+        path = (
+            f"/api/projects/{quote(project_id, safe='')}/vent/"
+            f"{quote(checksum, safe='')}"
+        )
         transport = httpx.ASGITransport(app=request.app)
         async with httpx.AsyncClient(
             transport=transport, base_url="http://crow.internal"
         ) as client:
-            response = await client.post(f"/api/projects/{project_id}/takeoff", json=payload)
+            response = await client.get(path, params=list(request.query_params.multi_items()))
+        return JSONResponse(status_code=response.status_code, content=response.json())
+
+    @router.post("/api/vent/projects/{project_id}/takeoff", response_model=None)
+    async def vent_takeoff(project_id: str, request: Request) -> JSONResponse:
+        """Stable, entitlement-protected product alias for the existing takeoff pipeline."""
+        payload: Any = await request.json()
+        path = f"/api/projects/{quote(project_id, safe='')}/takeoff"
+        transport = httpx.ASGITransport(app=request.app)
+        async with httpx.AsyncClient(
+            transport=transport, base_url="http://crow.internal"
+        ) as client:
+            response = await client.post(path, json=payload)
         return JSONResponse(status_code=response.status_code, content=response.json())
 
     return router
