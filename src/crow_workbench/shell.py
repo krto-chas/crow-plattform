@@ -104,7 +104,17 @@ def create_app(data_root: Path | None = None, config_root: Path | None = None) -
         return FileResponse(static_root / "admin_audit.html")
 
     @app.get("/workbench", include_in_schema=False, response_model=None)
-    def legacy_workbench() -> HTMLResponse:
+    def workbench_home(request: Request) -> Response:
+        customer = _customer_for_shell(request)
+        if customer is None:
+            return RedirectResponse("/login", status_code=303)
+        return FileResponse(static_root / "workbench_home.html")
+
+    @app.get("/workbench/advanced", include_in_schema=False, response_model=None)
+    def advanced_workbench(request: Request) -> Response:
+        customer = _customer_for_shell(request)
+        if customer is None:
+            return RedirectResponse("/login", status_code=303)
         markup = (static_root / "index.html").read_text(encoding="utf-8")
         bridge = '<script src="/static/workbench-product-bridge.js"></script>'
         return HTMLResponse(markup.replace("</body>", f"{bridge}</body>", 1))
