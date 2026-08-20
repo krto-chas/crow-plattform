@@ -1,0 +1,279 @@
+name: Pass106 guarded core migration
+
+on:
+  push:
+    branches: [pass106-core-vent-decoupling-clean]
+
+permissions:
+  contents: write
+
+jobs:
+  migrate:
+    if: ${{ !contains(github.event.head_commit.message, '[pass106-core-applied]') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: pass106-core-vent-decoupling-clean
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Apply exact core migration
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          app_path = Path("src/crow_workbench/app.py")
+          text = app_path.read_text(encoding="utf-8")
+
+          graph_import = "from crow_graph_explorer import GraphExplorerBuilder\n"
+          graph_rules_import = '''from crow_graph_explorer import GraphExplorerBuilder
+          from crow_graph_rules import (
+              GraphAuditDiffer,
+              GraphAuditProfile,
+              GraphResolutionVerificationService,
+              GraphRule,
+              GraphRuleEngine,
+          )
+          '''
+          assert text.count(graph_import) == 1
+          text = text.replace(graph_import, graph_rules_import, 1)
+
+          vent_import = '''from crow_vent import (
+              VentAuditDiffer,
+              VentGraphAudit,
+              VentResolutionVerificationService,
+              build_vent_model,
+              component_registry,
+              quantity_takeoff_csv,
+          )
+          from crow_vent.graph_audit import VENT_GRAPH_RULES
+          '''
+          assert text.count(vent_import) == 1
+          text = text.replace(vent_import, "", 1)
+
+          old_audit = '''    def serialize_graph_audit(project_id: str) -> dict[str, Any]:
+              graph = building_graph_repository(project_id).load()
+              result = VentGraphAudit().audit(graph)
+              graph_payload = json.dumps(graph, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
+              graph_checksum = sha256(graph_payload.encode("utf-8")).hexdigest()
+              return {
+                  "project_id": _safe_project_id(project_id),
+                  "graph_checksum": graph_checksum,
+                  "summary": result.summary,
+                  "metadata": result.metadata,
+                  "findings": [_jsonable(asdict(item)) for item in result.findings],
+              }
+          '''
+          new_audit = '''    def active_graph_audit_profiles() -> tuple[GraphAuditProfile, ...]:
+              raw: Any = getattr(app.state, "crow_graph_audit_profiles", ())
+              if not isinstance(raw, tuple):
+                  return ()
+              return tuple(item for item in raw if isinstance(item, GraphAuditProfile))
+
+              def active_graph_rules() -> tuple[GraphRule, ...]:
+                  return tuple(
+                      rule
+                      for profile in active_graph_audit_profiles()
+                      for rule in profile.rules
+                  )
+
+              def graph_audit_identity() -> tuple[str, str]:
+                  profiles = active_graph_audit_profiles()
+                  if len(profiles) == 1:
+                      profile = profiles[0]
+                      return profile.audit_prefix, profile.ruleset_version
+                  if not profiles:
+                      return "graph", "none"
+                  key = "|".join(
+                      sorted(
+                          f"{profile.profile_id}@{profile.ruleset_version}"
+                          for profile in profiles
+                      )
+                  )
+                  version = f"composite-{sha256(key.encode('utf-8')).hexdigest()[:12]}"
+                  return "graph", version
+
+              def graph_audit_pattern() -> str:
+                  prefix, _ = graph_audit_identity()
+                  return f"{prefix}-audit-*.json"
+
+              def serialize_graph_audit(project_id: str) -> dict[str, Any]:
+                  graph = building_graph_repository(project_id).load()
+                  profiles = active_graph_audit_profiles()
+                  result = GraphRuleEngine().evaluate(graph, active_graph_rules())
+                  summary = dict(result.summary)
+                  for profile in profiles:
+                      for category in profile.summary_categories:
+                          summary.setdefault(category, 0)
+                  graph_payload = json.dumps(
+                      graph, sort_keys=True, separators=(",", ":"), ensure_ascii=False
+                  )
+                  graph_checksum = sha256(graph_payload.encode("utf-8")).hexdigest()
+                  _, ruleset_version = graph_audit_identity()
+                  metadata = dict(result.metadata)
+                  for profile in profiles:
+                      metadata.update(profile.metadata)
+                  metadata.update(
+                      {
+                          "rule_version": ruleset_version,
+                          "profiles": [profile.profile_id for profile in profiles],
+                      }
+                  )
+                  return {
+                      "project_id": _safe_project_id(project_id),
+                      "graph_checksum": graph_checksum,
+                      "summary": summary,
+                      "metadata": metadata,
+                      "findings": [_jsonable(asdict(item)) for item in result.findings],
+                  }
+          '''
+          assert text.count(old_audit) == 1
+          text = text.replace(old_audit, new_audit, 1)
+
+          old_audit_id = '        audit_id = f"vent:audit:{sha256(audit_key.encode(\'utf-8\')).hexdigest()[:20]}"\n'
+          new_audit_id = '''        audit_prefix, _ = graph_audit_identity()
+                  audit_id = f"{audit_prefix}:audit:{sha256(audit_key.encode('utf-8')).hexdigest()[:20]}"
+          '''
+          assert text.count(old_audit_id) == 1
+          text = text.replace(old_audit_id, new_audit_id, 1)
+
+          assert text.count('"vent-audit-*.json"') >= 1
+          text = text.replace('"vent-audit-*.json"', "graph_audit_pattern()")
+          assert text.count("len(VENT_GRAPH_RULES) + 4") == 1
+          text = text.replace("len(VENT_GRAPH_RULES) + 4", "len(active_graph_rules()) + 4", 1)
+          assert text.count("(*VENT_GRAPH_RULES, *evidence_rules)") == 1
+          text = text.replace(
+              "(*VENT_GRAPH_RULES, *evidence_rules)",
+              "(*active_graph_rules(), *evidence_rules)",
+              1,
+          )
+          assert text.count("VentAuditDiffer()") == 2
+          text = text.replace("VentAuditDiffer()", "GraphAuditDiffer()")
+          assert text.count("VentResolutionVerificationService().decide(") == 1
+          text = text.replace(
+              "VentResolutionVerificationService().decide(",
+              "GraphResolutionVerificationService(namespace=graph_audit_identity()[0]).decide(",
+              1,
+          )
+          assert text.count('"review_id": f"vent:finding-review:{review_digest}",') == 1
+          text = text.replace(
+              '"review_id": f"vent:finding-review:{review_digest}",',
+              '"review_id": f"{graph_audit_identity()[0]}:finding-review:{review_digest}",',
+              1,
+          )
+
+          legacy_start = '    @app.get("/api/vent/registry")\n'
+          return_marker = "    return app\n\n\napp = create_app()"
+          assert text.count(legacy_start) == 1
+          start = text.index(legacy_start)
+          end = text.index(return_marker, start)
+          text = text[:start] + text[end:]
+
+          forbidden = (
+              "from crow_vent",
+              "import crow_vent",
+              "VENT_GRAPH_RULES",
+              "VentGraphAudit",
+              "VentAuditDiffer",
+              "VentResolutionVerificationService",
+              "build_vent_model",
+              "component_registry",
+              "quantity_takeoff_csv",
+              '@app.get("/api/vent/registry")',
+              '@app.get("/api/projects/{project_id}/vent/{checksum}")',
+              '@app.post("/api/projects/{project_id}/takeoff")',
+              '@app.get("/api/projects/{project_id}/vent/{checksum}/quantity.csv")',
+              '@app.get("/api/projects/{project_id}/vent/{checksum}/review")',
+          )
+          for value in forbidden:
+              assert value not in text, value
+          app_path.write_text(text, encoding="utf-8")
+
+          workbench_test = Path("tests/test_workbench.py")
+          tests = workbench_test.read_text(encoding="utf-8")
+          old = '''from fastapi.testclient import TestClient
+
+from crow_workbench.app import create_app
+'''
+          new = '''from fastapi import FastAPI
+from fastapi.testclient import TestClient
+
+from crow_vent_module.plugin import CrowVentModulePlugin
+from crow_workbench.app import create_app as create_core_app
+
+
+def create_app(data_root: Path) -> FastAPI:
+    app = create_core_app(data_root)
+    app.state.crow_graph_audit_profiles = CrowVentModulePlugin().graph_audit_profiles()
+    return app
+'''
+          assert tests.count(old) == 1
+          tests = tests.replace(old, new, 1)
+          workbench_test.write_text(tests, encoding="utf-8")
+
+          canonical_test = Path("tests/test_crow_canonical.py")
+          tests = canonical_test.read_text(encoding="utf-8")
+          old = '''from crow_building_graph import BuildingGraphService, GraphRepository
+          from crow_canonical import CanonicalGraphBridge, CanonicalObjectType, VentCanonicalAdapter
+          from crow_vent import VentTextInterpreter
+'''
+          new = '''from crow_building_graph import BuildingGraphService, GraphRepository
+          from crow_canonical import CanonicalGraphBridge, CanonicalObjectType
+          from crow_vent import VentCanonicalAdapter, VentCanonicalAssembler, VentTextInterpreter
+'''
+          assert tests.count(old) == 1
+          tests = tests.replace(old, new, 1)
+          tests = tests.replace("    from crow_canonical import VentCanonicalAssembler\n\n", "")
+          tests = tests.replace(
+              "        VentCanonicalAssembler,\n",
+              "",
+          )
+          tests = tests.replace(
+              "    from crow_canonical import CanonicalProvenanceService, VentCanonicalAdapter\n",
+              "    from crow_canonical import CanonicalProvenanceService\n",
+          )
+          canonical_test.write_text(tests, encoding="utf-8")
+
+          legacy_adapter = Path("src/crow_canonical/vent_adapter.py")
+          assert legacy_adapter.exists()
+          legacy_adapter.unlink()
+          PY
+      - name: Install test environment
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e ".[dev]"
+          for module in modules/*; do
+            if [ -f "$module/pyproject.toml" ]; then
+              python -m pip install -e "$module"
+            fi
+          done
+      - name: Format and validate changed sources
+        run: |
+          ruff format src/crow_workbench/app.py tests/test_workbench.py tests/test_crow_canonical.py
+          ruff check src/crow_workbench/app.py tests/test_workbench.py tests/test_crow_canonical.py src/crow_graph_rules modules/crow-vent-module/src/crow_vent modules/crow-vent-module/src/crow_vent_module/plugin.py
+          python -m py_compile src/crow_workbench/app.py src/crow_workbench/shell.py
+          ! grep -R --include='*.py' -nE '(^|[[:space:]])(from|import)[[:space:]]+crow_vent' src
+          ! test -e src/crow_canonical/vent_adapter.py
+      - name: Run Pass106 regression tests
+        run: |
+          pytest -q \
+            tests/test_core_without_vent.py \
+            tests/test_graph_audit_runtime.py \
+            tests/test_module_web_extensions.py \
+            tests/test_rule_explorer.py \
+            tests/test_crow_canonical.py \
+            tests/test_crow_cad_text.py \
+            tests/test_workbench.py
+      - name: Commit verified migration
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -- \
+            src/crow_workbench/app.py \
+            tests/test_workbench.py \
+            tests/test_crow_canonical.py
+          git add -u -- src/crow_canonical/vent_adapter.py
+          git diff --cached --check
+          git commit -m "refactor(core): remove Vent runtime dependency [pass106-core-applied]"
+          git push origin HEAD:pass106-core-vent-decoupling-clean
