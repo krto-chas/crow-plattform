@@ -1,3 +1,4 @@
+from .assembly import CanonicalAssembly
 from .graph_bridge import CanonicalGraphBridge
 from .identity_review import (
     IdentityReview,
@@ -14,6 +15,7 @@ from .relations import (
 )
 
 __all__ = [
+    "CanonicalAssembly",
     "CanonicalEvidence",
     "CanonicalGraphBridge",
     "CanonicalObject",
