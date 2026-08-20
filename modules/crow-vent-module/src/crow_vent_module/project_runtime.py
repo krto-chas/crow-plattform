@@ -4,7 +4,7 @@ import json
 from dataclasses import asdict
 from enum import Enum
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 from fastapi import HTTPException
 
@@ -12,6 +12,7 @@ from crow_geometry_framework import consolidate_observations, geometry_from_impo
 from crow_takeoff_consolidation import (
     PriceBook,
     PriceBookEntry,
+    SourceTakeoff,
     consolidate_takeoffs,
     price_consolidated_takeoff,
     takeoff_from_geometry,
@@ -62,11 +63,12 @@ class VentProjectRuntime:
             layers=[layer] if layer else None,
             visible_only=visible_only,
         )
-        return _jsonable(build_vent_model(candidates))
+        return cast(dict[str, Any], _jsonable(build_vent_model(candidates)))
 
     def takeoff(self, project_id: str, body: dict[str, Any]) -> dict[str, Any]:
-        takeoffs = []
-        for checksum in body.get("geometry_checksums", []):
+        takeoffs: list[SourceTakeoff] = []
+        geometry_checksums = cast(list[object], body.get("geometry_checksums") or [])
+        for checksum in geometry_checksums:
             model = self.model(project_id, str(checksum))
             takeoffs.append(
                 takeoff_from_geometry(
@@ -74,7 +76,7 @@ class VentProjectRuntime:
                 )
             )
 
-        table_rows = body.get("table_rows") or []
+        table_rows = cast(list[list[str]], body.get("table_rows") or [])
         if table_rows:
             takeoffs.append(
                 takeoff_from_table(
@@ -84,7 +86,7 @@ class VentProjectRuntime:
                 )
             )
 
-        text_segments = body.get("text_segments") or []
+        text_segments = cast(list[str], body.get("text_segments") or [])
         if text_segments:
             takeoffs.append(
                 takeoff_from_text(
@@ -105,7 +107,8 @@ class VentProjectRuntime:
 
         priced: dict[str, Any] | None = None
         raw_book = body.get("price_book")
-        if raw_book:
+        if isinstance(raw_book, dict):
+            entries = cast(list[dict[str, Any]], raw_book.get("entries", []))
             book = PriceBook(
                 price_book_id=str(raw_book.get("price_book_id", "prisbok")),
                 currency=str(raw_book.get("currency", "SEK")),
@@ -120,7 +123,7 @@ class VentProjectRuntime:
                         labour_hours_per_unit=float(entry.get("labour_hours_per_unit", 0.0)),
                         article=entry.get("article"),
                     )
-                    for entry in raw_book.get("entries", [])
+                    for entry in entries
                 ),
             )
             priced = price_consolidated_takeoff(consolidated, book)
@@ -133,9 +136,8 @@ class VentProjectRuntime:
 
     def review(self, project_id: str, checksum: str) -> dict[str, Any]:
         model = self.model(project_id, checksum)
-        items = [
-            item for item in model["classifications"] if item["status"] == "needs_review"
-        ]
+        classifications = cast(list[dict[str, Any]], model.get("classifications", []))
+        items = [item for item in classifications if item["status"] == "needs_review"]
         return {"count": len(items), "items": items}
 
     def imported_asset(self, project_id: str, checksum: str) -> dict[str, Any]:
@@ -145,7 +147,7 @@ class VentProjectRuntime:
         manifest = self._projects_root / safe_project_id / "imports" / f"{safe_checksum}.json"
         if not manifest.exists():
             raise HTTPException(status_code=404, detail="Importerad tillgång finns inte")
-        return json.loads(manifest.read_text(encoding="utf-8"))
+        return cast(dict[str, Any], json.loads(manifest.read_text(encoding="utf-8")))
 
     def _require_project(self, project_id: str) -> Path:
         path = self._projects_root / project_id / "crow-project.json"
@@ -162,7 +164,7 @@ class VentProjectRuntime:
         )
         if not path.exists():
             return {"layers": {}}
-        return json.loads(path.read_text(encoding="utf-8"))
+        return cast(dict[str, Any], json.loads(path.read_text(encoding="utf-8")))
 
 
 def _safe_project_id(project_id: str) -> str:
