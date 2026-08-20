@@ -100,5 +100,14 @@ class CrowVentModulePlugin:
             "Vent module is ready" if lexicon_ok else "Lexicon failed self-test",
         )
 
+    def replaces_core_routes(self) -> tuple[str, ...]:
+        return (
+            "/api/vent/registry",
+            "/api/projects/{project_id}/vent/{checksum}",
+            "/api/projects/{project_id}/takeoff",
+            "/api/projects/{project_id}/vent/{checksum}/quantity.csv",
+            "/api/projects/{project_id}/vent/{checksum}/review",
+        )
+
     def routers(self, data_root: Path) -> tuple[APIRouter, ...]:
         return (vent_router(data_root), vent_quote_router(data_root))
