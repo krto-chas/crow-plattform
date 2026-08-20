@@ -18,7 +18,7 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-      - name: Apply exact core migration
+      - name: Apply marker-based core migration
         run: |
           python - <<'PY'
           from pathlib import Path
@@ -26,8 +26,9 @@ jobs:
           app_path = Path("src/crow_workbench/app.py")
           text = app_path.read_text(encoding="utf-8")
 
-          graph_import = "from crow_graph_explorer import GraphExplorerBuilder\n"
-          graph_rules_import = '''from crow_graph_explorer import GraphExplorerBuilder
+          graph_marker = "from crow_graph_explorer import GraphExplorerBuilder\n"
+          assert text.count(graph_marker) == 1
+          graph_imports = '''from crow_graph_explorer import GraphExplorerBuilder
           from crow_graph_rules import (
               GraphAuditDiffer,
               GraphAuditProfile,
@@ -36,36 +37,20 @@ jobs:
               GraphRuleEngine,
           )
           '''
-          assert text.count(graph_import) == 1
-          text = text.replace(graph_import, graph_rules_import, 1)
+          text = text.replace(graph_marker, graph_imports, 1)
 
-          vent_import = '''from crow_vent import (
-              VentAuditDiffer,
-              VentGraphAudit,
-              VentResolutionVerificationService,
-              build_vent_model,
-              component_registry,
-              quantity_takeoff_csv,
-          )
-          from crow_vent.graph_audit import VENT_GRAPH_RULES
-          '''
-          assert text.count(vent_import) == 1
-          text = text.replace(vent_import, "", 1)
+          vent_start = text.index("from crow_vent import (\n")
+          vent_end_marker = "from crow_vent.graph_audit import VENT_GRAPH_RULES\n"
+          vent_end = text.index(vent_end_marker, vent_start) + len(vent_end_marker)
+          text = text[:vent_start] + text[vent_end:]
 
-          old_audit = '''    def serialize_graph_audit(project_id: str) -> dict[str, Any]:
-              graph = building_graph_repository(project_id).load()
-              result = VentGraphAudit().audit(graph)
-              graph_payload = json.dumps(graph, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
-              graph_checksum = sha256(graph_payload.encode("utf-8")).hexdigest()
-              return {
-                  "project_id": _safe_project_id(project_id),
-                  "graph_checksum": graph_checksum,
-                  "summary": result.summary,
-                  "metadata": result.metadata,
-                  "findings": [_jsonable(asdict(item)) for item in result.findings],
-              }
-          '''
-          new_audit = '''    def active_graph_audit_profiles() -> tuple[GraphAuditProfile, ...]:
+          audit_start_marker = "    def serialize_graph_audit(project_id: str) -> dict[str, Any]:\n"
+          audit_end_marker = "    def persist_graph_audit(project_id: str) -> tuple[dict[str, Any], bool]:\n"
+          assert text.count(audit_start_marker) == 1
+          assert text.count(audit_end_marker) == 1
+          audit_start = text.index(audit_start_marker)
+          audit_end = text.index(audit_end_marker, audit_start)
+          audit_helpers = '''    def active_graph_audit_profiles() -> tuple[GraphAuditProfile, ...]:
               raw: Any = getattr(app.state, "crow_graph_audit_profiles", ())
               if not isinstance(raw, tuple):
                   return ()
@@ -91,8 +76,7 @@ jobs:
                           for profile in profiles
                       )
                   )
-                  version = f"composite-{sha256(key.encode('utf-8')).hexdigest()[:12]}"
-                  return "graph", version
+                  return "graph", f"composite-{sha256(key.encode('utf-8')).hexdigest()[:12]}"
 
               def graph_audit_pattern() -> str:
                   prefix, _ = graph_audit_identity()
@@ -127,18 +111,21 @@ jobs:
                       "metadata": metadata,
                       "findings": [_jsonable(asdict(item)) for item in result.findings],
                   }
-          '''
-          assert text.count(old_audit) == 1
-          text = text.replace(old_audit, new_audit, 1)
 
-          old_audit_id = '        audit_id = f"vent:audit:{sha256(audit_key.encode(\'utf-8\')).hexdigest()[:20]}"\n'
-          new_audit_id = '''        audit_prefix, _ = graph_audit_identity()
+          '''
+          text = text[:audit_start] + audit_helpers + text[audit_end:]
+
+          old = '        audit_id = f"vent:audit:{sha256(audit_key.encode(\'utf-8\')).hexdigest()[:20]}"\n'
+          assert text.count(old) == 1
+          text = text.replace(
+              old,
+              '''        audit_prefix, _ = graph_audit_identity()
                   audit_id = f"{audit_prefix}:audit:{sha256(audit_key.encode('utf-8')).hexdigest()[:20]}"
-          '''
-          assert text.count(old_audit_id) == 1
-          text = text.replace(old_audit_id, new_audit_id, 1)
+          ''',
+              1,
+          )
 
-          assert text.count('"vent-audit-*.json"') >= 1
+          assert text.count('"vent-audit-*.json"') == 8
           text = text.replace('"vent-audit-*.json"', "graph_audit_pattern()")
           assert text.count("len(VENT_GRAPH_RULES) + 4") == 1
           text = text.replace("len(VENT_GRAPH_RULES) + 4", "len(active_graph_rules()) + 4", 1)
@@ -163,12 +150,13 @@ jobs:
               1,
           )
 
-          legacy_start = '    @app.get("/api/vent/registry")\n'
+          legacy_start_marker = '    @app.get("/api/vent/registry")\n'
           return_marker = "    return app\n\n\napp = create_app()"
-          assert text.count(legacy_start) == 1
-          start = text.index(legacy_start)
-          end = text.index(return_marker, start)
-          text = text[:start] + text[end:]
+          assert text.count(legacy_start_marker) == 1
+          assert text.count(return_marker) == 1
+          legacy_start = text.index(legacy_start_marker)
+          legacy_end = text.index(return_marker, legacy_start)
+          text = text[:legacy_start] + text[legacy_end:]
 
           forbidden = (
               "from crow_vent",
@@ -190,50 +178,50 @@ jobs:
               assert value not in text, value
           app_path.write_text(text, encoding="utf-8")
 
-          workbench_test = Path("tests/test_workbench.py")
-          tests = workbench_test.read_text(encoding="utf-8")
-          old = '''from fastapi.testclient import TestClient
-
-from crow_workbench.app import create_app
-'''
-          new = '''from fastapi import FastAPI
-from fastapi.testclient import TestClient
-
-from crow_vent_module.plugin import CrowVentModulePlugin
-from crow_workbench.app import create_app as create_core_app
-
-
-def create_app(data_root: Path) -> FastAPI:
-    app = create_core_app(data_root)
-    app.state.crow_graph_audit_profiles = CrowVentModulePlugin().graph_audit_profiles()
-    return app
-'''
-          assert tests.count(old) == 1
-          tests = tests.replace(old, new, 1)
-          workbench_test.write_text(tests, encoding="utf-8")
-
-          canonical_test = Path("tests/test_crow_canonical.py")
-          tests = canonical_test.read_text(encoding="utf-8")
-          old = '''from crow_building_graph import BuildingGraphService, GraphRepository
-          from crow_canonical import CanonicalGraphBridge, CanonicalObjectType, VentCanonicalAdapter
-          from crow_vent import VentTextInterpreter
-'''
-          new = '''from crow_building_graph import BuildingGraphService, GraphRepository
-          from crow_canonical import CanonicalGraphBridge, CanonicalObjectType
-          from crow_vent import VentCanonicalAdapter, VentCanonicalAssembler, VentTextInterpreter
-'''
-          assert tests.count(old) == 1
-          tests = tests.replace(old, new, 1)
-          tests = tests.replace("    from crow_canonical import VentCanonicalAssembler\n\n", "")
+          workbench_path = Path("tests/test_workbench.py")
+          tests = workbench_path.read_text(encoding="utf-8")
+          assert tests.count("from crow_workbench.app import create_app\n") == 1
           tests = tests.replace(
-              "        VentCanonicalAssembler,\n",
-              "",
+              "from fastapi.testclient import TestClient\n\nfrom crow_workbench.app import create_app\n",
+              '''from fastapi import FastAPI
+          from fastapi.testclient import TestClient
+
+          from crow_vent_module.plugin import CrowVentModulePlugin
+          from crow_workbench.app import create_app as create_core_app
+
+
+          def create_app(data_root: Path) -> FastAPI:
+              app = create_core_app(data_root)
+              app.state.crow_graph_audit_profiles = CrowVentModulePlugin().graph_audit_profiles()
+              return app
+          ''',
+              1,
           )
+          workbench_path.write_text(tests, encoding="utf-8")
+
+          canonical_path = Path("tests/test_crow_canonical.py")
+          tests = canonical_path.read_text(encoding="utf-8")
+          assert tests.count(
+              "from crow_canonical import CanonicalGraphBridge, CanonicalObjectType, VentCanonicalAdapter\n"
+          ) == 1
+          tests = tests.replace(
+              "from crow_canonical import CanonicalGraphBridge, CanonicalObjectType, VentCanonicalAdapter\n",
+              "from crow_canonical import CanonicalGraphBridge, CanonicalObjectType\n",
+              1,
+          )
+          assert tests.count("from crow_vent import VentTextInterpreter\n") == 1
+          tests = tests.replace(
+              "from crow_vent import VentTextInterpreter\n",
+              "from crow_vent import VentCanonicalAdapter, VentCanonicalAssembler, VentTextInterpreter\n",
+              1,
+          )
+          tests = tests.replace("    from crow_canonical import VentCanonicalAssembler\n\n", "")
+          tests = tests.replace("        VentCanonicalAssembler,\n", "")
           tests = tests.replace(
               "    from crow_canonical import CanonicalProvenanceService, VentCanonicalAdapter\n",
               "    from crow_canonical import CanonicalProvenanceService\n",
           )
-          canonical_test.write_text(tests, encoding="utf-8")
+          canonical_path.write_text(tests, encoding="utf-8")
 
           legacy_adapter = Path("src/crow_canonical/vent_adapter.py")
           assert legacy_adapter.exists()
@@ -248,10 +236,40 @@ def create_app(data_root: Path) -> FastAPI:
               python -m pip install -e "$module"
             fi
           done
-      - name: Format and validate changed sources
+      - name: Format and validate Pass106 scope
         run: |
-          ruff format src/crow_workbench/app.py tests/test_workbench.py tests/test_crow_canonical.py
-          ruff check src/crow_workbench/app.py tests/test_workbench.py tests/test_crow_canonical.py src/crow_graph_rules modules/crow-vent-module/src/crow_vent modules/crow-vent-module/src/crow_vent_module/plugin.py
+          ruff format \
+            src/crow_graph_rules \
+            src/crow_module_sdk/web.py \
+            src/crow_workbench/app.py \
+            src/crow_workbench/shell.py \
+            src/crow_canonical \
+            src/crow_cad_text \
+            modules/crow-vent-module/src/crow_vent \
+            modules/crow-vent-module/src/crow_vent_module/plugin.py \
+            tests/test_core_without_vent.py \
+            tests/test_graph_audit_runtime.py \
+            tests/test_module_web_extensions.py \
+            tests/test_rule_explorer.py \
+            tests/test_crow_canonical.py \
+            tests/test_crow_cad_text.py \
+            tests/test_workbench.py
+          ruff check \
+            src/crow_graph_rules \
+            src/crow_module_sdk/web.py \
+            src/crow_workbench/app.py \
+            src/crow_workbench/shell.py \
+            src/crow_canonical \
+            src/crow_cad_text \
+            modules/crow-vent-module/src/crow_vent \
+            modules/crow-vent-module/src/crow_vent_module/plugin.py \
+            tests/test_core_without_vent.py \
+            tests/test_graph_audit_runtime.py \
+            tests/test_module_web_extensions.py \
+            tests/test_rule_explorer.py \
+            tests/test_crow_canonical.py \
+            tests/test_crow_cad_text.py \
+            tests/test_workbench.py
           python -m py_compile src/crow_workbench/app.py src/crow_workbench/shell.py
           ! grep -R --include='*.py' -nE '(^|[[:space:]])(from|import)[[:space:]]+crow_vent' src
           ! test -e src/crow_canonical/vent_adapter.py
@@ -270,9 +288,21 @@ def create_app(data_root: Path) -> FastAPI:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -- \
+            src/crow_graph_rules \
+            src/crow_module_sdk/web.py \
             src/crow_workbench/app.py \
-            tests/test_workbench.py \
-            tests/test_crow_canonical.py
+            src/crow_workbench/shell.py \
+            src/crow_canonical \
+            src/crow_cad_text \
+            modules/crow-vent-module/src/crow_vent \
+            modules/crow-vent-module/src/crow_vent_module/plugin.py \
+            tests/test_core_without_vent.py \
+            tests/test_graph_audit_runtime.py \
+            tests/test_module_web_extensions.py \
+            tests/test_rule_explorer.py \
+            tests/test_crow_canonical.py \
+            tests/test_crow_cad_text.py \
+            tests/test_workbench.py
           git add -u -- src/crow_canonical/vent_adapter.py
           git diff --cached --check
           git commit -m "refactor(core): remove Vent runtime dependency [pass106-core-applied]"
