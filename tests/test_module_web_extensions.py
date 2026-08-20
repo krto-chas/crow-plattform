@@ -4,8 +4,8 @@ from fastapi import FastAPI
 from fastapi.routing import APIRoute
 
 from crow_module_sdk.module_registry import ModuleRegistry
-from crow_module_sdk.web import CrowCoreRouteOwner, CrowWebModule
-from crow_workbench.shell import create_app
+from crow_module_sdk.web import CoreRouteClaim, CrowCoreRouteOwner, CrowWebModule
+from crow_workbench.shell import _remove_core_routes, create_app
 
 
 def test_first_party_domain_modules_are_discoverable() -> None:
@@ -19,7 +19,9 @@ def test_first_party_domain_modules_are_discoverable() -> None:
 
     vent = by_id["crow.vent"].plugin
     assert isinstance(vent, CrowCoreRouteOwner)
-    assert "/api/projects/{project_id}/takeoff" in vent.replaces_core_routes()
+    assert CoreRouteClaim("POST", "/api/projects/{project_id}/takeoff") in (
+        vent.replaces_core_routes()
+    )
 
 
 def test_workbench_mounts_module_routes_from_registry(tmp_path: Path) -> None:
@@ -53,6 +55,19 @@ def test_platform_composes_vent_product_routes_from_module(tmp_path: Path) -> No
         matching = _matching_routes(app, method, path)
         assert len(matching) == 1
         assert matching[0].endpoint.__module__.startswith("crow_vent_module")
+
+
+def test_core_route_claim_removes_only_claimed_method() -> None:
+    app = FastAPI()
+
+    @app.api_route("/probe", methods=["GET", "POST"])
+    def probe() -> dict[str, bool]:
+        return {"ok": True}
+
+    _remove_core_routes(app, (CoreRouteClaim("GET", "/probe"),))
+
+    assert _matching_routes(app, "GET", "/probe") == []
+    assert len(_matching_routes(app, "POST", "/probe")) == 1
 
 
 def _matching_routes(app: FastAPI, method: str, path: str) -> list[APIRoute]:
