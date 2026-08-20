@@ -106,6 +106,7 @@ def _router(
                 "name": module.name,
                 "route": module.route,
                 "api_prefixes": list(module.api_prefixes),
+                "api_routes": list(module.api_routes),
                 "data_dependencies": list(module.data_dependencies),
                 "requires_modules": list(module.requires_modules),
                 "runtime_module_id": module.runtime_module_id,
