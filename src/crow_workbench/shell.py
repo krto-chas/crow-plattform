@@ -32,10 +32,13 @@ def create_app(data_root: Path | None = None, config_root: Path | None = None) -
 
     registry = ModuleRegistry()
     registered_modules = registry.discover()
+    core_route_owners: dict[CoreRouteClaim, str] = {}
     for registered in registered_modules:
         plugin = registered.plugin
         if isinstance(plugin, CrowCoreRouteOwner):
-            _remove_core_routes(app, plugin.replaces_core_routes())
+            claims = plugin.replaces_core_routes()
+            _register_core_route_claims(core_route_owners, registered.module_id, claims)
+            _remove_core_routes(app, claims)
 
     for registered in registered_modules:
         plugin = registered.plugin
@@ -160,10 +163,25 @@ def _remove_core_index(app: FastAPI) -> None:
     ]
 
 
+def _register_core_route_claims(
+    owners: dict[CoreRouteClaim, str],
+    module_id: str,
+    claims: tuple[CoreRouteClaim, ...],
+) -> None:
+    for claim in claims:
+        previous = owners.get(claim)
+        if previous is not None:
+            raise RuntimeError(
+                f"Core route {claim.method} {claim.path} is claimed by both "
+                f"{previous} and {module_id}"
+            )
+        owners[claim] = module_id
+
+
 def _remove_core_routes(app: FastAPI, claims: tuple[CoreRouteClaim, ...]) -> None:
     claimed_by_path: dict[str, set[str]] = {}
     for claim in claims:
-        claimed_by_path.setdefault(claim.path, set()).add(claim.method.upper())
+        claimed_by_path.setdefault(claim.path, set()).add(claim.method)
 
     retained = []
     for route in app.router.routes:
