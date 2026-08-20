@@ -73,6 +73,23 @@ def test_byggnad_rejects_negative_values() -> None:
         Byggnad(byggnad_id="b1", internt_namn="Hus A", antal_lagenheter=-1)
 
 
+def test_fastighetstyp_roundtrip_and_default() -> None:
+    from crow_ovk_fastighet import Fastighetstyp
+
+    default = Fastighet(fastighet_id="x", project_id="p1", fastighetsbeteckning="Berget 1")
+    assert default.fastighetstyp is Fastighetstyp.FLERBOSTADSHUS
+    villa = fastighet_from_payload(
+        {
+            "fastighet_id": "v1",
+            "project_id": "p1",
+            "fastighetsbeteckning": "Villan 2",
+            "fastighetstyp": "villa",
+        }
+    )
+    assert villa.fastighetstyp is Fastighetstyp.VILLA
+    assert fastighet_to_payload(villa)["fastighetstyp"] == "villa"
+
+
 def test_fastighet_payload_roundtrip_serializes_bra_as_string() -> None:
     fastighet = _fastighet()
     payload = fastighet_to_payload(fastighet)

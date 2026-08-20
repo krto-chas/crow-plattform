@@ -29,14 +29,14 @@ function renderByggnader(){$('byggnader').innerHTML=byggnader.map((item,index)=>
 
 $('addByggnad').onclick=()=>{byggnader.push({byggnad_id:'bygg-'+Date.now().toString(36),internt_namn:'',internt_nr:'',verksamhet:'',bra_m2:null,antal_lagenheter:null,antal_lokaler:null});renderByggnader()};
 
-function fillFastighet(data){$('fastighetId').value=data.fastighet_id||'';$('referensnr').value=data.referensnr||'';$('beteckning').value=data.fastighetsbeteckning||'';
+function fillFastighet(data){$('fastighetId').value=data.fastighet_id||'';$('referensnr').value=data.referensnr||'';$('beteckning').value=data.fastighetsbeteckning||'';$('fastighetstyp').value=data.fastighetstyp||'flerbostadshus';
   const b=data.byggnadens_adress||{};$('bGata').value=b.gata||'';$('bPostnr').value=b.postnr||'';$('bOrt').value=b.ort||'';
   $('agare').value=data.byggnadsagare_namn||'';const a=data.byggnadsagare_adress||{};$('aGata').value=a.gata||'';$('aPostnr').value=a.postnr||'';$('aOrt').value=a.ort||'';
   const f=data.faktureringsadress||{};$('fGata').value=f.gata||'';$('fPostnr').value=f.postnr||'';$('fOrt').value=f.ort||'';
   const fv=data.forvaltare||{};$('forvNamn').value=fv.namn||'';$('forvTel').value=fv.telefon||'';$('forvEpost').value=fv.epost||'';
   byggnader=(data.byggnader||[]).map(item=>({...item}));renderByggnader()}
 
-function buildFastighet(){return{referensnr:$('referensnr').value,fastighetsbeteckning:$('beteckning').value,
+function buildFastighet(){return{referensnr:$('referensnr').value,fastighetsbeteckning:$('beteckning').value,fastighetstyp:$('fastighetstyp').value,
   byggnadens_adress:{gata:$('bGata').value,postnr:$('bPostnr').value,ort:$('bOrt').value},
   byggnadsagare_namn:$('agare').value,
   byggnadsagare_adress:{gata:$('aGata').value,postnr:$('aPostnr').value,ort:$('aOrt').value},

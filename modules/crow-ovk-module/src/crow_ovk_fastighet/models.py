@@ -20,6 +20,16 @@ from enum import StrEnum
 SCHEMA_VERSION = "crow-ovk-fastighet-v0.1"
 
 
+class Fastighetstyp(StrEnum):
+    """Styr besiktningsflödet i fält: flerbostadshus kör lägenhetslista,
+    övriga typer går direkt in i objektbesiktningen."""
+
+    VILLA = "villa"
+    FLERBOSTADSHUS = "flerbostadshus"
+    KONTORSBYGGNAD = "kontorsbyggnad"
+    INDUSTRIFASTIGHET = "industrifastighet"
+
+
 class Behorighet(StrEnum):
     """Behörighetsnivå för funktionskontrollant enligt BFS 2011:16."""
 
@@ -81,6 +91,7 @@ class Fastighet:
     byggnadsagare_adress: Adress = field(default_factory=Adress)
     faktureringsadress: Adress = field(default_factory=Adress)
     forvaltare: Forvaltare = field(default_factory=Forvaltare)
+    fastighetstyp: Fastighetstyp = Fastighetstyp.FLERBOSTADSHUS
     byggnader: tuple[Byggnad, ...] = ()
     updated_at: str = ""
 
@@ -171,6 +182,7 @@ def fastighet_to_payload(fastighet: Fastighet) -> dict[str, object]:
         "byggnadsagare_namn": fastighet.byggnadsagare_namn,
         "byggnadsagare_adress": _adress_to_payload(fastighet.byggnadsagare_adress),
         "faktureringsadress": _adress_to_payload(fastighet.faktureringsadress),
+        "fastighetstyp": fastighet.fastighetstyp.value,
         "forvaltare": {
             "namn": fastighet.forvaltare.namn,
             "telefon": fastighet.forvaltare.telefon,
@@ -223,6 +235,9 @@ def fastighet_from_payload(payload: dict[str, object]) -> Fastighet:
         byggnadsagare_namn=str(payload.get("byggnadsagare_namn", "")),
         byggnadsagare_adress=_adress_from_payload(payload.get("byggnadsagare_adress")),
         faktureringsadress=_adress_from_payload(payload.get("faktureringsadress")),
+        fastighetstyp=Fastighetstyp(
+            str(payload.get("fastighetstyp", Fastighetstyp.FLERBOSTADSHUS.value))
+        ),
         forvaltare=Forvaltare(
             namn=str(forvaltare_payload.get("namn", "")),
             telefon=str(forvaltare_payload.get("telefon", "")),
