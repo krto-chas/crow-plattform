@@ -29,6 +29,7 @@ def create_app(data_root: Path | None = None, config_root: Path | None = None) -
     static_root = Path(__file__).parent / "static"
 
     _remove_core_index(app)
+    core_route_ids = frozenset(id(route) for route in app.router.routes)
 
     registry = ModuleRegistry()
     registered_modules = registry.discover()
@@ -38,13 +39,18 @@ def create_app(data_root: Path | None = None, config_root: Path | None = None) -
         if isinstance(plugin, CrowCoreRouteOwner):
             claims = plugin.replaces_core_routes()
             _register_core_route_claims(core_route_owners, registered.module_id, claims)
-            _remove_core_routes(app, claims)
 
     for registered in registered_modules:
         plugin = registered.plugin
         if isinstance(plugin, CrowWebModule):
             for router in plugin.routers(root):
                 app.include_router(router)
+
+    _remove_core_routes(
+        app,
+        tuple(core_route_owners),
+        core_route_ids=core_route_ids,
+    )
 
     configure_auth(app, config_root=resolved_config_root)
     configure_entitlement_shell(app, config_root=resolved_config_root)
@@ -178,11 +184,19 @@ def _register_core_route_claims(
         owners[claim] = module_id
 
 
-def _remove_core_routes(app: FastAPI, claims: tuple[CoreRouteClaim, ...]) -> None:
+def _remove_core_routes(
+    app: FastAPI,
+    claims: tuple[CoreRouteClaim, ...],
+    *,
+    core_route_ids: frozenset[int] | None = None,
+) -> None:
     unmatched = set(claims)
     retained = []
     for route in app.router.routes:
         if not isinstance(route, APIRoute):
+            retained.append(route)
+            continue
+        if core_route_ids is not None and id(route) not in core_route_ids:
             retained.append(route)
             continue
         claimed_methods = {
@@ -206,6 +220,7 @@ def _remove_core_routes(app: FastAPI, claims: tuple[CoreRouteClaim, ...]) -> Non
         )
         raise RuntimeError(f"Core route ownership claim did not match an existing route: {missing}")
     app.router.routes[:] = retained
+    app.openapi_schema = None
 
 
 app = create_app()
