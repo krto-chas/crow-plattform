@@ -5,10 +5,28 @@
     return document.querySelector('.project-item.active')?.dataset.id || requestedProject || '';
   }
 
-  function ventHref(fragment = '') {
+  function ventHref() {
     const projectId = currentProjectId();
     const query = projectId ? `?project_id=${encodeURIComponent(projectId)}` : '';
-    return `/vent${query}${fragment}`;
+    return `/vent${query}`;
+  }
+
+  function disableLegacyVent() {
+    if (typeof window.renderVent === 'function') {
+      window.renderVent = () => {};
+    }
+  }
+
+  async function ventIsAvailable() {
+    try {
+      const response = await fetch('/api/me/modules');
+      if (!response.ok) return false;
+      const payload = await response.json();
+      return (payload.modules || []).some(module => module.id === 'vent');
+    } catch (error) {
+      console.warn('Kunde inte läsa aktiva produktmoduler.', error);
+      return false;
+    }
   }
 
   function updateProductLinks() {
@@ -19,9 +37,7 @@
   }
 
   function installVentProductLink() {
-    if (typeof window.renderVent === 'function') {
-      window.renderVent = () => {};
-    }
+    disableLegacyVent();
 
     const oldRailButton = document.querySelector('[data-view="vent"]');
     if (oldRailButton) {
@@ -60,6 +76,11 @@
     updateProductLinks();
   }
 
+  function removeLegacyVentButton() {
+    disableLegacyVent();
+    document.querySelector('[data-view="vent"]')?.remove();
+  }
+
   async function openRequestedProject() {
     if (!requestedProject || typeof window.openProject !== 'function') return;
     try {
@@ -70,7 +91,8 @@
   }
 
   window.addEventListener('load', async () => {
-    installVentProductLink();
+    if (await ventIsAvailable()) installVentProductLink();
+    else removeLegacyVentButton();
     await openRequestedProject();
     updateProductLinks();
   }, {once: true});
