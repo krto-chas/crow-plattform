@@ -1,0 +1,25 @@
+name: Pass106 actions probe
+
+on:
+  push:
+    branches: [pass106-core-vent-decoupling-clean]
+
+permissions:
+  contents: write
+
+jobs:
+  probe:
+    if: ${{ !contains(github.event.head_commit.message, '[pass106-probe]') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: pass106-core-vent-decoupling-clean
+      - name: Record probe
+        run: |
+          printf '%s\n' "$GITHUB_SHA" > .pass106-probe-result
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -- .pass106-probe-result
+          git commit -m "chore(pass106): confirm actions [pass106-probe]"
+          git push origin HEAD:pass106-core-vent-decoupling-clean
