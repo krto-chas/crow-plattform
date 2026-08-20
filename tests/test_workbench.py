@@ -1,8 +1,16 @@
 from pathlib import Path
 
+from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-from crow_workbench.app import create_app
+from crow_vent_module.plugin import CrowVentModulePlugin
+from crow_workbench.app import create_app as create_core_app
+
+
+def create_app(data_root: Path) -> FastAPI:
+    app = create_core_app(data_root)
+    app.state.crow_graph_audit_profiles = CrowVentModulePlugin().graph_audit_profiles()
+    return app
 
 
 def test_create_and_list_project(tmp_path: Path) -> None:
