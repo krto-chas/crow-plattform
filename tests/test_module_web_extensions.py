@@ -4,7 +4,7 @@ from fastapi import FastAPI
 from fastapi.routing import APIRoute
 
 from crow_module_sdk.module_registry import ModuleRegistry
-from crow_module_sdk.web import CrowWebModule
+from crow_module_sdk.web import CrowCoreRouteOwner, CrowWebModule
 from crow_workbench.shell import create_app
 
 
@@ -16,6 +16,10 @@ def test_first_party_domain_modules_are_discoverable() -> None:
     assert {"crow.vent", "crow.provtryckning", "crow.ovk"} <= set(by_id)
     for module_id in ("crow.vent", "crow.provtryckning", "crow.ovk"):
         assert isinstance(by_id[module_id].plugin, CrowWebModule)
+
+    vent = by_id["crow.vent"].plugin
+    assert isinstance(vent, CrowCoreRouteOwner)
+    assert "/api/projects/{project_id}/takeoff" in vent.replaces_core_routes()
 
 
 def test_workbench_mounts_module_routes_from_registry(tmp_path: Path) -> None:
