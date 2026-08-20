@@ -29,7 +29,6 @@ def create_app(data_root: Path | None = None, config_root: Path | None = None) -
     static_root = Path(__file__).parent / "static"
 
     _remove_core_index(app)
-    core_route_ids = frozenset(id(route) for route in app.router.routes)
 
     registry = ModuleRegistry()
     registered_modules = registry.discover()
@@ -40,32 +39,13 @@ def create_app(data_root: Path | None = None, config_root: Path | None = None) -
             claims = claims_provider()
             _register_core_route_claims(core_route_owners, registered.module_id, claims)
 
-    mounted_module_ids: list[str] = []
-    module_router_paths: dict[str, tuple[str, ...]] = {}
+    _remove_core_routes(app, tuple(core_route_owners))
+
     for registered in registered_modules:
         routers_provider = getattr(registered.plugin, "routers", None)
         if callable(routers_provider):
-            routers = routers_provider(root)
-            module_router_paths[registered.module_id] = tuple(
-                str(route.path) for router in routers for route in router.routes
-            )
-            for router in routers:
+            for router in routers_provider(root):
                 app.include_router(router)
-            mounted_module_ids.append(registered.module_id)
-
-    routes_before_takeover = _paths_containing(app, "vent")
-    _remove_core_routes(
-        app,
-        tuple(core_route_owners),
-        core_route_ids=core_route_ids,
-    )
-    app.state.crow_module_composition_debug = {
-        "registered": tuple(item.module_id for item in registered_modules),
-        "mounted": tuple(mounted_module_ids),
-        "router_paths": module_router_paths,
-        "vent_before_takeover": routes_before_takeover,
-        "vent_after_takeover": _paths_containing(app, "vent"),
-    }
 
     configure_auth(app, config_root=resolved_config_root)
     configure_entitlement_shell(app, config_root=resolved_config_root)
@@ -199,19 +179,11 @@ def _register_core_route_claims(
         owners[claim] = module_id
 
 
-def _remove_core_routes(
-    app: FastAPI,
-    claims: tuple[CoreRouteClaim, ...],
-    *,
-    core_route_ids: frozenset[int] | None = None,
-) -> None:
+def _remove_core_routes(app: FastAPI, claims: tuple[CoreRouteClaim, ...]) -> None:
     unmatched = set(claims)
     retained = []
     for route in app.router.routes:
         if not isinstance(route, APIRoute):
-            retained.append(route)
-            continue
-        if core_route_ids is not None and id(route) not in core_route_ids:
             retained.append(route)
             continue
         claimed_methods = {
@@ -237,12 +209,6 @@ def _remove_core_routes(
         raise RuntimeError(f"Core route ownership claim did not match an existing route: {missing}")
     app.router.routes[:] = retained
     app.openapi_schema = None
-
-
-def _paths_containing(app: FastAPI, text: str) -> tuple[str, ...]:
-    return tuple(
-        str(route.path) for route in app.router.routes if text in str(getattr(route, "path", ""))
-    )
 
 
 app = create_app()
