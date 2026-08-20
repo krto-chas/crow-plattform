@@ -96,9 +96,7 @@ def test_module_api_is_denied_without_entitlement(tmp_path: Path, monkeypatch: o
     assert response.json()["detail"] == {"code": "MODULE_NOT_ACTIVE", "module": "vent"}
 
 
-def test_legacy_vent_api_is_denied_without_entitlement(
-    tmp_path: Path, monkeypatch: object
-) -> None:
+def test_legacy_vent_api_is_denied_without_entitlement(tmp_path: Path, monkeypatch: object) -> None:
     monkeypatch.setenv("CROW_MODE", "local")  # type: ignore[attr-defined]
     monkeypatch.setenv("CROW_CUSTOMER_ID", "acme")  # type: ignore[attr-defined]
     client = TestClient(create_app(tmp_path))
@@ -121,9 +119,7 @@ def test_module_api_is_available_with_entitlement(tmp_path: Path, monkeypatch: o
     assert response.status_code == 200
 
 
-def test_legacy_vent_api_is_available_with_entitlement(
-    tmp_path: Path, monkeypatch: object
-) -> None:
+def test_legacy_vent_api_is_available_with_entitlement(tmp_path: Path, monkeypatch: object) -> None:
     monkeypatch.setenv("CROW_MODE", "local")  # type: ignore[attr-defined]
     monkeypatch.setenv("CROW_CUSTOMER_ID", "acme")  # type: ignore[attr-defined]
     _write_entitlements(tmp_path, "acme", [{"id": "vent", "active": True}])
