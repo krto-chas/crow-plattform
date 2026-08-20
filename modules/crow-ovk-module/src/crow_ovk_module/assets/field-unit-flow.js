@@ -51,31 +51,42 @@ function unitAddStatus(message, warning = false) {
 }
 
 async function addFieldUnit(kind) {
-  const label = kind === 'premises' ? 'lokal' : 'lägenhet';
-  const number = (prompt('Nummer för ' + label + ':') || '').trim();
-  if (!number) return;
-  if (state.units.some(item => item.number === number)) {
-    unitAddStatus('Enhet ' + number + ' finns redan.', true);
+  const label = kind === 'premises' ? 'lokal(er)' : 'lägenhet(er)';
+  const text = (prompt('Nummer för ' + label + ' – en eller flera (t.ex. 1101-1104, 1201):') || '').trim();
+  if (!text) return;
+  let numbers;
+  try { numbers = parseSeries(text); } catch (error) { unitAddStatus(String(error.message || error), true); return; }
+  const existing = new Set(state.units.map(item => item.number));
+  const added = [];
+  let firstUnit = null;
+  for (const number of numbers) {
+    if (existing.has(number)) continue;
+    const unit = {
+      unit_id: uid('unit'),
+      inspection_id: state.inspection_id || document.getElementById('inspection').value.trim(),
+      number,
+      kind,
+      label: '',
+      status: 'ej_paborjad',
+      checked_at: null,
+      bom_at: null,
+      bom_note: '',
+      key: null,
+      system_type: null
+    };
+    state.units.push(unit);
+    existing.add(number);
+    added.push(number);
+    if (!firstUnit) firstUnit = unit;
+  }
+  if (!added.length) {
+    unitAddStatus('Alla angivna enheter finns redan.', true);
     return;
   }
-  const unit = {
-    unit_id: uid('unit'),
-    inspection_id: state.inspection_id || document.getElementById('inspection').value.trim(),
-    number,
-    kind,
-    label: '',
-    status: 'ej_paborjad',
-    checked_at: null,
-    bom_at: null,
-    bom_note: '',
-    key: null,
-    system_type: null
-  };
-  state.units.push(unit);
   await persist();
   renderRond();
-  unitAddStatus((kind === 'premises' ? 'Lokal ' : 'Lägenhet ') + number + ' tillagd.');
-  openUnit(unit.unit_id);
+  unitAddStatus(added.length + ' enhet(er) tillagda: ' + added.join(', '));
+  if (added.length === 1 && firstUnit) openUnit(firstUnit.unit_id);
 }
 
 const addApartmentButton = document.getElementById('addUnit');

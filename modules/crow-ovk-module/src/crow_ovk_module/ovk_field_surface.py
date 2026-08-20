@@ -159,6 +159,14 @@ def _validation_summary(data: FieldInspectionData) -> dict[str, Any]:
     }
 
 
+def _optional_classification(value: object) -> int | None:
+    if value is None or value == "":
+        return None
+    if isinstance(value, bool) or not isinstance(value, int | str):
+        raise ValueError("classification must be 0, 1 or 2")
+    return int(value)
+
+
 def _field_data_from_payload(payload: dict[str, Any]) -> FieldInspectionData:
     inspection_id = str(payload["inspection_id"])
     units = tuple(
@@ -198,6 +206,7 @@ def _field_data_from_payload(payload: dict[str, Any]) -> FieldInspectionData:
             system_id=_optional_str(item.get("system_id")),
             rule_refs=tuple(str(value) for value in item.get("rule_refs", [])),
             origin=EvidenceOrigin(str(item.get("origin", "observed"))),
+            classification=_optional_classification(item.get("classification")),
         )
         for item in _dict_items(payload.get("findings", []), "findings")
     )
@@ -347,6 +356,7 @@ def _field_data_to_payload(data: FieldInspectionData) -> dict[str, Any]:
                 "system_id": item.system_id,
                 "rule_refs": list(item.rule_refs),
                 "origin": item.origin.value,
+                "classification": item.classification,
             }
             for item in data.findings
         ],

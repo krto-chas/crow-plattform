@@ -246,6 +246,12 @@ class FieldFinding:
     system_id: str | None = None
     rule_refs: tuple[str, ...] = ()
     origin: EvidenceOrigin = EvidenceOrigin.OBSERVED
+    classification: int | None = None
+    """OVK-klassning: 0 upplysning, 1 godkänt men bör åtgärdas, 2 väsentlig brist (EG)."""
+
+    def __post_init__(self) -> None:
+        if self.classification is not None and self.classification not in (0, 1, 2):
+            raise ValueError("finding classification must be 0, 1 or 2")
 
     def to_ovk_finding(self, *, photo_evidence_ref: str | None = None) -> OvkFinding:
         return OvkFinding(

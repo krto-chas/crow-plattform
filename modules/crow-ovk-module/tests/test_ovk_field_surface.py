@@ -102,7 +102,7 @@ def test_field_page_exposes_offline_app_shell(tmp_path: Path) -> None:
     assert "renderUnitPreview" in unit_flow.text
     assert "addFieldUnit('apartment')" in unit_flow.text
     assert "addFieldUnit('premises')" in unit_flow.text
-    assert "openUnit(unit.unit_id)" in unit_flow.text
+    assert "openUnit(firstUnit.unit_id)" in unit_flow.text
     assert "confirm(" not in unit_flow.text
 
     auth = client.get("/ovk/falt/auth.js")
@@ -317,5 +317,60 @@ def test_field_sync_roundtrips_unit_system_type(tmp_path: Path) -> None:
     assert stored["payload"]["units"][0]["system_type"] == "FTX"
 
     units[0]["system_type"] = "FTZ"
+    rejected = client.put("/api/ovk/field/sync/ovk-1", json=payload)
+    assert rejected.status_code == 422
+
+
+def test_field_app_pass103_flows(tmp_path: Path) -> None:
+    client = _client(tmp_path)
+    app = client.get("/ovk/falt/app.js")
+    assert app.status_code == 200
+    # Besiktningsmannadropdown från registret, med offline-cache och fritext kvar.
+    assert "function fillInspectors(persons)" in app.text
+    assert "/api/ovk/registry/besiktningsman" in app.text
+    # Objektstyp styr flödet: icke-flerbostadshus går direkt in i objektet.
+    assert "object_type: 'flerbostadshus'" in app.text
+    assert "state.object_type!=='flerbostadshus'" in app.text
+    assert "async function prefillObjectType()" in app.text
+    # 0/1/2-klassning vid anmärkning, klass styr severity (EG-logik).
+    assert "const classification=severity==='major'?2:severity==='minor'?1:0;" in app.text
+    assert "finding.classification=cls" in app.text
+    # Banner för föregående besiktnings fel per enhet.
+    assert "prevFindings" in app.text
+    assert "anmärkning(ar) vid föregående besiktning" in app.text
+
+    page = client.get("/ovk/falt")
+    assert 'id="inspectorSelect"' in page.text
+    assert 'id="objectType"' in page.text
+    assert 'data-class="2"' in page.text
+    assert 'id="prevFindings"' in page.text
+
+    unit_flow = client.get("/ovk/falt/unit-flow.js")
+    assert "parseSeries(text)" in unit_flow.text
+    assert "1101-1104, 1201" in unit_flow.text
+
+
+def test_field_sync_roundtrips_finding_classification(tmp_path: Path) -> None:
+    client = _client(tmp_path)
+    payload = _field_payload()
+    findings = payload.setdefault("findings", [])
+    assert isinstance(findings, list)
+    findings.append(
+        {
+            "finding_id": "f-cls",
+            "unit_id": "unit-1",
+            "defect_type": "contaminated_extract_terminal",
+            "description": "Skitig ventil i bad",
+            "severity": "minor",
+            "classification": 1,
+        }
+    )
+    response = client.put("/api/ovk/field/sync/ovk-1", json=payload)
+    assert response.status_code == 200, response.text
+    stored = client.get("/api/ovk/field/sync/ovk-1").json()
+    saved = [item for item in stored["payload"]["findings"] if item["finding_id"] == "f-cls"]
+    assert saved[0]["classification"] == 1
+
+    findings[-1]["classification"] = 5
     rejected = client.put("/api/ovk/field/sync/ovk-1", json=payload)
     assert rejected.status_code == 422
