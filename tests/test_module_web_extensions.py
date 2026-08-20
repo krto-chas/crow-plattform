@@ -19,9 +19,9 @@ def test_first_party_domain_modules_are_discoverable() -> None:
 
     vent = by_id["crow.vent"].plugin
     assert isinstance(vent, CrowCoreRouteOwner)
-    assert CoreRouteClaim("POST", "/api/projects/{project_id}/takeoff") in (
-        vent.replaces_core_routes()
-    )
+    assert CoreRouteClaim(
+        "POST", "/api/projects/{project_id}/takeoff"
+    ) in vent.replaces_core_routes()
 
 
 def test_workbench_mounts_module_routes_from_registry(tmp_path: Path) -> None:
