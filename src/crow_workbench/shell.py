@@ -6,6 +6,7 @@ from tempfile import TemporaryDirectory
 
 from fastapi import FastAPI, Request
 from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse, Response
+from fastapi.routing import APIRoute
 
 from crow_deployment.runtime import platform_config_root, platform_data_root
 from crow_entitlements.api import configure_entitlement_shell
@@ -16,7 +17,7 @@ from crow_entitlements.management import management_router
 from crow_entitlements.models import CustomerContext
 from crow_entitlements.user_admin import user_admin_router
 from crow_module_sdk.module_registry import ModuleRegistry
-from crow_module_sdk.web import CrowCoreRouteOwner, CrowWebModule
+from crow_module_sdk.web import CoreRouteClaim, CrowCoreRouteOwner, CrowWebModule
 
 _ADMIN_ROLE = "platform-admin"
 
@@ -159,11 +160,24 @@ def _remove_core_index(app: FastAPI) -> None:
     ]
 
 
-def _remove_core_routes(app: FastAPI, paths: tuple[str, ...]) -> None:
-    replaced = frozenset(paths)
-    app.router.routes[:] = [
-        route for route in app.router.routes if getattr(route, "path", None) not in replaced
-    ]
+def _remove_core_routes(app: FastAPI, claims: tuple[CoreRouteClaim, ...]) -> None:
+    claimed_by_path: dict[str, set[str]] = {}
+    for claim in claims:
+        claimed_by_path.setdefault(claim.path, set()).add(claim.method.upper())
+
+    retained = []
+    for route in app.router.routes:
+        if not isinstance(route, APIRoute):
+            retained.append(route)
+            continue
+        claimed_methods = claimed_by_path.get(route.path)
+        if not claimed_methods:
+            retained.append(route)
+            continue
+        route.methods.difference_update(claimed_methods)
+        if route.methods:
+            retained.append(route)
+    app.router.routes[:] = retained
 
 
 app = create_app()
