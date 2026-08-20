@@ -16,6 +16,7 @@ from crow_module_sdk.models import (
     ModuleManifest,
     ValidationResult,
 )
+from crow_module_sdk.web import CoreRouteClaim
 from crow_vent.lexicon import VentLexicon
 
 from .vent_quote_surface import vent_quote_router
@@ -100,13 +101,15 @@ class CrowVentModulePlugin:
             "Vent module is ready" if lexicon_ok else "Lexicon failed self-test",
         )
 
-    def replaces_core_routes(self) -> tuple[str, ...]:
+    def replaces_core_routes(self) -> tuple[CoreRouteClaim, ...]:
         return (
-            "/api/vent/registry",
-            "/api/projects/{project_id}/vent/{checksum}",
-            "/api/projects/{project_id}/takeoff",
-            "/api/projects/{project_id}/vent/{checksum}/quantity.csv",
-            "/api/projects/{project_id}/vent/{checksum}/review",
+            CoreRouteClaim("GET", "/api/vent/registry"),
+            CoreRouteClaim("GET", "/api/projects/{project_id}/vent/{checksum}"),
+            CoreRouteClaim("POST", "/api/projects/{project_id}/takeoff"),
+            CoreRouteClaim(
+                "GET", "/api/projects/{project_id}/vent/{checksum}/quantity.csv"
+            ),
+            CoreRouteClaim("GET", "/api/projects/{project_id}/vent/{checksum}/review"),
         )
 
     def routers(self, data_root: Path) -> tuple[APIRouter, ...]:
