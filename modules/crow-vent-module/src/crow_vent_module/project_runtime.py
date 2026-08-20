@@ -147,7 +147,7 @@ class VentProjectRuntime:
         manifest = self._projects_root / safe_project_id / "imports" / f"{safe_checksum}.json"
         if not manifest.exists():
             raise HTTPException(status_code=404, detail="Importerad tillgång finns inte")
-        return cast(dict[str, Any], json.loads(manifest.read_text(encoding="utf-8")))
+        return _load_json_object(manifest, detail="Ogiltigt importmanifest")
 
     def _require_project(self, project_id: str) -> Path:
         path = self._projects_root / project_id / "crow-project.json"
@@ -164,7 +164,7 @@ class VentProjectRuntime:
         )
         if not path.exists():
             return {"layers": {}}
-        return cast(dict[str, Any], json.loads(path.read_text(encoding="utf-8")))
+        return _load_json_object(path, detail="Ogiltigt geometriläge")
 
 
 def _safe_project_id(project_id: str) -> str:
@@ -181,6 +181,16 @@ def _safe_checksum(checksum: str) -> str:
     ):
         raise HTTPException(status_code=400, detail="Ogiltig checksumma")
     return checksum.lower()
+
+
+def _load_json_object(path: Path, *, detail: str) -> dict[str, Any]:
+    try:
+        payload: Any = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as error:
+        raise HTTPException(status_code=500, detail=detail) from error
+    if not isinstance(payload, dict):
+        raise HTTPException(status_code=500, detail=detail)
+    return cast(dict[str, Any], payload)
 
 
 def _jsonable(value: Any) -> Any:
