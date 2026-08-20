@@ -1,6 +1,7 @@
 from pathlib import Path
 
 from fastapi import FastAPI
+from fastapi.routing import APIRoute
 
 from crow_module_sdk.module_registry import ModuleRegistry
 from crow_module_sdk.web import CrowWebModule
@@ -50,10 +51,9 @@ def test_platform_composes_vent_product_routes_from_module(tmp_path: Path) -> No
         assert matching[0].endpoint.__module__.startswith("crow_vent_module")
 
 
-def _matching_routes(app: FastAPI, method: str, path: str) -> list[object]:
+def _matching_routes(app: FastAPI, method: str, path: str) -> list[APIRoute]:
     return [
         route
         for route in app.router.routes
-        if getattr(route, "path", None) == path
-        and method in (getattr(route, "methods", None) or set())
+        if isinstance(route, APIRoute) and route.path == path and method in route.methods
     ]
