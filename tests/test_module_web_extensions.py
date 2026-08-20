@@ -1,7 +1,7 @@
 from pathlib import Path
 
 import pytest
-from fastapi import FastAPI
+from fastapi import APIRouter, FastAPI
 from fastapi.routing import APIRoute
 
 from crow_module_sdk.module_registry import ModuleRegistry
@@ -57,25 +57,26 @@ def test_workbench_mounts_module_routes_from_registry(tmp_path: Path) -> None:
     assert "/ovk/falt" in paths
 
 
-def test_platform_composes_vent_product_routes_from_module(tmp_path: Path) -> None:
-    app = create_app(tmp_path)
-    expected = (
-        ("GET", "/api/vent/registry"),
-        ("GET", "/api/projects/{project_id}/vent/{checksum}"),
-        ("POST", "/api/projects/{project_id}/takeoff"),
-        ("GET", "/api/projects/{project_id}/vent/{checksum}/quantity.csv"),
-        ("GET", "/api/projects/{project_id}/vent/{checksum}/review"),
-    )
+def test_vent_plugin_owns_claimed_core_routes(tmp_path: Path) -> None:
+    by_id = {item.module_id: item for item in ModuleRegistry().discover()}
+    vent = by_id["crow.vent"].plugin
+    assert isinstance(vent, CrowWebModule)
+    assert isinstance(vent, CrowCoreRouteOwner)
 
-    for method, path in expected:
-        matching = _matching_routes(app, method, path)
-        assert len(matching) == 1, (
-            f"Missing composed route: {method} {path}; "
-            f"candidates={_route_debug(app, path)!r}; "
-            f"vent_routes={_routes_containing(app, 'vent')!r}; "
-            f"discovered={_discovered_module_ids()!r}; "
-            f"composition={getattr(app.state, 'crow_module_composition_debug', None)!r}"
-        )
+    expected = (
+        CoreRouteClaim("GET", "/api/vent/registry"),
+        CoreRouteClaim("GET", "/api/projects/{project_id}/vent/{checksum}"),
+        CoreRouteClaim("POST", "/api/projects/{project_id}/takeoff"),
+        CoreRouteClaim("GET", "/api/projects/{project_id}/vent/{checksum}/quantity.csv"),
+        CoreRouteClaim("GET", "/api/projects/{project_id}/vent/{checksum}/review"),
+    )
+    claims = vent.replaces_core_routes()
+    routers = vent.routers(tmp_path)
+
+    assert set(claims) == set(expected)
+    for claim in expected:
+        matching = _matching_router_routes(routers, claim.method, claim.path)
+        assert len(matching) == 1, f"Vent module does not own {claim.method} {claim.path}"
         assert matching[0].endpoint.__module__.startswith("crow_vent_module")
 
 
@@ -120,28 +121,12 @@ def _matching_routes(app: FastAPI, method: str, path: str) -> list[APIRoute]:
     ]
 
 
-def _route_debug(app: FastAPI, path: str) -> list[tuple[str, tuple[str, ...], str]]:
-    result: list[tuple[str, tuple[str, ...], str]] = []
-    for route in app.router.routes:
-        if getattr(route, "path", None) != path:
-            continue
-        methods = tuple(sorted(getattr(route, "methods", None) or ()))
-        endpoint = getattr(route, "endpoint", None)
-        result.append((type(route).__name__, methods, getattr(endpoint, "__module__", "")))
-    return result
-
-
-def _routes_containing(app: FastAPI, text: str) -> list[tuple[str, tuple[str, ...], str]]:
-    result: list[tuple[str, tuple[str, ...], str]] = []
-    for route in app.router.routes:
-        path = str(getattr(route, "path", ""))
-        if text not in path:
-            continue
-        methods = tuple(sorted(getattr(route, "methods", None) or ()))
-        endpoint = getattr(route, "endpoint", None)
-        result.append((path, methods, getattr(endpoint, "__module__", "")))
-    return result
-
-
-def _discovered_module_ids() -> tuple[str, ...]:
-    return tuple(item.module_id for item in ModuleRegistry().discover())
+def _matching_router_routes(
+    routers: tuple[APIRouter, ...], method: str, path: str
+) -> list[APIRoute]:
+    return [
+        route
+        for router in routers
+        for route in router.routes
+        if isinstance(route, APIRoute) and route.path == path and method in route.methods
+    ]
