@@ -16,16 +16,9 @@ from crow_entitlements.management import management_router
 from crow_entitlements.models import CustomerContext
 from crow_entitlements.user_admin import user_admin_router
 from crow_module_sdk.module_registry import ModuleRegistry
-from crow_module_sdk.web import CrowWebModule
+from crow_module_sdk.web import CrowCoreRouteOwner, CrowWebModule
 
 _ADMIN_ROLE = "platform-admin"
-_CORE_VENT_PRODUCT_PATHS = {
-    "/api/vent/registry",
-    "/api/projects/{project_id}/vent/{checksum}",
-    "/api/projects/{project_id}/takeoff",
-    "/api/projects/{project_id}/vent/{checksum}/quantity.csv",
-    "/api/projects/{project_id}/vent/{checksum}/review",
-}
 
 
 def create_app(data_root: Path | None = None, config_root: Path | None = None) -> FastAPI:
@@ -35,10 +28,15 @@ def create_app(data_root: Path | None = None, config_root: Path | None = None) -
     static_root = Path(__file__).parent / "static"
 
     _remove_core_index(app)
-    _remove_core_vent_product_routes(app)
 
     registry = ModuleRegistry()
-    for registered in registry.discover():
+    registered_modules = registry.discover()
+    for registered in registered_modules:
+        plugin = registered.plugin
+        if isinstance(plugin, CrowCoreRouteOwner):
+            _remove_core_routes(app, plugin.replaces_core_routes())
+
+    for registered in registered_modules:
         plugin = registered.plugin
         if isinstance(plugin, CrowWebModule):
             for router in plugin.routers(root):
@@ -161,12 +159,10 @@ def _remove_core_index(app: FastAPI) -> None:
     ]
 
 
-def _remove_core_vent_product_routes(app: FastAPI) -> None:
-    """Remove legacy core-owned Vent product routes before module composition."""
+def _remove_core_routes(app: FastAPI, paths: tuple[str, ...]) -> None:
+    replaced = frozenset(paths)
     app.router.routes[:] = [
-        route
-        for route in app.router.routes
-        if getattr(route, "path", None) not in _CORE_VENT_PRODUCT_PATHS
+        route for route in app.router.routes if getattr(route, "path", None) not in replaced
     ]
 
 
