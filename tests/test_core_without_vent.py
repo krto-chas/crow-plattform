@@ -9,7 +9,7 @@ from pathlib import Path
 def test_platform_backbone_starts_without_vent_module(tmp_path: Path) -> None:
     repository_root = Path(__file__).resolve().parents[1]
     runtime_root = tmp_path / "runtime"
-    script = r'''
+    script = r"""
 import builtins
 import os
 import sys
@@ -45,7 +45,7 @@ assert "/api/vent/registry" not in paths
 assert "/vent" not in paths
 assert crow_cad_text.CadTextExtractor is not None
 assert crow_canonical.CanonicalGraphBridge is not None
-'''
+"""
     environment = os.environ.copy()
     result = subprocess.run(
         [sys.executable, "-c", script, str(runtime_root)],
