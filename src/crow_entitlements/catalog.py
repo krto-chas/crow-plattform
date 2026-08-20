@@ -32,12 +32,20 @@ def _module_from_payload(payload: dict[str, Any]) -> ProductModule:
     api_prefixes = tuple(str(item) for item in cast(list[Any], payload.get("api_prefixes", [])))
     if not api_prefixes:
         raise ValueError(f"Product module {payload.get('id')!r} must define api_prefixes")
+    api_routes = tuple(str(item) for item in cast(list[Any], payload.get("api_routes", [])))
+    invalid_routes = [route for route in api_routes if not route.startswith("/")]
+    if invalid_routes:
+        raise ValueError(
+            f"Product module {payload.get('id')!r} has non-absolute api_routes: "
+            + ", ".join(invalid_routes)
+        )
     return ProductModule(
         id=str(payload["id"]),
         name=str(payload["name"]),
         status=ProductModuleStatus(str(payload["status"])),
         route=str(payload["route"]),
         api_prefixes=api_prefixes,
+        api_routes=api_routes,
         data_dependencies=tuple(
             str(item) for item in cast(list[Any], payload.get("data_dependencies", []))
         ),
