@@ -73,7 +73,8 @@ def test_platform_composes_vent_product_routes_from_module(tmp_path: Path) -> No
             f"Missing composed route: {method} {path}; "
             f"candidates={_route_debug(app, path)!r}; "
             f"vent_routes={_routes_containing(app, 'vent')!r}; "
-            f"discovered={_discovered_module_ids()!r}"
+            f"discovered={_discovered_module_ids()!r}; "
+            f"composition={getattr(app.state, 'crow_module_composition_debug', None)!r}"
         )
         assert matching[0].endpoint.__module__.startswith("crow_vent_module")
 
