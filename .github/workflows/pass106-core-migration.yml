@@ -22,6 +22,7 @@ jobs:
         run: |
           python - <<'PY'
           from pathlib import Path
+          from textwrap import dedent, indent
 
           app_path = Path("src/crow_workbench/app.py")
           text = app_path.read_text(encoding="utf-8")
@@ -50,70 +51,75 @@ jobs:
           assert text.count(audit_end_marker) == 1
           audit_start = text.index(audit_start_marker)
           audit_end = text.index(audit_end_marker, audit_start)
-          audit_helpers = '''    def active_graph_audit_profiles() -> tuple[GraphAuditProfile, ...]:
+          audit_helpers = indent(
+              dedent(
+                  '''
+          def active_graph_audit_profiles() -> tuple[GraphAuditProfile, ...]:
               raw: Any = getattr(app.state, "crow_graph_audit_profiles", ())
               if not isinstance(raw, tuple):
                   return ()
               return tuple(item for item in raw if isinstance(item, GraphAuditProfile))
 
-              def active_graph_rules() -> tuple[GraphRule, ...]:
-                  return tuple(
-                      rule
-                      for profile in active_graph_audit_profiles()
-                      for rule in profile.rules
-                  )
+          def active_graph_rules() -> tuple[GraphRule, ...]:
+              return tuple(
+                  rule
+                  for profile in active_graph_audit_profiles()
+                  for rule in profile.rules
+              )
 
-              def graph_audit_identity() -> tuple[str, str]:
-                  profiles = active_graph_audit_profiles()
-                  if len(profiles) == 1:
-                      profile = profiles[0]
-                      return profile.audit_prefix, profile.ruleset_version
-                  if not profiles:
-                      return "graph", "none"
-                  key = "|".join(
-                      sorted(
-                          f"{profile.profile_id}@{profile.ruleset_version}"
-                          for profile in profiles
-                      )
+          def graph_audit_identity() -> tuple[str, str]:
+              profiles = active_graph_audit_profiles()
+              if len(profiles) == 1:
+                  profile = profiles[0]
+                  return profile.audit_prefix, profile.ruleset_version
+              if not profiles:
+                  return "graph", "none"
+              key = "|".join(
+                  sorted(
+                      f"{profile.profile_id}@{profile.ruleset_version}"
+                      for profile in profiles
                   )
-                  return "graph", f"composite-{sha256(key.encode('utf-8')).hexdigest()[:12]}"
+              )
+              return "graph", f"composite-{sha256(key.encode('utf-8')).hexdigest()[:12]}"
 
-              def graph_audit_pattern() -> str:
-                  prefix, _ = graph_audit_identity()
-                  return f"{prefix}-audit-*.json"
+          def graph_audit_pattern() -> str:
+              prefix, _ = graph_audit_identity()
+              return f"{prefix}-audit-*.json"
 
-              def serialize_graph_audit(project_id: str) -> dict[str, Any]:
-                  graph = building_graph_repository(project_id).load()
-                  profiles = active_graph_audit_profiles()
-                  result = GraphRuleEngine().evaluate(graph, active_graph_rules())
-                  summary = dict(result.summary)
-                  for profile in profiles:
-                      for category in profile.summary_categories:
-                          summary.setdefault(category, 0)
-                  graph_payload = json.dumps(
-                      graph, sort_keys=True, separators=(",", ":"), ensure_ascii=False
-                  )
-                  graph_checksum = sha256(graph_payload.encode("utf-8")).hexdigest()
-                  _, ruleset_version = graph_audit_identity()
-                  metadata = dict(result.metadata)
-                  for profile in profiles:
-                      metadata.update(profile.metadata)
-                  metadata.update(
-                      {
-                          "rule_version": ruleset_version,
-                          "profiles": [profile.profile_id for profile in profiles],
-                      }
-                  )
-                  return {
-                      "project_id": _safe_project_id(project_id),
-                      "graph_checksum": graph_checksum,
-                      "summary": summary,
-                      "metadata": metadata,
-                      "findings": [_jsonable(asdict(item)) for item in result.findings],
+          def serialize_graph_audit(project_id: str) -> dict[str, Any]:
+              graph = building_graph_repository(project_id).load()
+              profiles = active_graph_audit_profiles()
+              result = GraphRuleEngine().evaluate(graph, active_graph_rules())
+              summary = dict(result.summary)
+              for profile in profiles:
+                  for category in profile.summary_categories:
+                      summary.setdefault(category, 0)
+              graph_payload = json.dumps(
+                  graph, sort_keys=True, separators=(",", ":"), ensure_ascii=False
+              )
+              graph_checksum = sha256(graph_payload.encode("utf-8")).hexdigest()
+              _, ruleset_version = graph_audit_identity()
+              metadata = dict(result.metadata)
+              for profile in profiles:
+                  metadata.update(profile.metadata)
+              metadata.update(
+                  {
+                      "rule_version": ruleset_version,
+                      "profiles": [profile.profile_id for profile in profiles],
                   }
-
+              )
+              return {
+                  "project_id": _safe_project_id(project_id),
+                  "graph_checksum": graph_checksum,
+                  "summary": summary,
+                  "metadata": metadata,
+                  "findings": [_jsonable(asdict(item)) for item in result.findings],
+              }
           '''
-          text = text[:audit_start] + audit_helpers + text[audit_end:]
+              ).lstrip("\n"),
+              "    ",
+          )
+          text = text[:audit_start] + audit_helpers + "\n" + text[audit_end:]
 
           old = '        audit_id = f"vent:audit:{sha256(audit_key.encode(\'utf-8\')).hexdigest()[:20]}"\n'
           assert text.count(old) == 1
