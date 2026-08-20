@@ -17,7 +17,7 @@ from crow_entitlements.management import management_router
 from crow_entitlements.models import CustomerContext
 from crow_entitlements.user_admin import user_admin_router
 from crow_module_sdk.module_registry import ModuleRegistry
-from crow_module_sdk.web import CoreRouteClaim, CrowCoreRouteOwner, CrowWebModule
+from crow_module_sdk.web import CoreRouteClaim
 
 _ADMIN_ROLE = "platform-admin"
 
@@ -35,15 +35,15 @@ def create_app(data_root: Path | None = None, config_root: Path | None = None) -
     registered_modules = registry.discover()
     core_route_owners: dict[CoreRouteClaim, str] = {}
     for registered in registered_modules:
-        plugin = registered.plugin
-        if isinstance(plugin, CrowCoreRouteOwner):
-            claims = plugin.replaces_core_routes()
+        claims_provider = getattr(registered.plugin, "replaces_core_routes", None)
+        if callable(claims_provider):
+            claims = claims_provider()
             _register_core_route_claims(core_route_owners, registered.module_id, claims)
 
     for registered in registered_modules:
-        plugin = registered.plugin
-        if isinstance(plugin, CrowWebModule):
-            for router in plugin.routers(root):
+        routers_provider = getattr(registered.plugin, "routers", None)
+        if callable(routers_provider):
+            for router in routers_provider(root):
                 app.include_router(router)
 
     _remove_core_routes(
@@ -207,11 +207,12 @@ def _remove_core_routes(
         if not claimed_methods:
             retained.append(route)
             continue
-        route.methods.difference_update(claimed_methods)
         unmatched.difference_update(
             CoreRouteClaim(method, route.path) for method in claimed_methods
         )
-        if route.methods:
+        remaining_methods = set(route.methods) - claimed_methods
+        if remaining_methods:
+            route.methods = remaining_methods
             retained.append(route)
     if unmatched:
         missing = ", ".join(
