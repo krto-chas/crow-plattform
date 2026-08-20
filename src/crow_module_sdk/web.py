@@ -6,6 +6,8 @@ from typing import Protocol, runtime_checkable
 
 from fastapi import APIRouter
 
+from crow_graph_rules import GraphAuditProfile
+
 
 @dataclass(frozen=True, slots=True)
 class CoreRouteClaim:
@@ -37,3 +39,10 @@ class CrowCoreRouteOwner(Protocol):
     """Optional transition contract for modules taking ownership of legacy core routes."""
 
     def replaces_core_routes(self) -> tuple[CoreRouteClaim, ...]: ...
+
+
+@runtime_checkable
+class CrowGraphAuditProvider(Protocol):
+    """Optional module contract for contributing domain graph-audit profiles."""
+
+    def graph_audit_profiles(self) -> tuple[GraphAuditProfile, ...]: ...
