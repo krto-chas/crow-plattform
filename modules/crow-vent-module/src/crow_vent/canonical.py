@@ -3,7 +3,7 @@ from __future__ import annotations
 from hashlib import sha256
 from typing import Any
 
-from crow_canonical.assembly import CanonicalAssembly
+from crow_canonical.assembly import CanonicalAssembly as CanonicalAssembly
 from crow_canonical.models import (
     CanonicalEvidence,
     CanonicalObject,
