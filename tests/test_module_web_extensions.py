@@ -5,11 +5,25 @@ from fastapi import APIRouter, FastAPI
 from fastapi.routing import APIRoute
 
 from crow_module_sdk.module_registry import ModuleRegistry
-from crow_module_sdk.web import CoreRouteClaim, CrowCoreRouteOwner, CrowWebModule
+from crow_module_sdk.web import (
+    CoreRouteClaim,
+    CrowCoreRouteOwner,
+    CrowGraphAuditProvider,
+    CrowWebModule,
+)
+from crow_workbench.app import create_app as create_core_app
 from crow_workbench.shell import (
     _register_core_route_claims,
     _remove_core_routes,
     create_app,
+)
+
+LEGACY_VENT_ROUTES = (
+    CoreRouteClaim("GET", "/api/vent/registry"),
+    CoreRouteClaim("GET", "/api/projects/{project_id}/vent/{checksum}"),
+    CoreRouteClaim("POST", "/api/projects/{project_id}/takeoff"),
+    CoreRouteClaim("GET", "/api/projects/{project_id}/vent/{checksum}/quantity.csv"),
+    CoreRouteClaim("GET", "/api/projects/{project_id}/vent/{checksum}/review"),
 )
 
 
@@ -23,10 +37,8 @@ def test_first_party_domain_modules_are_discoverable() -> None:
         assert isinstance(by_id[module_id].plugin, CrowWebModule)
 
     vent = by_id["crow.vent"].plugin
-    assert isinstance(vent, CrowCoreRouteOwner)
-    assert (
-        CoreRouteClaim("POST", "/api/projects/{project_id}/takeoff") in vent.replaces_core_routes()
-    )
+    assert isinstance(vent, CrowGraphAuditProvider)
+    assert not isinstance(vent, CrowCoreRouteOwner)
 
 
 def test_core_route_claim_normalizes_method() -> None:
@@ -38,6 +50,13 @@ def test_core_route_claim_normalizes_method() -> None:
 def test_core_route_claim_requires_absolute_path() -> None:
     with pytest.raises(ValueError, match="must be absolute"):
         CoreRouteClaim("GET", "probe")
+
+
+def test_core_app_no_longer_defines_legacy_vent_routes(tmp_path: Path) -> None:
+    app = create_core_app(tmp_path)
+
+    for claim in LEGACY_VENT_ROUTES:
+        assert _matching_routes(app, claim.method, claim.path) == []
 
 
 def test_workbench_mounts_module_routes_from_registry(tmp_path: Path) -> None:
@@ -57,27 +76,37 @@ def test_workbench_mounts_module_routes_from_registry(tmp_path: Path) -> None:
     assert "/ovk/falt" in paths
 
 
-def test_vent_plugin_owns_claimed_core_routes(tmp_path: Path) -> None:
+def test_vent_plugin_owns_legacy_product_routes_without_core_takeover(tmp_path: Path) -> None:
     by_id = {item.module_id: item for item in ModuleRegistry().discover()}
     vent = by_id["crow.vent"].plugin
     assert isinstance(vent, CrowWebModule)
-    assert isinstance(vent, CrowCoreRouteOwner)
+    assert not isinstance(vent, CrowCoreRouteOwner)
 
-    expected = (
-        CoreRouteClaim("GET", "/api/vent/registry"),
-        CoreRouteClaim("GET", "/api/projects/{project_id}/vent/{checksum}"),
-        CoreRouteClaim("POST", "/api/projects/{project_id}/takeoff"),
-        CoreRouteClaim("GET", "/api/projects/{project_id}/vent/{checksum}/quantity.csv"),
-        CoreRouteClaim("GET", "/api/projects/{project_id}/vent/{checksum}/review"),
-    )
-    claims = vent.replaces_core_routes()
     routers = vent.routers(tmp_path)
 
-    assert set(claims) == set(expected)
-    for claim in expected:
-        matching = _matching_router_routes(routers, claim.method, claim.path)
-        assert len(matching) == 1, f"Vent module does not own {claim.method} {claim.path}"
+    for route in LEGACY_VENT_ROUTES:
+        matching = _matching_router_routes(routers, route.method, route.path)
+        assert len(matching) == 1, f"Vent module does not own {route.method} {route.path}"
         assert matching[0].endpoint.__module__.startswith("crow_vent_module")
+
+
+def test_vent_contributes_graph_audit_profile() -> None:
+    by_id = {item.module_id: item for item in ModuleRegistry().discover()}
+    vent = by_id["crow.vent"].plugin
+    assert isinstance(vent, CrowGraphAuditProvider)
+
+    profiles = vent.graph_audit_profiles()
+    assert len(profiles) == 1
+    profile = profiles[0]
+    assert profile.profile_id == "crow.vent.graph-audit"
+    assert profile.audit_prefix == "vent"
+    assert profile.ruleset_version == "0.1.0"
+    assert {rule.metadata.rule_id for rule in profile.rules} == {
+        "VENT-DQ-001",
+        "VENT-DQ-002",
+        "VENT-EVID-001",
+        "VENT-EVID-002",
+    }
 
 
 def test_core_route_claim_removes_only_claimed_method() -> None:

@@ -111,6 +111,13 @@ from crow_geometry_framework import (
     trace_network,
 )
 from crow_graph_explorer import GraphExplorerBuilder
+from crow_graph_rules import (
+    GraphAuditDiffer,
+    GraphAuditProfile,
+    GraphResolutionVerificationService,
+    GraphRule,
+    GraphRuleEngine,
+)
 from crow_graph_timeline import GraphTimelineBuilder
 from crow_import_framework import ImportManager, create_default_registry
 from crow_import_orchestrator import ImportPipelineOrchestrator
@@ -129,15 +136,6 @@ from crow_scope_impact import (
 )
 from crow_source_explorer import SourceExplorerBuilder
 from crow_technical_delta import build_project_deltas, load_delta_set, summarize_deltas
-from crow_vent import (
-    VentAuditDiffer,
-    VentGraphAudit,
-    VentResolutionVerificationService,
-    build_vent_model,
-    component_registry,
-    quantity_takeoff_csv,
-)
-from crow_vent.graph_audit import VENT_GRAPH_RULES
 
 _UPLOAD_FILES = File(...)
 
@@ -1553,23 +1551,65 @@ def create_app(data_root: Path | None = None) -> FastAPI:
             raise HTTPException(status_code=404, detail="Evidensgranskningen finns inte")
         return path
 
+    def active_graph_audit_profiles() -> tuple[GraphAuditProfile, ...]:
+        raw: Any = getattr(app.state, "crow_graph_audit_profiles", ())
+        if not isinstance(raw, tuple):
+            return ()
+        return tuple(item for item in raw if isinstance(item, GraphAuditProfile))
+
+    def active_graph_rules() -> tuple[GraphRule, ...]:
+        return tuple(rule for profile in active_graph_audit_profiles() for rule in profile.rules)
+
+    def graph_audit_identity() -> tuple[str, str]:
+        profiles = active_graph_audit_profiles()
+        if len(profiles) == 1:
+            profile = profiles[0]
+            return profile.audit_prefix, profile.ruleset_version
+        if not profiles:
+            return "graph", "none"
+        key = "|".join(
+            sorted(f"{profile.profile_id}@{profile.ruleset_version}" for profile in profiles)
+        )
+        version = f"composite-{sha256(key.encode('utf-8')).hexdigest()[:12]}"
+        return "graph", version
+
+    def graph_audit_pattern() -> str:
+        prefix, _ = graph_audit_identity()
+        return f"{prefix}-audit-*.json"
+
     def serialize_graph_audit(project_id: str) -> dict[str, Any]:
         graph = building_graph_repository(project_id).load()
-        result = VentGraphAudit().audit(graph)
+        profiles = active_graph_audit_profiles()
+        result = GraphRuleEngine().evaluate(graph, active_graph_rules())
+        summary = dict(result.summary)
+        for profile in profiles:
+            for category in profile.summary_categories:
+                summary.setdefault(category, 0)
         graph_payload = json.dumps(graph, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
         graph_checksum = sha256(graph_payload.encode("utf-8")).hexdigest()
+        _, ruleset_version = graph_audit_identity()
+        metadata = dict(result.metadata)
+        for profile in profiles:
+            metadata.update(profile.metadata)
+        metadata.update(
+            {
+                "rule_version": ruleset_version,
+                "profiles": [profile.profile_id for profile in profiles],
+            }
+        )
         return {
             "project_id": _safe_project_id(project_id),
             "graph_checksum": graph_checksum,
-            "summary": result.summary,
-            "metadata": result.metadata,
+            "summary": summary,
+            "metadata": metadata,
             "findings": [_jsonable(asdict(item)) for item in result.findings],
         }
 
     def persist_graph_audit(project_id: str) -> tuple[dict[str, Any], bool]:
         payload = serialize_graph_audit(project_id)
         audit_key = "|".join((payload["graph_checksum"], str(payload["metadata"]["rule_version"])))
-        audit_id = f"vent:audit:{sha256(audit_key.encode('utf-8')).hexdigest()[:20]}"
+        audit_prefix, _ = graph_audit_identity()
+        audit_id = f"{audit_prefix}:audit:{sha256(audit_key.encode('utf-8')).hexdigest()[:20]}"
         payload["audit_id"] = audit_id
         payload["created_at"] = datetime.now(UTC).isoformat()
         directory = graph_audit_directory(project_id)
@@ -1735,7 +1775,7 @@ def create_app(data_root: Path | None = None) -> FastAPI:
             result = ProjectAssuranceSummaryBuilder().build(
                 project_id=_safe_project_id(project_id),
                 graph_audits=load_persisted_audits(
-                    graph_audit_directory(project_id), "vent-audit-*.json"
+                    graph_audit_directory(project_id), graph_audit_pattern()
                 ),
                 evidence_audits=load_persisted_audits(
                     evidence_audit_directory(project_id), "evidence-audit-*.json"
@@ -1753,7 +1793,7 @@ def create_app(data_root: Path | None = None) -> FastAPI:
     def get_graph_assurance_explorer(project_id: str) -> dict[str, Any]:
         try:
             graph_audits = load_persisted_audits(
-                graph_audit_directory(project_id), "vent-audit-*.json"
+                graph_audit_directory(project_id), graph_audit_pattern()
             )
             evidence_audits = load_persisted_audits(
                 evidence_audit_directory(project_id), "evidence-audit-*.json"
@@ -1792,7 +1832,7 @@ def create_app(data_root: Path | None = None) -> FastAPI:
             project_directory=projects_root / _safe_project_id(project_id),
             upload_directory=uploads_root / _safe_project_id(project_id),
             graph_audits=load_persisted_audits(
-                graph_audit_directory(project_id), "vent-audit-*.json"
+                graph_audit_directory(project_id), graph_audit_pattern()
             ),
             evidence_audits=load_persisted_audits(
                 evidence_audit_directory(project_id), "evidence-audit-*.json"
@@ -1830,7 +1870,7 @@ def create_app(data_root: Path | None = None) -> FastAPI:
         try:
             return GraphTimelineBuilder().build(
                 building_graph_repository(project_id).load(),
-                load_persisted_audits(graph_audit_directory(project_id), "vent-audit-*.json"),
+                load_persisted_audits(graph_audit_directory(project_id), graph_audit_pattern()),
                 load_persisted_audits(
                     evidence_audit_directory(project_id), "evidence-audit-*.json"
                 ),
@@ -1841,7 +1881,9 @@ def create_app(data_root: Path | None = None) -> FastAPI:
     @app.get("/api/projects/{project_id}/rc1-workbench")
     def get_rc1_workbench(project_id: str) -> dict[str, Any]:
         graph = building_graph_repository(project_id).load()
-        graph_audits = load_persisted_audits(graph_audit_directory(project_id), "vent-audit-*.json")
+        graph_audits = load_persisted_audits(
+            graph_audit_directory(project_id), graph_audit_pattern()
+        )
         evidence_audits = load_persisted_audits(
             evidence_audit_directory(project_id), "evidence-audit-*.json"
         )
@@ -1856,7 +1898,7 @@ def create_app(data_root: Path | None = None) -> FastAPI:
                 graph_verifications=load_audit_resolution_verifications(project_id),
                 evidence_verifications=load_evidence_resolution_verifications(project_id),
             ),
-            "rules": {"summary": {"registered": len(VENT_GRAPH_RULES) + 4}},
+            "rules": {"summary": {"registered": len(active_graph_rules()) + 4}},
             "assurance": get_graph_assurance_explorer(project_id),
             "sources": get_project_source_explorer(project_id),
             "pipeline": ImportPipelineOrchestrator().build_plan(get_project_manifest(project_id)),
@@ -2130,7 +2172,7 @@ def create_app(data_root: Path | None = None) -> FastAPI:
                 UnreferencedEvidenceRule(index),
             )
             rules = []
-            for rule in (*VENT_GRAPH_RULES, *evidence_rules):
+            for rule in (*active_graph_rules(), *evidence_rules):
                 metadata = rule.metadata
                 rules.append(
                     {
@@ -2149,7 +2191,7 @@ def create_app(data_root: Path | None = None) -> FastAPI:
             return RuleExplorerBuilder().build(
                 rules=rules,
                 graph_audits=load_persisted_audits(
-                    graph_audit_directory(project_id), "vent-audit-*.json"
+                    graph_audit_directory(project_id), graph_audit_pattern()
                 ),
                 evidence_audits=load_persisted_audits(
                     evidence_audit_directory(project_id), "evidence-audit-*.json"
@@ -2167,7 +2209,7 @@ def create_app(data_root: Path | None = None) -> FastAPI:
         try:
             return AuditExplorerBuilder().build(
                 graph_audits=load_persisted_audits(
-                    graph_audit_directory(project_id), "vent-audit-*.json"
+                    graph_audit_directory(project_id), graph_audit_pattern()
                 ),
                 evidence_audits=load_persisted_audits(
                     evidence_audit_directory(project_id), "evidence-audit-*.json"
@@ -2198,7 +2240,7 @@ def create_app(data_root: Path | None = None) -> FastAPI:
             return {"count": 0, "items": []}
         items = [
             json.loads(path.read_text(encoding="utf-8"))
-            for path in sorted(directory.glob("vent-audit-*.json"))
+            for path in sorted(directory.glob(graph_audit_pattern()))
         ]
         items.sort(key=lambda item: str(item.get("created_at", "")), reverse=True)
         return {"count": len(items), "items": items}
@@ -2214,7 +2256,7 @@ def create_app(data_root: Path | None = None) -> FastAPI:
             graph_audit_path(project_id, target_audit_id).read_text(encoding="utf-8")
         )
         try:
-            result = VentAuditDiffer().compare(
+            result = GraphAuditDiffer().compare(
                 base, target, reviews=load_audit_finding_reviews(project_id)
             )
         except ValueError as exc:
@@ -2251,7 +2293,7 @@ def create_app(data_root: Path | None = None) -> FastAPI:
             graph_audit_path(project_id, target_audit_id).read_text(encoding="utf-8")
         )
         try:
-            comparison = VentAuditDiffer().compare(
+            comparison = GraphAuditDiffer().compare(
                 base, target, reviews=load_audit_finding_reviews(project_id)
             )
         except ValueError as exc:
@@ -2268,7 +2310,9 @@ def create_app(data_root: Path | None = None) -> FastAPI:
         ):
             raise HTTPException(status_code=409, detail="Upplösningskandidaten är redan verifierad")
         try:
-            verification = VentResolutionVerificationService().decide(
+            verification = GraphResolutionVerificationService(
+                namespace=graph_audit_identity()[0]
+            ).decide(
                 base_audit_id=base_audit_id,
                 target_audit_id=target_audit_id,
                 finding_id=finding_id,
@@ -2325,7 +2369,7 @@ def create_app(data_root: Path | None = None) -> FastAPI:
         )
         review_digest = sha256(review_key.encode("utf-8")).hexdigest()[:20]
         review = {
-            "review_id": f"vent:finding-review:{review_digest}",
+            "review_id": f"{graph_audit_identity()[0]}:finding-review:{review_digest}",
             "project_id": _safe_project_id(project_id),
             "audit_id": audit_id,
             "graph_checksum": audit.get("graph_checksum"),
@@ -2929,124 +2973,6 @@ def create_app(data_root: Path | None = None) -> FastAPI:
             raise HTTPException(status_code=404, detail="Komponenten finns inte") from exc
         except ValueError as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
-
-    @app.get("/api/vent/registry")
-    def get_vent_registry() -> dict[str, Any]:
-        items = [asdict(item) for item in component_registry()]
-        return {"version": "crow-vent-registry-v0.2", "count": len(items), "components": items}
-
-    @app.get("/api/projects/{project_id}/vent/{checksum}")
-    def get_vent_model(
-        project_id: str,
-        checksum: str,
-        tolerance: float = 0.001,
-        association_radius: float = 100.0,
-        layer: str | None = None,
-        visible_only: bool = False,
-    ) -> dict[str, Any]:
-        if tolerance <= 0:
-            raise HTTPException(status_code=400, detail="Toleransen måste vara större än noll")
-        if association_radius < 0:
-            raise HTTPException(status_code=400, detail="Kopplingsradien får inte vara negativ")
-        asset = get_imported_asset(project_id, checksum)
-        state = load_geometry_state(project_id, checksum)
-        document = geometry_from_import_manifest(asset, state.get("layers") or {})
-        candidates = consolidate_observations(
-            document,
-            tolerance=tolerance,
-            association_radius=association_radius,
-            layers=[layer] if layer else None,
-            visible_only=visible_only,
-        )
-        return _jsonable(build_vent_model(candidates))
-
-    @app.post("/api/projects/{project_id}/takeoff")
-    def run_takeoff(project_id: str, body: dict[str, Any]) -> dict[str, Any]:
-        """Multi-source kalkyl: konsolidera mängder och prissätt mot prisbok.
-
-        Body: geometry_checksums, table_rows, text_segments, price_book,
-        length_tolerance. Alla delar är valfria; minst en källa krävs.
-        """
-        from crow_takeoff_consolidation import (
-            PriceBook,
-            PriceBookEntry,
-            consolidate_takeoffs,
-            price_consolidated_takeoff,
-            takeoff_from_geometry,
-            takeoff_from_table,
-            takeoff_from_text,
-        )
-        from crow_vent.lexicon import VentLexicon
-
-        lexicon = VentLexicon.default()
-        takeoffs = []
-        for checksum in body.get("geometry_checksums", []):
-            model = get_vent_model(project_id, str(checksum))
-            takeoffs.append(
-                takeoff_from_geometry(
-                    model["quantity_takeoff"], source_id=f"dxf:{str(checksum)[:12]}"
-                )
-            )
-        table_rows = body.get("table_rows") or []
-        if table_rows:
-            takeoffs.append(
-                takeoff_from_table(table_rows, source_id="tabell:mangdforteckning", lexicon=lexicon)
-            )
-        text_segments = body.get("text_segments") or []
-        if text_segments:
-            takeoffs.append(
-                takeoff_from_text(text_segments, source_id="text:beskrivning", lexicon=lexicon)
-            )
-        if not takeoffs:
-            raise HTTPException(
-                status_code=422,
-                detail="Minst en källa krävs: geometri, tabellrader eller text.",
-            )
-        tolerance = float(body.get("length_tolerance") or 0.02)
-        consolidated = consolidate_takeoffs(takeoffs, length_tolerance=tolerance)
-
-        priced: dict[str, Any] | None = None
-        raw_book = body.get("price_book")
-        if raw_book:
-            book = PriceBook(
-                price_book_id=str(raw_book.get("price_book_id", "prisbok")),
-                currency=str(raw_book.get("currency", "SEK")),
-                labour_rate_per_hour=float(raw_book.get("labour_rate_per_hour", 0.0)),
-                entries=tuple(
-                    PriceBookEntry(
-                        kind=str(entry["kind"]),
-                        code=str(entry["code"]),
-                        dimension=str(entry.get("dimension", "*")),
-                        unit=str(entry["unit"]),
-                        material_unit_price=float(entry.get("material_unit_price", 0.0)),
-                        labour_hours_per_unit=float(entry.get("labour_hours_per_unit", 0.0)),
-                        article=entry.get("article"),
-                    )
-                    for entry in raw_book.get("entries", [])
-                ),
-            )
-            priced = price_consolidated_takeoff(consolidated, book)
-        return {"consolidated": consolidated, "priced": priced}
-
-    @app.get("/api/projects/{project_id}/vent/{checksum}/quantity.csv")
-    def get_vent_quantity_csv(project_id: str, checksum: str) -> Response:
-        model = get_vent_model(project_id, checksum)
-        content = "\ufeff" + quantity_takeoff_csv(model["quantity_takeoff"])
-        return Response(
-            content=content,
-            media_type="text/csv; charset=utf-8",
-            headers={
-                "Content-Disposition": (
-                    f'attachment; filename="crow-vent-{checksum[:12]}-quantity.csv"'
-                )
-            },
-        )
-
-    @app.get("/api/projects/{project_id}/vent/{checksum}/review")
-    def get_vent_review(project_id: str, checksum: str) -> dict[str, Any]:
-        model = get_vent_model(project_id, checksum)
-        items = [item for item in model["classifications"] if item["status"] == "needs_review"]
-        return {"count": len(items), "items": items}
 
     return app
 

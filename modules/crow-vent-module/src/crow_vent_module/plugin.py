@@ -7,6 +7,7 @@ from pathlib import Path
 
 from fastapi import APIRouter
 
+from crow_graph_rules import GraphAuditProfile
 from crow_module_sdk.models import (
     Claim,
     ClaimSchema,
@@ -16,7 +17,7 @@ from crow_module_sdk.models import (
     ModuleManifest,
     ValidationResult,
 )
-from crow_module_sdk.web import CoreRouteClaim
+from crow_vent.graph_audit import VENT_GRAPH_RULES, VentGraphAudit
 from crow_vent.lexicon import VentLexicon
 
 from .vent_quote_surface import vent_quote_router
@@ -101,13 +102,20 @@ class CrowVentModulePlugin:
             "Vent module is ready" if lexicon_ok else "Lexicon failed self-test",
         )
 
-    def replaces_core_routes(self) -> tuple[CoreRouteClaim, ...]:
+    def graph_audit_profiles(self) -> tuple[GraphAuditProfile, ...]:
         return (
-            CoreRouteClaim("GET", "/api/vent/registry"),
-            CoreRouteClaim("GET", "/api/projects/{project_id}/vent/{checksum}"),
-            CoreRouteClaim("POST", "/api/projects/{project_id}/takeoff"),
-            CoreRouteClaim("GET", "/api/projects/{project_id}/vent/{checksum}/quantity.csv"),
-            CoreRouteClaim("GET", "/api/projects/{project_id}/vent/{checksum}/review"),
+            GraphAuditProfile(
+                profile_id="crow.vent.graph-audit",
+                audit_prefix="vent",
+                ruleset_version=VentGraphAudit.RULE_VERSION,
+                rules=VENT_GRAPH_RULES,
+                summary_categories=(
+                    "evidence_gap",
+                    "data_quality",
+                    "proven_design_defect",
+                ),
+                metadata={"missing_information_treated_as_defect": False},
+            ),
         )
 
     def routers(self, data_root: Path) -> tuple[APIRouter, ...]:

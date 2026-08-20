@@ -1,8 +1,8 @@
 from pathlib import Path
 
 from crow_building_graph import BuildingGraphService, GraphRepository
-from crow_canonical import CanonicalGraphBridge, CanonicalObjectType, VentCanonicalAdapter
-from crow_vent import VentTextInterpreter
+from crow_canonical import CanonicalGraphBridge, CanonicalObjectType
+from crow_vent import VentCanonicalAdapter, VentCanonicalAssembler, VentTextInterpreter
 
 
 def test_duct_interpretation_becomes_canonical_object() -> None:
@@ -67,8 +67,6 @@ def test_assembler_creates_system_and_explicit_membership() -> None:
             "SP1", source_id="drawing-1", layer="V-57--", entity_handle="S1", system_context="LB01"
         ),
     ]
-    from crow_canonical import VentCanonicalAssembler
-
     assembly = VentCanonicalAssembler().assemble(rows)
     systems = [
         item
@@ -89,8 +87,6 @@ def test_assembly_persists_objects_before_relations(tmp_path: Path) -> None:
             "TD1", source_id="drawing-1", layer="DON", entity_handle="D1", system_context="LB01"
         )
     ]
-    from crow_canonical import VentCanonicalAssembler
-
     assembly = VentCanonicalAssembler().assemble(rows)
     graph = BuildingGraphService(GraphRepository(tmp_path / "assembly-graph.json"))
     result = CanonicalGraphBridge(graph).persist_assembly(assembly)
@@ -120,8 +116,6 @@ def test_exact_designation_in_same_system_creates_identity_candidate() -> None:
             system_context="LB01",
         ),
     ]
-    from crow_canonical import VentCanonicalAssembler
-
     assembly = VentCanonicalAssembler().assemble(rows)
     candidates = [item for item in assembly.relations if item.relation_type == "same_as_candidate"]
     assert len(candidates) == 1
@@ -142,8 +136,6 @@ def test_same_designation_in_different_systems_is_not_linked() -> None:
         interpreter.interpret("TD1", source_id="drawing-1", layer="DON", system_context="LB01"),
         interpreter.interpret("TD1", source_id="drawing-2", layer="DON", system_context="LB02"),
     ]
-    from crow_canonical import VentCanonicalAssembler
-
     assembly = VentCanonicalAssembler().assemble(rows)
     assert not any(item.relation_type == "same_as_candidate" for item in assembly.relations)
 
@@ -158,15 +150,11 @@ def test_duct_text_is_not_used_as_component_identity_candidate() -> None:
             "T1-250", source_id="drawing-2", layer="KANAL", system_context="LB01"
         ),
     ]
-    from crow_canonical import VentCanonicalAssembler
-
     assembly = VentCanonicalAssembler().assemble(rows)
     assert not any(item.relation_type == "same_as_candidate" for item in assembly.relations)
 
 
 def _identity_candidate():
-    from crow_canonical import VentCanonicalAssembler
-
     interpreter = VentTextInterpreter()
     assembly = VentCanonicalAssembler().assemble(
         [
@@ -251,7 +239,6 @@ def test_reviewed_identity_relation_persists_with_audit_metadata(tmp_path: Path)
     from crow_canonical import (
         IdentityReviewDecision,
         IdentityReviewService,
-        VentCanonicalAssembler,
     )
 
     interpreter = VentTextInterpreter()
@@ -299,7 +286,6 @@ def test_explicit_relationship_assertion_creates_evidence_bearing_relation() -> 
         CanonicalRelationshipEngine,
         CanonicalRelationType,
         ExplicitRelationAssertion,
-        VentCanonicalAssembler,
     )
 
     interpreter = VentTextInterpreter()
@@ -343,7 +329,6 @@ def test_relationship_engine_rejects_unknown_endpoint() -> None:
         CanonicalRelationshipEngine,
         CanonicalRelationType,
         ExplicitRelationAssertion,
-        VentCanonicalAssembler,
     )
 
     assembly = VentCanonicalAssembler().assemble(
@@ -374,7 +359,6 @@ def test_explicit_relation_persists_in_building_graph(tmp_path: Path) -> None:
         CanonicalRelationshipEngine,
         CanonicalRelationType,
         ExplicitRelationAssertion,
-        VentCanonicalAssembler,
     )
 
     interpreter = VentTextInterpreter()
@@ -407,7 +391,7 @@ def test_explicit_relation_persists_in_building_graph(tmp_path: Path) -> None:
 
 
 def test_provenance_trace_exposes_source_and_canonical_stages() -> None:
-    from crow_canonical import CanonicalProvenanceService, VentCanonicalAdapter
+    from crow_canonical import CanonicalProvenanceService
 
     interpretation = VentTextInterpreter().interpret(
         "TD1", source_id="drawing-1", layer="DON", entity_handle="D1"

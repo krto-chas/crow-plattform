@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pytest
 
-from crow_cad_text import CadTextExtractor, CadVentTextPipeline
+from crow_cad_text import CadTextExtractor
 
 DXF = """0
 SECTION
@@ -66,15 +66,6 @@ def test_extracts_explicit_dxf_text_with_evidence() -> None:
     assert result.entities[0].x == 12.5
     assert result.entities[1].text == "T13-250X400-V1"
     assert len(result.source_sha256) == 64
-
-
-def test_pipeline_preserves_unknown_text_and_creates_only_supported_objects() -> None:
-    result = CadVentTextPipeline().run_dxf_text(DXF, source_id="drawing.dxf")
-    assert len(result.interpretations) == 3
-    assert len(result.canonical_objects) == 2
-    assert result.interpretations[2].kind == "unknown"
-    assert result.interpretations[2].status == "needs_review"
-    assert result.canonical_objects[0].evidence.locator == "A1"
 
 
 def test_dwg_is_reported_as_unsupported_without_guessing(tmp_path: Path) -> None:
