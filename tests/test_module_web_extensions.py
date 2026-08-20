@@ -53,7 +53,7 @@ def test_core_route_claim_requires_absolute_path() -> None:
 
 
 def test_core_app_no_longer_defines_legacy_vent_routes(tmp_path: Path) -> None:
-    app = create_core_app(tmp_path, graph_audit_profiles=())
+    app = create_core_app(tmp_path)
 
     for claim in LEGACY_VENT_ROUTES:
         assert _matching_routes(app, claim.method, claim.path) == []
