@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="sv">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Crow Vent – Offert</title>
+  <link rel="stylesheet" href="/static/product.css">
+</head>
+<body>
+<div class="product-shell">
+  <aside class="product-sidebar">
+    <h1>Crow</h1>
+    <nav>
+      <a href="/app">Projekt</a>
+      <a class="active" href="/vent">Ventilation</a>
+      <a href="/ovk">OVK</a>
+    </nav>
+    <div class="product-subnav">
+      <span class="eyebrow">VENT</span>
+      <a id="dashboardNav" href="/vent">Vent-arbetsyta</a>
+      <a id="calculationNav" href="/vent#kalkyl">Mängdning &amp; kalkyl</a>
+      <a class="active" href="/vent/offert">Offert</a>
+      <a id="workbenchNav" href="/workbench">Workbench</a>
+    </div>
+  </aside>
+
+  <main class="product-main">
+    <div class="eyebrow">VENTILATION</div>
+    <h1>Offert</h1>
+    <p class="muted">Offertpris byggs deterministiskt ovanpå samma Vent-källor och kalkylkedja som används i arbetsytan.</p>
+
+    <section class="panel projectbar">
+      <div><label for="project">Projekt</label><select id="project"><option value="">Laddar projekt…</option></select></div>
+      <div class="actions"><a class="button secondary" id="backVent" href="/vent">Till Vent-arbetsytan</a></div>
+    </section>
+    <div id="status" class="status">Laddar…</div>
+
+    <section class="split">
+      <article class="panel">
+        <h2>Källor &amp; offertvillkor</h2>
+        <label>Ritningskällor</label>
+        <div id="drawingSources" class="empty">Välj projekt.</div>
+        <label for="table">Mängdförteckning</label>
+        <textarea id="table" placeholder="T-125;132;m&#10;TD1;24;st"></textarea>
+        <label for="text">Beskrivningstext</label>
+        <textarea id="text" placeholder="24 st TD1"></textarea>
+        <label for="prices">Prisbok (JSON)</label>
+        <textarea id="prices" placeholder='{"price_book_id":"pb-1","labour_rate_per_hour":520,"entries":[]}'></textarea>
+        <label for="customer">Kund</label>
+        <input id="customer">
+        <div class="form-grid">
+          <div><label for="date">Offertdatum</label><input id="date" type="date"></div>
+          <div><label for="validity">Giltighet dagar</label><input id="validity" type="number" value="30" min="1"></div>
+        </div>
+        <div class="form-grid">
+          <div><label for="overhead">Omkostnad %</label><input id="overhead" type="number" value="0" min="0" step="0.1"></div>
+          <div><label for="risk">Risk %</label><input id="risk" type="number" value="0" min="0" step="0.1"></div>
+        </div>
+        <label for="profit">Vinst %</label><input id="profit" type="number" value="0" min="0" step="0.1">
+        <label for="scope">Omfattning</label><textarea id="scope"></textarea>
+        <label for="exclusions">Undantag, en per rad</label><textarea id="exclusions"></textarea>
+        <div class="actions"><button id="run" type="button">Skapa offert</button></div>
+      </article>
+
+      <article class="panel">
+        <div class="section-title"><div><h2 id="title">Offertutkast</h2><p id="recipient" class="muted"></p></div></div>
+        <div id="ready"></div>
+        <div class="metric"><span>Offertpris</span><strong id="total">—</strong></div>
+        <div id="breakdown" class="stack" style="margin-top:18px"></div>
+        <p id="meta" class="muted"></p>
+        <p id="scopeOut"></p>
+        <div id="exclusionsOut"></div>
+        <div class="actions">
+          <button id="print" class="secondary" type="button" disabled>Skriv ut / PDF</button>
+          <button id="csv" class="secondary" type="button" disabled>Exportera CSV</button>
+        </div>
+      </article>
+    </section>
+  </main>
+</div>
+<script src="/vent/assets/quote.js"></script>
+</body>
+</html>
