@@ -87,9 +87,9 @@ Downloading httpx-0.28.1-py3-none-any.whl (73 kB)
 Downloading httpcore-1.0.9-py3-none-any.whl (78 kB)
 Downloading h11-0.16.0-py3-none-any.whl (37 kB)
 Downloading mypy-2.3.1-cp311-cp311-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (15.1 MB)
-   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 15.1/15.1 MB 292.3 MB/s  0:00:00
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 15.1/15.1 MB 94.3 MB/s  0:00:00
 Downloading ast_serialize-0.8.0-cp39-abi3-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (1.3 MB)
-   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1.3/1.3 MB 238.6 MB/s  0:00:00
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1.3/1.3 MB 117.8 MB/s  0:00:00
 Downloading librt-0.15.0-cp311-cp311-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (516 kB)
 Downloading mypy_extensions-1.1.0-py3-none-any.whl (5.0 kB)
 Downloading openpyxl-3.1.5-py2.py3-none-any.whl (250 kB)
@@ -97,17 +97,17 @@ Downloading packaging-26.3-py3-none-any.whl (129 kB)
 Downloading pathspec-1.1.1-py3-none-any.whl (57 kB)
 Downloading pydantic-2.13.4-py3-none-any.whl (472 kB)
 Downloading pydantic_core-2.46.4-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (2.1 MB)
-   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 2.1/2.1 MB 278.5 MB/s  0:00:00
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 2.1/2.1 MB 162.4 MB/s  0:00:00
 Downloading annotated_types-0.8.0-py3-none-any.whl (13 kB)
 Downloading pypdf-6.16.1-py3-none-any.whl (382 kB)
 Downloading pytest-9.1.1-py3-none-any.whl (386 kB)
 Downloading pluggy-1.6.0-py3-none-any.whl (20 kB)
 Downloading iniconfig-2.3.0-py3-none-any.whl (7.5 kB)
 Downloading pygments-2.21.0-py3-none-any.whl (1.3 MB)
-   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1.3/1.3 MB 231.6 MB/s  0:00:00
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1.3/1.3 MB 93.5 MB/s  0:00:00
 Downloading python_multipart-0.0.32-py3-none-any.whl (30 kB)
 Downloading ruff-0.16.4-py3-none-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (10.3 MB)
-   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 10.3/10.3 MB 301.5 MB/s  0:00:00
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 10.3/10.3 MB 136.0 MB/s  0:00:00
 Downloading starlette-1.6.0-py3-none-any.whl (75 kB)
 Downloading anyio-4.14.2-py3-none-any.whl (125 kB)
 Downloading idna-3.19-py3-none-any.whl (68 kB)
@@ -120,12 +120,12 @@ Downloading et_xmlfile-2.0.0-py3-none-any.whl (18 kB)
 Downloading pyproject_hooks-1.2.0-py3-none-any.whl (10 kB)
 Downloading types_fpdf2-2.8.4.20260724-py3-none-any.whl (48 kB)
 Downloading pillow-12.3.0-cp311-cp311-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl (6.9 MB)
-   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 6.9/6.9 MB 276.9 MB/s  0:00:00
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 6.9/6.9 MB 138.1 MB/s  0:00:00
 Building wheels for collected packages: crow-plattform
   Building editable for crow-plattform (pyproject.toml): started
   Building editable for crow-plattform (pyproject.toml): finished with status 'done'
-  Created wheel for crow-plattform: filename=crow_plattform-0.7.0a1-0.editable-py3-none-any.whl size=2214 sha256=5e691d9d9ef68c108999e1b8e474915aaace0b19eddb9e1ab72d48f084b445d1
-  Stored in directory: /tmp/pip-ephem-wheel-cache-ldb4zkfd/wheels/18/41/12/19c52a60f3a6251f3714d9a594565cc0457fec0ce20e6812d2
+  Created wheel for crow-plattform: filename=crow_plattform-0.7.0a1-0.editable-py3-none-any.whl size=2214 sha256=b5cdde4c4964116e4c4d6e54f5305cddabdd62bde476df58c5b5bf6f42accc3e
+  Stored in directory: /tmp/pip-ephem-wheel-cache-cox_xchf/wheels/18/41/12/19c52a60f3a6251f3714d9a594565cc0457fec0ce20e6812d2
 Successfully built crow-plattform
 Installing collected packages: typing-extensions, ruff, python-multipart, pyproject_hooks, pypdf, pygments, pluggy, Pillow, pathspec, packaging, mypy_extensions, librt, iniconfig, idna, h11, et-xmlfile, click, certifi, ast-serialize, annotated-types, annotated-doc, uvicorn, typing-inspection, types-fpdf2, pytest, pydantic-core, openpyxl, mypy, httpcore, build, anyio, starlette, pydantic, httpx, fastapi, crow-plattform
 
@@ -170,13 +170,13 @@ Requirement already satisfied: pydantic-core==2.46.4 in /opt/hostedtoolcache/Pyt
 Requirement already satisfied: click>=7.0 in /opt/hostedtoolcache/Python/3.11.16/x64/lib/python3.11/site-packages (from uvicorn>=0.30->crow-plattform<0.8,>=0.7.0a1->crow-ovk-module==1.0.0) (8.4.2)
 Downloading fpdf2-2.8.8-py3-none-any.whl (337 kB)
 Downloading fonttools-4.63.0-cp311-cp311-manylinux2014_x86_64.manylinux_2_17_x86_64.whl (5.1 MB)
-   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 5.1/5.1 MB 271.0 MB/s  0:00:00
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 5.1/5.1 MB 21.1 MB/s  0:00:00
 Downloading defusedxml-0.7.1-py2.py3-none-any.whl (25 kB)
 Building wheels for collected packages: crow-ovk-module
   Building editable for crow-ovk-module (pyproject.toml): started
   Building editable for crow-ovk-module (pyproject.toml): finished with status 'done'
-  Created wheel for crow-ovk-module: filename=crow_ovk_module-1.0.0-0.editable-py3-none-any.whl size=1734 sha256=c99ebdd1e7e4cbd8f3512fd9e772a2539ea8d30be550e7797c849e69f66a4735
-  Stored in directory: /tmp/pip-ephem-wheel-cache-iab2lswm/wheels/ed/01/46/7a76f5995c65375cdefefea8b21ff038a017c75f0f63171f40
+  Created wheel for crow-ovk-module: filename=crow_ovk_module-1.0.0-0.editable-py3-none-any.whl size=1734 sha256=10fdb2bc3a801bf758e896786ec91857c8d46e11b2a69976bf033b12499bf804
+  Stored in directory: /tmp/pip-ephem-wheel-cache-nyss9one/wheels/ed/01/46/7a76f5995c65375cdefefea8b21ff038a017c75f0f63171f40
 Successfully built crow-ovk-module
 Installing collected packages: fonttools, defusedxml, fpdf2, crow-ovk-module
 
@@ -214,8 +214,8 @@ Requirement already satisfied: click>=7.0 in /opt/hostedtoolcache/Python/3.11.16
 Building wheels for collected packages: crow-pressure-test-module
   Building editable for crow-pressure-test-module (pyproject.toml): started
   Building editable for crow-pressure-test-module (pyproject.toml): finished with status 'done'
-  Created wheel for crow-pressure-test-module: filename=crow_pressure_test_module-1.0.0-0.editable-py3-none-any.whl size=1832 sha256=80ff0c8de721feb32e33a16047367afc14b385766d143c2914509a893d9c5b61
-  Stored in directory: /tmp/pip-ephem-wheel-cache-8ohmnxex/wheels/6d/1f/c6/58f1eb06ed947126489b77c4c194d72eaf83b8cf88dcf4a35e
+  Created wheel for crow-pressure-test-module: filename=crow_pressure_test_module-1.0.0-0.editable-py3-none-any.whl size=1832 sha256=8fc34dfdb49052b4e8f2754fd6d3174accbdffbb49300c0bdaf945aefa677761
+  Stored in directory: /tmp/pip-ephem-wheel-cache-3y6612ue/wheels/6d/1f/c6/58f1eb06ed947126489b77c4c194d72eaf83b8cf88dcf4a35e
 Successfully built crow-pressure-test-module
 Installing collected packages: crow-pressure-test-module
 Successfully installed crow-pressure-test-module-1.0.0
@@ -250,8 +250,8 @@ Requirement already satisfied: click>=7.0 in /opt/hostedtoolcache/Python/3.11.16
 Building wheels for collected packages: crow-vent-module
   Building editable for crow-vent-module (pyproject.toml): started
   Building editable for crow-vent-module (pyproject.toml): finished with status 'done'
-  Created wheel for crow-vent-module: filename=crow_vent_module-1.0.0-0.editable-py3-none-any.whl size=1741 sha256=3e4456f85d849d30ed363e7989d445857d305f472731204959d0dad9d5bdfba7
-  Stored in directory: /tmp/pip-ephem-wheel-cache-uj2ceic5/wheels/79/d0/6a/dfa716e4cc254763ec0338f2d1582af4683418f1c8bf3fd2c7
+  Created wheel for crow-vent-module: filename=crow_vent_module-1.0.0-0.editable-py3-none-any.whl size=1741 sha256=f04e87bd8353196c68630cdf1be04632939041ee4a33389e18032bb932a252ef
+  Stored in directory: /tmp/pip-ephem-wheel-cache-8n42j6mf/wheels/79/d0/6a/dfa716e4cc254763ec0338f2d1582af4683418f1c8bf3fd2c7
 Successfully built crow-vent-module
 Installing collected packages: crow-vent-module
 Successfully installed crow-vent-module-1.0.0
@@ -262,8 +262,75 @@ All checks passed!
 PHASE mypy-root
 Success: no issues found in 208 source files
 PHASE mypy-modules-strict
-modules/crow-vent-module/src/crow_vent/__init__.py:8: error: Module "crow_vent.canonical" does not explicitly export attribute "CanonicalAssembly"  [attr-defined]
-Found 1 error in 1 file (checked 168 source files)
-FAILED mypy-modules-strict rc=1
+Success: no issues found in 168 source files
+PHASE pytest
+................................................................s....... [ 14%]
+........................................................................ [ 28%]
+........................................................................ [ 42%]
+........................................................................ [ 57%]
+........................................................................ [ 71%]
+........................................................................ [ 85%]
+...........................F............................................ [100%]
+=================================== FAILURES ===================================
+_________________ test_root_tests_do_not_own_vent_domain_tests _________________
+
+    def test_root_tests_do_not_own_vent_domain_tests() -> None:
+        offenders = sorted(
+            path.name
+            for path in ROOT_TESTS.glob("test_*.py")
+            if path.name != Path(__file__).name
+            and path.name not in PLATFORM_INTEGRATION_ALLOWLIST
+            and _imports_vent_owned_package(path)
+        )
+>       assert offenders == [], "Root tests importing Vent-owned packages:\n" + "\n".join(offenders)
+E       AssertionError: Root tests importing Vent-owned packages:
+E         test_crow_cad_text.py
+E         test_rule_explorer.py
+E         test_workbench.py
+E       assert ['test_crow_c...workbench.py'] == []
+E         
+E         Left contains 3 more items, first extra item: 'test_crow_cad_text.py'
+E         
+E         Full diff:
+E         - []
+E         + [
+E         +     'test_crow_cad_text.py',
+E         +     'test_rule_explorer.py',
+E         +     'test_workbench.py',
+E         + ]
+
+tests/test_vent_test_ownership_audit.py:67: AssertionError
+=============================== warnings summary ===============================
+../../../../../opt/hostedtoolcache/Python/3.11.16/x64/lib/python3.11/site-packages/fastapi/testclient.py:1
+  /opt/hostedtoolcache/Python/3.11.16/x64/lib/python3.11/site-packages/fastapi/testclient.py:1: StarletteDeprecationWarning: Using `httpx` with `starlette.testclient` is deprecated; install `httpx2` instead.
+    from starlette.testclient import TestClient as TestClient  # noqa
+
+tests/test_module_web_extensions.py::test_workbench_mounts_module_routes_from_registry
+  /opt/hostedtoolcache/Python/3.11.16/x64/lib/python3.11/site-packages/fastapi/openapi/utils.py:303: UserWarning: Duplicate Operation ID workflow_page_ovk_besiktning_get for function workflow_page at /home/runner/work/crow-plattform/crow-plattform/modules/crow-ovk-module/src/crow_ovk_module/ovk_workflow_surface.py
+    warnings.warn(message, stacklevel=1)
+
+tests/test_module_web_extensions.py::test_workbench_mounts_module_routes_from_registry
+  /opt/hostedtoolcache/Python/3.11.16/x64/lib/python3.11/site-packages/fastapi/openapi/utils.py:303: UserWarning: Duplicate Operation ID field_page_ovk_falt_get for function field_page at /home/runner/work/crow-plattform/crow-plattform/modules/crow-ovk-module/src/crow_ovk_module/ovk_field_surface.py
+    warnings.warn(message, stacklevel=1)
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED tests/test_vent_test_ownership_audit.py::test_root_tests_do_not_own_vent_domain_tests - AssertionError: Root tests importing Vent-owned packages:
+  test_crow_cad_text.py
+  test_rule_explorer.py
+  test_workbench.py
+assert ['test_crow_c...workbench.py'] == []
+  
+  Left contains 3 more items, first extra item: 'test_crow_cad_text.py'
+  
+  Full diff:
+  - []
+  + [
+  +     'test_crow_cad_text.py',
+  +     'test_rule_explorer.py',
+  +     'test_workbench.py',
+  + ]
+1 failed, 502 passed, 1 skipped, 3 warnings in 26.31s
+FAILED pytest rc=1
 PHASE compose-down
 RESULT failure rc=1
