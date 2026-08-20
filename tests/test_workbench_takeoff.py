@@ -1,16 +1,26 @@
-import tempfile
+import json
 from pathlib import Path
 
+import pytest
 from fastapi.testclient import TestClient
 
 from crow_workbench.shell import create_app
 
 
-def client() -> TestClient:
-    return TestClient(create_app(Path(tempfile.mkdtemp())))
+def client(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> TestClient:
+    monkeypatch.setenv("CROW_CUSTOMER_ID", "acme")
+    target = tmp_path / "config" / "customers" / "acme"
+    target.mkdir(parents=True, exist_ok=True)
+    (target / "entitlements.json").write_text(
+        json.dumps({"customer_id": "acme", "modules": [{"id": "vent", "active": True}]}),
+        encoding="utf-8",
+    )
+    return TestClient(create_app(tmp_path))
 
 
-def test_takeoff_endpoint_consolidates_and_prices() -> None:
+def test_takeoff_endpoint_consolidates_and_prices(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     body = {
         "table_rows": [["T-125", "132", "m"]],
         "text_segments": ["24 st TD1"],
@@ -36,7 +46,7 @@ def test_takeoff_endpoint_consolidates_and_prices() -> None:
             ],
         },
     }
-    response = client().post("/api/projects/adhoc/takeoff", json=body)
+    response = client(tmp_path, monkeypatch).post("/api/projects/adhoc/takeoff", json=body)
     assert response.status_code == 200
     payload = response.json()
     assert payload["consolidated"]["line_count"] == 2
@@ -45,6 +55,8 @@ def test_takeoff_endpoint_consolidates_and_prices() -> None:
     assert payload["priced"]["currency"] == "SEK"
 
 
-def test_takeoff_endpoint_requires_at_least_one_source() -> None:
-    response = client().post("/api/projects/adhoc/takeoff", json={})
+def test_takeoff_endpoint_requires_at_least_one_source(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    response = client(tmp_path, monkeypatch).post("/api/projects/adhoc/takeoff", json={})
     assert response.status_code == 422
