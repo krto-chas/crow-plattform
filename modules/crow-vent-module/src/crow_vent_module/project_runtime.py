@@ -176,9 +176,7 @@ def _safe_project_id(project_id: str) -> str:
 
 
 def _safe_checksum(checksum: str) -> str:
-    if len(checksum) != 64 or any(
-        char not in "0123456789abcdef" for char in checksum.lower()
-    ):
+    if len(checksum) != 64 or any(char not in "0123456789abcdef" for char in checksum.lower()):
         raise HTTPException(status_code=400, detail="Ogiltig checksumma")
     return checksum.lower()
 
