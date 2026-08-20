@@ -59,17 +59,17 @@ def test_workbench_mounts_module_routes_from_registry(tmp_path: Path) -> None:
 
 def test_platform_composes_vent_product_routes_from_module(tmp_path: Path) -> None:
     app = create_app(tmp_path)
-    expected = {
+    expected = (
         ("GET", "/api/vent/registry"),
         ("GET", "/api/projects/{project_id}/vent/{checksum}"),
         ("POST", "/api/projects/{project_id}/takeoff"),
         ("GET", "/api/projects/{project_id}/vent/{checksum}/quantity.csv"),
         ("GET", "/api/projects/{project_id}/vent/{checksum}/review"),
-    }
+    )
 
     for method, path in expected:
         matching = _matching_routes(app, method, path)
-        assert len(matching) == 1
+        assert len(matching) == 1, f"Missing composed route: {method} {path}"
         assert matching[0].endpoint.__module__.startswith("crow_vent_module")
 
 
