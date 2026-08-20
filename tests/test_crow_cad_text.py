@@ -2,7 +2,8 @@ from pathlib import Path
 
 import pytest
 
-from crow_cad_text import CadTextExtractor, CadVentTextPipeline
+from crow_cad_text import CadTextExtractor
+from crow_vent import CadVentTextPipeline
 
 DXF = """0
 SECTION
