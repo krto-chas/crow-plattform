@@ -1,0 +1,317 @@
+name: Pass 106 source migration
+
+on:
+  push:
+    branches: [pass106-core-vent-decoupling]
+
+permissions:
+  contents: write
+
+jobs:
+  migrate:
+    if: ${{ !contains(github.event.head_commit.message, '[pass106-applied]') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: pass106-core-vent-decoupling
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Apply source-boundary migration
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+
+          app_path = Path("src/crow_workbench/app.py")
+          text = app_path.read_text(encoding="utf-8")
+
+          old_import = '''from crow_vent import (
+              VentAuditDiffer,
+              VentGraphAudit,
+              VentResolutionVerificationService,
+              build_vent_model,
+              component_registry,
+              quantity_takeoff_csv,
+          )
+          from crow_vent.graph_audit import VENT_GRAPH_RULES
+          '''
+          new_import = '''from crow_graph_rules import (
+              GraphAuditDiffer,
+              GraphAuditProfile,
+              GraphResolutionVerificationService,
+              GraphRule,
+              GraphRuleEngine,
+          )
+          '''
+          assert text.count(old_import) == 1, "unexpected Workbench Vent import block"
+          text = text.replace(old_import, new_import, 1)
+
+          old_serialize = '''    def serialize_graph_audit(project_id: str) -> dict[str, Any]:
+              graph = building_graph_repository(project_id).load()
+              result = VentGraphAudit().audit(graph)
+              graph_payload = json.dumps(graph, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
+              graph_checksum = sha256(graph_payload.encode("utf-8")).hexdigest()
+              return {
+                  "project_id": _safe_project_id(project_id),
+                  "graph_checksum": graph_checksum,
+                  "summary": result.summary,
+                  "metadata": result.metadata,
+                  "findings": [_jsonable(asdict(item)) for item in result.findings],
+              }
+          '''
+          new_serialize = '''    def active_graph_audit_profiles() -> tuple[GraphAuditProfile, ...]:
+              raw: Any = getattr(app.state, "crow_graph_audit_profiles", ())
+              if not isinstance(raw, tuple):
+                  return ()
+              return tuple(item for item in raw if isinstance(item, GraphAuditProfile))
+
+              
+          '''
+          # Build the replacement separately to avoid invisible indentation mistakes.
+          new_serialize = '''    def active_graph_audit_profiles() -> tuple[GraphAuditProfile, ...]:
+              raw: Any = getattr(app.state, "crow_graph_audit_profiles", ())
+              if not isinstance(raw, tuple):
+                  return ()
+              return tuple(item for item in raw if isinstance(item, GraphAuditProfile))
+
+              def active_graph_rules() -> tuple[GraphRule, ...]:
+                  return tuple(
+                      rule
+                      for profile in active_graph_audit_profiles()
+                      for rule in profile.rules
+                  )
+
+              def graph_audit_identity() -> tuple[str, str]:
+                  profiles = active_graph_audit_profiles()
+                  if len(profiles) == 1:
+                      profile = profiles[0]
+                      return profile.audit_prefix, profile.ruleset_version
+                  if not profiles:
+                      return "graph", "none"
+                  token = "|".join(
+                      sorted(f"{profile.profile_id}@{profile.ruleset_version}" for profile in profiles)
+                  )
+                  return "graph", sha256(token.encode("utf-8")).hexdigest()[:12]
+
+              def serialize_graph_audit(project_id: str) -> dict[str, Any]:
+                  graph = building_graph_repository(project_id).load()
+                  profiles = active_graph_audit_profiles()
+                  result = GraphRuleEngine().evaluate(graph, active_graph_rules())
+                  graph_payload = json.dumps(
+                      graph, sort_keys=True, separators=(",", ":"), ensure_ascii=False
+                  )
+                  graph_checksum = sha256(graph_payload.encode("utf-8")).hexdigest()
+                  summary = {"total": result.summary.get("total", 0)}
+                  categories = sorted(
+                      {
+                          category
+                          for profile in profiles
+                          for category in profile.summary_categories
+                      }
+                  )
+                  for category in categories:
+                      summary[category] = result.summary.get(category, 0)
+                  _, ruleset_version = graph_audit_identity()
+                  metadata = {
+                      **result.metadata,
+                      "rule_version": ruleset_version,
+                      "profiles": [profile.profile_id for profile in profiles],
+                  }
+                  if len(profiles) == 1:
+                      metadata.update(profiles[0].metadata)
+                  return {
+                      "project_id": _safe_project_id(project_id),
+                      "graph_checksum": graph_checksum,
+                      "summary": summary,
+                      "metadata": metadata,
+                      "findings": [_jsonable(asdict(item)) for item in result.findings],
+                  }
+          '''
+          # The string above intentionally contains nested defs at eight spaces; normalize them to
+          # the create_app scope (four spaces) while preserving their bodies.
+          lines = new_serialize.splitlines()
+          normalized = []
+          for line in lines:
+              if line.startswith("        def active_graph_rules") or line.startswith("        def graph_audit_identity") or line.startswith("        def serialize_graph_audit"):
+                  line = line[4:]
+              elif normalized and any(
+                  marker in normalized[-1]
+                  for marker in (
+                      "def active_graph_rules",
+                      "def graph_audit_identity",
+                      "def serialize_graph_audit",
+                  )
+              ):
+                  pass
+              normalized.append(line)
+          # Easier and safer: use dedent/reindent blocks explicitly.
+          from textwrap import dedent, indent
+          new_serialize = indent(dedent('''
+          def active_graph_audit_profiles() -> tuple[GraphAuditProfile, ...]:
+              raw: Any = getattr(app.state, "crow_graph_audit_profiles", ())
+              if not isinstance(raw, tuple):
+                  return ()
+              return tuple(item for item in raw if isinstance(item, GraphAuditProfile))
+
+          def active_graph_rules() -> tuple[GraphRule, ...]:
+              return tuple(
+                  rule
+                  for profile in active_graph_audit_profiles()
+                  for rule in profile.rules
+              )
+
+          def graph_audit_identity() -> tuple[str, str]:
+              profiles = active_graph_audit_profiles()
+              if len(profiles) == 1:
+                  profile = profiles[0]
+                  return profile.audit_prefix, profile.ruleset_version
+              if not profiles:
+                  return "graph", "none"
+              token = "|".join(
+                  sorted(f"{profile.profile_id}@{profile.ruleset_version}" for profile in profiles)
+              )
+              return "graph", sha256(token.encode("utf-8")).hexdigest()[:12]
+
+          def serialize_graph_audit(project_id: str) -> dict[str, Any]:
+              graph = building_graph_repository(project_id).load()
+              profiles = active_graph_audit_profiles()
+              result = GraphRuleEngine().evaluate(graph, active_graph_rules())
+              graph_payload = json.dumps(
+                  graph, sort_keys=True, separators=(",", ":"), ensure_ascii=False
+              )
+              graph_checksum = sha256(graph_payload.encode("utf-8")).hexdigest()
+              summary = {"total": result.summary.get("total", 0)}
+              categories = sorted(
+                  {
+                      category
+                      for profile in profiles
+                      for category in profile.summary_categories
+                  }
+              )
+              for category in categories:
+                  summary[category] = result.summary.get(category, 0)
+              _, ruleset_version = graph_audit_identity()
+              metadata = {
+                  **result.metadata,
+                  "rule_version": ruleset_version,
+                  "profiles": [profile.profile_id for profile in profiles],
+              }
+              if len(profiles) == 1:
+                  metadata.update(profiles[0].metadata)
+              return {
+                  "project_id": _safe_project_id(project_id),
+                  "graph_checksum": graph_checksum,
+                  "summary": summary,
+                  "metadata": metadata,
+                  "findings": [_jsonable(asdict(item)) for item in result.findings],
+              }
+          ''').lstrip("\n"), "    ")
+          assert text.count(old_serialize) == 1, "unexpected graph audit serializer"
+          text = text.replace(old_serialize, new_serialize, 1)
+
+          old_audit_id = '''        audit_id = f"vent:audit:{sha256(audit_key.encode('utf-8')).hexdigest()[:20]}"'''
+          new_audit_id = '''        audit_prefix, _ = graph_audit_identity()
+                  audit_id = f"{audit_prefix}:audit:{sha256(audit_key.encode('utf-8')).hexdigest()[:20]}"'''
+          new_audit_id = dedent(new_audit_id).strip("\n")
+          new_audit_id = indent(new_audit_id, "        ")
+          assert text.count(old_audit_id) == 1, "unexpected graph audit id construction"
+          text = text.replace(old_audit_id, new_audit_id, 1)
+
+          assert text.count("VentAuditDiffer()") >= 1
+          text = text.replace("VentAuditDiffer()", "GraphAuditDiffer()")
+
+          old_verify = "verification = VentResolutionVerificationService().decide("
+          new_verify = '''verification = GraphResolutionVerificationService(
+                      namespace=base_audit_id.split(":", 1)[0]
+                  ).decide('''
+          assert text.count(old_verify) == 1, "unexpected graph resolution verifier"
+          text = text.replace(old_verify, new_verify, 1)
+
+          assert text.count("len(VENT_GRAPH_RULES) + 4") == 1
+          text = text.replace("len(VENT_GRAPH_RULES) + 4", "len(active_graph_rules()) + 4")
+          assert text.count("(*VENT_GRAPH_RULES, *evidence_rules)") == 1
+          text = text.replace(
+              "(*VENT_GRAPH_RULES, *evidence_rules)",
+              "(*active_graph_rules(), *evidence_rules)",
+          )
+          assert text.count('"vent-audit-*.json"') >= 1
+          text = text.replace('"vent-audit-*.json"', '"*-audit-*.json"')
+
+          legacy_start = '    @app.get("/api/vent/registry")\n'
+          assert text.count(legacy_start) == 1, "legacy Vent product block marker missing"
+          start = text.index(legacy_start)
+          end = text.index("    return app\n", start)
+          text = text[:start] + text[end:]
+
+          assert "from crow_vent" not in text
+          assert "VENT_GRAPH_RULES" not in text
+          assert 'app.get("/api/vent/registry")' not in text
+          assert 'app.post("/api/projects/{project_id}/takeoff")' not in text
+          app_path.write_text(text, encoding="utf-8")
+
+          workbench_test = Path("tests/test_workbench.py")
+          tests = workbench_test.read_text(encoding="utf-8")
+          old_top = '''from fastapi.testclient import TestClient
+
+from crow_workbench.app import create_app
+'''
+          new_top = '''from fastapi import FastAPI
+from fastapi.testclient import TestClient
+
+from crow_vent_module.plugin import CrowVentModulePlugin
+from crow_workbench.app import create_app as create_core_app
+
+
+def create_app(data_root: Path) -> FastAPI:
+    app = create_core_app(data_root)
+    app.state.crow_graph_audit_profiles = CrowVentModulePlugin().graph_audit_profiles()
+    return app
+'''
+          assert tests.count(old_top) == 1, "unexpected test_workbench import block"
+          tests = tests.replace(old_top, new_top, 1)
+          workbench_test.write_text(tests, encoding="utf-8")
+
+          canonical_test = Path("tests/test_crow_canonical.py")
+          tests = canonical_test.read_text(encoding="utf-8")
+          old_top = '''from crow_canonical import CanonicalGraphBridge, CanonicalObjectType, VentCanonicalAdapter
+          from crow_vent import VentTextInterpreter
+'''
+          new_top = '''from crow_canonical import CanonicalGraphBridge, CanonicalObjectType
+          from crow_vent import VentCanonicalAdapter, VentCanonicalAssembler, VentTextInterpreter
+'''
+          assert tests.count(old_top) == 1, "unexpected canonical test import block"
+          tests = tests.replace(old_top, new_top, 1)
+          tests = tests.replace("    from crow_canonical import VentCanonicalAssembler\n\n", "")
+          tests = tests.replace("        VentCanonicalAssembler,\n", "")
+          tests = tests.replace(
+              "    from crow_canonical import CanonicalProvenanceService, VentCanonicalAdapter\n",
+              "    from crow_canonical import CanonicalProvenanceService\n",
+          )
+          canonical_test.write_text(tests, encoding="utf-8")
+
+          vent_adapter = Path("src/crow_canonical/vent_adapter.py")
+          assert vent_adapter.exists(), "legacy root Vent adapter already absent unexpectedly"
+          vent_adapter.unlink()
+          PY
+      - name: Verify migration invariants
+        run: |
+          set -euo pipefail
+          ! grep -R --include='*.py' -nE '(^|[[:space:]])(from|import)[[:space:]]+crow_vent' src
+          ! test -e src/crow_canonical/vent_adapter.py
+          grep -q 'GraphRuleEngine().evaluate' src/crow_workbench/app.py
+          grep -q 'crow_graph_audit_profiles' src/crow_workbench/app.py
+          grep -q 'CrowVentModulePlugin' tests/test_workbench.py
+          grep -q 'from crow_vent import VentCanonicalAdapter, VentCanonicalAssembler' tests/test_crow_canonical.py
+      - name: Commit migration
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -- src/crow_workbench/app.py tests/test_workbench.py tests/test_crow_canonical.py
+          git rm --cached --ignore-unmatch src/crow_canonical/vent_adapter.py >/dev/null 2>&1 || true
+          git add -u -- src/crow_canonical/vent_adapter.py
+          git diff --cached --check
+          git commit -m "refactor(core): remove Vent runtime dependency [pass106-applied]"
+          git push origin HEAD:pass106-core-vent-decoupling
