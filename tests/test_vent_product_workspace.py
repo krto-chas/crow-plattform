@@ -87,9 +87,7 @@ def test_vent_drawing_analysis_alias_is_entitlement_protected(
     assert response.json()["detail"] == {"code": "MODULE_NOT_ACTIVE", "module": "vent"}
 
 
-def test_vent_quote_works_in_session_mode(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_vent_quote_works_in_session_mode(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("CROW_AUTH_MODE", "session")
     monkeypatch.setenv("CROW_SESSION_SECRET", "0123456789abcdef0123456789abcdef")
     monkeypatch.delenv("CROW_SESSION_SECRET_FILE", raising=False)
