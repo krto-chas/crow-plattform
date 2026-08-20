@@ -11,10 +11,19 @@ from crow_module_sdk.web import (
     CrowGraphAuditProvider,
     CrowWebModule,
 )
+from crow_workbench.app import create_app as create_core_app
 from crow_workbench.shell import (
     _register_core_route_claims,
     _remove_core_routes,
     create_app,
+)
+
+LEGACY_VENT_ROUTES = (
+    CoreRouteClaim("GET", "/api/vent/registry"),
+    CoreRouteClaim("GET", "/api/projects/{project_id}/vent/{checksum}"),
+    CoreRouteClaim("POST", "/api/projects/{project_id}/takeoff"),
+    CoreRouteClaim("GET", "/api/projects/{project_id}/vent/{checksum}/quantity.csv"),
+    CoreRouteClaim("GET", "/api/projects/{project_id}/vent/{checksum}/review"),
 )
 
 
@@ -43,6 +52,13 @@ def test_core_route_claim_requires_absolute_path() -> None:
         CoreRouteClaim("GET", "probe")
 
 
+def test_core_app_no_longer_defines_legacy_vent_routes(tmp_path: Path) -> None:
+    app = create_core_app(tmp_path, graph_audit_profiles=())
+
+    for claim in LEGACY_VENT_ROUTES:
+        assert _matching_routes(app, claim.method, claim.path) == []
+
+
 def test_workbench_mounts_module_routes_from_registry(tmp_path: Path) -> None:
     app = create_app(tmp_path)
     paths = set(app.openapi()["paths"])
@@ -66,16 +82,9 @@ def test_vent_plugin_owns_legacy_product_routes_without_core_takeover(tmp_path: 
     assert isinstance(vent, CrowWebModule)
     assert not isinstance(vent, CrowCoreRouteOwner)
 
-    expected = (
-        CoreRouteClaim("GET", "/api/vent/registry"),
-        CoreRouteClaim("GET", "/api/projects/{project_id}/vent/{checksum}"),
-        CoreRouteClaim("POST", "/api/projects/{project_id}/takeoff"),
-        CoreRouteClaim("GET", "/api/projects/{project_id}/vent/{checksum}/quantity.csv"),
-        CoreRouteClaim("GET", "/api/projects/{project_id}/vent/{checksum}/review"),
-    )
     routers = vent.routers(tmp_path)
 
-    for route in expected:
+    for route in LEGACY_VENT_ROUTES:
         matching = _matching_router_routes(routers, route.method, route.path)
         assert len(matching) == 1, f"Vent module does not own {route.method} {route.path}"
         assert matching[0].endpoint.__module__.startswith("crow_vent_module")
