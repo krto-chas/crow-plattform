@@ -17,6 +17,7 @@ VENT_OWNED_IMPORT_ROOTS = {
 }
 MIGRATED_TESTS = {
     "test_benchmark_pricing.py",
+    "test_cad_text.py",
     "test_crow_vent.py",
     "test_riser_model.py",
     "test_takeoff_consolidation.py",
@@ -33,6 +34,8 @@ MIGRATED_TESTS = {
 }
 PLATFORM_INTEGRATION_ALLOWLIST = {
     "test_crow_canonical.py",
+    "test_rule_explorer.py",
+    "test_workbench.py",
 }
 
 
