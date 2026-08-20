@@ -179,22 +179,25 @@ def _register_core_route_claims(
 
 
 def _remove_core_routes(app: FastAPI, claims: tuple[CoreRouteClaim, ...]) -> None:
-    claimed_by_path: dict[str, set[str]] = {}
-    for claim in claims:
-        claimed_by_path.setdefault(claim.path, set()).add(claim.method)
-
+    unmatched = set(claims)
     retained = []
     for route in app.router.routes:
         if not isinstance(route, APIRoute):
             retained.append(route)
             continue
-        claimed_methods = claimed_by_path.get(route.path)
+        claimed_methods = {
+            claim.method for claim in claims if claim.path == route.path and claim.method in route.methods
+        }
         if not claimed_methods:
             retained.append(route)
             continue
         route.methods.difference_update(claimed_methods)
+        unmatched.difference_update(CoreRouteClaim(method, route.path) for method in claimed_methods)
         if route.methods:
             retained.append(route)
+    if unmatched:
+        missing = ", ".join(f"{claim.method} {claim.path}" for claim in sorted(unmatched, key=str))
+        raise RuntimeError(f"Core route ownership claim did not match an existing route: {missing}")
     app.router.routes[:] = retained
 
 
