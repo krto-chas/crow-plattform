@@ -1,4 +1,3 @@
-from .assembly import CanonicalAssembly, VentCanonicalAssembler
 from .graph_bridge import CanonicalGraphBridge
 from .identity_review import (
     IdentityReview,
@@ -13,10 +12,8 @@ from .relations import (
     CanonicalRelationType,
     ExplicitRelationAssertion,
 )
-from .vent_adapter import VentCanonicalAdapter
 
 __all__ = [
-    "CanonicalAssembly",
     "CanonicalEvidence",
     "CanonicalGraphBridge",
     "CanonicalObject",
@@ -32,6 +29,4 @@ __all__ = [
     "IdentityReviewDecision",
     "IdentityReviewResult",
     "IdentityReviewService",
-    "VentCanonicalAdapter",
-    "VentCanonicalAssembler",
 ]
