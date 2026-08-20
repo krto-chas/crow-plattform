@@ -1,11 +1,16 @@
 from pathlib import Path
 
+import pytest
 from fastapi import FastAPI
 from fastapi.routing import APIRoute
 
 from crow_module_sdk.module_registry import ModuleRegistry
 from crow_module_sdk.web import CoreRouteClaim, CrowCoreRouteOwner, CrowWebModule
-from crow_workbench.shell import _remove_core_routes, create_app
+from crow_workbench.shell import (
+    _register_core_route_claims,
+    _remove_core_routes,
+    create_app,
+)
 
 
 def test_first_party_domain_modules_are_discoverable() -> None:
@@ -22,6 +27,17 @@ def test_first_party_domain_modules_are_discoverable() -> None:
     assert CoreRouteClaim(
         "POST", "/api/projects/{project_id}/takeoff"
     ) in vent.replaces_core_routes()
+
+
+def test_core_route_claim_normalizes_method() -> None:
+    claim = CoreRouteClaim(" get ", "/probe")
+
+    assert claim == CoreRouteClaim("GET", "/probe")
+
+
+def test_core_route_claim_requires_absolute_path() -> None:
+    with pytest.raises(ValueError, match="must be absolute"):
+        CoreRouteClaim("GET", "probe")
 
 
 def test_workbench_mounts_module_routes_from_registry(tmp_path: Path) -> None:
@@ -68,6 +84,15 @@ def test_core_route_claim_removes_only_claimed_method() -> None:
 
     assert _matching_routes(app, "GET", "/probe") == []
     assert len(_matching_routes(app, "POST", "/probe")) == 1
+
+
+def test_duplicate_core_route_ownership_is_rejected() -> None:
+    owners: dict[CoreRouteClaim, str] = {}
+    claim = CoreRouteClaim("GET", "/probe")
+    _register_core_route_claims(owners, "crow.first", (claim,))
+
+    with pytest.raises(RuntimeError, match="claimed by both crow.first and crow.second"):
+        _register_core_route_claims(owners, "crow.second", (claim,))
 
 
 def _matching_routes(app: FastAPI, method: str, path: str) -> list[APIRoute]:
