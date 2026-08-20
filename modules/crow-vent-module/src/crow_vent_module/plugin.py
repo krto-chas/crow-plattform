@@ -106,9 +106,7 @@ class CrowVentModulePlugin:
             CoreRouteClaim("GET", "/api/vent/registry"),
             CoreRouteClaim("GET", "/api/projects/{project_id}/vent/{checksum}"),
             CoreRouteClaim("POST", "/api/projects/{project_id}/takeoff"),
-            CoreRouteClaim(
-                "GET", "/api/projects/{project_id}/vent/{checksum}/quantity.csv"
-            ),
+            CoreRouteClaim("GET", "/api/projects/{project_id}/vent/{checksum}/quantity.csv"),
             CoreRouteClaim("GET", "/api/projects/{project_id}/vent/{checksum}/review"),
         )
 
