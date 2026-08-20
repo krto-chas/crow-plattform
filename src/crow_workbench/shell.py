@@ -16,6 +16,7 @@ from crow_entitlements.context import current_customer_from_request
 from crow_entitlements.management import management_router
 from crow_entitlements.models import CustomerContext
 from crow_entitlements.user_admin import user_admin_router
+from crow_graph_rules import GraphAuditProfile
 from crow_module_sdk.module_registry import ModuleRegistry
 from crow_module_sdk.web import CoreRouteClaim
 
@@ -33,13 +34,24 @@ def create_app(data_root: Path | None = None, config_root: Path | None = None) -
     registry = ModuleRegistry()
     registered_modules = registry.discover()
     core_route_owners: dict[CoreRouteClaim, str] = {}
+    graph_audit_profiles: dict[str, tuple[str, GraphAuditProfile]] = {}
     for registered in registered_modules:
         claims_provider = getattr(registered.plugin, "replaces_core_routes", None)
         if callable(claims_provider):
             claims = claims_provider()
             _register_core_route_claims(core_route_owners, registered.module_id, claims)
+        audit_provider = getattr(registered.plugin, "graph_audit_profiles", None)
+        if callable(audit_provider):
+            _register_graph_audit_profiles(
+                graph_audit_profiles,
+                registered.module_id,
+                audit_provider(),
+            )
 
     _remove_core_routes(app, tuple(core_route_owners))
+    app.state.crow_graph_audit_profiles = tuple(
+        profile for _, profile in graph_audit_profiles.values()
+    )
 
     for registered in registered_modules:
         routers_provider = getattr(registered.plugin, "routers", None)
@@ -177,6 +189,21 @@ def _register_core_route_claims(
                 f"{previous} and {module_id}"
             )
         owners[claim] = module_id
+
+
+def _register_graph_audit_profiles(
+    profiles: dict[str, tuple[str, GraphAuditProfile]],
+    module_id: str,
+    contributed: tuple[GraphAuditProfile, ...],
+) -> None:
+    for profile in contributed:
+        previous = profiles.get(profile.profile_id)
+        if previous is not None:
+            raise RuntimeError(
+                f"Graph audit profile {profile.profile_id} is contributed by both "
+                f"{previous[0]} and {module_id}"
+            )
+        profiles[profile.profile_id] = (module_id, profile)
 
 
 def _remove_core_routes(app: FastAPI, claims: tuple[CoreRouteClaim, ...]) -> None:
