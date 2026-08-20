@@ -1,5 +1,7 @@
 (() => {
-  const requestedProject = new URLSearchParams(window.location.search).get('project_id');
+  const params = new URLSearchParams(window.location.search);
+  const requestedProject = params.get('project_id');
+  const requestedView = params.get('view');
 
   function currentProjectId() {
     return document.querySelector('.project-item.active')?.dataset.id || requestedProject || '';
@@ -81,19 +83,23 @@
     document.querySelector('[data-view="vent"]')?.remove();
   }
 
-  async function openRequestedProject() {
-    if (!requestedProject || typeof window.openProject !== 'function') return;
-    try {
-      await window.openProject(requestedProject);
-    } catch (error) {
-      console.warn('Kunde inte öppna begärt Workbench-projekt.', error);
+  async function openRequestedContext() {
+    if (requestedProject && typeof window.openProject === 'function') {
+      try {
+        await window.openProject(requestedProject);
+      } catch (error) {
+        console.warn('Kunde inte öppna begärt Workbench-projekt.', error);
+      }
+    }
+    if (requestedView && requestedView !== 'vent' && typeof window.switchView === 'function') {
+      window.switchView(requestedView);
     }
   }
 
   window.addEventListener('load', async () => {
     if (await ventIsAvailable()) installVentProductLink();
     else removeLegacyVentButton();
-    await openRequestedProject();
+    await openRequestedContext();
     updateProductLinks();
   }, {once: true});
 })();
