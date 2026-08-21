@@ -67,13 +67,24 @@ def test_measurement_rules_and_decimal_parsing() -> None:
     )
     assert measurement.measured_value == Decimal("34.5")
     assert measurement.deviation == Decimal("-5.5")
-    with pytest.raises(ValueError, match="requires measured_value"):
+    # Pass 110b: mätbar punkt utan värde är pågående arbete och tillåten i
+    # synkade utkast — kompletthet prövas vid protokollfärdigställandet.
+    pending = FieldMeasurement(
+        measurement_id="meas-2",
+        inspection_id="ovk-1",
+        unit_id="unit-1",
+        point_type=MeasurePointType.FRANLUFTSDON,
+        point_label="Badrum 1",
+    )
+    assert pending.is_pending
+    with pytest.raises(ValueError, match="requires a written reason"):
         FieldMeasurement(
-            measurement_id="meas-2",
+            measurement_id="meas-2b",
             inspection_id="ovk-1",
             unit_id="unit-1",
             point_type=MeasurePointType.FRANLUFTSDON,
             point_label="Badrum 1",
+            measurable=False,
         )
     with pytest.raises(ValueError, match="written reason"):
         FieldMeasurement(

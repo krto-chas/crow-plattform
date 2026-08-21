@@ -374,3 +374,48 @@ def test_field_sync_roundtrips_finding_classification(tmp_path: Path) -> None:
     findings[-1]["classification"] = 5
     rejected = client.put("/api/ovk/field/sync/ovk-1", json=payload)
     assert rejected.status_code == 422
+
+
+def test_field_sync_accepts_pending_measurement_points(tmp_path: Path) -> None:
+    """Synk är arbetsläge: preset-mätpunkt utan värde får aldrig fälla synken."""
+    client = _client(tmp_path)
+    payload = _field_payload()
+    measurements = payload.setdefault("measurements", [])
+    assert isinstance(measurements, list)
+    measurements.append(
+        {
+            "measurement_id": "meas-pending",
+            "unit_id": "unit-1",
+            "point_type": "franluftsdon",
+            "point_label": "Badrum 1",
+            "measurable": True,
+            "measured_value": None,
+        }
+    )
+    response = client.put("/api/ovk/field/sync/ovk-1", json=payload)
+    assert response.status_code == 200, response.text
+
+    # Ej mätbar utan orsak avvisas fortfarande — det kravet är inte arbetsläge.
+    measurements.append(
+        {
+            "measurement_id": "meas-bad",
+            "unit_id": "unit-1",
+            "point_type": "franluftsdon",
+            "point_label": "Kök 1",
+            "measurable": False,
+            "not_measurable_reason": "",
+        }
+    )
+    rejected = client.put("/api/ovk/field/sync/ovk-1", json=payload)
+    assert rejected.status_code == 422
+
+
+def test_field_app_shows_session_status(tmp_path: Path) -> None:
+    client = _client(tmp_path)
+    page = client.get("/ovk/falt")
+    assert 'id="authStatus"' in page.text
+    app = client.get("/ovk/falt/app.js")
+    assert "/api/auth/me" in app.text
+    assert "Ej inloggad" in app.text
+    auth = client.get("/ovk/falt/auth.js")
+    assert "Sessionen har gått ut" in auth.text
