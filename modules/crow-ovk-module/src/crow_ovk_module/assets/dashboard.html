@@ -19,6 +19,33 @@
     <section class="panel projectbar">
       <div><label for="project">Projekt</label><select id="project"><option value="">Laddar projekt…</option></select></div>
       <a class="button secondary" href="/workbench">Öppna Workbench</a> <a class="button secondary" href="/ovk/fastighet">Fastighet &amp; besiktningsmän</a>
+      <div style="margin-top:14px">
+        <label style="font-size:13px;font-weight:600">Protokollutkast från fältdata</label>
+        <div style="display:flex;gap:8px;margin-top:4px">
+          <input id="pbProject" placeholder="projekt-id" style="flex:1;padding:8px;border:1px solid #cbd4dc;border-radius:6px">
+          <input id="pbInspection" placeholder="besiktnings-id" style="flex:1;padding:8px;border:1px solid #cbd4dc;border-radius:6px">
+          <button class="button" id="pbBuild" type="button">Bygg utkast</button>
+        </div>
+        <div id="pbResult" style="margin-top:8px;font-size:13px"></div>
+      </div>
+      <script>
+      document.getElementById('pbBuild').onclick=async()=>{
+        const project=document.getElementById('pbProject').value.trim();
+        const inspection=document.getElementById('pbInspection').value.trim().toLowerCase();
+        const out=document.getElementById('pbResult');
+        if(!project||!inspection){out.textContent='Ange projekt-id och besiktnings-id.';return}
+        out.textContent='Bygger…';
+        try{
+          const response=await fetch('/api/ovk/projects/'+encodeURIComponent(project)+'/field/'+encodeURIComponent(inspection)+'/protokoll-utkast',{method:'POST',headers:{'content-type':'application/json'},body:'{}'});
+          const data=await response.json();
+          if(!response.ok){out.textContent=(data.detail&&(data.detail.code+' · '+(data.detail.message||'')))||'Fel';return}
+          const utkast=data.utkast;
+          const rows=[...utkast.anmarkningar,...utkast.upplysningar];
+          out.innerHTML='<strong>Resultat: '+utkast.besiktningsresultat.replaceAll('_',' ')+'</strong><br>'+
+            (rows.length?rows.map(row=>'<span style="display:inline-block;background:#eef2f5;border-radius:4px;padding:1px 6px;margin:2px 4px 2px 0;font-size:11px">'+(row.pos||'–')+' · klass '+row.classification+'</span>'+row.text).join('<br>'):'Inga anmärkningar.');
+        }catch(error){out.textContent='Fel: '+error}
+      };
+      </script>
     </section>
     <div id="status" class="status">Laddar…</div>
 

@@ -182,12 +182,7 @@ class FieldMeasurement:
             raise ValueError("measurement_id and unit_id must not be empty")
         if not self.point_label.strip():
             raise ValueError("measurement point_label must not be empty")
-        if self.measurable:
-            if self.measured_value is None:
-                raise ValueError(
-                    f"measurable point {self.measurement_id!r} requires measured_value"
-                )
-        else:
+        if not self.measurable:
             if not self.not_measurable_reason.strip():
                 raise ValueError(
                     f"not measurable point {self.measurement_id!r} requires a written reason"
@@ -196,6 +191,17 @@ class FieldMeasurement:
                 raise ValueError(
                     f"not measurable point {self.measurement_id!r} cannot carry a value"
                 )
+
+    @property
+    def is_pending(self) -> bool:
+        """Mätbar punkt utan värde: pågående arbete, tillåtet i synkade utkast.
+
+        Kompletthetskravet hör hemma vid protokollfärdigställandet (flödes-
+        protokollet), inte vid synk — en rondering mitt i arbetet ska alltid
+        kunna säkras till servern. Presetpunkter (Badrum/WC/Kök) skapas
+        dessutom före mätning och får aldrig blockera synken.
+        """
+        return self.measurable and self.measured_value is None
 
     @property
     def deviation(self) -> Decimal | None:
