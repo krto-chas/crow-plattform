@@ -1,0 +1,79 @@
+{
+  "schema_version": "crow-ovk-positions-v1",
+  "groups": [
+    {
+      "id": "1",
+      "label": "Handlingar",
+      "positions": [
+        {"id": "1.1", "label": "Ritningar"},
+        {"id": "1.2", "label": "DU-instruktioner"},
+        {"id": "1.3", "label": "Föregående OVK-protokoll"},
+        {"id": "1.4", "label": "Proj. värden/luftflödesprotokoll"},
+        {"id": "1.5", "label": "Övrigt"}
+      ]
+    },
+    {
+      "id": "2",
+      "label": "Föroreningar",
+      "positions": [
+        {"id": "2.1", "label": "Uteluftskanal"},
+        {"id": "2.2", "label": "Filterdel"},
+        {"id": "2.3", "label": "Batterier"},
+        {"id": "2.4", "label": "VVX"},
+        {"id": "2.5", "label": "Fläktdel"},
+        {"id": "2.6", "label": "Kanaler"},
+        {"id": "2.7", "label": "Don"},
+        {"id": "2.8", "label": "Rensningsmöjligheter"},
+        {"id": "2.9", "label": "Fläktrum"},
+        {"id": "2.10", "label": "Övrigt"}
+      ]
+    },
+    {
+      "id": "3",
+      "label": "Funktioner",
+      "positions": [
+        {"id": "3.1", "label": "Filterdel"},
+        {"id": "3.2", "label": "Batterier"},
+        {"id": "3.3", "label": "VVX"},
+        {"id": "3.4", "label": "Spjäll"},
+        {"id": "3.5", "label": "Styr/Regler/Övervakning"},
+        {"id": "3.6", "label": "Fläktar"},
+        {"id": "3.7", "label": "Luftflöden"},
+        {"id": "3.8", "label": "Kanaler"},
+        {"id": "3.9", "label": "Don"},
+        {"id": "3.10", "label": "Övrigt"}
+      ]
+    },
+    {
+      "id": "4",
+      "label": "Klimat",
+      "positions": [
+        {"id": "4.1", "label": "Temperatur"},
+        {"id": "4.2", "label": "Odör"},
+        {"id": "4.3", "label": "Drag"},
+        {"id": "4.4", "label": "Ljud"},
+        {"id": "4.5", "label": "Brukarsynpunkter"},
+        {"id": "4.6", "label": "Övrigt"}
+      ]
+    }
+  ],
+  "defect_defaults": {
+    "contaminated_supply_terminal": "2.7",
+    "contaminated_extract_terminal": "2.7",
+    "blocked_terminal": "2.7",
+    "damaged_terminal": "3.9",
+    "missing_terminal": "3.9",
+    "incorrect_airflow": "3.7",
+    "air_leakage": "3.8",
+    "noise_vibration": "4.4",
+    "access_obstructed": "2.8",
+    "missing_marking": "1.5",
+    "moisture_condensation": "4.6",
+    "other_observation": "3.10",
+    "kitchen_fan_central_system": "3.9",
+    "window_vent_missing": "3.9",
+    "terminal_not_measurable": "3.9",
+    "general_damage_observation": "3.10",
+    "equipment_nameplate": "1.5"
+  }
+}

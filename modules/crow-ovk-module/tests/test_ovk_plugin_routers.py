@@ -37,3 +37,8 @@ def test_plugin_registers_fastighet_surface(tmp_path: Path) -> None:
     assert "/ovk/fastighet" in paths
     assert "/api/ovk/projects/{project_id}/fastighet/{fastighet_id}" in paths
     assert "/api/ovk/registry/besiktningsman/{besiktningsman_id}" in paths
+
+
+def test_plugin_registers_protokoll_surface(tmp_path: Path) -> None:
+    paths = _registered_paths(tmp_path)
+    assert "/api/ovk/projects/{project_id}/field/{inspection_id}/protokoll-utkast" in paths

@@ -21,6 +21,10 @@ from .models import (
 from .validation import nameplate_missing_spaces, validate_field_data
 
 __all__ = [
+    "ProtocolPosition",
+    "default_position_for",
+    "load_positions",
+    "position_by_id",
     "ChecklistItem",
     "DefectType",
     "FieldCheckpoint",
@@ -45,3 +49,9 @@ __all__ = [
     "parse_flow_value",
     "validate_field_data",
 ]
+from .positions import (
+    ProtocolPosition,
+    default_position_for,
+    load_positions,
+    position_by_id,
+)

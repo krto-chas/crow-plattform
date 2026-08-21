@@ -10,6 +10,14 @@ from .coverage import (
     coverage_to_payload,
     validate_coverage_for_finalization,
 )
+from .field_bridge import (
+    Besiktningsresultat,
+    FaltProtokollUtkast,
+    ProtokollAnmarkning,
+    bridge_inspection_inputs,
+    build_protokoll_utkast,
+    utkast_to_payload,
+)
 from .models import OvkReviewDecision, OvkWorkflowRecord, ReviewStatus
 from .protocol import protocol_html
 from .reinspection import (
@@ -32,6 +40,12 @@ from .service import build_record, record_from_payload, record_to_payload
 __all__ = [
     "REINSPECTION_SCHEMA_VERSION",
     "AggregatCoverage",
+    "Besiktningsresultat",
+    "FaltProtokollUtkast",
+    "ProtokollAnmarkning",
+    "bridge_inspection_inputs",
+    "build_protokoll_utkast",
+    "utkast_to_payload",
     "AggregatStatus",
     "BekraftelseRoll",
     "CoverageError",
