@@ -56,6 +56,16 @@ Sovrum</textarea>
           <div id="bulkStatus" class="status" role="status" aria-live="polite">Ange numrering och rumsmall.</div>
           <div id="bulkResult" style="max-height:240px;overflow:auto"></div>
         </details>
+        <details class="bygg" id="templatePanel">
+          <summary>Generera från lägenhetstyper (XX01, XX02…)</summary>
+          <p class="muted">Använd befintliga lägenheter i byggnaden som mallar. Befintliga nummer hoppas över; rum och don får nya ID:n.</p>
+          <div class="row"><div><label for="templateFloor">Första våningskod</label><input id="templateFloor" type="number" min="0" max="99" value="10"></div><div><label for="templateFloors">Antal våningar</label><input id="templateFloors" type="number" min="1" max="100" value="4"></div></div>
+          <div id="templateRules"></div>
+          <button type="button" class="button secondary" id="templateAdd">+ Nummerregel</button>
+          <div class="row"><button type="button" class="button secondary" id="templatePreview">Förhandsgranska</button><button type="button" class="button" id="templateApply" disabled>Generera lägenheter</button></div>
+          <div id="templateStatus" class="status" role="status" aria-live="polite"></div>
+          <div id="templateResult" style="max-height:240px;overflow:auto"></div>
+        </details>
         <div id="inventoryUnits"></div>
         <button type="button" class="button secondary" id="inventoryAddUnit">+ Enhet</button>
         <h3>Tekniska utrymmen</h3>
