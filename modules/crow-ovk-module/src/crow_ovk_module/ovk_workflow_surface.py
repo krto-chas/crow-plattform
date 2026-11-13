@@ -5,10 +5,10 @@ from dataclasses import replace
 from pathlib import Path
 from typing import Any
 
+from crow_ovk_fastighet import BesiktningsmanRepository, FastighetRepository
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import HTMLResponse
 
-from crow_ovk_fastighet import BesiktningsmanRepository, FastighetRepository
 from crow_ovk_workflow import (
     OvkWorkflowRecord,
     OvkWorkflowRepository,
