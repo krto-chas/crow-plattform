@@ -214,7 +214,7 @@ def _validate_structure(payload: dict[str, Any]) -> dict[str, Any]:
         return value
 
     system_ids: set[str] = set()
-    systems = []
+    systems: list[dict[str, str]] = []
     for row in rows(payload.get("systems", []), "systems"):
         system_id = identifier(row, "system_id", system_ids)
         kind = required(row, "system_type")
@@ -224,11 +224,11 @@ def _validate_structure(payload: dict[str, Any]) -> dict[str, Any]:
 
     unit_ids: set[str] = set()
     room_ids: set[str] = set()
-    units = []
+    units: list[dict[str, Any]] = []
     for row in rows(payload.get("units", []), "units"):
         unit_id = identifier(row, "unit_id", unit_ids)
         kind = required(row, "kind")
-        if kind not in {"apartment", "local"}:
+        if kind not in {"apartment", "premises"}:
             raise ValueError("invalid unit kind")
         rooms = [
             {"room_id": identifier(room, "room_id", room_ids), "name": required(room, "name")}
@@ -239,7 +239,7 @@ def _validate_structure(payload: dict[str, Any]) -> dict[str, Any]:
         )
 
     space_ids: set[str] = set()
-    spaces = []
+    spaces: list[dict[str, str]] = []
     for row in rows(payload.get("technical_spaces", []), "technical_spaces"):
         system_id = required(row, "system_id")
         if system_id not in system_ids:
