@@ -63,7 +63,9 @@ def test_building_inventory_is_separate_and_validated(tmp_path: Path) -> None:
             "location": "Plan 5",
         }
     invalid_space = {**space, "kind": "unknown"}
-    assert client.put(url, json={**inventory, "technical_spaces": [invalid_space]}).status_code == 422
+    assert (
+        client.put(url, json={**inventory, "technical_spaces": [invalid_space]}).status_code == 422
+    )
     assert client.get(url).json() == result.json()
 
 
