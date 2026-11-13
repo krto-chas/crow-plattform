@@ -55,10 +55,25 @@ function unitRooms(){return state.rooms.filter(item=>item.unit_id===state.active
 const PRESET_EXTRACT_ROOMS=['badrum','wc','kök','hwc','vilorum'];
 function ensureRoom(name){const existing=unitRooms().find(item=>item.name===name);if(existing)return existing;const room={room_id:uid('room'),unit_id:state.activeUnitId,name};state.rooms.push(room);if(PRESET_EXTRACT_ROOMS.includes(name.trim().toLowerCase().split(/\s+/)[0])){state.measurements.push({measurement_id:uid('meas'),unit_id:state.activeUnitId,point_type:'franluftsdon',point_label:name+' 1',room_id:room.room_id,measurable:true,measured_value:null,designed_value:null,unit_of_measure:'l/s',not_measurable_reason:'',finding_id:null})}return room}
 function roomStats(roomId){return {meas:state.measurements.filter(item=>item.unit_id===state.activeUnitId&&item.room_id===roomId).length,marks:state.findings.filter(item=>item.unit_id===state.activeUnitId&&item.room_id===roomId&&(item.severity==='minor'||item.severity==='major')).length}}
-function renderRooms(){const visited=new Map(unitRooms().map(item=>[item.name,item]));const rooms=[...new Set([...roomPresets(),...visited.keys()])];$('roomChips').innerHTML=rooms.map(name=>{const room=visited.get(name);const stats=room?roomStats(room.room_id):null;const isActive=Boolean(activeRoom()&&activeRoom().name===name);const cls='chip'+(isActive?' on':'')+(stats&&(stats.meas||stats.marks)&&!isActive?' done':'');const badge=stats&&(stats.meas||stats.marks)?' <span class="rbadge">'+(stats.meas?stats.meas+' mätn.':'')+(stats.meas&&stats.marks?' · ':'')+(stats.marks?stats.marks+' anm.':'')+'</span>':'';return '<button class="'+cls+'" data-room="'+esc(name)+'">'+esc(name)+badge+'</button>'}).join('')+'<button class="chip" data-room="__new">+ Rum/rumsnr</button>'+(isCommercial()&&activeRoom()?'<button class="chip quick" id="roomDone">Rum klart → nästa</button>':'');
-  for(const chip of $('roomChips').querySelectorAll('[data-room]'))chip.onclick=async()=>{let name=chip.dataset.room;if(name==='__new'){name=(prompt('Rumsnamn eller rumsnr:')||'').trim();if(!name)return}
-    else if(isCommercial()&&roomPresets().includes(name)&&!unitRooms().some(item=>item.name===name)){const nr=(prompt('Rumsnr för '+name+' (valfritt):')||'').trim();if(nr)name=name+' '+nr}
-    state.activeRoomId=ensureRoom(name).room_id;renderUnit();await persist()};
+function renderRooms(){
+  const registered=unitRooms();
+  const entries=[...registered.map(room=>({name:room.name,id:room.room_id})),...roomPresets().filter(name=>!registered.some(room=>room.name===name)).map(name=>({name,id:''}))];
+  $('roomChips').replaceChildren();
+  for(const entry of entries){
+    const button=document.createElement('button');button.type='button';button.className='chip'+(entry.id&&entry.id===state.activeRoomId?' on':'');
+    const stats=entry.id?roomStats(entry.id):null;
+    button.textContent=entry.name+(stats&&(stats.meas||stats.marks)?' · '+stats.meas+' mätn. · '+stats.marks+' anm.':'');
+    button.onclick=async()=>{
+      let name=entry.name;
+      if(!entry.id&&isCommercial()){const nr=(prompt('Rumsnr för '+name+' (valfritt):')||'').trim();if(nr)name+=' '+nr}
+      state.activeRoomId=entry.id||ensureRoom(name).room_id;renderUnit();await persist();
+    };
+    $('roomChips').append(button);
+  }
+  const add=document.createElement('button');add.type='button';add.className='chip';add.textContent='+ Rum/rumsnr';
+  add.onclick=async()=>{const name=(prompt('Rumsnamn eller rumsnr:')||'').trim();if(!name)return;state.activeRoomId=ensureRoom(name).room_id;renderUnit();await persist()};
+  $('roomChips').append(add);
+  if(isCommercial()&&activeRoom()){const done=document.createElement('button');done.type='button';done.id='roomDone';done.className='chip quick';done.textContent='Rum klart → nästa';$('roomChips').append(done)}
   const roomDone=document.getElementById('roomDone');if(roomDone)roomDone.onclick=async()=>{const closed=activeRoom();state.activeRoomId=null;$('photoStatus').className='status pass';$('photoStatus').textContent=(closed?closed.name+' klart. ':'')+'Välj nästa rum.';renderUnit();await persist()}}
 function keyStamp(){const unit=activeUnit();unit.key=unit.key||{received:false,received_at:null,returned:false,returned_at:null,master_key_used:false,master_key_note:''};return unit.key}
 function renderKeys(){const key=activeUnit().key;$('keyIn').classList.toggle('set',Boolean(key&&key.received));$('keyOut').classList.toggle('set',Boolean(key&&key.returned));$('keyMaster').classList.toggle('set',Boolean(key&&key.master_key_used));const parts=[];if(key&&key.received)parts.push('Mottagen '+key.received_at.slice(11,16));if(key&&key.master_key_used)parts.push('Huvudnyckel: '+key.master_key_note);if(key&&key.returned)parts.push('Återlämnad '+key.returned_at.slice(11,16));$('keyInfo').textContent=parts.join(' · ')}
@@ -249,7 +264,7 @@ async function openRequestedInspection(projectId,inspectionId){
         const selected=$('systemType').value;
         if(!types.includes(selected))return;
         $('systemType').disabled=true;
-        try{await prefillPlannedUnits(record,projectId,inspectionId,person,property,selected);$('start').disabled=false;$('generate').disabled=false}
+        try{await prefillPlannedUnits(record,projectId,inspectionId,person,property,selected);$('systemType').onchange=null;$('start').disabled=false;$('generate').disabled=false}
         catch(error){$('draftStatus').textContent=crowErrorText(error)}
         finally{$('systemType').disabled=false}
       };
