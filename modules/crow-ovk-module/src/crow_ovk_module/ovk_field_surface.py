@@ -36,6 +36,9 @@ from crow_ovk_field import (
     validate_field_data,
 )
 from crow_ovk_field.models import FindingFollowup
+from crow_ovk_workflow.repository import OvkWorkflowRepository
+
+from .ovk_field_workbench import _FieldWorkbenchRepository
 
 _SAFE_ID = re.compile(r"^[A-Za-z0-9._-]+$")
 
@@ -100,6 +103,7 @@ def ovk_field_router(data_root: Path) -> APIRouter:
                 detail={"code": "OVK_FIELD_INSPECTION_MISMATCH"},
             )
         data = _validated_payload(payload)
+        _verify_followup_sources(data_root, data, repository)
         normalized = _field_data_to_payload(data)
         expected = request.headers.get("X-OVK-Base-Revision")
         if (
@@ -131,6 +135,62 @@ def ovk_field_router(data_root: Path) -> APIRouter:
         return {"inspection_id": inspection_id, "snapshot_sha256": digest, "payload": payload}
 
     return router
+
+
+def _verify_followup_sources(
+    data_root: Path, data: FieldInspectionData, repository: _FieldSyncRepository
+) -> None:
+    if not data.finding_followups:
+        return
+    try:
+        contexts = _FieldWorkbenchRepository(data_root)
+        context = contexts.load_context_optional(data.inspection_id)
+        if context is None or context.get("inspection_id") != data.inspection_id:
+            raise ValueError("current field context missing")
+        project_id = context.get("project_id")
+        if not isinstance(project_id, str):
+            raise ValueError("current project missing")
+        workflows = OvkWorkflowRepository(data_root)
+        current = workflows.load(project_id, data.inspection_id)
+        source_id = current.planning.previous_inspection_id if current.planning else None
+        if not source_id or context.get("previous_inspection_id") != source_id:
+            raise ValueError("planned historical reference required")
+        source = workflows.load(project_id, source_id)
+        old = source.inspection.ovk_object
+        new = current.inspection.ovk_object
+        if (
+            old.project_id != project_id
+            or new.project_id != project_id
+            or (old.object_id, old.building_id) != (new.object_id, new.building_id)
+            or not source.protocol_ready
+        ):
+            raise ValueError("historical workflow mismatch")
+        source_context = contexts.load_context_optional(source_id)
+        if (
+            source_context is None
+            or source_context.get("inspection_id") != source_id
+            or source_context.get("project_id") != project_id
+        ):
+            raise ValueError("historical field context mismatch")
+        snapshot, _ = repository.load(source_id)
+        if snapshot.get("inspection_id") != source_id:
+            raise ValueError("historical snapshot identity mismatch")
+        historical = _field_data_from_payload(snapshot)
+        for item in data.finding_followups:
+            if item.source_inspection_id != source_id:
+                raise ValueError("followup source differs from planned predecessor")
+            matches = [
+                finding
+                for finding in historical.findings
+                if finding.finding_id == item.source_finding_id
+            ]
+            if len(matches) != 1 or matches[0].unit_id != item.unit_id:
+                raise ValueError("historical finding or unit mismatch")
+    except (FileNotFoundError, KeyError, TypeError, ValueError) as exc:
+        raise HTTPException(
+            status_code=422,
+            detail={"code": "INVALID_OVK_FOLLOWUP_SOURCE", "message": str(exc)},
+        ) from exc
 
 
 def _validated_payload(payload: Any) -> FieldInspectionData:
