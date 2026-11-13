@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import re
 from dataclasses import replace
 from pathlib import Path
 from typing import Any
@@ -110,6 +111,8 @@ def ovk_workflow_router(data_root: Path) -> APIRouter:
                 record = replace(record, building_structure_json=previous.building_structure_json)
             elif record.planning is not None:
                 obj = record.inspection.ovk_object
+                if not re.fullmatch(r"[A-Za-z0-9_-]+", obj.building_id):
+                    raise ValueError("invalid building identifier")
                 path = (
                     data_root
                     / "projects"
@@ -123,6 +126,14 @@ def ovk_workflow_router(data_root: Path) -> APIRouter:
                     if path.exists()
                     else {"units": [], "systems": [], "technical_spaces": []}
                 )
+                registered = {
+                    system["system_id"]: system["system_type"] for system in structure["systems"]
+                }
+                if registered and any(
+                    registered.get(system.system_id) != system.system_type
+                    for system in record.inspection.systems
+                ):
+                    raise ValueError("selected system does not match registered building system")
                 record = replace(
                     record,
                     building_structure_json=json.dumps(

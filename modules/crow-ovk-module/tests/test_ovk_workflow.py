@@ -355,9 +355,16 @@ def test_planning_validates_registry_and_survives_legacy_save(
                 "rooms": [{"room_id": "r1", "name": "Kök"}],
             }
         ],
-        "systems": [],
+        "systems": [{"system_id": "FTX01", "system_type": "FTX", "label": "LB01"}],
         "technical_spaces": [],
     }
+    assert client.put(structure_url, json=structure).status_code == 200
+    wrong_structure = {
+        **structure,
+        "systems": [{"system_id": "other", "system_type": "F", "label": "FF01"}],
+    }
+    assert client.put(structure_url, json=wrong_structure).status_code == 200
+    assert client.put(url, json=payload).status_code == 422
     assert client.put(structure_url, json=structure).status_code == 200
     assert client.put(url, json=payload).status_code == 200
     captured = client.get(url).json()

@@ -27,8 +27,10 @@
           <p id="draftOwner" class="muted"></p>
           <label for="draftBuilding">Byggnad</label><select id="draftBuilding" required></select>
           <h3>Besiktningsuppgifter</h3><label for="draftInspector">Besiktningsman</label><select id="draftInspector" required></select><label for="draftDate">Planerat datum</label><input id="draftDate" type="date" required><label for="draftType">Besiktningstyp</label><select id="draftType" required><option value="aterkommande">Återkommande</option><option value="forstagang">Första besiktning</option></select><h3>Ventilationssystem</h3>
-          <div id="draftSystems"></div>
-          <button type="button" class="button secondary" id="draftAddSystem">Lägg till system</button>
+          <div id="draftRegisteredSystems" hidden></div>
+          <p id="draftSystemStatus" class="muted" role="status"></p>
+          <div id="draftSystems" hidden></div>
+          <button type="button" class="button secondary" id="draftAddSystem" hidden>Lägg till system</button>
           <p><a href="/ovk/fastighet">Registrera eller komplettera fastighet</a></p>
           <button type="submit" class="button" id="draftCreate">Skapa besiktningsutkast</button>
         </fieldset>
