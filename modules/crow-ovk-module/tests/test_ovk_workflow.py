@@ -314,23 +314,29 @@ def test_planning_validates_registry_and_survives_legacy_save(
     monkeypatch: MonkeyPatch,
 ) -> None:
     client = _client(tmp_path, monkeypatch)
-    assert client.put(
-        "/api/ovk/projects/p1/fastighet/object-1",
-        json={
-            "fastighetsbeteckning": "Björken 12",
-            "byggnader": [{"byggnad_id": "building-1", "internt_namn": "Hus A"}],
-        },
-    ).status_code == 200
-    assert client.put(
-        "/api/ovk/registry/besiktningsman/person-1",
-        json={
-            "namn": "Test Kontrollant",
-            "behorighet": "K",
-            "certifieringsorgan": "Test",
-            "certnummer": "123",
-            "giltig_till": "2030-12-31",
-        },
-    ).status_code == 200
+    assert (
+        client.put(
+            "/api/ovk/projects/p1/fastighet/object-1",
+            json={
+                "fastighetsbeteckning": "Björken 12",
+                "byggnader": [{"byggnad_id": "building-1", "internt_namn": "Hus A"}],
+            },
+        ).status_code
+        == 200
+    )
+    assert (
+        client.put(
+            "/api/ovk/registry/besiktningsman/person-1",
+            json={
+                "namn": "Test Kontrollant",
+                "behorighet": "K",
+                "certifieringsorgan": "Test",
+                "certnummer": "123",
+                "giltig_till": "2030-12-31",
+            },
+        ).status_code
+        == 200
+    )
     url = "/api/ovk/projects/p1/inspections/ovk-planned"
     payload = _workflow_payload()
     planning = {
