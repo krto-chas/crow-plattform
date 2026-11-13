@@ -61,6 +61,18 @@
           const rows=[...utkast.anmarkningar,...utkast.upplysningar];
           out.innerHTML='<strong>Resultat: '+esc(utkast.besiktningsresultat.replaceAll('_',' '))+'</strong><br>'+
             (rows.length?rows.map(row=>'<span style="display:inline-block;background:#eef2f5;border-radius:4px;padding:1px 6px;margin:2px 4px 2px 0;font-size:11px">' +esc(row.pos||'–')+' · klass '+esc(row.classification)+'</span>'+esc(row.text)).join('<br>'):'Inga anmärkningar.');
+          if(data.followup_review?.length){
+            const section=document.createElement('section');const heading=document.createElement('h3');heading.textContent='Återkontroller – granskningsunderlag';section.append(heading);
+            const labels={resolved:'Åtgärdad',remaining:'Kvarstår',changed:'Förändrad',not_applicable:'Ej tillämplig',not_checked:'Ej återkontrollerad'};
+            for(const item of data.followup_review){
+              const row=document.createElement('p');row.textContent='Lgh '+item.unit_number+' · '+(labels[item.status]||item.status)+' · '+item.source_finding_id+(item.note?' · '+item.note:'');section.append(row);
+              for(const photo of item.photos||[]){
+                if(!photo.verified){const warning=document.createElement('span');warning.textContent='Foto ej verifierat. ';section.append(warning);continue}
+                const link=document.createElement('a');link.href='/api/ovk/field/media/'+encodeURIComponent(inspection)+'/'+encodeURIComponent(photo.photo_id)+'/content';link.target='_blank';link.rel='noopener noreferrer';link.textContent='Visa återkontrollfoto';section.append(link,document.createElement('br'));
+              }
+            }
+            out.append(section);
+          }
         }catch(error){if(revision===loadRevision)out.textContent='Fel: '+error}
       };
       </script>
