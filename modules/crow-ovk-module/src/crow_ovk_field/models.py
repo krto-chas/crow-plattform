@@ -134,7 +134,7 @@ class TechnicalSpace:
 
 @dataclass(frozen=True, slots=True)
 class FieldCheckpoint:
-    """Kontrollpunkt i teknikutrymme. Utan kommentar är punkten UA (pass).
+    """Kontrollpunkt i teknikutrymme. Kräver ett uttryckligt kontrollresultat.
 
     En underkänd punkt kräver alltid en skriven notering.
     """
@@ -143,7 +143,7 @@ class FieldCheckpoint:
     inspection_id: str
     space_id: str
     label: str
-    status: CheckStatus = CheckStatus.PASS
+    status: CheckStatus = CheckStatus.NOT_CHECKED
     note: str = ""
     origin: EvidenceOrigin = EvidenceOrigin.OBSERVED
 
