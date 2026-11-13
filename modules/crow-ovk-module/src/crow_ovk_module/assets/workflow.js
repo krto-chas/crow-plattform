@@ -198,6 +198,85 @@ $('protocol').onclick = () => {
   if (projectId && inspectionId) window.open('/api/ovk/projects/' + enc(projectId) + '/inspections/' + enc(inspectionId) + '/protocol', '_blank');
 };
 
+let draftProperties = [];
+let draftRevision = 0;
+let draftId = null;
+function draftOptions(select, items, value, label, placeholder) {
+  select.replaceChildren(new Option(placeholder, ''));
+  for (const item of items) select.add(new Option(label(item), value(item)));
+}
+function draftBuildingOptions() {
+  const property = draftProperties.find(p => p.fastighet_id === $('draftProperty').value);
+  draftOptions($('draftBuilding'), property?.byggnader || [], b => b.byggnad_id, b => b.internt_namn, 'Välj byggnad');
+  $('draftOwner').textContent = property ? [property.byggnadsagare_namn, property.byggnadens_adress?.gata].filter(Boolean).join(' · ') : '';
+}
+async function draftLoadProperties() {
+  const revision = ++draftRevision;
+  draftProperties = [];
+  draftBuildingOptions();
+  draftOptions($('draftProperty'), [], p => p.fastighet_id, p => p.fastighetsbeteckning, 'Välj fastighet');
+  $('draftCreate').disabled = true;
+  const project = $('draftProject').value;
+  if (!project) { $('draftStatus').textContent = 'Välj projekt.'; return; }
+  $('draftStatus').textContent = 'Laddar fastigheter…';
+  try {
+    const data = await api('/api/ovk/projects/' + enc(project) + '/fastighet');
+    if (revision !== draftRevision) return;
+    draftProperties = data.fastigheter || [];
+    draftOptions($('draftProperty'), draftProperties, p => p.fastighet_id, p => p.fastighetsbeteckning, 'Välj fastighet');
+    $('draftStatus').textContent = draftProperties.length ? 'Välj fastighet och byggnad.' : 'Inga fastigheter. Registrera en fastighet först.';
+    $('draftCreate').disabled = !draftProperties.length;
+  } catch (error) {
+    if (revision === draftRevision) $('draftStatus').textContent = 'Kunde inte läsa fastigheter: ' + error.message;
+  }
+}
+function draftAddSystem() {
+  const row = document.createElement('div');
+  row.className = 'draft-system';
+  row.innerHTML = '<label>Systembeteckning<input class="draft-system-id" required maxlength="80" placeholder="LB01"></label><label>Systemtyp<select class="draft-system-type" required><option value="">Välj typ</option><option>S</option><option>F</option><option>FT</option><option>FTX</option><option>FX</option></select></label><label>Benämning<input class="draft-system-name" maxlength="160" placeholder="Huvudsystem"></label><button type="button" class="button secondary">Ta bort system</button>';
+  row.querySelector('button').onclick = () => { if ($('draftSystems').children.length > 1) row.remove(); };
+  $('draftSystems').append(row);
+}
+async function createDraft(event) {
+  event.preventDefault();
+  const project = $('draftProject').value;
+  const property = draftProperties.find(p => p.fastighet_id === $('draftProperty').value);
+  const building = property?.byggnader.find(b => b.byggnad_id === $('draftBuilding').value);
+  if (!project || !property || !building) { $('draftStatus').textContent = 'Välj fastighet och byggnad.'; return; }
+  const systems = [...$('draftSystems').children].map(row => {
+    const id = row.querySelector('.draft-system-id').value.trim();
+    return {system_id:id, system_type:row.querySelector('.draft-system-type').value, label:row.querySelector('.draft-system-name').value.trim() || id, source_ref:null};
+  });
+  if (!systems.length || systems.some(s => !s.system_id || !s.system_type || /[|\\r\\n]/.test(s.system_id+s.label)) || new Set(systems.map(s=>s.system_id.toLowerCase())).size !== systems.length) {
+    $('draftStatus').textContent = 'Ange unika systembeteckningar och systemtyper utan lodstreck.'; return;
+  }
+  // Keep the same identifier for retries; never reuse a date-based draft ID.
+  draftId ||= 'ovk-' + crypto.randomUUID();
+  const address = property.byggnadens_adress || {};
+  const payload = {inspection:{inspection_id:draftId,object:{object_id:property.fastighet_id,project_id:project,building_id:building.byggnad_id,name:property.fastighetsbeteckning+' · '+building.internt_namn,address:[address.gata,address.postnr,address.ort].filter(Boolean).join(' ')||null},systems,checkpoints:[],measurements:[],findings:[],actions:[]},review:[]};
+  $('draftFields').disabled = true;
+  $('draftStatus').textContent = 'Sparar utkast…';
+  try {
+    await api('/api/ovk/projects/'+enc(project)+'/inspections/'+enc(draftId),{method:'PUT',headers:{'content-type':'application/json'},body:JSON.stringify(payload)});
+    location.assign('/ovk/besiktning?'+contextUrl(project,draftId));
+  } catch(error) {
+    $('draftStatus').textContent = 'Kunde inte spara utkast: '+error.message;
+    $('draftFields').disabled = false;
+  }
+}
+async function initDraft(projects, requestedProject) {
+  $('guidedDraft').hidden = false;
+  document.querySelectorAll('[data-workflow-editor]').forEach(node=>node.hidden=true);
+  draftOptions($('draftProject'),projects,p=>p.project_id,p=>p.project_name||p.name||p.project_id,'Välj projekt');
+  if(projects.some(p=>p.project_id===requestedProject)) $('draftProject').value=requestedProject;
+  $('draftProject').onchange=draftLoadProperties;
+  $('draftProperty').onchange=draftBuildingOptions;
+  $('draftAddSystem').onclick=draftAddSystem;
+  $('draftForm').onsubmit=createDraft;
+  draftAddSystem();
+  $('draftFields').disabled=false;
+  await draftLoadProperties();
+}
 async function init() {
   try {
     const modules = await api('/api/me/modules');
@@ -207,6 +286,7 @@ async function init() {
     for (const project of projects) ensureProject(project.project_id, project.project_name || project.name || project.project_id);
     const requestedProject = new URLSearchParams(location.search).get('project_id');
     if (requestedProject && projects.some(project => project.project_id === requestedProject)) $('project').value = requestedProject;
+    if (new URLSearchParams(location.search).get('new') === '1') { await initDraft(projects, requestedProject); return; }
     if (projects.length) await loadProject();
     else { $('status').textContent = 'Skapa ett projekt i Workbench först.'; $('save').disabled = true; }
   } catch (error) {
