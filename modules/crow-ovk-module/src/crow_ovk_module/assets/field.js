@@ -95,7 +95,7 @@ function renderMeasurementHistory(){
   const note=document.createElement('p');note.textContent='Referens: '+(state.previous_inspection_id||'tidigare OVK')+'. Kontrollera att mätpunkterna avser samma don.';details.append(note);
   for(const old of previous){
     const row=document.createElement('p');row.textContent=historicalMeasurementText(old);
-    const matches=state.measurements.filter(m=>m.measurement_id===old.measurement_id&&m.unit_id===old.unit_id&&m.room_id===old.room_id&&m.point_type===old.point_type&&m.unit_of_measure===old.unit_of_measure);
+    const matches=state.measurements.filter(m=>m.measurement_id===old.measurement_id&&m.unit_id===old.unit_id&&m.room_id===old.room_id&&m.point_type===old.point_type&&m.unit_of_measure===old.unit_of_measure&&(m.system_id||null)===(old.system_id||null));
     if(matches.length===1){
       const current=matches[0];const numeric=v=>v!==null&&v!==undefined&&String(v).trim()!==''&&Number.isFinite(Number(v));
       if(current.measurable!==false&&old.measurable!==false&&numeric(current.measured_value)&&numeric(old.measured_value)){
@@ -107,7 +107,7 @@ function renderMeasurementHistory(){
   }
   panel.append(details);
 }
-function renderMeasurements(){const unitId=state.activeUnitId;const roomId=state.activeRoomId;const rows=state.measurements.filter(item=>item.unit_id===unitId&&item.room_id===roomId);$('mrows').innerHTML=rows.map(item=>{const label={franluftsdon:'Frånluft',tilluftsdon:'Tilluft',overluftsdon:'Överluft'}[item.point_type];const detail=item.measurable?esc(item.point_label):esc(item.point_label)+' · EJ MÄTBAR: '+esc(item.not_measurable_reason);return '<div class="mrow'+(item.measurable?'':' nm')+'"><span class="lbl">'+label+'<small>'+detail+'</small></span><input inputmode="decimal" placeholder="l/s" value="'+esc(item.measured_value||'')+'" data-meas="'+item.measurement_id+'"'+(item.measurable?'':' disabled')+'><button class="x" data-nm="'+item.measurement_id+'" title="Ej mätbar">✕</button></div>'}).join('');
+function renderMeasurements(){const unitId=state.activeUnitId;const roomId=state.activeRoomId;const rows=state.measurements.filter(item=>item.unit_id===unitId&&item.room_id===roomId);$('mrows').innerHTML=rows.map(item=>{const label={franluftsdon:'Frånluft',tilluftsdon:'Tilluft',overluftsdon:'Överluft'}[item.point_type];const detail=item.measurable?esc(item.point_label)+(item.designed_value!=null?' · Proj. '+esc(item.designed_value)+' l/s':'')+(item.system_id?' · '+esc(item.system_id):''):esc(item.point_label)+' · EJ MÄTBAR: '+esc(item.not_measurable_reason);return '<div class="mrow'+(item.measurable?'':' nm')+'"><span class="lbl">'+label+'<small>'+detail+'</small></span><input inputmode="decimal" placeholder="l/s" value="'+esc(item.measured_value||'')+'" data-meas="'+item.measurement_id+'"'+(item.measurable?'':' disabled')+'><button class="x" data-nm="'+item.measurement_id+'" title="Ej mätbar">✕</button></div>'}).join('');
   for(const input of $('mrows').querySelectorAll('[data-meas]'))input.onchange=async()=>{const item=state.measurements.find(m=>m.measurement_id===input.dataset.meas);item.measured_value=input.value.trim().replace(',','.')||null;renderMeasurementHistory();await persist()};
   for(const button of $('mrows').querySelectorAll('[data-nm]'))button.onclick=()=>markNotMeasurable(button.dataset.nm);renderMeasurementHistory()}
 function renderFindings(){const items=state.findings.filter(item=>item.unit_id===state.activeUnitId);$('unitFindings').innerHTML=items.map(item=>'<div class="item"><span class="pill">'+esc(item.room_name||'utan rum')+'</span><span class="pill">'+(item.classification!==null&&item.classification!==undefined?'Klass '+item.classification:esc(item.severity))+'</span><span class="pill">📷 '+state.photos.filter(photo=>photo.finding_id===item.finding_id).length+'</span>'+esc(item.description)+'</div>').join('')}
@@ -275,7 +275,8 @@ async function prefillPlannedUnits(record,projectId,inspectionId,person,property
   const structure=record.building_structure;
   if(!structure||!Array.isArray(structure.units))return false;
   const draft={...DEFAULT_STATE(),...await plannedHistory(record,projectId,inspectionId),project_id:projectId,inspection_id:inspectionId,inspector:person.namn,object_type:property.fastighetstyp,system_type:systemType,dirty:true,updated_at:now()};
-  const ids=new Set(),roomIds=new Set();
+  const ids=new Set(),roomIds=new Set(),pointIds=new Set();
+  const selectedSystems=new Set(record.inspection.systems.map(s=>s.system_id));
   for(const unit of structure.units){
     if(!/^[A-Za-z0-9_-]+$/.test(unit.unit_id)||ids.has(unit.unit_id)||!['apartment','premises'].includes(unit.kind)||!Array.isArray(unit.rooms))throw new Error('Ogiltig enhet i uppdragets struktur.');
     ids.add(unit.unit_id);
@@ -284,9 +285,14 @@ async function prefillPlannedUnits(record,projectId,inspectionId,person,property
       if(!/^[A-Za-z0-9_-]+$/.test(room.room_id)||roomIds.has(room.room_id)||typeof room.name!=='string'||!room.name.trim())throw new Error('Ogiltigt rum i uppdragets struktur.');
       roomIds.add(room.room_id);
       draft.rooms.push({room_id:room.room_id,unit_id:unit.unit_id,name:room.name});
+      for(const point of (room.measurement_points||[])){
+        if(!selectedSystems.has(point.system_id))continue;
+        if(!/^[A-Za-z0-9_-]+$/.test(point.point_id)||pointIds.has(point.point_id)||!['franluftsdon','tilluftsdon','overluftsdon'].includes(point.point_type)||point.unit_of_measure!=='l/s'||!point.label)throw new Error('Ogiltig mätpunkt i uppdragets struktur.');
+        pointIds.add(point.point_id);
+        draft.measurements.push({measurement_id:point.point_id,unit_id:unit.unit_id,room_id:room.room_id,point_type:point.point_type,point_label:point.label,system_id:point.system_id,measurable:true,measured_value:null,designed_value:point.designed_value??null,unit_of_measure:'l/s',not_measurable_reason:'',finding_id:null});
+      }
     }
   }
-  const selectedSystems=new Set(record.inspection.systems.map(s=>s.system_id));
   const registeredSystems=new Set((structure.systems||[]).map(s=>s.system_id));
   if((structure.technical_spaces||[]).length&&![...selectedSystems].some(id=>registeredSystems.has(id)))throw new Error('Uppdragets system-ID matchar inte byggnadsregistret.');
   const spaceIds=new Set();
