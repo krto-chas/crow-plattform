@@ -30,9 +30,7 @@ def test_building_inventory_is_separate_and_validated(tmp_path: Path) -> None:
             }
         ],
         "systems": [{"system_id": "LB01", "system_type": "FTX", "label": "Aggregat 1"}],
-        "technical_spaces": [
-            {"space_id": "s1", "label": "Fläktrum", "system_id": "LB01"}
-        ],
+        "technical_spaces": [{"space_id": "s1", "label": "Fläktrum", "system_id": "LB01"}],
     }
     saved = client.put(url, json=inventory)
     assert saved.status_code == 200
