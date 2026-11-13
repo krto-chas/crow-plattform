@@ -432,3 +432,15 @@ def test_field_planned_context_guards(tmp_path: Path) -> None:
     assert "record.planning.inspector_id" in app
     assert "property.byggnader.some" in app
     assert "originalRestoreLatest(requested)" in context
+
+
+def test_field_resume_preserves_snapshot_identity(tmp_path: Path) -> None:
+    client = _client(tmp_path)
+    app = client.get("/ovk/falt/app.js").text
+    auth = client.get("/ovk/falt/auth.js").text
+    assert "async function resumeServerInspection(" in app
+    assert "workbench.project_id!==projectId" in app
+    assert "context.snapshot_sha256!==snapshot.snapshot_sha256" in app
+    assert "p.sync_status!=='synced'" in app
+    assert "last_sync:snapshot.snapshot_sha256" in app
+    assert "remote.snapshot_sha256 !== state.last_sync" in auth

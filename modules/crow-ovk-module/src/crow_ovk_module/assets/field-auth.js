@@ -95,6 +95,13 @@ syncDraft = async function () {
     $('syncStatus').className = 'status';
     $('syncStatus').textContent = 'Kontrollerar session…';
     await crowRequireSession();
+    const current = await crowAuthenticatedFetch('/api/ovk/field/sync/' + encodeURIComponent(state.inspection_id));
+    if (current.ok) {
+      const remote = await current.json();
+      if (remote.snapshot_sha256 !== state.last_sync) throw new Error('Serverunderlaget har ändrats på en annan enhet. Lokalt arbete bevaras; synk stoppad.');
+    } else if (current.status !== 404 || state.last_sync) {
+      throw new Error('Serverrevisionen kunde inte verifieras. Synk stoppad.');
+    }
     $('syncStatus').textContent = 'Synkar kontext…';
     await syncContext();
     $('syncStatus').textContent = 'Synkar snapshot…';

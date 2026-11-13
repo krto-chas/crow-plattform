@@ -101,6 +101,7 @@ class _FieldHistoryRepository:
             )
         return {
             "source_inspection_id": inspection_id,
+            "system_type": _optional_text(context.get("system_type")),
             "project_id": _optional_text(context.get("project_id")),
             "inspector": _optional_text(context.get("inspector")),
             "inspection_date": _optional_text(context.get("inspection_date")),
