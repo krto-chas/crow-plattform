@@ -35,6 +35,27 @@
         <div id="inventorySystems"></div>
         <button type="button" class="button secondary" id="inventoryAddSystem">+ System</button>
         <h3>Lägenheter och lokaler</h3>
+        <details class="bygg" id="bulkPanel">
+          <summary>Massregistrera lägenheter</summary>
+          <p class="muted">Skapa ett våningsintervall med fyrsiffriga lägenhetsnummer. Befintliga enheter ändras inte.</p>
+          <div class="row">
+            <div><label for="bulkFloor">Första våningskod (00–99)</label><input id="bulkFloor" type="number" min="0" max="99" step="1" value="10"></div>
+            <div><label for="bulkFloors">Antal våningsplan</label><input id="bulkFloors" type="number" min="1" max="100" step="1" value="4"></div>
+            <div><label for="bulkStart">Första lägenhetskod per plan (01–99)</label><input id="bulkStart" type="number" min="1" max="99" step="1" value="1"></div>
+            <div><label for="bulkPerFloor">Lägenheter per plan</label><input id="bulkPerFloor" type="number" min="1" max="99" step="1" value="4"></div>
+          </div>
+          <label for="bulkRooms">Rumsmall (ett rum per rad)</label>
+          <textarea id="bulkRooms" rows="5" style="width:100%">Kök
+Badrum
+Vardagsrum
+Sovrum</textarea>
+          <div class="row">
+            <button type="button" class="button secondary" id="bulkPreview">Förhandsgranska</button>
+            <button type="button" class="button" id="bulkApply" disabled>Lägg till lägenheter</button>
+          </div>
+          <div id="bulkStatus" class="status" role="status" aria-live="polite">Ange numrering och rumsmall.</div>
+          <div id="bulkResult" style="max-height:240px;overflow:auto"></div>
+        </details>
         <div id="inventoryUnits"></div>
         <button type="button" class="button secondary" id="inventoryAddUnit">+ Enhet</button>
         <h3>Tekniska utrymmen</h3>
