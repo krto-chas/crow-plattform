@@ -56,7 +56,9 @@ def ovk_field_history_router(data_root: Path) -> APIRouter:
                 raise ValueError("historical field project mismatch")
             return projection
         except FileNotFoundError as exc:
-            raise HTTPException(status_code=404, detail="Historical field data unavailable") from exc
+            raise HTTPException(
+                status_code=404, detail="Historical field data unavailable"
+            ) from exc
         except ValueError as exc:
             raise HTTPException(status_code=422, detail=str(exc)) from exc
 
@@ -123,11 +125,19 @@ class _FieldHistoryRepository:
                     **finding,
                     "source_inspection_id": inspection_id,
                     "unit_number": next(
-                        (u.get("number") for u in units if u.get("unit_id") == finding.get("unit_id")),
+                        (
+                            u.get("number")
+                            for u in units
+                            if u.get("unit_id") == finding.get("unit_id")
+                        ),
                         None,
                     ),
                     "room_name": next(
-                        (r.get("name") for r in rooms if r.get("room_id") == finding.get("room_id")),
+                        (
+                            r.get("name")
+                            for r in rooms
+                            if r.get("room_id") == finding.get("room_id")
+                        ),
                         None,
                     ),
                     "photos": [
@@ -153,7 +163,8 @@ class _FieldHistoryRepository:
             },
             "historical_findings": historical_findings,
             "historical_checkpoints": [
-                item for item in _object_list(snapshot.get("checkpoints"))
+                item
+                for item in _object_list(snapshot.get("checkpoints"))
                 if item.get("status") == "fail"
             ],
             "historical_space_photos": [
