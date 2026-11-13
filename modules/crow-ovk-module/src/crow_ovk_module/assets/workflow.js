@@ -75,7 +75,8 @@ function build() {
       findings: previousInspection.findings || [],
       actions: previousInspection.actions || []
     },
-    review
+    review,
+    coverage: loadedRecord?.coverage || null
   };
 }
 
@@ -107,6 +108,7 @@ function render(record) {
   $('checkpoints').value = lines(inspection.checkpoints, item => [item.checkpoint_id, item.status, item.system_id || '', item.label, item.note || ''].join(' | '));
   $('review').value = lines(record.review, item => [item.observation_id, item.status, item.reviewer || '', item.note || ''].join(' | '));
   loadedRecord = record;
+  $('planningSummary').textContent = record.planning ? 'Planerat: '+record.planning.planned_date+' · '+(record.planning.inspection_type==='forstagang'?'Första besiktning':'Återkommande')+' · Kontrollant: '+record.planning.inspector_id : '';
   $('summary').innerHTML = [
     ['Slutsats', inspection.conclusion || 'pending'],
     ['Kontroller', (inspection.checkpoints || []).length],
@@ -121,6 +123,7 @@ function render(record) {
 
 function clearInspection() {
   loadedRecord = null;
+  $('planningSummary').textContent = '';
   requestedInspection = '';
   $('saved').value = '';
   $('inspection').value = 'ovk-' + new Date().toISOString().slice(0, 10);
@@ -253,7 +256,7 @@ async function createDraft(event) {
   // Keep the same identifier for retries; never reuse a date-based draft ID.
   draftId ||= 'ovk-' + Array.from(crypto.getRandomValues(new Uint8Array(16)), byte => byte.toString(16).padStart(2,'0')).join('');
   const address = property.byggnadens_adress || {};
-  const payload = {inspection:{inspection_id:draftId,object:{object_id:property.fastighet_id,project_id:project,building_id:building.byggnad_id,name:property.fastighetsbeteckning+' · '+building.internt_namn,address:[address.gata,address.postnr,address.ort].filter(Boolean).join(' ')||null},systems,checkpoints:[],measurements:[],findings:[],actions:[]},review:[]};
+  const payload = {inspection:{inspection_id:draftId,object:{object_id:property.fastighet_id,project_id:project,building_id:building.byggnad_id,name:property.fastighetsbeteckning+' · '+building.internt_namn,address:[address.gata,address.postnr,address.ort].filter(Boolean).join(' ')||null},systems,checkpoints:[],measurements:[],findings:[],actions:[]},review:[],planning:{inspector_id:$('draftInspector').value,planned_date:$('draftDate').value,inspection_type:$('draftType').value}};
   $('draftFields').disabled = true;
   $('draftStatus').textContent = 'Sparar utkast…';
   try {
@@ -274,6 +277,8 @@ async function initDraft(projects, requestedProject) {
   $('draftAddSystem').onclick=draftAddSystem;
   $('draftForm').onsubmit=createDraft;
   draftAddSystem();
+  const registry = await api('/api/ovk/registry/besiktningsman');
+  draftOptions($('draftInspector'),registry.besiktningsman||[],p=>p.besiktningsman_id,p=>p.namn+' · '+p.behorighet+' · '+p.certnummer,'Välj besiktningsman');
   $('draftFields').disabled=false;
   await draftLoadProperties();
 }
