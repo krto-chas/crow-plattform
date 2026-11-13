@@ -337,7 +337,7 @@ def test_planning_validates_registry_and_survives_legacy_save(
         ).status_code
         == 200
     )
-    url = "/api/ovk/projects/p1/inspections/ovk-planned"
+    url = "/api/ovk/projects/p1/inspections/ovk-001"
     payload = _workflow_payload()
     planning = {
         "inspector_id": "person-1",
