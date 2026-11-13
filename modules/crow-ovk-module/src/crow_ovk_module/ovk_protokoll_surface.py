@@ -25,7 +25,13 @@ from crow_ovk_workflow import (
     utkast_to_payload,
 )
 
-from .ovk_field_surface import _field_data_from_payload
+from .ovk_field_surface import (
+    _FieldSyncRepository,
+    _field_data_from_payload,
+    _validate_identifier,
+    _verify_followup_sources,
+)
+from .ovk_field_workbench import _FieldWorkbenchRepository, _project_photo
 
 
 def ovk_protokoll_router(data_root: Path) -> APIRouter:
@@ -69,6 +75,7 @@ def ovk_protokoll_router(data_root: Path) -> APIRouter:
                 )
             body = parsed
 
+        _validate_identifier(inspection_id)
         snapshot = _load_snapshot(inspection_id)
         try:
             snapshot.setdefault("inspection_id", inspection_id)
@@ -79,7 +86,36 @@ def ovk_protokoll_router(data_root: Path) -> APIRouter:
                 detail={"code": "INVALID_FIELD_DATA", "message": str(exc)},
             ) from exc
 
+        sync_repository = _FieldSyncRepository(data_root)
+        _verify_followup_sources(data_root, data, sync_repository)
+        contexts = _FieldWorkbenchRepository(data_root)
+        context = contexts.load_context_optional(inspection_id)
+        if context is not None and context.get("project_id") != project_id:
+            raise HTTPException(status_code=422, detail="Field project mismatch")
+        try:
+            existing = workflow_repository.load(project_id, inspection_id)
+        except FileNotFoundError:
+            existing = None
+        if data.finding_followups and (existing is None or existing.planning is None):
+            raise HTTPException(status_code=422, detail="Planned workflow required")
         utkast = build_protokoll_utkast(data)
+        units = {unit.unit_id: unit.number for unit in data.units}
+        photos = {photo["photo_id"]: photo for photo in snapshot.get("photos", [])}
+        followup_review = [
+            {
+                "source_inspection_id": item.source_inspection_id,
+                "source_finding_id": item.source_finding_id,
+                "unit_number": units[item.unit_id],
+                "status": item.status,
+                "note": item.note,
+                "current_finding_id": item.current_finding_id,
+                "photos": [
+                    _project_photo(contexts, inspection_id, photos[photo_id])
+                    for photo_id in item.photo_ids
+                ],
+            }
+            for item in data.finding_followups
+        ]
 
         system_type = str(body.get("system_type") or snapshot.get("system_type") or "F")
         building_id = str(body.get("building_id") or "byggnad-1")
@@ -91,17 +127,27 @@ def ovk_protokoll_router(data_root: Path) -> APIRouter:
             name=object_name,
             address=None,
         )
+        if existing is not None and existing.planning is not None:
+            ovk_object = existing.inspection.ovk_object
         inputs = bridge_inspection_inputs(data, utkast, ovk_object=ovk_object)
         record = build_record(
             inspection_id=str(inputs["inspection_id"]),
             ovk_object=ovk_object,
             systems=(
-                VentilationSystemRef(f"{system_type}01", system_type, f"System {system_type}01"),
+                existing.inspection.systems
+                if existing is not None and existing.planning is not None
+                else (
+                    VentilationSystemRef(
+                        f"{system_type}01", system_type, f"System {system_type}01"
+                    ),
+                )
             ),
             checkpoints=inputs["checkpoints"],  # type: ignore[arg-type]
             findings=inputs["findings"],  # type: ignore[arg-type]
             actions=inputs["actions"],  # type: ignore[arg-type]
             coverage=utkast.suggested_coverage,
+            planning=existing.planning if existing is not None else None,
+            review=existing.review if existing is not None else (),
         )
         workflow_repository.save(record)
 
@@ -112,6 +158,7 @@ def ovk_protokoll_router(data_root: Path) -> APIRouter:
             "utkast": utkast_to_payload(utkast),
             "utkast_sha256": sha256(canonical.encode("utf-8")).hexdigest(),
             "record": record_to_payload(record),
+            "followup_review": followup_review,
             "note": (
                 "Utkast: täckningsförslaget kräver systemförteckningsbekräftelse "
                 "(STATED) innan protokollet kan färdigställas."
