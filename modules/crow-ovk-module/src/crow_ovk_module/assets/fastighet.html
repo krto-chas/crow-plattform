@@ -24,6 +24,26 @@
       <div id="status" class="status">Välj projekt.</div>
     </section>
 
+    <section class="panel" id="inventoryPanel">
+      <h2>Byggnadsregister</h2>
+      <p class="muted">Välj en sparad fastighet och byggnad. Strukturen sparas separat från besiktningsresultat.</p>
+      <label for="inventoryBuilding">Byggnad</label>
+      <select id="inventoryBuilding" disabled><option value="">Välj byggnad…</option></select>
+      <div id="inventoryStatus" class="status" role="status" aria-live="polite">Välj en sparad fastighet.</div>
+      <fieldset id="inventoryFields" disabled style="border:0;padding:0;margin:0;min-width:0">
+        <h3>Ventilationssystem</h3>
+        <div id="inventorySystems"></div>
+        <button type="button" class="button secondary" id="inventoryAddSystem">+ System</button>
+        <h3>Lägenheter och lokaler</h3>
+        <div id="inventoryUnits"></div>
+        <button type="button" class="button secondary" id="inventoryAddUnit">+ Enhet</button>
+        <h3>Tekniska utrymmen</h3>
+        <div id="inventorySpaces"></div>
+        <button type="button" class="button secondary" id="inventoryAddSpace">+ Tekniskt utrymme</button>
+        <div><button type="button" class="button" id="inventorySave">Spara byggnadsstruktur</button></div>
+      </fieldset>
+    </section>
+
     <div class="split">
       <section class="panel">
         <h2>Fastighet</h2>
