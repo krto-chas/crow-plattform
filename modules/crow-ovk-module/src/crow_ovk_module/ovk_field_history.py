@@ -9,6 +9,8 @@ from typing import Any
 
 from fastapi import APIRouter, HTTPException, Query
 
+from crow_ovk_workflow.repository import OvkWorkflowRepository
+
 _SAFE_ID = re.compile(r"^[A-Za-z0-9._-]+$")
 
 
@@ -30,6 +32,35 @@ def ovk_field_history_router(data_root: Path) -> APIRouter:
                 status_code=404,
                 detail={"code": "OVK_FIELD_HISTORY_NOT_FOUND"},
             ) from exc
+
+    workflows = OvkWorkflowRepository(data_root)
+
+    @router.get(
+        "/api/ovk/projects/{project_id}/inspections/{inspection_id}/field-history",
+        response_model=None,
+    )
+    def planned_history(project_id: str, inspection_id: str) -> dict[str, Any]:
+        try:
+            current = workflows.load(project_id, inspection_id)
+            source_id = current.planning.previous_inspection_id if current.planning else None
+            if source_id is None:
+                return {"source_inspection_id": None, "historical_findings": []}
+            source = workflows.load(project_id, source_id)
+            if source.inspection.ovk_object != current.inspection.ovk_object:
+                old = source.inspection.ovk_object
+                new = current.inspection.ovk_object
+                if (old.object_id, old.building_id) != (new.object_id, new.building_id):
+                    raise ValueError("historical building mismatch")
+            projection = repository.restore_projection(source_id)
+            if projection["project_id"] != project_id:
+                raise ValueError("historical field project mismatch")
+            return projection
+        except FileNotFoundError as exc:
+            raise HTTPException(
+                status_code=404, detail="Historical field data unavailable"
+            ) from exc
+        except ValueError as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
 
     return router
 
@@ -85,6 +116,7 @@ class _FieldHistoryRepository:
         context = _read_object(self._context_root / f"{inspection_id}.json")
         rooms = _object_list(snapshot.get("rooms"))
         photos = _object_list(snapshot.get("photos"))
+        units = _object_list(snapshot.get("units"))
         historical_findings: list[dict[str, Any]] = []
         for finding in _object_list(snapshot.get("findings")):
             finding_id = str(finding.get("finding_id", ""))
@@ -92,6 +124,22 @@ class _FieldHistoryRepository:
                 {
                     **finding,
                     "source_inspection_id": inspection_id,
+                    "unit_number": next(
+                        (
+                            u.get("number")
+                            for u in units
+                            if u.get("unit_id") == finding.get("unit_id")
+                        ),
+                        None,
+                    ),
+                    "room_name": next(
+                        (
+                            r.get("name")
+                            for r in rooms
+                            if r.get("room_id") == finding.get("room_id")
+                        ),
+                        None,
+                    ),
                     "photos": [
                         self._historical_photo(inspection_id, photo)
                         for photo in photos
@@ -114,6 +162,16 @@ class _FieldHistoryRepository:
                 "rooms": rooms,
             },
             "historical_findings": historical_findings,
+            "historical_checkpoints": [
+                item
+                for item in _object_list(snapshot.get("checkpoints"))
+                if item.get("status") == "fail"
+            ],
+            "historical_space_photos": [
+                self._historical_photo(inspection_id, photo)
+                for photo in photos
+                if photo.get("space_id")
+            ],
             "legacy": snapshot.get("legacy") if isinstance(snapshot.get("legacy"), dict) else None,
         }
 

@@ -500,3 +500,20 @@ def test_planned_technical_prefill_uses_system_identity(tmp_path: Path) -> None:
     assert "const checklist=state.checklists[space.kind]" in app
     assert "if(!draft.units.length&&!draft.technical_spaces.length)return false" in app
     assert "label:item.label,status:'not_checked',note:''" in app
+
+
+def test_planned_history_is_separate_from_current_results(tmp_path: Path) -> None:
+    app = _client(tmp_path).get("/ovk/falt/app.js").text
+    assert "item.unit_id===unit.unit_id" in app
+    assert "function historyDisclosure" in app
+    assert "details.open=wasOpen" in app
+    assert "panel.dataset.historyKey===key" in app
+    assert "anmärkning(ar) från föregående OVK" in app
+    assert "item.room_id===state.activeRoomId" in app
+    assert "c.space_id===space.space_id" in app
+    assert "historical_findings:data.historical_findings" in app
+    assert "historical_checkpoints:data.historical_checkpoints" in app
+    assert "if(!photo.verified||!photo.content_url)continue" in app
+    payload = app.split("function payload()", 1)[1].split("async function writeDraft", 1)[0]
+    assert "historical_findings" not in payload
+    assert "historical_checkpoints" not in payload
