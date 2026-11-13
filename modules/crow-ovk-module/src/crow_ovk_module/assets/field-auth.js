@@ -74,6 +74,7 @@ syncPendingMedia = async function () {
     const receipt = await response.json();
     if (!response.ok) throw new Error(JSON.stringify(receipt));
     photo.sync_status = 'synced';
+    state.last_sync = receipt.snapshot_sha256;
     media.media_id = receipt.media_id;
     media.evidence_id = receipt.evidence_id;
     media.synced_at = now();
