@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 from decimal import Decimal, InvalidOperation
 from typing import Any
 
@@ -20,7 +20,7 @@ from crow_ovk import (
 )
 
 from .coverage import InspectionCoverage, coverage_from_payload, coverage_to_payload
-from .models import OvkReviewDecision, OvkWorkflowRecord, ReviewStatus
+from .models import InspectionPlanning, OvkReviewDecision, OvkWorkflowRecord, ReviewStatus
 
 SCHEMA_VERSION = "crow-ovk-workflow-v0.1"
 
@@ -37,6 +37,7 @@ def build_record(
     review: tuple[OvkReviewDecision, ...] = (),
     coverage: InspectionCoverage | None = None,
     updated_at: str | None = None,
+    planning: InspectionPlanning | None = None,
 ) -> OvkWorkflowRecord:
     inspection = build_inspection(
         inspection_id=inspection_id,
@@ -65,6 +66,7 @@ def build_record(
         review=review,
         updated_at=updated_at or datetime.now(UTC).isoformat(),
         coverage=coverage,
+        planning=planning,
     )
 
 
@@ -89,6 +91,15 @@ def record_to_payload(record: OvkWorkflowRecord) -> dict[str, Any]:
         "coverage_complete": record.coverage_complete,
         "protocol_ready": record.protocol_ready,
         "updated_at": record.updated_at,
+        "planning": (
+            {
+                "inspector_id": record.planning.inspector_id,
+                "planned_date": record.planning.planned_date.isoformat(),
+                "inspection_type": record.planning.inspection_type,
+            }
+            if record.planning is not None
+            else None
+        ),
     }
 
 
@@ -116,6 +127,14 @@ def record_from_payload(payload: dict[str, Any]) -> OvkWorkflowRecord:
     coverage: InspectionCoverage | None = None
     if coverage_payload is not None:
         coverage = coverage_from_payload(_mapping(coverage_payload, "coverage"))
+    planning = None
+    if payload.get("planning") is not None:
+        raw = _mapping(payload["planning"], "planning")
+        planning = InspectionPlanning(
+            inspector_id=_required_text(raw, "inspector_id"),
+            planned_date=date.fromisoformat(_required_text(raw, "planned_date")),
+            inspection_type=_required_text(raw, "inspection_type"),
+        )
     return build_record(
         inspection_id=_required_text(inspection, "inspection_id"),
         ovk_object=ovk_object,
