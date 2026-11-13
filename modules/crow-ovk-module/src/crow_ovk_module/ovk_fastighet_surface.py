@@ -253,11 +253,24 @@ def _validate_structure(payload: dict[str, Any]) -> dict[str, Any]:
         system_id = required(row, "system_id")
         if system_id not in system_ids:
             raise ValueError("technical space references unknown system")
+        kind = row.get("kind", "unclassified")
+        if not isinstance(kind, str) or kind not in {
+            "unclassified",
+            "flaktrum",
+            "takflakt",
+            "other",
+        }:
+            raise ValueError("invalid technical space kind")
+        location = row.get("location", "")
+        if not isinstance(location, str):
+            raise ValueError("technical space location must be a string")
         spaces.append(
             {
                 "space_id": identifier(row, "space_id", space_ids),
                 "label": required(row, "label"),
                 "system_id": system_id,
+                "kind": kind,
+                "location": location.strip(),
             }
         )
     return {"units": units, "systems": systems, "technical_spaces": spaces}

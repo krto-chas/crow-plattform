@@ -121,7 +121,9 @@ function renderInventory(){
   }
   for(const space of inventory.technical_spaces){
     const card=inventoryCard($('inventorySpaces'));
-    inventoryInput(card,'Tekniskt utrymme',space.label,v=>space.label=v);
+    inventoryInput(card,'Beteckning',space.label,v=>space.label=v);
+    inventoryInput(card,'Installationstyp',space.kind||'unclassified',v=>space.kind=v,[['unclassified','Ej klassificerad'],['flaktrum','Fläktrum / aggregat'],['takflakt','Frånluftsfläkt tak / vind'],['other','Övrig installation']]);
+    inventoryInput(card,'Placering',space.location||'',v=>space.location=v);
     inventoryInput(card,'Ventilationssystem',space.system_id,v=>space.system_id=v,inventory.systems.map(s=>[s.system_id,s.label||s.system_id]));
     card.append(inventoryButton('Ta bort utrymme',()=>inventoryRemove(inventory.technical_spaces,space)));
   }
@@ -139,7 +141,7 @@ $('inventoryBuilding').onchange=async()=>{
 };
 $('inventoryAddSystem').onclick=()=>{inventory.systems.push({system_id:inventoryId('system'),system_type:'F',label:''});inventoryChanged();renderInventory()};
 $('inventoryAddUnit').onclick=()=>{inventory.units.push({unit_id:inventoryId('unit'),number:'',kind:'apartment',rooms:[]});inventoryChanged();renderInventory()};
-$('inventoryAddSpace').onclick=()=>{if(!inventory.systems.length){inventoryMessage('Lägg till ett ventilationssystem först.',true);return}inventory.technical_spaces.push({space_id:inventoryId('space'),label:'',system_id:inventory.systems[0].system_id});inventoryChanged();renderInventory()};
+$('inventoryAddSpace').onclick=()=>{if(!inventory.systems.length){inventoryMessage('Lägg till ett ventilationssystem först.',true);return}inventory.technical_spaces.push({space_id:inventoryId('space'),label:'',kind:'unclassified',location:'',system_id:inventory.systems[0].system_id});inventoryChanged();renderInventory()};
 $('inventorySave').onclick=async()=>{
   if(!inventory||inventoryBusy)return;
   const revision=inventoryRevision,url=inventoryUrl(inventoryContext.building);
