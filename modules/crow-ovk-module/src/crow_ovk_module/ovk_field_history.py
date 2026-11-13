@@ -162,6 +162,7 @@ class _FieldHistoryRepository:
                 "rooms": rooms,
             },
             "historical_findings": historical_findings,
+            "historical_measurements": _object_list(snapshot.get("measurements")),
             "historical_checkpoints": [
                 item
                 for item in _object_list(snapshot.get("checkpoints"))
