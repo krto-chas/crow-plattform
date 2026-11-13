@@ -183,7 +183,7 @@ function renderFindingFollowup(body,item,unit){
     const oldFollowups=state.finding_followups;
     const oldFindings=state.findings;
     const oldDirty=state.dirty;
-    const next={source_inspection_id:source,source_finding_id:item.finding_id,unit_id:unit.unit_id,status:result,note:comment,current_finding_id:current};
+    const next={source_inspection_id:source,source_finding_id:item.finding_id,unit_id:unit.unit_id,status:result,note:comment,current_finding_id:current,photo_ids:result==='not_checked'?[]:(existing?.photo_ids||[])};
     state.finding_followups=[...oldFollowups.filter(f=>f.source_inspection_id!==source||f.source_finding_id!==item.finding_id),next];
     if(created)state.findings=[...oldFindings,created];
     save.disabled=true;
@@ -195,7 +195,29 @@ function renderFindingFollowup(body,item,unit){
     if(created){state.activeFindingId=created.finding_id;$('photoStatus').textContent='Anmärkning registrerad · foto binds hit: '+created.description}
     renderUnit();
   };
-  form.append(status,note,link,description,severity,save,message);body.append(form);
+  form.append(status,note,link,description,severity,save,message);
+  if(existing&&existing.status!=='not_checked'){
+    const photos=document.createElement('p');photos.textContent='Återkontrollfoton: '+(existing.photo_ids||[]).length;
+    const input=document.createElement('input');input.type='file';input.accept='image/*';input.setAttribute('capture','environment');input.setAttribute('aria-label','Fotografera återkontroll');
+    input.onchange=async()=>{
+      const file=input.files[0];if(!file)return;
+      if(!file.type.startsWith('image/')||!file.size||file.size>25*1024*1024){message.textContent='Välj en bild på högst 25 MB.';return}
+      input.disabled=true;
+      try{
+        const digest=[...new Uint8Array(await crypto.subtle.digest('SHA-256',await file.arrayBuffer()))].map(v=>v.toString(16).padStart(2,'0')).join('');
+        const photo={photo_id:uid('photo'),inspection_id:inspectionId,unit_id:unit.unit_id,unit_number:unit.number,defect_type:item.defect_type,captured_at:now(),captured_by:state.inspector,local_uri:'indexeddb:'+file.name,sha256:digest,mime_type:file.type,room_id:item.room_id||null,finding_id:existing.current_finding_id||null,checkpoint_id:null,system_id:item.system_id||null,description:'Återkontroll: '+(item.description||item.defect_type),rule_refs:item.rule_refs||[],sync_status:'local'};
+        if(state.inspection_id!==inspectionId||!state.finding_followups.includes(existing))throw new Error('Återkontrollen har ändrats.');
+        await dbPut('media',{photo_id:photo.photo_id,inspection_id:inspectionId,name:file.name,mime_type:photo.mime_type,sha256:digest,blob:file});
+        if(state.inspection_id!==inspectionId||!state.finding_followups.includes(existing))throw new Error('Återkontrollen har ändrats.');
+        const oldPhotos=state.photos;const oldFollowups=state.finding_followups;const oldDirty=state.dirty;
+        state.photos=[...oldPhotos,photo];state.finding_followups=oldFollowups.map(f=>f===existing?{...f,photo_ids:[...(f.photo_ids||[]),photo.photo_id]}:f);
+        try{await persist()}catch(error){state.photos=oldPhotos;state.finding_followups=oldFollowups;state.dirty=oldDirty;throw error}
+        if(state.inspection_id===inspectionId&&state.activeUnitId===unit.unit_id)renderUnit();
+      }catch(error){message.textContent='Foto kunde inte sparas: '+crowErrorText(error);input.disabled=false}
+    };
+    form.append(photos,input);
+  }
+  body.append(form);
 }
 function renderPreviousFindings(unit){
   const panel=$('prevFindings');
@@ -265,7 +287,7 @@ $('keyIn').onclick=async()=>{const key=keyStamp();key.received=!key.received;key
 $('keyOut').onclick=async()=>{const key=keyStamp();if(!key.received&&!key.master_key_used){$('keyInfo').textContent='Markera först nyckel mottagen eller huvudnyckel.';return}if(!key.received){key.received=true;key.received_at=key.received_at||now()}key.returned=!key.returned;key.returned_at=key.returned?now():null;renderKeys();await persist()};
 $('keyMaster').onclick=async()=>{const key=keyStamp();if(key.master_key_used){key.master_key_used=false;key.master_key_note=''}else{const note=(prompt('Kommentar om huvudnyckel (obligatorisk för spårbarhet):')||'').trim();if(!note)return;key.master_key_used=true;key.master_key_note=note;if(!key.received){key.received=true;key.received_at=now()}}renderKeys();await persist()};
 $('unitSystemBtn').onclick=async()=>{const unit=activeUnit();if(!unit)return;const raw=(prompt('Systemtyp för denna enhet (F, S, FX, FT, FTX).\nLämna tomt för fastighetens ('+state.system_type+') – vanligt avvikande i vinds-/källarlägenheter.',unit.system_type||'')||'').trim().toUpperCase();if(raw&&!['F','S','FX','FT','FTX'].includes(raw)){alert('Ogiltig systemtyp: '+raw);return}unit.system_type=raw||null;renderUnit();await persist()};
-$('bom').onclick=async()=>{const unit=activeUnit();const meas=state.measurements.filter(item=>item.unit_id===unit.unit_id);const marks=state.findings.filter(item=>item.unit_id===unit.unit_id);const followups=state.finding_followups.filter(item=>item.unit_id===unit.unit_id);if((meas.length||marks.length||followups.length)&&!confirm('BOM: '+meas.length+' mätningar och '+marks.length+' anmärkningar för enheten tas bort och återkontroller återställs till ej återkontrollerad (foton behålls men kopplas loss). Fortsätt?'))return;const removedFindings=new Set(marks.map(item=>item.finding_id));state.measurements=state.measurements.filter(item=>item.unit_id!==unit.unit_id);state.findings=state.findings.filter(item=>item.unit_id!==unit.unit_id);state.finding_followups=state.finding_followups.map(item=>item.unit_id===unit.unit_id?{...item,status:'not_checked',note:'',current_finding_id:null}:item);for(const photo of state.photos)if(photo.finding_id&&removedFindings.has(photo.finding_id))photo.finding_id=null;if(state.activeFindingId&&removedFindings.has(state.activeFindingId))state.activeFindingId=null;const note=(prompt('BOM – valfri notering (tid och datum stämplas automatiskt):')||'').trim();unit.status='bom';unit.bom_at=now();unit.bom_note=note;unit.checked_at=null;renderRond();view('viewRond');await persist()};
+$('bom').onclick=async()=>{const unit=activeUnit();const meas=state.measurements.filter(item=>item.unit_id===unit.unit_id);const marks=state.findings.filter(item=>item.unit_id===unit.unit_id);const followups=state.finding_followups.filter(item=>item.unit_id===unit.unit_id);if((meas.length||marks.length||followups.length)&&!confirm('BOM: '+meas.length+' mätningar och '+marks.length+' anmärkningar för enheten tas bort och återkontroller återställs till ej återkontrollerad (foton behålls men kopplas loss). Fortsätt?'))return;const removedFindings=new Set(marks.map(item=>item.finding_id));state.measurements=state.measurements.filter(item=>item.unit_id!==unit.unit_id);state.findings=state.findings.filter(item=>item.unit_id!==unit.unit_id);state.finding_followups=state.finding_followups.map(item=>item.unit_id===unit.unit_id?{...item,status:'not_checked',note:'',current_finding_id:null,photo_ids:[]}:item);for(const photo of state.photos)if(photo.finding_id&&removedFindings.has(photo.finding_id))photo.finding_id=null;if(state.activeFindingId&&removedFindings.has(state.activeFindingId))state.activeFindingId=null;const note=(prompt('BOM – valfri notering (tid och datum stämplas automatiskt):')||'').trim();unit.status='bom';unit.bom_at=now();unit.bom_note=note;unit.checked_at=null;renderRond();view('viewRond');await persist()};
 for(const chip of document.querySelectorAll('[data-defect]'))chip.onclick=async()=>{if(!activeUnit())return;const map={missing_terminal:['minor','Don saknas'],kitchen_fan_central_system:['minor','Köksfläkt installerad mot centralt system'],window_vent_missing:['minor','Fönsterventil saknas'],general_damage_observation:['info','Skada/observation']};const [severity,base]=map[chip.dataset.defect];const room=activeRoom();if(chip.dataset.defect==='window_vent_missing'&&room){setWindowVent(room.room_id,false)}addFinding(chip.dataset.defect,severity,(room?room.name+': ':'')+base);renderUnit();await persist()};
 function setWindowVent(roomId,present){const existing=state.window_vents.find(item=>item.unit_id===state.activeUnitId&&item.room_id===roomId);if(existing){existing.present=present;return existing}const check={check_id:uid('wv'),inspection_id:state.inspection_id,unit_id:state.activeUnitId,room_id:roomId,present,note:''};state.window_vents.push(check);return check}
 $('wvPresent').onclick=async()=>{const room=activeRoom();if(!room)return;setWindowVent(room.room_id,true);$('photoStatus').textContent='Fönsterventil finns · '+room.name+' registrerad.';await persist()};
