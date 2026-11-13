@@ -324,6 +324,32 @@ class OvkPhotoEvidence:
 
 
 @dataclass(frozen=True, slots=True)
+class FindingFollowup:
+    source_inspection_id: str
+    source_finding_id: str
+    unit_id: str
+    status: str
+    note: str = ""
+    current_finding_id: str | None = None
+
+    def __post_init__(self) -> None:
+        if not all(
+            value.strip()
+            for value in (self.source_inspection_id, self.source_finding_id, self.unit_id)
+        ):
+            raise ValueError("followup requires source and unit identity")
+        if self.status not in {"resolved", "remaining", "changed", "not_applicable", "not_checked"}:
+            raise ValueError("invalid followup status")
+        if self.status in {"changed", "not_applicable"} and not self.note.strip():
+            raise ValueError("followup requires a note")
+        if self.status in {"remaining", "changed"}:
+            if not self.current_finding_id:
+                raise ValueError("followup requires a current finding")
+        elif self.current_finding_id is not None:
+            raise ValueError("unexpected current finding")
+
+
+@dataclass(frozen=True, slots=True)
 class FieldInspectionData:
     inspection_id: str
     units: tuple[FieldUnit, ...] = ()
@@ -334,3 +360,20 @@ class FieldInspectionData:
     window_vents: tuple[WindowVentCheck, ...] = field(default=())
     technical_spaces: tuple[TechnicalSpace, ...] = field(default=())
     checkpoints: tuple[FieldCheckpoint, ...] = field(default=())
+    finding_followups: tuple[FindingFollowup, ...] = field(default=())
+
+    def __post_init__(self) -> None:
+        seen: set[tuple[str, str]] = set()
+        units = {unit.unit_id for unit in self.units}
+        findings = {finding.finding_id: finding for finding in self.findings}
+        for item in self.finding_followups:
+            key = (item.source_inspection_id, item.source_finding_id)
+            if key in seen or item.source_inspection_id == self.inspection_id:
+                raise ValueError("duplicate or self-referencing followup")
+            seen.add(key)
+            if item.unit_id not in units:
+                raise ValueError("followup references unknown unit")
+            if item.current_finding_id is not None:
+                finding = findings.get(item.current_finding_id)
+                if finding is None or finding.unit_id != item.unit_id:
+                    raise ValueError("followup references invalid current finding")
