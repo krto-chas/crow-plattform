@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import json
 import re
+import sqlite3
+from contextlib import closing
 from hashlib import sha256
 from importlib import resources
 from pathlib import Path
@@ -98,7 +100,10 @@ def ovk_field_router(data_root: Path) -> APIRouter:
             )
         data = _validated_payload(payload)
         normalized = _field_data_to_payload(data)
-        snapshot_sha256 = repository.save(inspection_id, normalized)
+        expected = request.headers.get("X-OVK-Base-Revision")
+        if expected is not None and expected != "new" and not re.fullmatch(r"[0-9a-f]{64}", expected):
+            raise HTTPException(status_code=422, detail={"code": "INVALID_OVK_REVISION"})
+        snapshot_sha256 = repository.save(inspection_id, normalized, expected)
         return {
             **_validation_summary(data),
             "snapshot_sha256": snapshot_sha256,
@@ -461,7 +466,9 @@ class _FieldSyncRepository:
     def __init__(self, data_root: Path) -> None:
         self._root = data_root / "ovk-field-sync"
 
-    def save(self, inspection_id: str, payload: dict[str, Any]) -> str:
+    def save(
+        self, inspection_id: str, payload: dict[str, Any], expected: str | None = None
+    ) -> str:
         _validate_identifier(inspection_id)
         canonical = json.dumps(
             payload,
@@ -472,10 +479,30 @@ class _FieldSyncRepository:
         digest = sha256(canonical.encode("utf-8")).hexdigest()
         self._root.mkdir(parents=True, exist_ok=True)
         target = self._root / f"{inspection_id}.json"
-        temporary = self._root / f".{inspection_id}.tmp"
-        temporary.write_text(canonical + "\n", encoding="utf-8")
-        temporary.replace(target)
-        return digest
+        # SQLite serializes writers across threads and processes on the same data root.
+        # Snapshot JSON remains the canonical storage format for existing readers.
+        with closing(sqlite3.connect(self._root / ".write-lock.sqlite3", timeout=30)) as lock:
+            lock.execute("BEGIN IMMEDIATE")
+            try:
+                current = self.load(inspection_id)[1] if target.exists() else None
+                if current == digest:
+                    return digest
+                if (current is None and expected not in (None, "new")) or (
+                    current is not None and expected != current
+                ):
+                    raise HTTPException(
+                        status_code=409,
+                        detail={
+                            "code": "OVK_FIELD_REVISION_CONFLICT",
+                            "current_revision": current,
+                        },
+                    )
+                temporary = self._root / f".{inspection_id}.tmp"
+                temporary.write_text(canonical + "\n", encoding="utf-8")
+                temporary.replace(target)
+                return digest
+            finally:
+                lock.rollback()
 
     def load(self, inspection_id: str) -> tuple[dict[str, Any], str]:
         _validate_identifier(inspection_id)
