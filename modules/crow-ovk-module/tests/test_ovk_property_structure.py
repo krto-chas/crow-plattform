@@ -155,3 +155,20 @@ def test_registered_measurement_points_are_inventory_only(tmp_path: Path) -> Non
     ):
         assert client.put(url, json=inventory(invalid)).status_code == 422
     assert client.get(url).json() == saved.json()
+
+
+def test_apartment_template_generator_is_served(tmp_path: Path) -> None:
+    app = FastAPI()
+    app.include_router(ovk_fastighet_router(tmp_path))
+    client = TestClient(app)
+    page = client.get("/ovk/fastighet").text
+    script = client.get("/ovk/fastighet/app.js").text
+    assert 'id="templatePanel"' in page
+    assert 'id="templateApply" disabled' in page
+    assert "function templatePlan()" in script
+    assert "suffixes.has(rule.suffix)" in script
+    assert "if(existing.has(number)){skipped.push(number);continue}" in script
+    assert "JSON.stringify(plan)!==JSON.stringify(templatePreview)" in script
+    assert "point_id:inventoryId('point')" in script
+    assert "room_id:inventoryId('room')" in script
+    assert "unit_id:inventoryId('unit')" in script
