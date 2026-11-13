@@ -99,6 +99,7 @@ function inventoryInput(parent,label,value,change,options=null){
 function inventoryCard(parent){const card=document.createElement('div');card.className='bygg';parent.append(card);return card}
 function inventoryRemove(items,item){if(!confirm('Ta bort posten från byggnadsregistret?'))return;items.splice(items.indexOf(item),1);inventoryChanged();renderInventory()}
 function renderInventory(){
+  renderTemplateRules();
   if(!inventory)return;
   for(const id of ['inventorySystems','inventoryUnits','inventorySpaces'])$(id).replaceChildren();
   for(const system of inventory.systems){
@@ -202,6 +203,79 @@ $('bulkApply').onclick=()=>{
     inventory.units.push(...additions);inventoryChanged();renderInventory();
     $('bulkStatus').textContent=additions.length+' lägenheter tillagda. Spara byggnadsstrukturen för att behålla ändringarna.';
   }catch(error){clearBulkPreview();$('bulkStatus').textContent=errText(error)}
+};
+let templateRules=[{suffix:'01',source:''}];
+let templatePreview=null;
+let templateContext=null;
+function clearTemplatePreview(){
+  templatePreview=null;$('templateApply').disabled=true;$('templateResult').replaceChildren();
+  $('templateStatus').textContent='Förhandsgranska innan generering.';
+}
+function renderTemplateRules(){
+  if(templateContext!==inventoryContext){templateContext=inventoryContext;templateRules=[{suffix:'01',source:''}]}
+  clearTemplatePreview();
+  const root=$('templateRules');root.replaceChildren();
+  const sources=(inventory?.units||[]).filter(u=>u.kind==='apartment');
+  for(const rule of templateRules){
+    const row=document.createElement('div');row.className='row';
+    const suffix=document.createElement('input');suffix.value=rule.suffix;suffix.maxLength=2;suffix.setAttribute('aria-label','Lägenhetssuffix XX');
+    suffix.oninput=()=>{rule.suffix=suffix.value;clearTemplatePreview()};
+    const select=document.createElement('select');select.setAttribute('aria-label','Mall från lägenhet');
+    select.append(new Option('Välj mall från lägenhet…',''));
+    for(const unit of sources)select.append(new Option(unit.number,unit.unit_id));
+    select.value=rule.source;select.onchange=()=>{rule.source=select.value;clearTemplatePreview()};
+    const remove=document.createElement('button');remove.type='button';remove.className='button secondary';remove.textContent='Ta bort regel';
+    remove.onclick=()=>{templateRules=templateRules.filter(r=>r!==rule);renderTemplateRules()};
+    row.append(suffix,select,remove);root.append(row);
+  }
+}
+function templatePlan(){
+  if(!inventory||inventoryBusy)throw new Error('Välj en sparad byggnad först.');
+  const floor=$('templateFloor').valueAsNumber,floors=$('templateFloors').valueAsNumber;
+  if(!Number.isInteger(floor)||!Number.isInteger(floors)||floor<0||floors<1||floor+floors>100||!templateRules.length||floors*templateRules.length>500)throw new Error('Ogiltigt våningsintervall eller antal regler (max 500 lägenheter).');
+  const suffixes=new Set(),existing=new Set(inventory.units.map(u=>String(u.number).trim())),additions=[],skipped=[];
+  const systems=new Set(inventory.systems.map(s=>s.system_id));
+  for(const rule of templateRules){
+    if(!/^(0[1-9]|[1-9][0-9])$/.test(rule.suffix)||suffixes.has(rule.suffix))throw new Error('Ange unika suffix 01–99.');
+    suffixes.add(rule.suffix);
+    const source=inventory.units.find(u=>u.unit_id===rule.source&&u.kind==='apartment');
+    if(!source||!source.rooms.length)throw new Error('Välj en lägenhetsmall med minst ett rum för XX'+rule.suffix);
+    const rooms=source.rooms.map(room=>({name:room.name,measurement_points:(room.measurement_points||[]).map(point=>{
+      if(!systems.has(point.system_id)||!point.label||!['franluftsdon','tilluftsdon','overluftsdon'].includes(point.point_type)||point.unit_of_measure!=='l/s'||(point.designed_value!=null&&!/^[0-9]+(?:\.[0-9]+)?$/.test(point.designed_value)))throw new Error('Ogiltig mätpunkt i mall '+source.number);
+      return {label:point.label,point_type:point.point_type,system_id:point.system_id,designed_value:point.designed_value??null,unit_of_measure:'l/s'};
+    })}));
+    if(rooms.some(r=>!r.name.trim()))throw new Error('Mallens rum måste ha namn.');
+    for(let f=floor;f<floor+floors;f++){
+      const number=String(f).padStart(2,'0')+rule.suffix;
+      if(existing.has(number)){skipped.push(number);continue}
+      additions.push({number,source:source.number,rooms});
+    }
+  }
+  return {revision:inventoryRevision,additions,skipped};
+}
+$('templateAdd').onclick=()=>{templateRules.push({suffix:'',source:''});renderTemplateRules()};
+for(const id of ['templateFloor','templateFloors'])$(id).oninput=clearTemplatePreview;
+$('templatePreview').onclick=()=>{
+  clearTemplatePreview();
+  try{
+    templatePreview=templatePlan();
+    const {additions,skipped}=templatePreview;
+    const points=additions.reduce((n,u)=>n+u.rooms.reduce((m,r)=>m+r.measurement_points.length,0),0);
+    $('templateStatus').textContent=additions.length+' nya lägenheter · '+points+' mätpunkter · '+skipped.length+' befintliga hoppas över.';
+    for(const u of additions){const p=document.createElement('p');p.textContent=u.number+' ← mall '+u.source+' · '+u.rooms.length+' rum';$('templateResult').append(p)}
+    if(skipped.length){const p=document.createElement('p');p.textContent='Befintliga: '+skipped.join(', ');$('templateResult').append(p)}
+    $('templateApply').disabled=!additions.length;
+  }catch(error){$('templateStatus').textContent=errText(error)}
+};
+$('templateApply').onclick=()=>{
+  if(!templatePreview||inventoryBusy)return;
+  try{
+    const plan=templatePlan();
+    if(JSON.stringify(plan)!==JSON.stringify(templatePreview))throw new Error('Underlaget ändrades. Förhandsgranska igen.');
+    const additions=plan.additions.map(u=>({unit_id:inventoryId('unit'),number:u.number,kind:'apartment',rooms:u.rooms.map(r=>({room_id:inventoryId('room'),name:r.name,measurement_points:r.measurement_points.map(p=>({...p,point_id:inventoryId('point')}))}))}));
+    inventory.units.push(...additions);inventoryChanged();renderInventory();
+    $('templateStatus').textContent=additions.length+' lägenheter tillagda. Spara byggnadsstrukturen.';
+  }catch(error){clearTemplatePreview();$('templateStatus').textContent=errText(error)}
 };
 window.addEventListener('beforeunload',event=>{if(inventoryDirty||inventoryBusy){event.preventDefault();event.returnValue=''}});
 renderByggnader();loadProjects();loadPersons();
