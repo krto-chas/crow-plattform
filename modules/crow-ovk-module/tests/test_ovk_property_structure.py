@@ -35,6 +35,8 @@ def test_building_inventory_is_separate_and_validated(tmp_path: Path) -> None:
     saved = client.put(url, json=inventory)
     assert saved.status_code == 200
     assert "status" not in saved.json()["units"][0]
+    assert saved.json()["technical_spaces"][0]["kind"] == "unclassified"
+    assert saved.json()["technical_spaces"][0]["location"] == ""
     assert client.get(url).json() == saved.json()
     assert client.put(property_url, json=property_payload).status_code == 200
     assert client.get(url).json() == saved.json()
@@ -42,6 +44,27 @@ def test_building_inventory_is_separate_and_validated(tmp_path: Path) -> None:
     assert client.put(url, json=invalid).status_code == 422
     assert client.get(url).json() == saved.json()
     assert client.get(property_url + "/byggnad/unknown/struktur").status_code == 404
+    for kind in ("flaktrum", "takflakt", "other"):
+        space = {
+            "space_id": "s1",
+            "label": "LB01",
+            "system_id": "LB01",
+            "kind": kind,
+            "location": " Plan 5 ",
+            "status": "pass",
+        }
+        result = client.put(url, json={**inventory, "technical_spaces": [space]})
+        assert result.status_code == 200
+        assert result.json()["technical_spaces"][0] == {
+            "space_id": "s1",
+            "label": "LB01",
+            "system_id": "LB01",
+            "kind": kind,
+            "location": "Plan 5",
+        }
+    invalid_space = {**space, "kind": "unknown"}
+    assert client.put(url, json={**inventory, "technical_spaces": [invalid_space]}).status_code == 422
+    assert client.get(url).json() == result.json()
 
 
 def test_inventory_editor_is_served(tmp_path: Path) -> None:
@@ -59,6 +82,9 @@ def test_inventory_editor_is_served(tmp_path: Path) -> None:
     assert "revision!==inventoryRevision" in script.text
     assert "inventoryReset(saved.fastighet)" in script.text
     assert "inventory.technical_spaces.some" in script.text
+    assert "Installationstyp" in script.text
+    assert "space.kind" in script.text
+    assert "space.location" in script.text
 
 
 def test_bulk_inventory_editor_is_served(tmp_path: Path) -> None:
