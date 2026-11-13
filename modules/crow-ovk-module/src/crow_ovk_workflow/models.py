@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import date
 from enum import StrEnum
 
 from crow_ovk import OvkInspection
@@ -26,11 +27,25 @@ class OvkReviewDecision:
 
 
 @dataclass(frozen=True, slots=True)
+class InspectionPlanning:
+    inspector_id: str
+    planned_date: date
+    inspection_type: str
+
+    def __post_init__(self) -> None:
+        if not self.inspector_id.strip():
+            raise ValueError("inspector_id is required")
+        if self.inspection_type not in ("forstagang", "aterkommande"):
+            raise ValueError("invalid inspection_type")
+
+
+@dataclass(frozen=True, slots=True)
 class OvkWorkflowRecord:
     inspection: OvkInspection
     review: tuple[OvkReviewDecision, ...] = ()
     updated_at: str = ""
     coverage: InspectionCoverage | None = None
+    planning: InspectionPlanning | None = None
 
     @property
     def unresolved_review_count(self) -> int:
