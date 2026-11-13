@@ -135,14 +135,14 @@ window.addEventListener('online',updateNetwork);window.addEventListener('offline
 
 async function openRequestedInspection(projectId,inspectionId){
   const requested={project_id:projectId,inspection_id:inspectionId};
-  const lock=()=>{for(const id of ['project','inspection','restore'])$(id).disabled=true;};
+  const lock=()=>{for(const id of ['project','inspection','restore','inspector','inspectorSelect','objectType'])$(id).disabled=true;};
   lock();
-  $('start').disabled=true;
+  $('start').disabled=true;$('generate').disabled=true;
   try{
     const collision=await dbGet('drafts',inspectionId);
     if(collision&&collision.project_id!==projectId)throw new Error('Besiktnings-ID finns lokalt i ett annat projekt.');
     if(await restoreLatest(requested)){
-      $('start').disabled=false;
+      $('start').disabled=false;$('generate').disabled=false;
       return;
     }
     const get=async path=>{const response=await fetch(path);if(!response.ok)throw new Error('HTTP '+response.status);return response.json()};
@@ -155,6 +155,8 @@ async function openRequestedInspection(projectId,inspectionId){
     const property=await get(base+'/fastighet/'+encodeURIComponent(object.object_id));
     if(!property.byggnader.some(b=>b.byggnad_id===object.building_id))throw new Error('Byggnaden saknas i fastighetsregistret.');
     const person=await get('/api/ovk/registry/besiktningsman/'+encodeURIComponent(record.planning.inspector_id));
+    const snapshot=await fetch('/api/ovk/field/sync/'+encodeURIComponent(inspectionId));
+    if(snapshot.status!==404)throw new Error('Serverunderlag finns redan eller kunde inte verifieras. Nytt tomt underlag skapas inte.');
     const history=await get('/api/ovk/field/history?project_id='+encodeURIComponent(projectId));
     if((history.inspections||[]).some(item=>item.inspection_id===inspectionId))throw new Error('Fältunderlag finns redan på servern. Öppna den ursprungliga lokala sessionen; nytt tomt underlag skapas inte.');
     ensureProject(projectId);
@@ -169,11 +171,11 @@ async function openRequestedInspection(projectId,inspectionId){
     for(const option of $('systemType').options)option.disabled=!types.includes(option.value);
     $('systemType').value=types.length===1?types[0]:'';
     $('draftStatus').textContent=object.name+' · '+record.planning.planned_date+' · '+inspection.systems.map(s=>s.system_id+' ('+s.system_type+')').join(', ')+(types.length>1?' · Välj systemtyp för ronderingen.':'');
-    $('start').disabled=false;
+    $('start').disabled=false;$('generate').disabled=false;
   }catch(error){
     $('draftStatus').className='status warn';
     $('draftStatus').textContent='Kunde inte öppna uppdrag: '+crowErrorText(error);
   }
 }
-async function init(){updateNetwork();if('serviceWorker' in navigator){try{await navigator.serviceWorker.register('/ovk/falt/sw.js',{scope:'/ovk/',updateViaCache:'none'})}catch(_){/* offline funkar utan SW */}}await loadRemoteOptions();const params=new URLSearchParams(location.search);if(params.has('project_id')||params.has('inspection_id')){if(!params.get('project_id')||!params.get('inspection_id')){$('start').disabled=true;$('restore').disabled=true;$('draftStatus').textContent='Både projekt och besiktning krävs.';return}await openRequestedInspection(params.get('project_id'),params.get('inspection_id'));return}await restoreLatest();await prefillObjectType()}
+async function init(){updateNetwork();if('serviceWorker' in navigator){try{await navigator.serviceWorker.register('/ovk/falt/sw.js',{scope:'/ovk/',updateViaCache:'none'})}catch(_){/* offline funkar utan SW */}}await loadRemoteOptions();const params=new URLSearchParams(location.search);if(params.has('project_id')||params.has('inspection_id')){if(!params.get('project_id')||!params.get('inspection_id')){$('start').disabled=true;$('restore').disabled=true;$('draftStatus').textContent='Både projekt och besiktning krävs.';return}await openRequestedInspection(params.get('project_id'),params.get('inspection_id'));if(typeof updateFieldContextLinks==='function')updateFieldContextLinks();return}await restoreLatest();await prefillObjectType()}
 init();
