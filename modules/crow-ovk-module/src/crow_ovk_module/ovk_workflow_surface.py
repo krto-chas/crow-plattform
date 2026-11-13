@@ -127,8 +127,7 @@ def ovk_workflow_router(data_root: Path) -> APIRouter:
                     else {"units": [], "systems": [], "technical_spaces": []}
                 )
                 registered = {
-                    system["system_id"]: system["system_type"]
-                    for system in structure["systems"]
+                    system["system_id"]: system["system_type"] for system in structure["systems"]
                 }
                 if registered and any(
                     registered.get(system.system_id) != system.system_type.value
