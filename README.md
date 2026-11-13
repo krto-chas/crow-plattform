@@ -1,11 +1,71 @@
-# Crow Platform 0.7.0-alpha.1 — Consolidated baseline
+# CROW Platform
+
+CROW Platform är en modulär teknisk plattform för strukturerad byggnadsinformation,
+evidens, spårbara beslut och domänspecifika arbetsflöden. CROW OVK är den första
+kommersiellt inriktade slutanvändarprodukten som utvecklas på plattformen.
+
+> **Aktuell status:** Plattformens konsoliderade baseline är 0.7.0-alpha.1.
+> CROW OVK 1.0 är under utveckling inför praktisk pilotbesiktning.
+> Ingen ny release eller produktionsvalidering deklareras genom denna README.
+
+## CROW OVK – produktfokus
+
+CROW OVK ska stödja hela arbetsflödet för obligatorisk ventilationskontroll,
+från fastighetsregistrering och planering till fältarbete, granskning och dokumentation.
+
+| Område | Utvecklingsläge |
+| --- | --- |
+| Fastighetsregister | Byggnader, ventilationssystem, lägenheter, rum och teknikutrymmen |
+| Inventering | Lägenhetsmallar, massgenerering och beständiga mätpunkter |
+| Planering | Besiktningsman, datum, besiktningstyp och föregående besiktning |
+| Fältapp | Responsivt gränssnitt, lokala utkast i IndexedDB, mätvärden, kontrollpunkter och anmärkningar |
+| Synkronisering | Revisionskontroll, återställning av synkade utkast och hashverifierad media |
+| Historik | Tidigare anmärkningar, foton och jämförelse av mätvärden |
+| Återkontroll | Individuella utfall, kommentarer, aktuell anmärkning och serververifierad historisk källa |
+| Återkontrollfoton och granskning | Implementation i PR #180; praktisk verifiering återstår |
+| Dokumentation | Protokollutkast, PDF- och intygsfunktioner; komplett dokumentpaket behöver verifieras i pilot |
+
+Tabellen beskriver implementerade utvecklingsfunktioner, inte godkända
+produktions- eller acceptanstester.
+
+### Arbetsflöde
+
+1. Registrera fastighet, byggnad, system och besiktningsstruktur.
+2. Planera besiktningen och välj vid behov en tidigare besiktning.
+3. Genomför fältarbete med lokal lagring, mätningar, anmärkningar och foton.
+4. Synkronisera och granska underlaget på kontoret.
+5. Färdigställ protokoll och tillhörande dokumentation efter granskning.
+
+### Produktplan
+
+- [OVK 1.0 – produktroadmap](docs/OVK_PRODUCT_ROADMAP_1_0.md): besiktningsprodukt,
+  offlinearbete, dokumentpaket och praktiska pilotbesiktningar.
+- [OVK 2.0 – produktvision](docs/OVK_PRODUCT_VISION_2_0.md): CAD Light, schakt,
+  kanal- och systemtopologi, flödesscheman och driftkort.
+
+Nästa prioritet är ett sammanhängande pilotuppdrag med verklig byggnadsstruktur,
+offlinearbete, omstart, synkronisering, återkontroller och granskning av dokument.
+Slutlig PDF-bilaga för återkontrollfoton, fullständig redovisning av ej återkontrollerade
+historiska fel och praktisk acceptans återstår. Ny teknisk funktionalitet utanför
+OVK 1.0 prioriteras efter pilotens resultat.
+
+### Kommersiell inriktning
+
+Den första interna användningen ska följas av begränsade externa piloter.
+Målbilden är licensierad drift med en gemensam produktversion, initialt isolerade
+kundinstallationer och möjlighet till dedikerad enterprise-drift.
+Organisationsbehörigheter, tenant-isolering, SSO, licenshantering, backup/restore,
+uppdateringar och dataskydd måste verifieras innan extern produktionsdrift.
+Detta är en arkitekturinriktning, inte en deklaration om färdiga SaaS-funktioner.
+
+## Plattformens tekniska grund och historiska milstolpar
 
 > **Current repository status:** This repository is the consolidated 0.7.0-alpha.1 baseline.
 > The externally validated 0.5.0 Foundation remains documented below as historical evidence.
 > Release-candidate status has not been declared; the criteria are defined in
 > [`docs/90_Governance/RC_CRITERIA_0.7.0.md`](docs/90_Governance/RC_CRITERIA_0.7.0.md).
 
-# Crow Backbone — 0.5.0 Foundation Release
+## Crow Backbone — 0.5.0 Foundation Release
 
 **Crow 0.5.0 är den första fungerande och externt validerade versionen av Backbone.**
 
@@ -93,7 +153,14 @@ CDL och CKL är dokumenterade som framtida, fristående moduler och ingår inte 
 ## Kompatibilitet
 
 Den publika SDK- och conformance-ytan är fryst för `0.5.x`. Bakåtkompatibla tillägg får göras inom serien. Brytande kontraktsändringar kräver en ny minor- eller majorlinje enligt projektets versionspolicy.
-\n## Sprint B1 quick start\n```bash\ncrow project create ./demo --name "Demo"\ncrow project import ./demo/crow-project.json ./underlag --recursive\ncrow project show ./demo/crow-project.json\n```\n
+
+## Sprint B1 quick start
+```bash
+crow project create ./demo --name "Demo"
+crow project import ./demo/crow-project.json ./underlag --recursive
+crow project show ./demo/crow-project.json
+```
+
 ## Crow Platform 2.0 – Building Graph RC1, Sprint 1
 
 Den första grafkärnan är implementerad som ett separat paket: `crow_building_graph`.
