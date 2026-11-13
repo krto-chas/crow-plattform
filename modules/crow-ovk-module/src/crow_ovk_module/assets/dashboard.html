@@ -16,7 +16,7 @@
   <aside><div class="brand"><strong>OVK</strong><small>CROW Plattform</small></div><nav><a href="/app">Projekt</a><a class="active" href="/ovk">OVK</a><a href="/logout">Logga ut</a></nav><nav aria-label="OVK-navigation"><a class="active" aria-current="page" href="/ovk">Översikt</a><a href="#overview">Uppdrag</a><a href="/ovk/fastighet">Fastigheter</a><a href="#imports">Dokument &amp; import</a><a id="watchNav" href="/ovk/bevakning">Bevakning</a></nav></aside>
   <main>
     <div class="eyebrow">OVK</div>
-    <div class="heading"><h1>OVK-arbetsyta</h1><a id="newInspection" class="button" href="/ovk/besiktning" aria-disabled="true">+ Ny OVK</a></div>
+    <div class="heading"><h1>OVK-arbetsyta</h1><a id="newInspection" class="button" href="/ovk/besiktning?new=1">+ Ny OVK</a></div>
     <p class="muted">Se alla tillgängliga OVK-besiktningar. Välj projekt längre ned för dokument och projektverktyg.</p>
 
     <section id="overview" aria-labelledby="overviewTitle">
@@ -157,7 +157,7 @@ async function loadProject(){
   projectLoaded=false;currentInspections=[];for(const id of ['inspectionCount','readyCount','importCount','legacyCount'])$(id).textContent='—';
   $('inspections').textContent='Laddar…';$('imports').textContent='Laddar…';
   $('status').className='status';$('status').textContent='Laddar projektets OVK-data…';renderActions(projectId);
-  $('newInspection').href='/ovk/besiktning?project_id='+enc(projectId);$('newInspection').removeAttribute('aria-disabled');
+  $('newInspection').href='/ovk/besiktning?new=1&project_id='+enc(projectId);$('newInspection').removeAttribute('aria-disabled');
   $('watchNav').href='/ovk/bevakning?project_id='+enc(projectId);
   $('pbProject').value=projectId;$('pbInspection').value='';$('pbResult').textContent='';
   try{
