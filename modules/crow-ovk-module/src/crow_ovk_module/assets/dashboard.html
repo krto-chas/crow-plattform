@@ -6,52 +6,56 @@
   <title>Crow OVK</title>
   <style>
     :root{font-family:Inter,system-ui,sans-serif;color:#18212b;background:#f4f6f8}*{box-sizing:border-box}body{margin:0}.shell{display:grid;grid-template-columns:230px 1fr;min-height:100vh}aside{background:#17202a;color:#fff;padding:24px}aside h1{font-size:20px;margin:0 0 28px}nav a{display:block;color:#dce5ed;text-decoration:none;padding:10px 0}nav a.active{font-weight:700;color:#fff}main{padding:32px;max-width:1300px}.eyebrow{font-size:12px;letter-spacing:.12em;color:#687684}.panel,.card{background:#fff;border:1px solid #dfe5ea;border-radius:10px;padding:20px}.projectbar{display:grid;grid-template-columns:minmax(280px,520px) auto;gap:10px;align-items:end}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:14px;margin-top:18px}.split{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-top:18px}label{display:block;font-size:13px;font-weight:600;margin:0 0 5px}select{width:100%;padding:10px;border:1px solid #cbd4dc;border-radius:6px}.button{display:inline-block;border:0;border-radius:6px;background:#17202a;color:#fff;padding:9px 12px;text-decoration:none;cursor:pointer}.secondary{background:#e8edf1;color:#25313d}.muted{color:#607080}.status{padding:12px;border-radius:6px;background:#eef2f5;margin-top:12px}.item{border-top:1px solid #e6eaee;padding:12px 0}.item:first-child{border-top:0}.item-head{display:flex;justify-content:space-between;gap:12px;align-items:flex-start}.actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}.pill{display:inline-block;padding:3px 7px;border-radius:999px;background:#eef2f5;font-size:11px;margin-right:5px}.metric strong{font-size:26px;display:block}.empty{color:#607080;padding:8px 0}.warn{background:#fff4cf}@media(max-width:900px){.shell{grid-template-columns:1fr}aside{display:none}.split,.projectbar{grid-template-columns:1fr}}
+   
+    .shell{grid-template-columns:240px minmax(0,1fr)}aside{background:#172e32;position:sticky;top:0;height:100vh}.brand{display:flex;flex-direction:column;align-items:center;gap:8px;margin-bottom:30px}.brand strong{font-size:22px;letter-spacing:.12em}.brand small{color:#b4cbca}nav a{padding:12px;border-radius:7px}nav a.active{background:#2c5759}nav a:hover{background:#254649}main{width:100%;max-width:1500px}.heading{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap}.heading h1{margin:6px 0}.button{background:#237663}.secondary{background:#e8edf1;color:#25313d}.projectbar{grid-template-columns:minmax(0,1fr) auto auto}.projectbar details{grid-column:1/-1}.projectbar summary{cursor:pointer;font-weight:600}.toolbar{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:12px}.toolbar input{flex:1;min-width:150px;padding:10px;border:1px solid #cbd4dc;border-radius:6px}.toolbar select{width:auto;max-width:100%}.split{grid-template-columns:minmax(0,1.5fr) minmax(0,1fr)}.metric strong{margin-top:8px}.item-head{flex-wrap:wrap}.button:focus-visible,nav a:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visible{outline:3px solid #368fbc;outline-offset:3px}.button[aria-disabled=true]{opacity:.5;pointer-events:none}@media(max-width:900px){.shell{grid-template-columns:1fr}aside{display:block;position:static;height:auto;padding:16px}.brand{align-items:flex-start;margin-bottom:10px}nav{display:flex;flex-wrap:wrap;gap:4px}main{padding:16px}.split,.projectbar{grid-template-columns:1fr}}
+  aside nav+nav{margin-top:20px;padding-top:12px;border-top:1px solid #426064}
   </style>
 </head>
 <body>
 <div class="shell">
-  <aside><h1>Crow</h1><nav><a href="/app">Projekt</a><a class="active" href="/ovk">OVK</a><a href="/ovk/fastighet">Fastighet</a></nav></aside>
+  <aside><div class="brand"><strong>OVK</strong><small>CROW Plattform</small></div><nav><a href="/app">Projekt</a><a class="active" href="/ovk">OVK</a><a href="/logout">Logga ut</a></nav><nav aria-label="OVK-navigation"><a class="active" aria-current="page" href="/ovk">Översikt</a><a href="#inspections">Uppdrag</a><a href="/ovk/fastighet">Fastigheter</a><a href="#imports">Dokument &amp; import</a><a id="watchNav" href="/ovk/bevakning">Bevakning</a></nav></aside>
   <main>
     <div class="eyebrow">OVK</div>
-    <h1>OVK-arbetsyta</h1>
+    <div class="heading"><h1>OVK-arbetsyta</h1><a id="newInspection" class="button" href="/ovk/besiktning" aria-disabled="true">+ Ny OVK</a></div>
     <p class="muted">Välj projekt för att se sparade besiktningar och projektets importerade underlag.</p>
 
     <section class="panel projectbar">
       <div><label for="project">Projekt</label><select id="project"><option value="">Laddar projekt…</option></select></div>
       <a class="button secondary" href="/workbench">Öppna Workbench</a> <a class="button secondary" href="/ovk/fastighet">Fastighet &amp; besiktningsmän</a>
-      <div style="margin-top:14px">
-        <label style="font-size:13px;font-weight:600">Protokollutkast från fältdata</label>
+      <details><summary>Protokollutkast från fältdata (befintligt verktyg)</summary><div style="margin-top:14px">
         <div style="display:flex;gap:8px;margin-top:4px">
           <input id="pbProject" placeholder="projekt-id" style="flex:1;padding:8px;border:1px solid #cbd4dc;border-radius:6px">
           <input id="pbInspection" placeholder="besiktnings-id" style="flex:1;padding:8px;border:1px solid #cbd4dc;border-radius:6px">
           <button class="button" id="pbBuild" type="button">Bygg utkast</button>
         </div>
-        <div id="pbResult" style="margin-top:8px;font-size:13px"></div>
-      </div>
+        <div id="pbResult" role="status" style="margin-top:8px;font-size:13px"></div>
+      </div></details>
       <script>
       document.getElementById('pbBuild').onclick=async()=>{
         const project=document.getElementById('pbProject').value.trim();
         const inspection=document.getElementById('pbInspection').value.trim().toLowerCase();
         const out=document.getElementById('pbResult');
+        const revision=loadRevision;
         if(!project||!inspection){out.textContent='Ange projekt-id och besiktnings-id.';return}
         out.textContent='Bygger…';
         try{
           const response=await fetch('/api/ovk/projects/'+encodeURIComponent(project)+'/field/'+encodeURIComponent(inspection)+'/protokoll-utkast',{method:'POST',headers:{'content-type':'application/json'},body:'{}'});
           const data=await response.json();
+          if(revision!==loadRevision)return;
           if(!response.ok){out.textContent=(data.detail&&(data.detail.code+' · '+(data.detail.message||'')))||'Fel';return}
           const utkast=data.utkast;
           const rows=[...utkast.anmarkningar,...utkast.upplysningar];
-          out.innerHTML='<strong>Resultat: '+utkast.besiktningsresultat.replaceAll('_',' ')+'</strong><br>'+
-            (rows.length?rows.map(row=>'<span style="display:inline-block;background:#eef2f5;border-radius:4px;padding:1px 6px;margin:2px 4px 2px 0;font-size:11px">'+(row.pos||'–')+' · klass '+row.classification+'</span>'+row.text).join('<br>'):'Inga anmärkningar.');
-        }catch(error){out.textContent='Fel: '+error}
+          out.innerHTML='<strong>Resultat: '+esc(utkast.besiktningsresultat.replaceAll('_',' '))+'</strong><br>'+
+            (rows.length?rows.map(row=>'<span style="display:inline-block;background:#eef2f5;border-radius:4px;padding:1px 6px;margin:2px 4px 2px 0;font-size:11px">' +esc(row.pos||'–')+' · klass '+esc(row.classification)+'</span>'+esc(row.text)).join('<br>'):'Inga anmärkningar.');
+        }catch(error){if(revision===loadRevision)out.textContent='Fel: '+error}
       };
       </script>
     </section>
-    <div id="status" class="status">Laddar…</div>
+    <div id="status" class="status" role="status" aria-live="polite">Laddar…</div>
 
     <section class="grid">
       <article class="card metric"><span class="muted">Sparade besiktningar</span><strong id="inspectionCount">—</strong></article>
-      <article class="card metric"><span class="muted">Importerade projektfiler</span><strong id="importCount">—</strong></article>
+      <article class="card metric"><span class="muted">Protokollklara</span><strong id="readyCount">—</strong></article><article class="card metric"><span class="muted">Importerade projektfiler</span><strong id="importCount">—</strong></article>
       <article class="card metric"><span class="muted">Historik-kandidater</span><strong id="legacyCount">—</strong></article>
     </section>
 
@@ -59,7 +63,7 @@
 
     <section class="split">
       <article class="panel">
-        <h2>OVK-besiktningar</h2>
+        <h2>OVK-besiktningar</h2><div class="toolbar"><input id="inspectionSearch" type="search" aria-label="Sök besiktning" placeholder="Sök objekt eller besiktning"><select id="inspectionFilter" aria-label="Filtrera besiktningar"><option value="all">Alla</option><option value="ready">Protokollklara</option><option value="pending">Ej protokollklara</option></select></div>
         <div id="inspections" class="empty">Välj projekt.</div>
       </article>
       <article class="panel">
@@ -74,7 +78,7 @@
 const $=id=>document.getElementById(id);
 const esc=value=>String(value??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
 const enc=encodeURIComponent;
-let projects=[];
+let projects=[];let currentInspections=[];let loadRevision=0;let projectLoaded=false;
 
 async function api(url){const r=await fetch(url);const data=await r.json().catch(()=>({}));if(!r.ok)throw new Error(typeof data.detail==='string'?data.detail:JSON.stringify(data.detail||data));return data;}
 function checksum(asset){return String(asset.checksum_sha256||'').toLowerCase();}
@@ -90,8 +94,8 @@ function renderActions(projectId){
 }
 
 function renderInspections(projectId,data){
-  const items=data.inspections||[];$('inspectionCount').textContent=items.length;
-  $('inspections').innerHTML=items.length?items.map(item=>`<div class="item"><div class="item-head"><div><strong>${esc(item.object_name||item.inspection_id)}</strong><br><span class="muted">${esc(item.inspection_id)}</span></div><div><span class="pill">${esc(item.conclusion)}</span>${item.protocol_ready?'<span class="pill">protokollklart</span>':''}</div></div><div class="actions"><a class="button secondary" href="/ovk/besiktning?project_id=${enc(projectId)}&inspection_id=${enc(item.inspection_id)}">Öppna</a></div></div>`).join(''):'<div class="empty">Inga sparade OVK-besiktningar i projektet ännu.</div>';
+  currentInspections=data.inspections||[];$('inspectionCount').textContent=currentInspections.length;$('readyCount').textContent=currentInspections.filter(item=>item.protocol_ready).length;const search=$('inspectionSearch').value.trim().toLocaleLowerCase('sv');const filter=$('inspectionFilter').value;const items=currentInspections.filter(item=>(filter==='all'||(filter==='ready'?item.protocol_ready:!item.protocol_ready))&&[item.object_name,item.inspection_id].some(value=>String(value||'').toLocaleLowerCase('sv').includes(search)));
+  $('inspections').innerHTML=items.length?items.map(item=>`<div class="item"><div class="item-head"><div><strong>${esc(item.object_name||item.inspection_id)}</strong><br><span class="muted">${esc(item.inspection_id)}</span></div><div><span class="pill">${esc(item.conclusion)}</span>${item.protocol_ready?'<span class="pill">protokollklart</span>':''}</div></div><div class="actions"><a class="button secondary" href="/ovk/besiktning?project_id=${enc(projectId)}&inspection_id=${enc(item.inspection_id)}">Öppna</a></div></div>`).join(''):'<div class="empty">Inga besiktningar matchar urvalet.</div>';
 }
 
 function renderImports(projectId,items){
@@ -101,11 +105,17 @@ function renderImports(projectId,items){
 
 async function loadProject(){
   const projectId=$('project').value;if(!projectId)return;
-  $('status').textContent='Laddar projektets OVK-data…';renderActions(projectId);
+  const revision=++loadRevision;
+  projectLoaded=false;currentInspections=[];for(const id of ['inspectionCount','readyCount','importCount','legacyCount'])$(id).textContent='—';
+  $('inspections').textContent='Laddar…';$('imports').textContent='Laddar…';
+  $('status').className='status';$('status').textContent='Laddar projektets OVK-data…';renderActions(projectId);
+  $('newInspection').href='/ovk/besiktning?project_id='+enc(projectId);$('newInspection').removeAttribute('aria-disabled');
+  $('watchNav').href='/ovk/bevakning?project_id='+enc(projectId);
+  $('pbProject').value=projectId;$('pbInspection').value='';$('pbResult').textContent='';
   try{
     const [inspections,imports]=await Promise.all([api('/api/ovk/projects/'+enc(projectId)+'/inspections'),api('/api/projects/'+enc(projectId)+'/imports')]);
-    renderInspections(projectId,inspections);renderImports(projectId,imports);$('status').textContent='Projektdata laddad.';
-  }catch(error){$('status').className='status warn';$('status').textContent='Kunde inte läsa projektdata: '+error.message;}
+    if(revision!==loadRevision)return;projectLoaded=true;renderInspections(projectId,inspections);renderImports(projectId,imports);$('status').textContent='Projektdata laddad.';
+  }catch(error){if(revision!==loadRevision)return;$('inspections').textContent='Besiktningar kunde inte laddas.';$('imports').textContent='Projektfiler kunde inte laddas.';$('status').className='status warn';$('status').textContent='Kunde inte läsa projektdata: '+error.message;}
 }
 
 async function init(){
@@ -116,9 +126,11 @@ async function init(){
     $('project').innerHTML=projects.length?projects.map(p=>`<option value="${esc(p.project_id)}">${esc(p.project_name||p.name||p.project_id)}</option>`).join(''):'<option value="">Inga projekt</option>';
     if(requested&&projects.some(p=>p.project_id===requested))$('project').value=requested;
     $('project').addEventListener('change',loadProject);
-    if(projects.length)await loadProject();else{$('status').textContent='Skapa ett projekt i Workbench först.';$('inspectionCount').textContent='0';$('importCount').textContent='0';$('legacyCount').textContent='0';}
+    if(projects.length)await loadProject();else{$('status').textContent='Skapa ett projekt i Workbench först.';$('inspectionCount').textContent='0';$('readyCount').textContent='0';$('importCount').textContent='0';$('legacyCount').textContent='0';}
   }catch(error){$('status').className='status warn';$('status').textContent='OVK kunde inte starta: '+error.message;}
 }
+$('inspectionSearch').addEventListener('input',()=>{if(projectLoaded)renderInspections($('project').value,{inspections:currentInspections})});
+$('inspectionFilter').addEventListener('change',()=>renderInspections($('project').value,{inspections:currentInspections}));
 init();
 </script>
 </body>
