@@ -57,14 +57,14 @@ def test_checklist_templates_load_for_both_space_kinds() -> None:
     assert any("Säkerhetsbrytare" in label for label in labels)
 
 
-def test_checkpoint_without_comment_is_ua_and_fail_requires_note() -> None:
+def test_checkpoint_defaults_to_not_checked_and_fail_requires_note() -> None:
     checkpoint = FieldCheckpoint(
         checkpoint_id="cp-1",
         inspection_id="ovk-1",
         space_id="space-1",
         label="Filter – skick och montage",
     )
-    assert checkpoint.status is CheckStatus.PASS
+    assert checkpoint.status is CheckStatus.NOT_CHECKED
     with pytest.raises(ValueError, match="written note"):
         FieldCheckpoint(
             checkpoint_id="cp-2",
@@ -225,7 +225,7 @@ def test_surface_sync_roundtrip_with_technical_spaces(
     assert summary["nameplates_missing"] == ["space-2"]
 
     stored = client.get("/api/ovk/field/sync/ovk-1").json()["payload"]
-    assert stored["checkpoints"][0]["status"] == "pass"
+    assert stored["checkpoints"][0]["status"] == "not_checked"
     assert stored["checkpoints"][1]["note"] == "Säkerhetsbrytare saknas vid fläkten"
     assert stored["photos"][0]["space_id"] == "space-1"
 
