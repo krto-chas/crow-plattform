@@ -528,3 +528,32 @@ def test_measurement_history_requires_exact_point_identity(tmp_path: Path) -> No
     assert "historical_measurements:data.historical_measurements" in app
     payload = app.split("function payload()", 1)[1].split("async function writeDraft", 1)[0]
     assert "historical_measurements" not in payload
+
+
+def test_finding_followup_roundtrip_and_validation(tmp_path: Path) -> None:
+    client = _client(tmp_path)
+    url = "/api/ovk/field/sync/ovk-1"
+    followup = {
+        "source_inspection_id": "ovk-old",
+        "source_finding_id": "old-finding",
+        "unit_id": "unit-1",
+        "status": "remaining",
+        "note": "Kvarstår",
+        "current_finding_id": "finding-1",
+    }
+    payload = {**_field_payload(), "finding_followups": [followup]}
+    saved = client.put(url, json=payload)
+    assert saved.status_code == 200
+    assert client.get(url).json()["payload"]["finding_followups"] == [followup]
+    headers = {"X-OVK-Base-Revision": saved.json()["snapshot_sha256"]}
+    for invalid in (
+        [followup, followup],
+        [{**followup, "source_inspection_id": "ovk-1"}],
+        [{**followup, "unit_id": "unknown"}],
+        [{**followup, "current_finding_id": "unknown"}],
+        [{**followup, "status": "changed", "note": ""}],
+        [{**followup, "status": "resolved"}],
+    ):
+        response = client.put(url, json={**payload, "finding_followups": invalid}, headers=headers)
+        assert response.status_code == 422
+    assert client.get(url).json()["payload"]["finding_followups"] == [followup]
