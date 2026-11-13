@@ -419,3 +419,16 @@ def test_field_app_shows_session_status(tmp_path: Path) -> None:
     assert "Ej inloggad" in app.text
     auth = client.get("/ovk/falt/auth.js")
     assert "Sessionen har gått ut" in auth.text
+
+
+def test_field_planned_context_guards(tmp_path: Path) -> None:
+    client = _client(tmp_path)
+    app = client.get("/ovk/falt/app.js").text
+    context = client.get("/ovk/falt/context.js").text
+    assert "async function openRequestedInspection(projectId,inspectionId)" in app
+    assert "item.inspection_id===requested.inspection_id" in app
+    assert "item.project_id===requested.project_id" in app
+    assert "snapshot.status!==404" in app
+    assert "record.planning.inspector_id" in app
+    assert "property.byggnader.some" in app
+    assert "originalRestoreLatest(requested)" in context
