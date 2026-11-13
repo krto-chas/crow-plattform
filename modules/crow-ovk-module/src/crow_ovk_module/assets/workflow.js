@@ -206,6 +206,23 @@ let draftRevision = 0;
 let draftId = null;
 let draftStructure = null;
 let draftStructureRevision = 0;
+let historyRevision=0;
+async function loadDraftHistory(){
+  const revision=++historyRevision,select=$('draftPrevious');
+  select.replaceChildren(new Option('Ingen historisk referens',''));select.disabled=true;
+  $('draftHistoryPanel').hidden=$('draftType').value!=='aterkommande';
+  $('draftHistoryStatus').textContent='';
+  const project=$('draftProject').value,property=$('draftProperty').value,building=$('draftBuilding').value;
+  if(!project||!property||!building||$('draftHistoryPanel').hidden)return;
+  try{
+    const data=await api('/api/ovk/projects/'+enc(project)+'/inspections',{cache:'no-store'});
+    if(revision!==historyRevision)return;
+    const rows=(data.inspections||[]).filter(r=>r.object_id===property&&r.building_id===building&&r.protocol_ready&&(!r.planning?.planned_date||!$('draftDate').value||r.planning.planned_date<$('draftDate').value));
+    rows.sort((a,b)=>(b.planning?.planned_date||b.updated_at||'').localeCompare(a.planning?.planned_date||a.updated_at||''));
+    for(const r of rows)select.add(new Option((r.planning?.planned_date||'Datum saknas')+' · '+r.inspection_id,r.inspection_id));
+    select.disabled=!rows.length;$('draftHistoryStatus').textContent=rows.length?'Välj tidigare besiktning som referens.':'Ingen tidigare protokollklar besiktning hittades.';
+  }catch(error){if(revision===historyRevision)$('draftHistoryStatus').textContent='Historik kunde inte hämtas: '+error.message;}
+}
 function resetDraftSystems(){
   ++draftStructureRevision;draftStructure=null;
   $('draftRegisteredSystems').replaceChildren();$('draftRegisteredSystems').hidden=true;
@@ -214,6 +231,7 @@ function resetDraftSystems(){
 }
 async function loadDraftStructure(){
   resetDraftSystems();
+  void loadDraftHistory();
   const revision=draftStructureRevision;
   const project=$('draftProject').value,property=$('draftProperty').value,building=$('draftBuilding').value;
   if(!project||!property||!building)return;
@@ -247,6 +265,7 @@ function draftBuildingOptions() {
   resetDraftSystems();
   const property = draftProperties.find(p => p.fastighet_id === $('draftProperty').value);
   draftOptions($('draftBuilding'), property?.byggnader || [], b => b.byggnad_id, b => b.internt_namn, 'Välj byggnad');
+  void loadDraftHistory();
   $('draftOwner').textContent = property ? [property.byggnadsagare_namn, property.byggnadens_adress?.gata].filter(Boolean).join(' · ') : '';
 }
 async function draftLoadProperties() {
@@ -294,7 +313,7 @@ async function createDraft(event) {
   // Keep the same identifier for retries; never reuse a date-based draft ID.
   draftId ||= 'ovk-' + Array.from(crypto.getRandomValues(new Uint8Array(16)), byte => byte.toString(16).padStart(2,'0')).join('');
   const address = property.byggnadens_adress || {};
-  const payload = {inspection:{inspection_id:draftId,object:{object_id:property.fastighet_id,project_id:project,building_id:building.byggnad_id,name:property.fastighetsbeteckning+' · '+building.internt_namn,address:[address.gata,address.postnr,address.ort].filter(Boolean).join(' ')||null},systems,checkpoints:[],measurements:[],findings:[],actions:[]},review:[],planning:{inspector_id:$('draftInspector').value,planned_date:$('draftDate').value,inspection_type:$('draftType').value}};
+  const payload = {inspection:{inspection_id:draftId,object:{object_id:property.fastighet_id,project_id:project,building_id:building.byggnad_id,name:property.fastighetsbeteckning+' · '+building.internt_namn,address:[address.gata,address.postnr,address.ort].filter(Boolean).join(' ')||null},systems,checkpoints:[],measurements:[],findings:[],actions:[]},review:[],planning:{inspector_id:$('draftInspector').value,planned_date:$('draftDate').value,inspection_type:$('draftType').value,previous_inspection_id:$('draftType').value==='aterkommande'?$('draftPrevious').value||null:null}};
   $('draftFields').disabled = true;
   $('draftStatus').textContent = 'Sparar utkast…';
   try {
@@ -313,6 +332,8 @@ async function initDraft(projects, requestedProject) {
   $('draftProject').onchange=draftLoadProperties;
   $('draftProperty').onchange=draftBuildingOptions;
   $('draftBuilding').onchange=loadDraftStructure;
+  $('draftType').onchange=loadDraftHistory;
+  $('draftDate').onchange=loadDraftHistory;
   $('draftAddSystem').onclick=draftAddSystem;
   $('draftForm').onsubmit=createDraft;
   const registry = await api('/api/ovk/registry/besiktningsman');
