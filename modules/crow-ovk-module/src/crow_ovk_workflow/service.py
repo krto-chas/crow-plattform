@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+import json
 from datetime import UTC, date, datetime
 from decimal import Decimal, InvalidOperation
+from hashlib import sha256
 from typing import Any
 
 from crow_ovk import (
@@ -38,6 +40,7 @@ def build_record(
     coverage: InspectionCoverage | None = None,
     updated_at: str | None = None,
     planning: InspectionPlanning | None = None,
+    building_structure_json: str | None = None,
 ) -> OvkWorkflowRecord:
     inspection = build_inspection(
         inspection_id=inspection_id,
@@ -67,12 +70,23 @@ def build_record(
         updated_at=updated_at or datetime.now(UTC).isoformat(),
         coverage=coverage,
         planning=planning,
+        building_structure_json=building_structure_json,
     )
 
 
 def record_to_payload(record: OvkWorkflowRecord) -> dict[str, Any]:
     return {
         "schema_version": SCHEMA_VERSION,
+        "building_structure": (
+            json.loads(record.building_structure_json)
+            if record.building_structure_json is not None
+            else None
+        ),
+        "building_structure_sha256": (
+            sha256(record.building_structure_json.encode("utf-8")).hexdigest()
+            if record.building_structure_json is not None
+            else None
+        ),
         "inspection": inspection_to_payload(record.inspection),
         "review": [
             {
@@ -135,6 +149,15 @@ def record_from_payload(payload: dict[str, Any]) -> OvkWorkflowRecord:
             planned_date=date.fromisoformat(_required_text(raw, "planned_date")),
             inspection_type=_required_text(raw, "inspection_type"),
         )
+    building_structure_json = None
+    if payload.get("building_structure") is not None:
+        structure = _mapping(payload["building_structure"], "building_structure")
+        building_structure_json = json.dumps(
+            structure, ensure_ascii=False, sort_keys=True, separators=(",", ":")
+        )
+        digest = sha256(building_structure_json.encode("utf-8")).hexdigest()
+        if payload.get("building_structure_sha256") != digest:
+            raise ValueError("building structure checksum mismatch")
     return build_record(
         inspection_id=_required_text(inspection, "inspection_id"),
         ovk_object=ovk_object,
