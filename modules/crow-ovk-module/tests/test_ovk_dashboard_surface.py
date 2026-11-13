@@ -40,6 +40,11 @@ def test_dashboard_is_operational_project_surface(tmp_path: Path) -> None:
     assert "Projektfiler" in response.text
     assert "/api/projects/" in response.text
     assert "/ovk/legacy?project_id=" in response.text
+    assert 'id="newInspection"' in response.text
+    assert 'id="inspectionSearch"' in response.text
+    assert 'id="inspectionFilter"' in response.text
+    assert 'id="readyCount"' in response.text
+    assert "/ovk/bevakning" in response.text
 
 
 def test_workbench_import_can_be_previewed_without_reupload(tmp_path: Path) -> None:
