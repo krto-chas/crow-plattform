@@ -39,6 +39,14 @@ def ovk_field_media_router(data_root: Path) -> APIRouter:
                 detail={"code": "OVK_FIELD_SNAPSHOT_REQUIRED"},
             ) from exc
 
+        expected = request.headers.get("X-OVK-Base-Revision")
+        canonical = json.dumps(snapshot, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+        current = sha256(canonical.encode("utf-8")).hexdigest()
+        if expected is not None and expected != current:
+            raise HTTPException(
+                status_code=409,
+                detail={"code": "OVK_FIELD_REVISION_CONFLICT", "current_revision": current},
+            )
         photo = _find_photo(snapshot, photo_id)
         content_type = request.headers.get("content-type", "").split(";", 1)[0].lower()
         expected_mime = str(photo.get("mime_type", "")).lower()
