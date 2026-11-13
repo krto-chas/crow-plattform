@@ -67,7 +67,7 @@ syncPendingMedia = async function () {
       '/api/ovk/field/media/' + encodeURIComponent(state.inspection_id) + '/' + encodeURIComponent(photo.photo_id),
       {
         method: 'PUT',
-        headers: {'content-type': photo.mime_type},
+        headers: {'content-type': photo.mime_type, 'X-OVK-Base-Revision': state.last_sync},
         body: media.blob
       }
     );
