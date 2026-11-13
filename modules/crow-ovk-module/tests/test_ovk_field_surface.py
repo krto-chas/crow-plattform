@@ -625,3 +625,16 @@ def test_finding_followup_roundtrip_and_validation(tmp_path: Path) -> None:
         response = client.put(url, json={**payload, "finding_followups": invalid}, headers=headers)
         assert response.status_code == 422
     assert client.get(url).json()["payload"]["finding_followups"] == [followup]
+
+
+def test_field_followup_controls_and_offline_roundtrip(tmp_path: Path) -> None:
+    script = _client(tmp_path).get("/ovk/falt/app.js").text
+    assert "function renderFindingFollowup(body,item,unit)" in script
+    assert "renderFindingFollowup(body,item,unit);" in script
+    assert "finding_followups:state.finding_followups" in script
+    assert "finding_followups:draft.finding_followups||[]" in script
+    assert "source_finding_id:item.finding_id" in script
+    assert "current_finding_id:current" in script
+    assert "await persist()" in script
+    assert "status:'not_checked',note:'',current_finding_id:null" in script
+    assert "Skapa ny aktuell anmärkning" in script
