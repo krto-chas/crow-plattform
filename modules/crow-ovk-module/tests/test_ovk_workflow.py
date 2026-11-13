@@ -307,3 +307,45 @@ def test_guided_draft_remains_pending_and_preserves_property_context(
     assert loaded["inspection"]["conclusion"] == "pending"
     assert loaded["protocol_ready"] is False
     assert client.get(url + "/protocol").status_code == 409
+
+
+def test_planning_validates_registry_and_survives_legacy_save(
+    tmp_path: Path,
+    monkeypatch: MonkeyPatch,
+) -> None:
+    client = _client(tmp_path, monkeypatch)
+    assert client.put(
+        "/api/ovk/projects/p1/fastighet/object-1",
+        json={
+            "fastighetsbeteckning": "Björken 12",
+            "byggnader": [{"byggnad_id": "building-1", "internt_namn": "Hus A"}],
+        },
+    ).status_code == 200
+    assert client.put(
+        "/api/ovk/registry/besiktningsman/person-1",
+        json={
+            "namn": "Test Kontrollant",
+            "behorighet": "K",
+            "certifieringsorgan": "Test",
+            "certnummer": "123",
+            "giltig_till": "2030-12-31",
+        },
+    ).status_code == 200
+    url = "/api/ovk/projects/p1/inspections/ovk-planned"
+    payload = _workflow_payload()
+    planning = {
+        "inspector_id": "person-1",
+        "planned_date": "2027-01-15",
+        "inspection_type": "aterkommande",
+    }
+    payload["planning"] = planning
+    assert client.put(url, json=payload).status_code == 200
+    assert client.get(url).json()["planning"] == planning
+    assert client.put(url, json=_workflow_payload()).status_code == 200
+    assert client.get(url).json()["planning"] == planning
+    payload["planning"] = {**planning, "planned_date": "2031-01-01"}
+    assert client.put(url, json=payload).status_code == 422
+    assert client.get(url).json()["planning"] == planning
+    payload["planning"] = {**planning, "inspector_id": "missing"}
+    assert client.put(url, json=payload).status_code == 422
+    assert client.get(url).json()["planning"] == planning
