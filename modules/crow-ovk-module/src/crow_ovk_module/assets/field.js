@@ -133,6 +133,26 @@ $('restore').onclick=restoreFromServer;
 $('project').addEventListener('change',prefillObjectType);$('project').onchange=loadHistory;
 window.addEventListener('online',updateNetwork);window.addEventListener('offline',updateNetwork);
 
+async function restoreVerifiedMedia(inspectionId,photos,verified){
+  if(photos.length&&!globalThis.crypto?.subtle)throw new Error('Bildverifiering kräver HTTPS.');
+  for(const photo of photos){
+    const receipt=verified.find(v=>v.photo_id===photo.photo_id&&v.verified&&v.sha256===photo.sha256);
+    if(!receipt)throw new Error('Verifierat bildkvitto saknas.');
+    const existing=await dbGet('media',photo.photo_id);
+    if(existing&&existing.inspection_id!==inspectionId)throw new Error('Foto-ID finns i en annan lokal besiktning.');
+    const url='/api/ovk/field/media/'+encodeURIComponent(inspectionId)+'/'+encodeURIComponent(photo.photo_id)+'/content';
+    const response=await fetch(url,{credentials:'same-origin',cache:'no-store'});
+    if(!response.ok)throw new Error('Bildhämtning misslyckades: '+photo.photo_id);
+    const mime=(response.headers.get('content-type')||'').split(';')[0].toLowerCase();
+    if(mime!==photo.mime_type.toLowerCase()||!mime.startsWith('image/'))throw new Error('Bildtyp stämmer inte.');
+    const blob=await response.blob();
+    if(!blob.size||blob.size>25*1024*1024||blob.size!==receipt.size_bytes)throw new Error('Bildstorlek stämmer inte.');
+    const hash=await crypto.subtle.digest('SHA-256',await blob.arrayBuffer());
+    const digest=[...new Uint8Array(hash)].map(v=>v.toString(16).padStart(2,'0')).join('');
+    if(digest!==photo.sha256.toLowerCase())throw new Error('Bildens kontrollsumma stämmer inte: '+photo.photo_id);
+    await dbPut('media',{photo_id:photo.photo_id,inspection_id:inspectionId,name:photo.local_uri.replace(/^indexeddb:/,''),mime_type:photo.mime_type,sha256:digest,blob,media_id:receipt.media_id,evidence_id:receipt.evidence_id,synced_at:now()});
+  }
+}
 async function resumeServerInspection(projectId,inspectionId,snapshot,workbench,person,property,types){
   const data=snapshot.payload;
   if(snapshot.inspection_id!==inspectionId||data?.inspection_id!==inspectionId||
@@ -147,6 +167,8 @@ async function resumeServerInspection(projectId,inspectionId,snapshot,workbench,
   const draft={...data,project_id:projectId,inspector:workbench.inspector||person.namn,system_type:context.system_type,object_type:property.fastighetstyp,previous_inspection_id:workbench.previous_inspection_id||null,photos:data.photos.map(p=>({...p,sync_status:'synced'})),dirty:false,last_sync:snapshot.snapshot_sha256,updated_at:now()};
   // The server snapshot omits display-only labels; reconstruct from stable IDs.
   draft.findings=data.findings.map(f=>({...f,unit_number:data.units.find(u=>u.unit_id===f.unit_id)?.number||'',room_name:data.rooms.find(r=>r.room_id===f.room_id)?.name||null}));
+  if(await dbGet('drafts',inspectionId))throw new Error('Ett lokalt utkast finns redan. Ladda om för att öppna det.');
+  await restoreVerifiedMedia(inspectionId,data.photos,photos);
   if(await dbGet('drafts',inspectionId))throw new Error('Ett lokalt utkast finns redan. Ladda om för att öppna det.');
   await dbPut('drafts',draft);
   await restoreLatest({project_id:projectId,inspection_id:inspectionId});
