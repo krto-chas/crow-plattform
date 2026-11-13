@@ -1,12 +1,14 @@
 # ruff: noqa: E501
 from __future__ import annotations
 
+from dataclasses import replace
 from pathlib import Path
 from typing import Any
 
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import HTMLResponse
 
+from crow_ovk_fastighet import BesiktningsmanRepository, FastighetRepository
 from crow_ovk_workflow import (
     OvkWorkflowRecord,
     OvkWorkflowRepository,
@@ -19,6 +21,8 @@ from crow_ovk_workflow import (
 def ovk_workflow_router(data_root: Path) -> APIRouter:
     router = APIRouter()
     repository = OvkWorkflowRepository(data_root)
+    properties = FastighetRepository(data_root)
+    inspectors = BesiktningsmanRepository(data_root)
 
     @router.get("/ovk/besiktning", response_class=HTMLResponse)
     def workflow_page() -> str:
@@ -40,6 +44,7 @@ def ovk_workflow_router(data_root: Path) -> APIRouter:
                     "protocol_ready": record.protocol_ready,
                     "unresolved_review_count": record.unresolved_review_count,
                     "updated_at": record.updated_at,
+                    "planning": record_to_payload(record)["planning"],
                 }
                 for record in records
             ],
@@ -79,8 +84,27 @@ def ovk_workflow_router(data_root: Path) -> APIRouter:
         candidate["inspection"] = inspection
         try:
             record = record_from_payload(candidate)
+            try:
+                previous = repository.load(project_id, inspection_id)
+            except FileNotFoundError:
+                previous = None
+            if previous is not None and candidate.get("planning") is None:
+                record = replace(record, planning=previous.planning)
+            if record.planning is not None:
+                obj = record.inspection.ovk_object
+                if previous is None or previous.planning != record.planning:
+                    property_record = properties.load(project_id, obj.object_id)
+                    if not any(b.byggnad_id == obj.building_id for b in property_record.byggnader):
+                        raise ValueError("building does not belong to property")
+                    person = inspectors.load(record.planning.inspector_id)
+                    if person.giltig_till and person.giltig_till < record.planning.planned_date:
+                        raise ValueError("inspector certificate expires before planned date")
+                if previous is not None and previous.planning is not None:
+                    old = previous.inspection.ovk_object
+                    if (old.object_id, old.building_id) != (obj.object_id, obj.building_id):
+                        raise ValueError("planned inspection property context cannot change")
             repository.save(record)
-        except (ValueError, TypeError) as exc:
+        except (ValueError, TypeError, FileNotFoundError) as exc:
             raise HTTPException(
                 status_code=422,
                 detail={"code": "INVALID_OVK_WORKFLOW", "message": str(exc)},
