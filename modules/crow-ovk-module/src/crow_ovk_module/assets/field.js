@@ -206,10 +206,12 @@ async function prefillPlannedUnits(record,projectId,inspectionId,person,property
     }
   }
   const selectedSystems=new Set(record.inspection.systems.map(s=>s.system_id));
+  const registeredSystems=new Set((structure.systems||[]).map(s=>s.system_id));
+  if((structure.technical_spaces||[]).length&&![...selectedSystems].some(id=>registeredSystems.has(id)))throw new Error('Uppdragets system-ID matchar inte byggnadsregistret.');
   const spaceIds=new Set();
   const skipped=[];
   for(const space of (structure.technical_spaces||[])){
-    if(!selectedSystems.has(space.system_id)){skipped.push(space.label+' (system ej valt)');continue}
+    if(!selectedSystems.has(space.system_id))continue;
     if(!['flaktrum','takflakt'].includes(space.kind)){skipped.push(space.label+' (klassificering saknas eller stöds inte)');continue}
     if(!/^[A-Za-z0-9_-]+$/.test(space.space_id)||spaceIds.has(space.space_id)||typeof space.label!=='string'||!space.label.trim())throw new Error('Ogiltig installation i uppdragets struktur.');
     const checklist=state.checklists[space.kind];
