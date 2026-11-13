@@ -556,9 +556,7 @@ def test_finding_followup_roundtrip_and_validation(tmp_path: Path) -> None:
     payload = {**_field_payload(), "finding_followups": [followup]}
     assert client.put(url, json=payload).status_code == 422
     repository = OvkWorkflowRepository(tmp_path)
-    obj = OvkObject(
-        object_id="property-1", project_id="p1", building_id="building-1", name="Test"
-    )
+    obj = OvkObject(object_id="property-1", project_id="p1", building_id="building-1", name="Test")
     repository.save(
         build_record(
             inspection_id="ovk-old",
