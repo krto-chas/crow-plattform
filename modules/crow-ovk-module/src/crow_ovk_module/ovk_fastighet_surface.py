@@ -255,7 +255,10 @@ def _validate_structure(payload: dict[str, Any]) -> dict[str, Any]:
             raise ValueError("technical space references unknown system")
         kind = row.get("kind", "unclassified")
         if not isinstance(kind, str) or kind not in {
-            "unclassified", "flaktrum", "takflakt", "other"
+            "unclassified",
+            "flaktrum",
+            "takflakt",
+            "other",
         }:
             raise ValueError("invalid technical space kind")
         location = row.get("location", "")
