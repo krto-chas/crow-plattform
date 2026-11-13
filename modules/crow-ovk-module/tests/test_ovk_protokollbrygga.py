@@ -104,7 +104,7 @@ def test_result_derivation_is_deterministic() -> None:
 def test_suggested_coverage_from_technical_spaces() -> None:
     utkast = build_protokoll_utkast(_data())
     coverage = utkast.suggested_coverage
-    assert [item.label for item in coverage.aggregat] == ["LB01"]
+    assert not coverage.aggregat
     # Förslaget bär ingen bekräftelse: STATED-steget förblir manuellt.
     assert coverage.system_list_confirmation is None
 
@@ -158,6 +158,9 @@ def test_protokoll_utkast_endpoint_builds_record_from_snapshot(
         ],
         "technical_spaces": [
             {"space_id": "ts1", "kind": "flaktrum", "label": "LB01", "location": "Vind"}
+        ],
+        "checkpoints": [
+            {"checkpoint_id": "cp1", "space_id": "ts1", "label": "Filter", "status": "pass"}
         ],
     }
     saved = client.put("/api/ovk/field/sync/ovk-brygga", json=snapshot)

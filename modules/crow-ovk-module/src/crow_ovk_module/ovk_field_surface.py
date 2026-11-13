@@ -287,7 +287,7 @@ def _field_data_from_payload(payload: dict[str, Any]) -> FieldInspectionData:
             inspection_id=inspection_id,
             space_id=str(item["space_id"]),
             label=str(item["label"]),
-            status=CheckStatus(str(item.get("status", "pass"))),
+            status=CheckStatus(str(item.get("status", "not_checked"))),
             note=str(item.get("note", "")),
         )
         for item in _dict_items(payload.get("checkpoints", []), "checkpoints")
