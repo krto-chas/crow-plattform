@@ -42,3 +42,20 @@ def test_building_inventory_is_separate_and_validated(tmp_path: Path) -> None:
     assert client.put(url, json=invalid).status_code == 422
     assert client.get(url).json() == saved.json()
     assert client.get(property_url + "/byggnad/unknown/struktur").status_code == 404
+
+
+def test_inventory_editor_is_served(tmp_path: Path) -> None:
+    app = FastAPI()
+    app.include_router(ovk_fastighet_router(tmp_path))
+    client = TestClient(app)
+    page = client.get("/ovk/fastighet")
+    script = client.get("/ovk/fastighet/app.js")
+    assert page.status_code == 200
+    assert script.status_code == 200
+    assert 'id="inventoryBuilding"' in page.text
+    assert 'id="inventoryFields" disabled' in page.text
+    assert 'id="inventorySave"' in page.text
+    assert "function inventoryCanLeave()" in script.text
+    assert "revision!==inventoryRevision" in script.text
+    assert "inventoryReset(saved.fastighet)" in script.text
+    assert "inventory.technical_spaces.some" in script.text
