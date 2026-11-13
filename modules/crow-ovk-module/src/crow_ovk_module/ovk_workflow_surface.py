@@ -130,7 +130,7 @@ def ovk_workflow_router(data_root: Path) -> APIRouter:
                     system["system_id"]: system["system_type"] for system in structure["systems"]
                 }
                 if registered and any(
-                    registered.get(system.system_id) != system.system_type.value
+                    registered.get(system.system_id) != system.system_type
                     for system in record.inspection.systems
                 ):
                     raise ValueError("selected system does not match registered building system")
