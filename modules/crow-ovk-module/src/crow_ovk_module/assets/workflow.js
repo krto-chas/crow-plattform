@@ -241,7 +241,7 @@ async function createDraft(event) {
   event.preventDefault();
   const project = $('draftProject').value;
   const property = draftProperties.find(p => p.fastighet_id === $('draftProperty').value);
-  const building = property?.byggnader.find(b => b.byggnad_id === $('draftBuilding').value);
+  const building = property?.byggnader?.find(b => b.byggnad_id === $('draftBuilding').value);
   if (!project || !property || !building) { $('draftStatus').textContent = 'Välj fastighet och byggnad.'; return; }
   const systems = [...$('draftSystems').children].map(row => {
     const id = row.querySelector('.draft-system-id').value.trim();
@@ -251,7 +251,7 @@ async function createDraft(event) {
     $('draftStatus').textContent = 'Ange unika systembeteckningar och systemtyper utan lodstreck.'; return;
   }
   // Keep the same identifier for retries; never reuse a date-based draft ID.
-  draftId ||= 'ovk-' + crypto.randomUUID();
+  draftId ||= 'ovk-' + Array.from(crypto.getRandomValues(new Uint8Array(16)), byte => byte.toString(16).padStart(2,'0')).join('');
   const address = property.byggnadens_adress || {};
   const payload = {inspection:{inspection_id:draftId,object:{object_id:property.fastighet_id,project_id:project,building_id:building.byggnad_id,name:property.fastighetsbeteckning+' · '+building.internt_namn,address:[address.gata,address.postnr,address.ort].filter(Boolean).join(' ')||null},systems,checkpoints:[],measurements:[],findings:[],actions:[]},review:[]};
   $('draftFields').disabled = true;
