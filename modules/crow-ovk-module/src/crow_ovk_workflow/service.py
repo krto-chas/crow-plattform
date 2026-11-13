@@ -146,6 +146,7 @@ def record_from_payload(payload: dict[str, Any]) -> OvkWorkflowRecord:
         review=review,
         updated_at=_optional_text(payload.get("updated_at")),
         coverage=coverage,
+        planning=planning,
     )
 
 
