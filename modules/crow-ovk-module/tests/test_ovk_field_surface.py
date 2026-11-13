@@ -615,6 +615,8 @@ def test_finding_followup_roundtrip_and_validation(tmp_path: Path) -> None:
     for invalid in (
         [followup, followup],
         [{**followup, "source_finding_id": "missing"}],
+        [{**followup, "photo_ids": ["missing"]}],
+        [{**followup, "photo_ids": ["photo-1", "photo-1"]}],
         [{**followup, "source_inspection_id": "another-inspection"}],
         [{**followup, "source_inspection_id": "ovk-1"}],
         [{**followup, "unit_id": "unknown"}],
@@ -638,3 +640,18 @@ def test_field_followup_controls_and_offline_roundtrip(tmp_path: Path) -> None:
     assert "await persist()" in script
     assert "status:'not_checked',note:'',current_finding_id:null" in script
     assert "Skapa ny aktuell anmärkning" in script
+
+
+def test_followup_photo_reference_roundtrip(tmp_path: Path) -> None:
+    client = _client(tmp_path)
+    followup = {
+        "source_inspection_id": "ovk-old",
+        "source_finding_id": "old-finding",
+        "unit_id": "unit-1",
+        "status": "resolved",
+        "photo_ids": ["photo-1"],
+    }
+    payload = {**_field_payload(), "finding_followups": [followup]}
+    assert client.post("/api/ovk/field/validate", json=payload).status_code == 200
+    followup["photo_ids"] = ["missing"]
+    assert client.post("/api/ovk/field/validate", json=payload).status_code == 422
