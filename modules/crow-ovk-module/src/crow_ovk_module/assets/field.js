@@ -133,6 +133,25 @@ $('restore').onclick=restoreFromServer;
 $('project').addEventListener('change',prefillObjectType);$('project').onchange=loadHistory;
 window.addEventListener('online',updateNetwork);window.addEventListener('offline',updateNetwork);
 
+async function resumeServerInspection(projectId,inspectionId,snapshot,workbench,person,property,types){
+  const data=snapshot.payload;
+  if(snapshot.inspection_id!==inspectionId||data?.inspection_id!==inspectionId||
+     workbench.inspection_id!==inspectionId||workbench.project_id!==projectId||
+     workbench.snapshot_sha256!==snapshot.snapshot_sha256)throw new Error('Serverunderlagets identitet eller revision stämmer inte.');
+  const photos=[...workbench.units.flatMap(u=>u.findings.flatMap(f=>f.photos)),...workbench.orphan_photos];
+  if(data.photos.some(p=>!photos.some(v=>v.photo_id===p.photo_id&&v.verified&&v.sha256===p.sha256)))throw new Error('Serverunderlaget innehåller bilder som inte är verifierade. Synka klart på ursprungsenheten.');
+  const history=await fetch('/api/ovk/field/history/'+encodeURIComponent(inspectionId),{cache:'no-store'});
+  if(!history.ok)throw new Error('Kunde inte läsa fältkontext.');
+  const context=await history.json();
+  if(context.project_id!==projectId||!types.includes(context.system_type))throw new Error('Fältkontexten stämmer inte med uppdraget.');
+  const draft={...data,project_id:projectId,inspector:workbench.inspector||person.namn,system_type:context.system_type,object_type:property.fastighetstyp,previous_inspection_id:workbench.previous_inspection_id||null,photos:data.photos.map(p=>({...p,sync_status:'synced'})),dirty:false,last_sync:snapshot.snapshot_sha256,updated_at:now()};
+  // The server snapshot omits display-only labels; reconstruct from stable IDs.
+  draft.findings=data.findings.map(f=>({...f,unit_number:data.units.find(u=>u.unit_id===f.unit_id)?.number||'',room_name:data.rooms.find(r=>r.room_id===f.room_id)?.name||null}));
+  if(await dbGet('drafts',inspectionId))throw new Error('Ett lokalt utkast finns redan. Ladda om för att öppna det.');
+  await dbPut('drafts',draft);
+  await restoreLatest({project_id:projectId,inspection_id:inspectionId});
+  $('draftStatus').textContent='Återställd serverbesiktning · '+inspectionId;
+}
 async function openRequestedInspection(projectId,inspectionId){
   const requested={project_id:projectId,inspection_id:inspectionId};
   const lock=()=>{for(const id of ['project','inspection','restore','inspector','inspectorSelect','objectType'])$(id).disabled=true;};
@@ -155,10 +174,10 @@ async function openRequestedInspection(projectId,inspectionId){
     const property=await get(base+'/fastighet/'+encodeURIComponent(object.object_id));
     if(!property.byggnader.some(b=>b.byggnad_id===object.building_id))throw new Error('Byggnaden saknas i fastighetsregistret.');
     const person=await get('/api/ovk/registry/besiktningsman/'+encodeURIComponent(record.planning.inspector_id));
-    const snapshot=await fetch('/api/ovk/field/sync/'+encodeURIComponent(inspectionId));
-    if(snapshot.status!==404)throw new Error('Serverunderlag finns redan eller kunde inte verifieras. Nytt tomt underlag skapas inte.');
+    const snapshot=await fetch('/api/ovk/field/sync/'+encodeURIComponent(inspectionId),{cache:'no-store'});
+    if(snapshot.status!==404&&!snapshot.ok)throw new Error('Serverunderlag kunde inte verifieras. Nytt tomt underlag skapas inte.');
     const history=await get('/api/ovk/field/history?project_id='+encodeURIComponent(projectId));
-    if((history.inspections||[]).some(item=>item.inspection_id===inspectionId))throw new Error('Fältunderlag finns redan på servern. Öppna den ursprungliga lokala sessionen; nytt tomt underlag skapas inte.');
+    if(snapshot.status===404&&(history.inspections||[]).some(item=>item.inspection_id===inspectionId))throw new Error('Fältunderlag finns redan på servern. Öppna den ursprungliga lokala sessionen; nytt tomt underlag skapas inte.');
     ensureProject(projectId);
     $('project').value=projectId;
     $('inspection').value=inspectionId;
@@ -169,6 +188,12 @@ async function openRequestedInspection(projectId,inspectionId){
     const supported=[...$('systemType').options].map(o=>o.value);
     if(!types.length||types.some(t=>!supported.includes(t)))throw new Error('Uppdragets systemtyp stöds inte i fältläget.');
     for(const option of $('systemType').options)option.disabled=!types.includes(option.value);
+    if(snapshot.ok){
+      const workbench=await get('/api/ovk/field/workbench/'+encodeURIComponent(inspectionId));
+      await resumeServerInspection(projectId,inspectionId,await snapshot.json(),workbench,person,property,types);
+      $('start').disabled=false;$('generate').disabled=false;
+      return;
+    }
     $('systemType').value=types.length===1?types[0]:'';
     $('draftStatus').textContent=object.name+' · '+record.planning.planned_date+' · '+inspection.systems.map(s=>s.system_id+' ('+s.system_type+')').join(', ')+(types.length>1?' · Välj systemtyp för ronderingen.':'');
     $('start').disabled=false;$('generate').disabled=false;
