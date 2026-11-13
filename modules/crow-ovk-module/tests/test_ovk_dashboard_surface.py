@@ -45,6 +45,13 @@ def test_dashboard_is_operational_project_surface(tmp_path: Path) -> None:
     assert 'id="inspectionFilter"' in response.text
     assert 'id="readyCount"' in response.text
     assert "/ovk/bevakning" in response.text
+    assert 'id="overviewItems"' in response.text
+    assert 'id="overviewSearch"' in response.text
+    assert 'id="overviewFilter"' in response.text
+    assert 'id="allCount"' in response.text
+    assert 'id="allReady"' in response.text
+    assert 'id="allPending"' in response.text
+    assert "Totalsiffror visas inte" in response.text
 
 
 def test_workbench_import_can_be_previewed_without_reupload(tmp_path: Path) -> None:
