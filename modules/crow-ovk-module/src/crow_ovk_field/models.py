@@ -331,6 +331,7 @@ class FindingFollowup:
     status: str
     note: str = ""
     current_finding_id: str | None = None
+    photo_ids: tuple[str, ...] = ()
 
     def __post_init__(self) -> None:
         if not all(
@@ -342,6 +343,10 @@ class FindingFollowup:
             raise ValueError("invalid followup status")
         if self.status in {"changed", "not_applicable"} and not self.note.strip():
             raise ValueError("followup requires a note")
+        if len(set(self.photo_ids)) != len(self.photo_ids):
+            raise ValueError("duplicate followup photo")
+        if self.status == "not_checked" and self.photo_ids:
+            raise ValueError("unchecked followup cannot have photos")
         if self.status in {"remaining", "changed"}:
             if not self.current_finding_id:
                 raise ValueError("followup requires a current finding")
@@ -366,6 +371,7 @@ class FieldInspectionData:
         seen: set[tuple[str, str]] = set()
         units = {unit.unit_id for unit in self.units}
         findings = {finding.finding_id: finding for finding in self.findings}
+        photos = {photo.photo_id: photo for photo in self.photos}
         for item in self.finding_followups:
             key = (item.source_inspection_id, item.source_finding_id)
             if key in seen or item.source_inspection_id == self.inspection_id:
@@ -373,6 +379,10 @@ class FieldInspectionData:
             seen.add(key)
             if item.unit_id not in units:
                 raise ValueError("followup references unknown unit")
+            for photo_id in item.photo_ids:
+                photo = photos.get(photo_id)
+                if photo is None or photo.unit_id != item.unit_id:
+                    raise ValueError("followup references invalid photo")
             if item.current_finding_id is not None:
                 finding = findings.get(item.current_finding_id)
                 if finding is None or finding.unit_id != item.unit_id:
