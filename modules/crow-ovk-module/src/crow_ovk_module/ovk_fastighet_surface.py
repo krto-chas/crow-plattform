@@ -233,16 +233,49 @@ def _validate_structure(payload: dict[str, Any]) -> dict[str, Any]:
 
     unit_ids: set[str] = set()
     room_ids: set[str] = set()
+    point_ids: set[str] = set()
     units: list[dict[str, Any]] = []
     for row in rows(payload.get("units", []), "units"):
         unit_id = identifier(row, "unit_id", unit_ids)
         kind = required(row, "kind")
         if kind not in {"apartment", "premises"}:
             raise ValueError("invalid unit kind")
-        rooms = [
-            {"room_id": identifier(room, "room_id", room_ids), "name": required(room, "name")}
-            for room in rows(row.get("rooms", []), "rooms")
-        ]
+        rooms: list[dict[str, Any]] = []
+        for room in rows(row.get("rooms", []), "rooms"):
+            entry: dict[str, Any] = {
+                "room_id": identifier(room, "room_id", room_ids),
+                "name": required(room, "name"),
+            }
+            points: list[dict[str, Any]] = []
+            for point in rows(room.get("measurement_points", []), "measurement_points"):
+                point_id = identifier(point, "point_id", point_ids)
+                point_type = required(point, "point_type")
+                if point_type not in {"franluftsdon", "tilluftsdon", "overluftsdon"}:
+                    raise ValueError("invalid measurement point type")
+                system_id = required(point, "system_id")
+                if system_id not in system_ids:
+                    raise ValueError("measurement point references unknown system")
+                design = point.get("designed_value")
+                if design is not None:
+                    if not isinstance(design, str) or not re.fullmatch(
+                        r"[0-9]+(?:\.[0-9]+)?", design
+                    ):
+                        raise ValueError("invalid designed flow")
+                if point.get("unit_of_measure", "l/s") != "l/s":
+                    raise ValueError("invalid measurement unit")
+                points.append(
+                    {
+                        "point_id": point_id,
+                        "label": required(point, "label"),
+                        "point_type": point_type,
+                        "system_id": system_id,
+                        "designed_value": design,
+                        "unit_of_measure": "l/s",
+                    }
+                )
+            if points:
+                entry["measurement_points"] = points
+            rooms.append(entry)
         units.append(
             {"unit_id": unit_id, "number": required(row, "number"), "kind": kind, "rooms": rooms}
         )
