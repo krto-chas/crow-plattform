@@ -51,17 +51,17 @@ async function loadFastighetList(){const project=$('project').value;if(!project)
   $('fastighetList').innerHTML='<option value="">— Ny fastighet —</option>'+items.map(item=>'<option value="'+esc(item.fastighet_id)+'">'+esc(item.fastighetsbeteckning)+'</option>').join('');
   $('status').className='status';$('status').textContent=items.length+' fastighet(er) i projektet.'}catch(error){$('status').className='status warn';$('status').textContent=errText(error)}}
 
-$('project').onchange=()=>{if(!hasFormContent())fillFastighet({});loadFastighetList()};
-$('fastighetList').onchange=async()=>{const project=$('project').value;const id=$('fastighetList').value;if(!id){if(!hasFormContent())fillFastighet({});return}
+$('project').onchange=()=>{if(!inventoryCanLeave()){$('project').value=inventoryContext?.project||'';return}inventoryReset();if(!hasFormContent())fillFastighet({});loadFastighetList()};
+$('fastighetList').onchange=async()=>{const project=$('project').value;const id=$('fastighetList').value;if(!inventoryCanLeave()){$('fastighetList').value=inventoryContext?.property||'';return}inventoryReset();if(!id){if(!hasFormContent())fillFastighet({});return}
   if(hasFormContent()&&$('fastighetId').value.trim()!==id&&!confirm('Formuläret innehåller uppgifter. Ersätt med sparad fastighet '+id+'?')){$('fastighetList').value='';return}
-  try{fillFastighet(await jsonFetch('/api/ovk/projects/'+enc(project)+'/fastighet/'+enc(id)))}catch(error){$('status').className='status warn';$('status').textContent=errText(error)}};
+  try{const data=await jsonFetch('/api/ovk/projects/'+enc(project)+'/fastighet/'+enc(id));if($('project').value!==project||$('fastighetList').value!==id)return;fillFastighet(data);inventoryReset(data)}catch(error){$('status').className='status warn';$('status').textContent=errText(error)}};
 
-$('saveFastighet').onclick=async()=>{if(!$('beteckning').value.trim()){$('status').className='status warn';$('status').textContent='Ange fastighetsbeteckning.';return}
+$('saveFastighet').onclick=async()=>{if(!inventoryCanLeave())return;if(!$('beteckning').value.trim()){$('status').className='status warn';$('status').textContent='Ange fastighetsbeteckning.';return}
   let project;try{project=await ensureProject()}catch(error){$('status').className='status warn';$('status').textContent='Kunde inte skapa projekt: '+errText(error);return}
   if(!project){$('status').className='status warn';$('status').textContent='Välj projekt eller ange fastighetsbeteckning.';return}
   let id=$('fastighetId').value.trim();if(!id){id=slugify($('beteckning').value);$('fastighetId').value=id}
-  try{await jsonFetch('/api/ovk/projects/'+enc(project)+'/fastighet/'+enc(id),{method:'PUT',headers:{'content-type':'application/json'},body:JSON.stringify(buildFastighet())});
-  $('status').className='status';$('status').textContent='Fastigheten sparad.';loadFastighetList()}catch(error){$('status').className='status warn';$('status').textContent='Kunde inte spara: '+errText(error)}};
+  try{const saved=await jsonFetch('/api/ovk/projects/'+enc(project)+'/fastighet/'+enc(id),{method:'PUT',headers:{'content-type':'application/json'},body:JSON.stringify(buildFastighet())});
+  $('status').className='status';$('status').textContent='Fastigheten sparad.';await loadFastighetList();if($('project').value===project){$('fastighetList').value=id;inventoryReset(saved.fastighet)}}catch(error){$('status').className='status warn';$('status').textContent='Kunde inte spara: '+errText(error)}};
 
 async function loadPersons(){try{const data=await jsonFetch('/api/ovk/registry/besiktningsman');const items=data.besiktningsman||[];
   $('personList').innerHTML=items.length?items.map(item=>'<div class="item" data-id="'+esc(item.besiktningsman_id)+'">'+esc(item.namn)+' <span class="pill">'+esc(item.behorighet)+'</span> <span class="muted">'+esc(item.certifieringsorgan)+' · '+esc(item.certnummer)+(item.giltig_till?' · t.o.m. '+esc(item.giltig_till):'')+'</span></div>').join(''):'<p class="muted">Inga registrerade ännu.</p>';
@@ -73,4 +73,80 @@ $('savePerson').onclick=async()=>{const id=$('pId').value.trim();if(!id){$('pers
   try{await jsonFetch('/api/ovk/registry/besiktningsman/'+enc(id),{method:'PUT',headers:{'content-type':'application/json'},body:JSON.stringify({namn:$('pNamn').value,behorighet:$('pBeh').value,certifieringsorgan:$('pOrgan').value,certnummer:$('pCert').value,giltig_till:$('pGiltig').value||null,telefon:$('pTel').value,epost:$('pEpost').value,foretag:$('pForetag').value})});
   $('personStatus').className='status';$('personStatus').textContent='Besiktningsmannen sparad.';loadPersons()}catch(error){$('personStatus').className='status warn';$('personStatus').textContent='Kunde inte spara: '+errText(error)}};
 
+let inventoryContext=null,inventory=null,inventoryRevision=0,inventoryDirty=false,inventoryBusy=false;
+const inventoryId=prefix=>prefix+'-'+Array.from(crypto.getRandomValues(new Uint8Array(12)),v=>v.toString(16).padStart(2,'0')).join('');
+function inventoryMessage(message,error=false){$('inventoryStatus').textContent=message;$('inventoryStatus').className='status'+(error?' warn':'')}
+function inventoryCanLeave(){return !inventoryBusy&&(!inventoryDirty||confirm('Byggnadsstrukturen har osparade ändringar. Vill du lämna dem?'))}
+function inventoryReset(property=null){
+  inventoryRevision++;inventory=null;inventoryDirty=false;inventoryBusy=false;
+  inventoryContext=property?{project:$('project').value,property:property.fastighet_id,buildings:property.byggnader||[]}:null;
+  const select=$('inventoryBuilding');select.replaceChildren(new Option('Välj byggnad…',''));
+  if(inventoryContext)for(const b of inventoryContext.buildings)select.add(new Option(b.internt_namn,b.byggnad_id));
+  select.disabled=!inventoryContext||!inventoryContext.buildings.length;
+  $('inventoryFields').disabled=true;
+  for(const id of ['inventorySystems','inventoryUnits','inventorySpaces'])$(id).replaceChildren();
+  inventoryMessage(property?'Välj byggnad.':'Välj en sparad fastighet.');
+}
+function inventoryUrl(building){return '/api/ovk/projects/'+enc(inventoryContext.project)+'/fastighet/'+enc(inventoryContext.property)+'/byggnad/'+enc(building)+'/struktur'}
+function inventoryChanged(){inventoryDirty=true;inventoryMessage('Osparade ändringar.')}
+function inventoryButton(label,action){const button=document.createElement('button');button.type='button';button.className='button secondary';button.textContent=label;button.onclick=action;return button}
+function inventoryInput(parent,label,value,change,options=null){
+  const wrap=document.createElement('label');wrap.textContent=label;
+  const input=document.createElement(options?'select':'input');
+  if(options)for(const [key,name] of options)input.add(new Option(name,key));
+  input.value=value;input.oninput=()=>{change(input.value);inventoryChanged()};wrap.append(input);parent.append(wrap);return input;
+}
+function inventoryCard(parent){const card=document.createElement('div');card.className='bygg';parent.append(card);return card}
+function inventoryRemove(items,item){if(!confirm('Ta bort posten från byggnadsregistret?'))return;items.splice(items.indexOf(item),1);inventoryChanged();renderInventory()}
+function renderInventory(){
+  if(!inventory)return;
+  for(const id of ['inventorySystems','inventoryUnits','inventorySpaces'])$(id).replaceChildren();
+  for(const system of inventory.systems){
+    const card=inventoryCard($('inventorySystems'));
+    const identity=document.createElement('p');identity.className='muted';identity.textContent='System-ID: '+system.system_id;card.append(identity);
+    inventoryInput(card,'Beteckning / namn',system.label,v=>system.label=v);
+    inventoryInput(card,'Systemtyp',system.system_type,v=>system.system_type=v,['S','F','FT','FTX','FX'].map(v=>[v,v]));
+    card.append(inventoryButton('Ta bort system',()=>{if(inventory.technical_spaces.some(s=>s.system_id===system.system_id)){inventoryMessage('Ta först bort eller flytta systemets tekniska utrymmen.',true);return}inventoryRemove(inventory.systems,system)}));
+  }
+  for(const unit of inventory.units){
+    const card=inventoryCard($('inventoryUnits'));
+    inventoryInput(card,'Lägenhets- / lokalnummer',unit.number,v=>unit.number=v);
+    inventoryInput(card,'Typ',unit.kind,v=>unit.kind=v,[['apartment','Lägenhet'],['premises','Lokal']]);
+    for(const room of unit.rooms){
+      const row=inventoryCard(card);inventoryInput(row,'Rum',room.name,v=>room.name=v);
+      row.append(inventoryButton('Ta bort rum',()=>inventoryRemove(unit.rooms,room)));
+    }
+    card.append(inventoryButton('+ Rum',()=>{unit.rooms.push({room_id:inventoryId('room'),name:''});inventoryChanged();renderInventory()}));
+    card.append(inventoryButton('Ta bort enhet',()=>inventoryRemove(inventory.units,unit)));
+  }
+  for(const space of inventory.technical_spaces){
+    const card=inventoryCard($('inventorySpaces'));
+    inventoryInput(card,'Tekniskt utrymme',space.label,v=>space.label=v);
+    inventoryInput(card,'Ventilationssystem',space.system_id,v=>space.system_id=v,inventory.systems.map(s=>[s.system_id,s.label||s.system_id]));
+    card.append(inventoryButton('Ta bort utrymme',()=>inventoryRemove(inventory.technical_spaces,space)));
+  }
+}
+$('inventoryBuilding').onchange=async()=>{
+  const select=$('inventoryBuilding'),building=select.value;
+  if(!inventoryCanLeave()){select.value=inventoryContext?.building||'';return}
+  const revision=++inventoryRevision;inventory=null;inventoryDirty=false;inventoryContext.building=building;
+  $('inventoryFields').disabled=true;
+  for(const id of ['inventorySystems','inventoryUnits','inventorySpaces'])$(id).replaceChildren();
+  if(!building){inventoryMessage('Välj byggnad.');return}
+  inventoryMessage('Laddar byggnadsstruktur…');
+  try{const data=await jsonFetch(inventoryUrl(building),{cache:'no-store'});if(revision!==inventoryRevision)return;inventory=data;renderInventory();$('inventoryFields').disabled=false;inventoryMessage('Byggnadsstruktur laddad.')}
+  catch(error){if(revision===inventoryRevision)inventoryMessage(errText(error),true)}
+};
+$('inventoryAddSystem').onclick=()=>{inventory.systems.push({system_id:inventoryId('system'),system_type:'F',label:''});inventoryChanged();renderInventory()};
+$('inventoryAddUnit').onclick=()=>{inventory.units.push({unit_id:inventoryId('unit'),number:'',kind:'apartment',rooms:[]});inventoryChanged();renderInventory()};
+$('inventoryAddSpace').onclick=()=>{if(!inventory.systems.length){inventoryMessage('Lägg till ett ventilationssystem först.',true);return}inventory.technical_spaces.push({space_id:inventoryId('space'),label:'',system_id:inventory.systems[0].system_id});inventoryChanged();renderInventory()};
+$('inventorySave').onclick=async()=>{
+  if(!inventory||inventoryBusy)return;
+  const revision=inventoryRevision,url=inventoryUrl(inventoryContext.building);
+  inventoryBusy=true;$('inventoryFields').disabled=true;$('inventoryBuilding').disabled=true;
+  try{const saved=await jsonFetch(url,{method:'PUT',headers:{'content-type':'application/json'},body:JSON.stringify(inventory)});if(revision!==inventoryRevision)return;inventory=saved;inventoryDirty=false;renderInventory();inventoryMessage('Byggnadsstruktur sparad.')}
+  catch(error){if(revision===inventoryRevision)inventoryMessage(errText(error),true)}
+  finally{if(revision===inventoryRevision){inventoryBusy=false;$('inventoryFields').disabled=false;$('inventoryBuilding').disabled=false}}
+};
+window.addEventListener('beforeunload',event=>{if(inventoryDirty||inventoryBusy){event.preventDefault();event.returnValue=''}});
 renderByggnader();loadProjects();loadPersons();
