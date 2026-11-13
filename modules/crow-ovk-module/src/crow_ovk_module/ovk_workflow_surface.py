@@ -42,6 +42,8 @@ def ovk_workflow_router(data_root: Path) -> APIRouter:
                 {
                     "inspection_id": record.inspection.inspection_id,
                     "object_name": record.inspection.ovk_object.name,
+                    "object_id": record.inspection.ovk_object.object_id,
+                    "building_id": record.inspection.ovk_object.building_id,
                     "conclusion": record.inspection.conclusion.value,
                     "protocol_ready": record.protocol_ready,
                     "unresolved_review_count": record.unresolved_review_count,
@@ -96,6 +98,21 @@ def ovk_workflow_router(data_root: Path) -> APIRouter:
                 record = replace(record, planning=previous.planning)
             if record.planning is not None:
                 obj = record.inspection.ovk_object
+                reference_id = record.planning.previous_inspection_id
+                if previous is not None and previous.planning is not None:
+                    if previous.planning.previous_inspection_id != reference_id:
+                        raise ValueError("historical reference cannot change")
+                if reference_id is not None and (previous is None or previous.planning is None):
+                    if reference_id == inspection_id:
+                        raise ValueError("inspection cannot reference itself")
+                    reference = repository.load(project_id, reference_id)
+                    source = reference.inspection.ovk_object
+                    if (source.object_id, source.building_id) != (obj.object_id, obj.building_id):
+                        raise ValueError("historical reference belongs to another building")
+                    if not reference.protocol_ready:
+                        raise ValueError("historical reference is not protocol ready")
+                    if reference.planning and reference.planning.planned_date >= record.planning.planned_date:
+                        raise ValueError("historical reference must precede planned inspection")
                 if previous is None or previous.planning != record.planning:
                     property_record = properties.load(project_id, obj.object_id)
                     if not any(b.byggnad_id == obj.building_id for b in property_record.byggnader):
