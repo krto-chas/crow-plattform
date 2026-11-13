@@ -110,6 +110,11 @@ def record_to_payload(record: OvkWorkflowRecord) -> dict[str, Any]:
                 "inspector_id": record.planning.inspector_id,
                 "planned_date": record.planning.planned_date.isoformat(),
                 "inspection_type": record.planning.inspection_type,
+                **(
+                    {"previous_inspection_id": record.planning.previous_inspection_id}
+                    if record.planning.previous_inspection_id is not None
+                    else {}
+                ),
             }
             if record.planning is not None
             else None
@@ -148,6 +153,7 @@ def record_from_payload(payload: dict[str, Any]) -> OvkWorkflowRecord:
             inspector_id=_required_text(raw, "inspector_id"),
             planned_date=date.fromisoformat(_required_text(raw, "planned_date")),
             inspection_type=_required_text(raw, "inspection_type"),
+            previous_inspection_id=_optional_text(raw.get("previous_inspection_id")),
         )
     building_structure_json = None
     if payload.get("building_structure") is not None:
@@ -170,6 +176,7 @@ def record_from_payload(payload: dict[str, Any]) -> OvkWorkflowRecord:
         updated_at=_optional_text(payload.get("updated_at")),
         coverage=coverage,
         planning=planning,
+        building_structure_json=building_structure_json,
     )
 
 
