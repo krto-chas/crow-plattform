@@ -479,3 +479,14 @@ def test_field_restore_downloads_verified_media(tmp_path: Path) -> None:
     assert "blob.size!==receipt.size_bytes" in app
     assert "digest!==photo.sha256.toLowerCase()" in app
     assert "await restoreVerifiedMedia(inspectionId,data.photos,photos)" in app
+
+
+def test_planned_field_prefill_preserves_inventory_identity(tmp_path: Path) -> None:
+    app = _client(tmp_path).get("/ovk/falt/app.js").text
+    assert "const structure=record.building_structure" in app
+    assert "unit_id:unit.unit_id,inspection_id:inspectionId" in app
+    assert "room_id:room.room_id,unit_id:unit.unit_id" in app
+    assert "status:'ej_paborjad'" in app
+    assert "tx.objectStore('drafts').add(draft)" in app
+    assert "state.activeRoomId=entry.id||ensureRoom(name).room_id" in app
+    assert app.index("if(snapshot.ok)") < app.index("await prefillPlannedUnits(record")
