@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 from fastapi import FastAPI
@@ -444,3 +445,30 @@ def test_field_resume_preserves_snapshot_identity(tmp_path: Path) -> None:
     assert "p.sync_status!=='synced'" in app
     assert "last_sync:snapshot.snapshot_sha256" in app
     assert "remote.snapshot_sha256 !== state.last_sync" in auth
+
+
+def test_field_snapshot_atomic_revision_conflict(tmp_path: Path) -> None:
+    url = "/api/ovk/field/sync/ovk-1"
+    client = _client(tmp_path)
+    first = client.put(url, json=_field_payload())
+    assert first.status_code == 200
+    revision = first.json()["snapshot_sha256"]
+
+    def update(number: str) -> int:
+        payload = {"inspection_id": "ovk-1", "units": [{"unit_id": "u", "number": number}]}
+        with _client(tmp_path) as writer:
+            return writer.put(
+                url, json=payload, headers={"X-OVK-Base-Revision": revision}
+            ).status_code
+
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        results = list(pool.map(update, ["1101", "1102"]))
+    assert sorted(results) == [200, 409]
+    saved = client.get(url).json()
+    assert saved["payload"]["units"][0]["number"] in ("1101", "1102")
+    assert saved["snapshot_sha256"] != revision
+    rejected = client.put(url, json=_field_payload(), headers={"X-OVK-Base-Revision": "new"})
+    assert rejected.status_code == 409
+    assert rejected.json()["detail"]["code"] == "OVK_FIELD_REVISION_CONFLICT"
+    assert client.put(url, json=_field_payload()).status_code == 409
+    assert client.get(url).json() == saved
