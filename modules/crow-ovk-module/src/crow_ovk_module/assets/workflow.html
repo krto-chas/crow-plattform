@@ -6,6 +6,7 @@
   <title>Crow OVK Besiktning</title>
   <style>
     :root{font-family:Inter,system-ui,sans-serif;color:#18212b;background:#f4f6f8}*{box-sizing:border-box}body{margin:0}.shell{display:grid;grid-template-columns:230px 1fr;min-height:100vh}aside{background:#17202a;color:#fff;padding:24px}aside h1{font-size:20px;margin:0 0 28px}nav a{display:block;color:#dce5ed;text-decoration:none;padding:10px 0}nav a.active{font-weight:700;color:#fff}main{padding:32px;max-width:1250px}.panel{background:#fff;border:1px solid #dfe5ea;border-radius:10px;padding:20px;margin-bottom:16px}.grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}.three{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px}label{display:block;font-size:13px;font-weight:700;margin:10px 0 5px}input,select,textarea{width:100%;padding:10px;border:1px solid #cbd4dc;border-radius:6px;font:inherit}textarea{min-height:110px}.actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}.button{display:inline-block;border:0;border-radius:6px;background:#17202a;color:#fff;padding:10px 13px;text-decoration:none;cursor:pointer;font:inherit}.secondary{background:#e8edf1;color:#25313d}.status{padding:12px;border-radius:6px;background:#eef2f5;margin:12px 0}.warn{background:#fff4cf}.pass{background:#e5f6ea}.muted{color:#607080}.summary{display:grid;grid-template-columns:repeat(5,1fr);gap:10px}.metric{background:#f5f7f9;padding:12px;border-radius:6px}.metric strong{display:block;font-size:18px}.eyebrow{font-size:12px;letter-spacing:.12em;color:#687684}@media(max-width:900px){.shell{grid-template-columns:1fr}aside{display:none}.grid,.three,.summary{grid-template-columns:1fr}}
+  fieldset{border:0;padding:0;margin:0;min-width:0}.draft-system{border:1px solid #dfe5ea;border-radius:8px;padding:12px;margin:10px 0}.button:disabled{opacity:.5;cursor:not-allowed}[hidden]{display:none!important}
   </style>
 </head>
 <body>
@@ -16,7 +17,26 @@
     <h1>Besiktningsunderlag</h1>
     <p class="muted">Projekt och sparad besiktning följer med mellan OVK-arbetsytan, denna sida och fältläget.</p>
 
-    <section class="panel">
+    <section class="panel" id="guidedDraft" hidden>
+      <h2>Ny OVK – besiktningsunderlag</h2>
+      <p class="muted">Välj en registrerad fastighet och byggnad. Lägg till de system som ska besiktigas. Inga kontroller markeras som utförda.</p>
+      <form id="draftForm">
+        <fieldset id="draftFields" disabled>
+          <label for="draftProject">Projekt</label><select id="draftProject" required></select>
+          <label for="draftProperty">Fastighet</label><select id="draftProperty" required></select>
+          <p id="draftOwner" class="muted"></p>
+          <label for="draftBuilding">Byggnad</label><select id="draftBuilding" required></select>
+          <h3>Ventilationssystem</h3>
+          <div id="draftSystems"></div>
+          <button type="button" class="button secondary" id="draftAddSystem">Lägg till system</button>
+          <p><a href="/ovk/fastighet">Registrera eller komplettera fastighet</a></p>
+          <button type="submit" class="button" id="draftCreate">Skapa besiktningsutkast</button>
+        </fieldset>
+      </form>
+      <div id="draftStatus" class="status" role="status" aria-live="polite">Laddar…</div>
+      <a href="/ovk">Till översikten</a>
+    </section>
+    <section class="panel" data-workflow-editor>
       <div class="grid">
         <div><label>Projekt</label><select id="project"><option value="">Laddar…</option></select></div>
         <div><label>Sparad besiktning</label><select id="saved"><option value="">Ny besiktning</option></select></div>
@@ -25,7 +45,7 @@
       <div class="actions"><button class="button secondary" id="newInspection">Ny besiktning</button><button class="button secondary" id="reload">Ladda sparad</button></div>
     </section>
 
-    <section class="panel">
+    <section class="panel" data-workflow-editor>
       <div class="three">
         <div><label>Besiktnings-ID</label><input id="inspection" value="ovk-001"></div>
         <div><label>Byggnads-ID</label><input id="building" value="building-1"></div>
@@ -38,7 +58,7 @@
       <div class="actions"><button class="button" id="save">Spara besiktning</button><a class="button secondary" id="fieldLink" href="/ovk/falt">Fortsätt i fältläge</a><button class="button secondary" id="protocol">Öppna protokoll</button></div>
     </section>
 
-    <section class="panel"><div id="summary" class="summary"></div></section>
+    <section class="panel" data-workflow-editor><div id="summary" class="summary"></div></section>
   </main>
 </div>
 <script src="/ovk/besiktning/app.js"></script>
