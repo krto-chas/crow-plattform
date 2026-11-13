@@ -345,7 +345,30 @@ def test_planning_validates_registry_and_survives_legacy_save(
         "inspection_type": "aterkommande",
     }
     payload["planning"] = planning
+    structure_url = "/api/ovk/projects/p1/fastighet/object-1/byggnad/building-1/struktur"
+    structure = {
+        "units": [
+            {
+                "unit_id": "u1",
+                "number": "1203",
+                "kind": "apartment",
+                "rooms": [{"room_id": "r1", "name": "Kök"}],
+            }
+        ],
+        "systems": [],
+        "technical_spaces": [],
+    }
+    assert client.put(structure_url, json=structure).status_code == 200
     assert client.put(url, json=payload).status_code == 200
+    captured = client.get(url).json()
+    assert captured["building_structure"] == structure
+    assert len(captured["building_structure_sha256"]) == 64
+    assert client.put(structure_url, json={**structure, "units": []}).status_code == 200
+    assert client.put(url, json={**payload, "building_structure": {}}).status_code == 200
+    assert client.get(url).json()["building_structure"] == structure
+    assert (
+        client.get(url).json()["building_structure_sha256"] == captured["building_structure_sha256"]
+    )
     assert client.get(url).json()["planning"] == planning
     assert client.put(url, json=_workflow_payload()).status_code == 200
     assert client.get(url).json()["planning"] == planning
