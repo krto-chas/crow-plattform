@@ -256,6 +256,7 @@ def _field_data_from_payload(payload: dict[str, Any]) -> FieldInspectionData:
             unit_of_measure=str(item.get("unit_of_measure", "l/s")),
             not_measurable_reason=str(item.get("not_measurable_reason", "")),
             finding_id=_optional_str(item.get("finding_id")),
+            system_id=_optional_str(item.get("system_id")),
         )
         for item in _dict_items(payload.get("measurements", []), "measurements")
     )
@@ -409,6 +410,7 @@ def _field_data_to_payload(data: FieldInspectionData) -> dict[str, Any]:
                 "not_measurable_reason": item.not_measurable_reason,
                 "finding_id": item.finding_id,
                 "origin": item.origin.value,
+                **({"system_id": item.system_id} if item.system_id is not None else {}),
             }
             for item in data.measurements
         ],

@@ -103,3 +103,55 @@ def test_bulk_inventory_editor_is_served(tmp_path: Path) -> None:
     assert "numbers.filter(n=>existing.has(n))" in script.text
     assert "inventory.units.push(...additions)" in script.text
     assert "JSON.stringify(plan)!==JSON.stringify(bulkPreview)" in script.text
+
+
+def test_registered_measurement_points_are_inventory_only(tmp_path: Path) -> None:
+    app = FastAPI()
+    app.include_router(ovk_fastighet_router(tmp_path))
+    client = TestClient(app)
+    property_url = "/api/ovk/projects/p1/fastighet/f1"
+    url = property_url + "/byggnad/hus-a/struktur"
+    assert (
+        client.put(
+            property_url,
+            json={
+                "fastighetsbeteckning": "Test 1:1",
+                "byggnader": [{"byggnad_id": "hus-a", "internt_namn": "Hus A"}],
+            },
+        ).status_code
+        == 200
+    )
+    point = {
+        "point_id": "p1",
+        "label": "FL01",
+        "point_type": "franluftsdon",
+        "system_id": "LB01",
+        "designed_value": "15.5",
+        "unit_of_measure": "l/s",
+    }
+
+    def inventory(points: list[dict[str, str]]) -> dict[str, object]:
+        return {
+            "systems": [{"system_id": "LB01", "system_type": "FTX", "label": "LB01"}],
+            "units": [
+                {
+                    "unit_id": "u1",
+                    "number": "1203",
+                    "kind": "apartment",
+                    "rooms": [{"room_id": "r1", "name": "Kök", "measurement_points": points}],
+                }
+            ],
+        }
+
+    saved = client.put(url, json=inventory([{**point, "measured_value": "8"}]))
+    assert saved.status_code == 200
+    assert saved.json()["units"][0]["rooms"][0]["measurement_points"] == [point]
+    assert client.get(url).json() == saved.json()
+    for invalid in (
+        [point, point],
+        [{**point, "system_id": "unknown"}],
+        [{**point, "designed_value": "NaN"}],
+        [{**point, "unit_of_measure": "m3/h"}],
+    ):
+        assert client.put(url, json=inventory(invalid)).status_code == 422
+    assert client.get(url).json() == saved.json()
