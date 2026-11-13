@@ -355,10 +355,9 @@ def test_planning_validates_registry_and_survives_legacy_save(
                 "rooms": [{"room_id": "r1", "name": "Kök"}],
             }
         ],
-        "systems": [],
+        "systems": [{"system_id": "FTX01", "system_type": "FTX", "label": "LB01"}],
         "technical_spaces": [],
     }
-    structure["systems"] = [{"system_id": "FTX01", "system_type": "FTX", "label": "LB01"}]
     assert client.put(structure_url, json=structure).status_code == 200
     wrong_structure = {
         **structure,
