@@ -385,3 +385,52 @@ def test_planning_validates_registry_and_survives_legacy_save(
     payload["planning"] = {**planning, "inspector_id": "missing"}
     assert client.put(url, json=payload).status_code == 422
     assert client.get(url).json()["planning"] == planning
+
+
+def test_recurring_reference_is_scoped_and_preserved(
+    tmp_path: Path, monkeypatch: MonkeyPatch
+) -> None:
+    client = _client(tmp_path, monkeypatch)
+    root = "/api/ovk/projects/p1"
+    assert (
+        client.put(
+            root + "/fastighet/object-1",
+            json={
+                "fastighetsbeteckning": "Björken 12",
+                "byggnader": [{"byggnad_id": "building-1", "internt_namn": "Hus A"}],
+            },
+        ).status_code
+        == 200
+    )
+    assert (
+        client.put(
+            "/api/ovk/registry/besiktningsman/person-1",
+            json={
+                "namn": "Test",
+                "behorighet": "K",
+                "certifieringsorgan": "Test",
+                "certnummer": "123",
+                "giltig_till": "2030-12-31",
+            },
+        ).status_code
+        == 200
+    )
+    old = _workflow_payload()
+    assert client.put(root + "/inspections/ovk-001", json=old).status_code == 200
+    payload = _workflow_payload()
+    planning = {
+        "inspector_id": "person-1",
+        "planned_date": "2027-01-15",
+        "inspection_type": "aterkommande",
+        "previous_inspection_id": "ovk-001",
+    }
+    payload["planning"] = planning
+    payload.pop("coverage")
+    url = root + "/inspections/ovk-002"
+    assert client.put(url, json=payload).status_code == 200
+    assert client.get(url).json()["planning"] == planning
+    payload["planning"] = {**planning, "previous_inspection_id": "missing"}
+    assert client.put(url, json=payload).status_code == 422
+    payload["planning"] = {**planning, "previous_inspection_id": "ovk-003"}
+    assert client.put(root + "/inspections/ovk-003", json=payload).status_code == 422
+    assert client.get(url).json()["planning"] == planning
