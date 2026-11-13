@@ -2,13 +2,25 @@ from __future__ import annotations
 
 import json
 from concurrent.futures import ThreadPoolExecutor
+from datetime import date
 from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
+from crow_ovk import CheckStatus, OvkCheckpoint, OvkObject, VentilationSystemRef
 from crow_ovk_module.ovk_field_context_page import ovk_field_context_page_router
 from crow_ovk_module.ovk_field_surface import ovk_field_router
+from crow_ovk_workflow import (
+    AggregatCoverage,
+    AggregatStatus,
+    BekraftelseRoll,
+    InspectionCoverage,
+    OvkWorkflowRepository,
+    SystemForteckningBekraftelse,
+    build_record,
+)
+from crow_ovk_workflow.models import InspectionPlanning
 
 
 def _client(data_root: Path) -> TestClient:
@@ -542,12 +554,68 @@ def test_finding_followup_roundtrip_and_validation(tmp_path: Path) -> None:
         "current_finding_id": "finding-1",
     }
     payload = {**_field_payload(), "finding_followups": [followup]}
+    assert client.put(url, json=payload).status_code == 422
+    repository = OvkWorkflowRepository(tmp_path)
+    obj = OvkObject(object_id="property-1", project_id="p1", building_id="building-1", name="Test")
+    repository.save(
+        build_record(
+            inspection_id="ovk-old",
+            ovk_object=obj,
+            systems=(VentilationSystemRef("F1", "F", "F1"),),
+            checkpoints=(OvkCheckpoint("cp1", "Function", CheckStatus.PASS, system_id="F1"),),
+            coverage=InspectionCoverage(
+                inspection_id="ovk-old",
+                aggregat=(AggregatCoverage("agg-1", "F1", AggregatStatus.BESIKTIGAD),),
+                system_list_confirmation=SystemForteckningBekraftelse(
+                    confirmed_by="Inspector", role=BekraftelseRoll.BESIKTNINGSMAN
+                ),
+            ),
+        )
+    )
+    repository.save(
+        build_record(
+            inspection_id="ovk-1",
+            ovk_object=obj,
+            planning=InspectionPlanning("person-1", date(2027, 1, 1), "aterkommande", "ovk-old"),
+        )
+    )
+    context_root = tmp_path / "ovk-field-context"
+    context_root.mkdir()
+    for inspection_id in ("ovk-old", "ovk-1"):
+        (context_root / f"{inspection_id}.json").write_text(
+            json.dumps(
+                {
+                    "inspection_id": inspection_id,
+                    "project_id": "p1",
+                    "previous_inspection_id": "ovk-old" if inspection_id == "ovk-1" else None,
+                }
+            ),
+            encoding="utf-8",
+        )
+    old_payload = {
+        **_field_payload(),
+        "inspection_id": "ovk-old",
+        "findings": [
+            {
+                "finding_id": "old-finding",
+                "unit_id": "unit-1",
+                "room_id": "room-1",
+                "defect_type": "contaminated_extract_terminal",
+                "description": "Smutsigt don",
+                "severity": "minor",
+            }
+        ],
+        "photos": [],
+    }
+    assert client.put("/api/ovk/field/sync/ovk-old", json=old_payload).status_code == 200
     saved = client.put(url, json=payload)
     assert saved.status_code == 200
     assert client.get(url).json()["payload"]["finding_followups"] == [followup]
     headers = {"X-OVK-Base-Revision": saved.json()["snapshot_sha256"]}
     for invalid in (
         [followup, followup],
+        [{**followup, "source_finding_id": "missing"}],
+        [{**followup, "source_inspection_id": "another-inspection"}],
         [{**followup, "source_inspection_id": "ovk-1"}],
         [{**followup, "unit_id": "unknown"}],
         [{**followup, "current_finding_id": "unknown"}],
