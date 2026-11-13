@@ -141,6 +141,12 @@ def build_protokoll_utkast(data: FieldInspectionData) -> FaltProtokollUtkast:
                 status=AggregatStatus.BESIKTIGAD,
             )
             for space in data.technical_spaces
+            if any(cp.space_id == space.space_id for cp in data.checkpoints)
+            and all(
+                cp.status is not CheckStatus.NOT_CHECKED
+                for cp in data.checkpoints
+                if cp.space_id == space.space_id
+            )
         ),
         system_list_confirmation=None,
     )
@@ -174,8 +180,8 @@ def bridge_inspection_inputs(
     ) or (
         OvkCheckpoint(
             checkpoint_id=f"{data.inspection_id}-falt",
-            label="Fältrondering genomförd",
-            status=CheckStatus.PASS,
+            label="Fältrondering – kontrollresultat saknas",
+            status=CheckStatus.NOT_CHECKED,
         ),
     )
     findings = tuple(
