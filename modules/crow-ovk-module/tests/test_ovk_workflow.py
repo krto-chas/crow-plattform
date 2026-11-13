@@ -260,3 +260,50 @@ def test_workflow_page_preserves_project_and_saved_inspection_context(
     assert "findings: previousInspection.findings || []" in script.text
     assert "actions: previousInspection.actions || []" in script.text
     assert "'/ovk/falt' + (query ? '?' + query : '')" in script.text
+
+
+def test_guided_draft_remains_pending_and_preserves_property_context(
+    tmp_path: Path,
+    monkeypatch: MonkeyPatch,
+) -> None:
+    client = _client(tmp_path, monkeypatch)
+    page = client.get("/ovk/besiktning?new=1&project_id=p1")
+    script = client.get("/ovk/besiktning/app.js")
+    assert page.status_code == 200
+    assert 'id="draftProperty"' in page.text
+    assert 'id="draftBuilding"' in page.text
+    assert 'id="draftSystems"' in page.text
+    assert "checkpoints:[],measurements:[],findings:[],actions:[]" in script.text
+
+    url = "/api/ovk/projects/p1/inspections/ovk-guided"
+    saved = client.put(
+        url,
+        json={
+            "inspection": {
+                "object": {
+                    "object_id": "fastighet-1",
+                    "project_id": "p1",
+                    "building_id": "hus-a",
+                    "name": "Björken 12 · Hus A",
+                    "address": "Testvägen 1",
+                },
+                "systems": [
+                    {"system_id": "LB01", "system_type": "FTX", "label": "Huvudsystem"},
+                    {"system_id": "FF01", "system_type": "F", "label": "Frånluft"},
+                ],
+                "checkpoints": [],
+                "measurements": [],
+                "findings": [],
+                "actions": [],
+            },
+            "review": [],
+        },
+    )
+    assert saved.status_code == 200
+    loaded = client.get(url).json()
+    assert loaded["inspection"]["object"]["object_id"] == "fastighet-1"
+    assert loaded["inspection"]["object"]["building_id"] == "hus-a"
+    assert len(loaded["inspection"]["systems"]) == 2
+    assert loaded["inspection"]["conclusion"] == "pending"
+    assert loaded["protocol_ready"] is False
+    assert client.get(url + "/protocol").status_code == 409
