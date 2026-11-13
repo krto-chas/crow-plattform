@@ -31,12 +31,17 @@ class InspectionPlanning:
     inspector_id: str
     planned_date: date
     inspection_type: str
+    previous_inspection_id: str | None = None
 
     def __post_init__(self) -> None:
         if not self.inspector_id.strip():
             raise ValueError("inspector_id is required")
         if self.inspection_type not in ("forstagang", "aterkommande"):
             raise ValueError("invalid inspection_type")
+        if self.previous_inspection_id is not None and (
+            self.inspection_type != "aterkommande" or not self.previous_inspection_id.strip()
+        ):
+            raise ValueError("historical reference requires recurring inspection")
 
 
 @dataclass(frozen=True, slots=True)
