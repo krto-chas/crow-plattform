@@ -81,18 +81,34 @@ function renderMeasurements(){const unitId=state.activeUnitId;const roomId=state
   for(const input of $('mrows').querySelectorAll('[data-meas]'))input.onchange=async()=>{const item=state.measurements.find(m=>m.measurement_id===input.dataset.meas);item.measured_value=input.value.trim().replace(',','.')||null;await persist()};
   for(const button of $('mrows').querySelectorAll('[data-nm]'))button.onclick=()=>markNotMeasurable(button.dataset.nm)}
 function renderFindings(){const items=state.findings.filter(item=>item.unit_id===state.activeUnitId);$('unitFindings').innerHTML=items.map(item=>'<div class="item"><span class="pill">'+esc(item.room_name||'utan rum')+'</span><span class="pill">'+(item.classification!==null&&item.classification!==undefined?'Klass '+item.classification:esc(item.severity))+'</span><span class="pill">📷 '+state.photos.filter(photo=>photo.finding_id===item.finding_id).length+'</span>'+esc(item.description)+'</div>').join('')}
+function historyDisclosure(panel,key,count,photoCount=0){
+  const wasOpen=panel.dataset.historyKey===key&&Boolean(panel.querySelector('details')?.open);
+  panel.dataset.historyKey=key;panel.replaceChildren();
+  panel.classList.toggle('hidden',!count&&!photoCount&&!state.history_unavailable);
+  if(!count&&!photoCount){
+    if(state.history_unavailable)panel.textContent='Historiskt fältunderlag saknas.';
+    return null;
+  }
+  const details=document.createElement('details');details.open=wasOpen;
+  const summary=document.createElement('summary');summary.style.cursor='pointer';
+  summary.style.fontWeight='700';
+  if(count)summary.style.color='#b91c1c';
+  summary.textContent=count?count+' anmärkning(ar) från föregående OVK': 'Historiska installationsfotografier ('+photoCount+')';
+  details.append(summary);
+  const body=document.createElement('div');const title=document.createElement('p');
+  title.textContent='Historik – '+(state.previous_inspection_id||'tidigare besiktning');body.append(title);
+  details.append(body);panel.append(details);return body;
+}
 function renderPreviousFindings(unit){
-  const panel=$('prevFindings');panel.replaceChildren();
+  const panel=$('prevFindings');
   const previous=(state.historical_findings||[]).filter(item=>item.unit_id===unit.unit_id&&(!state.activeRoomId||!item.room_id||item.room_id===state.activeRoomId));
-  panel.classList.toggle('hidden',!previous.length&&!state.previous_inspection_id);
-  if(!state.previous_inspection_id&&!previous.length)return;
-  const title=document.createElement('strong');title.textContent='Historik – '+(state.previous_inspection_id||'tidigare besiktning');panel.append(title);
-  if(!previous.length){const note=document.createElement('p');note.textContent=state.history_unavailable?'Historiskt fältunderlag saknas på servern.':'Inga matchande historiska anmärkningar i tillgängligt underlag.';panel.append(note)}
+  const body=historyDisclosure(panel,state.inspection_id+'|'+unit.unit_id+'|'+(state.activeRoomId||''),previous.length);
+  if(!body)return;
   for(const item of previous){
-    const row=document.createElement('p');row.textContent=[item.room_name,item.description].filter(Boolean).join(': ');panel.append(row);
+    const row=document.createElement('p');row.textContent=[item.room_name,item.description].filter(Boolean).join(': ');body.append(row);
     for(const photo of item.photos||[]){
       if(!photo.verified||!photo.content_url)continue;
-      const link=document.createElement('a');link.href='/api/ovk/field/media/'+encodeURIComponent(item.source_inspection_id)+'/'+encodeURIComponent(photo.photo_id)+'/content';link.target='_blank';link.rel='noopener noreferrer';link.textContent='Visa historiskt foto';panel.append(link,document.createElement('br'));
+      const link=document.createElement('a');link.href='/api/ovk/field/media/'+encodeURIComponent(item.source_inspection_id)+'/'+encodeURIComponent(photo.photo_id)+'/content';link.target='_blank';link.rel='noopener noreferrer';link.textContent='Visa historiskt foto';body.append(link,document.createElement('br'));
     }
   }
 }
@@ -123,14 +139,12 @@ function openSpace(spaceId){state.activeSpaceId=spaceId;const space=activeSpace(
 function renderSpaceHistory(space){
   let panel=$('spaceHistory');
   if(!panel){panel=document.createElement('div');panel.id='spaceHistory';panel.className='status';$('cplist').before(panel)}
-  panel.replaceChildren();panel.classList.toggle('hidden',!state.previous_inspection_id);
-  if(!state.previous_inspection_id)return;
-  const title=document.createElement('strong');title.textContent='Historik – '+state.previous_inspection_id;panel.append(title);
   const checks=state.historical_checkpoints.filter(c=>c.space_id===space.space_id);
   const photos=state.historical_space_photos.filter(p=>p.space_id===space.space_id&&p.verified);
-  for(const check of checks){const row=document.createElement('p');row.textContent=check.label+': '+(check.note||'Anmärkning');panel.append(row)}
-  for(const photo of photos){const link=document.createElement('a');link.href='/api/ovk/field/media/'+encodeURIComponent(state.previous_inspection_id)+'/'+encodeURIComponent(photo.photo_id)+'/content';link.target='_blank';link.rel='noopener noreferrer';link.textContent='Visa historiskt installationsfoto';panel.append(link,document.createElement('br'))}
-  if(!checks.length&&!photos.length){const row=document.createElement('p');row.textContent=state.history_unavailable?'Historiskt fältunderlag saknas.':'Ingen matchande installationshistorik.';panel.append(row)}
+  const body=historyDisclosure(panel,state.inspection_id+'|'+space.space_id,checks.length,photos.length);
+  if(!body)return;
+  for(const check of checks){const row=document.createElement('p');row.textContent=check.label+': '+(check.note||'Anmärkning');body.append(row)}
+  for(const photo of photos){const link=document.createElement('a');link.href='/api/ovk/field/media/'+encodeURIComponent(state.previous_inspection_id)+'/'+encodeURIComponent(photo.photo_id)+'/content';link.target='_blank';link.rel='noopener noreferrer';link.textContent='Visa historiskt installationsfoto';body.append(link,document.createElement('br'))}
 }
 function renderSpace(){const space=activeSpace();if(!space)return;renderSpaceHistory(space);const plate=spaceHasNameplate(space.space_id);$('nameplateStatus').className='status '+(plate?'pass':'warn');$('nameplateStatus').textContent=plate?'Märkskylt dokumenterad ✓':'Märkskylt ej dokumenterad – fota den.';
   $('cplist').innerHTML=spaceCheckpoints(space.space_id).map(item=>'<button class="unitrow '+(item.status==='not_checked'?'ej_paborjad':item.status==='fail'?'anmarkning':'ua')+'" data-cp="'+item.checkpoint_id+'" style="padding:11px 14px"><span class="nr" style="font-size:15px;min-width:0;font-weight:700">'+esc(item.label)+'</span><span class="spacer"></span><span class="tag '+(item.status==='not_checked'?'ej_paborjad':item.status==='fail'?'anmarkning':'ua')+'">'+(item.status==='not_checked'?'Ej kontrollerad':item.status==='not_applicable'?'Ej tillämplig':item.status==='fail'?'ANM':'UA')+'</span></button>'+(item.note?'<div class="sub" style="margin:2px 0 0 6px">'+esc(item.note)+'</div>':'')).join('');
