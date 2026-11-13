@@ -517,3 +517,14 @@ def test_planned_history_is_separate_from_current_results(tmp_path: Path) -> Non
     payload = app.split("function payload()", 1)[1].split("async function writeDraft", 1)[0]
     assert "historical_findings" not in payload
     assert "historical_checkpoints" not in payload
+
+
+def test_measurement_history_requires_exact_point_identity(tmp_path: Path) -> None:
+    app = _client(tmp_path).get("/ovk/falt/app.js").text
+    assert "function renderMeasurementHistory" in app
+    assert "m.measurement_id===old.measurement_id" in app
+    assert "m.unit_of_measure===old.unit_of_measure" in app
+    assert "Ingen säker donmatchning" in app
+    assert "historical_measurements:data.historical_measurements" in app
+    payload = app.split("function payload()", 1)[1].split("async function writeDraft", 1)[0]
+    assert "historical_measurements" not in payload
