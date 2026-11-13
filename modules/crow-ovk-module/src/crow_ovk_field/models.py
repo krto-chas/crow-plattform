@@ -176,6 +176,7 @@ class FieldMeasurement:
     not_measurable_reason: str = ""
     finding_id: str | None = None
     origin: EvidenceOrigin = EvidenceOrigin.MEASURED
+    system_id: str | None = None
 
     def __post_init__(self) -> None:
         if not self.measurement_id.strip() or not self.unit_id.strip():
