@@ -47,11 +47,12 @@ syncSnapshot = async function () {
     '/api/ovk/field/sync/' + encodeURIComponent(state.inspection_id),
     {
       method: 'PUT',
-      headers: {'content-type': 'application/json'},
+      headers: {'content-type': 'application/json', 'X-OVK-Base-Revision': state.last_sync || 'new'},
       body: JSON.stringify(payload())
     }
   );
   const data = await response.json();
+  if (response.status === 409 && data.detail?.code === 'OVK_FIELD_REVISION_CONFLICT') throw new Error('Serverunderlaget har ändrats. Lokalt arbete bevaras; synk stoppad.');
   if (!response.ok) throw new Error(JSON.stringify(data));
   state.last_sync = data.snapshot_sha256;
   return data;
