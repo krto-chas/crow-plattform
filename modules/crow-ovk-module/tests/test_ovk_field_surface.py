@@ -490,3 +490,13 @@ def test_planned_field_prefill_preserves_inventory_identity(tmp_path: Path) -> N
     assert "tx.objectStore('drafts').add(draft)" in app
     assert "state.activeRoomId=entry.id||ensureRoom(name).room_id" in app
     assert app.index("if(snapshot.ok)") < app.index("await prefillPlannedUnits(record")
+
+
+def test_planned_technical_prefill_uses_system_identity(tmp_path: Path) -> None:
+    app = _client(tmp_path).get("/ovk/falt/app.js").text
+    assert "selectedSystems.has(space.system_id)" in app
+    assert "space_id:space.space_id,inspection_id:inspectionId" in app
+    assert "system_id:space.system_id" in app
+    assert "const checklist=state.checklists[space.kind]" in app
+    assert "if(!draft.units.length&&!draft.technical_spaces.length)return false" in app
+    assert "label:item.label,status:'not_checked',note:''" in app
