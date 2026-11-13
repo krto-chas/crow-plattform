@@ -101,7 +101,11 @@ def ovk_field_router(data_root: Path) -> APIRouter:
         data = _validated_payload(payload)
         normalized = _field_data_to_payload(data)
         expected = request.headers.get("X-OVK-Base-Revision")
-        if expected is not None and expected != "new" and not re.fullmatch(r"[0-9a-f]{64}", expected):
+        if (
+            expected is not None
+            and expected != "new"
+            and not re.fullmatch(r"[0-9a-f]{64}", expected)
+        ):
             raise HTTPException(status_code=422, detail={"code": "INVALID_OVK_REVISION"})
         snapshot_sha256 = repository.save(inspection_id, normalized, expected)
         return {
@@ -466,9 +470,7 @@ class _FieldSyncRepository:
     def __init__(self, data_root: Path) -> None:
         self._root = data_root / "ovk-field-sync"
 
-    def save(
-        self, inspection_id: str, payload: dict[str, Any], expected: str | None = None
-    ) -> str:
+    def save(self, inspection_id: str, payload: dict[str, Any], expected: str | None = None) -> str:
         _validate_identifier(inspection_id)
         canonical = json.dumps(
             payload,
