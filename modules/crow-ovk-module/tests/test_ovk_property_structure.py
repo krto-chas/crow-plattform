@@ -59,3 +59,19 @@ def test_inventory_editor_is_served(tmp_path: Path) -> None:
     assert "revision!==inventoryRevision" in script.text
     assert "inventoryReset(saved.fastighet)" in script.text
     assert "inventory.technical_spaces.some" in script.text
+
+
+def test_bulk_inventory_editor_is_served(tmp_path: Path) -> None:
+    app = FastAPI()
+    app.include_router(ovk_fastighet_router(tmp_path))
+    client = TestClient(app)
+    page = client.get("/ovk/fastighet")
+    script = client.get("/ovk/fastighet/app.js")
+    assert page.status_code == 200
+    assert script.status_code == 200
+    assert 'id="bulkPreview"' in page.text
+    assert 'id="bulkApply" disabled' in page.text
+    assert "function bulkPlan()" in script.text
+    assert "numbers.filter(n=>existing.has(n))" in script.text
+    assert "inventory.units.push(...additions)" in script.text
+    assert "JSON.stringify(plan)!==JSON.stringify(bulkPreview)" in script.text
