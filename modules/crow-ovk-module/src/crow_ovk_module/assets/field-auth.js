@@ -67,13 +67,14 @@ syncPendingMedia = async function () {
       '/api/ovk/field/media/' + encodeURIComponent(state.inspection_id) + '/' + encodeURIComponent(photo.photo_id),
       {
         method: 'PUT',
-        headers: {'content-type': photo.mime_type},
+        headers: {'content-type': photo.mime_type, 'X-OVK-Base-Revision': state.last_sync},
         body: media.blob
       }
     );
     const receipt = await response.json();
     if (!response.ok) throw new Error(JSON.stringify(receipt));
     photo.sync_status = 'synced';
+    state.last_sync = receipt.snapshot_sha256;
     media.media_id = receipt.media_id;
     media.evidence_id = receipt.evidence_id;
     media.synced_at = now();

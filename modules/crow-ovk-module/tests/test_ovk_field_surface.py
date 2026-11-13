@@ -471,3 +471,11 @@ def test_field_snapshot_atomic_revision_conflict(tmp_path: Path) -> None:
     assert rejected.json()["detail"]["code"] == "OVK_FIELD_REVISION_CONFLICT"
     assert client.put(url, json=_field_payload()).status_code == 409
     assert client.get(url).json() == saved
+
+
+def test_field_restore_downloads_verified_media(tmp_path: Path) -> None:
+    app = _client(tmp_path).get("/ovk/falt/app.js").text
+    assert "async function restoreVerifiedMedia(" in app
+    assert "blob.size!==receipt.size_bytes" in app
+    assert "digest!==photo.sha256.toLowerCase()" in app
+    assert "await restoreVerifiedMedia(inspectionId,data.photos,photos)" in app

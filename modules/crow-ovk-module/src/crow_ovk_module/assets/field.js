@@ -125,7 +125,7 @@ async function restoreFromServer(){const sourceId=$('history').value;const newId
 async function restoreLatest(requested=null){const drafts=await dbGetAll('drafts');if(!drafts.length)return false;drafts.sort((a,b)=>String(b.updated_at).localeCompare(String(a.updated_at)));const draft=requested?drafts.find(item=>item.inspection_id===requested.inspection_id&&item.project_id===requested.project_id):drafts[0];if(!draft)return false;Object.assign(state,DEFAULT_STATE(),{project_id:draft.project_id||'adhoc',inspection_id:draft.inspection_id||'',inspector:draft.inspector||'',system_type:draft.system_type||'F',object_type:draft.object_type||'flerbostadshus',previous_inspection_id:draft.previous_inspection_id||null,historical_findings:draft.historical_findings||[],units:draft.units||[],rooms:draft.rooms||[],findings:draft.findings||[],photos:draft.photos||[],measurements:draft.measurements||[],window_vents:draft.window_vents||[],technical_spaces:draft.technical_spaces||[],checkpoints:draft.checkpoints||[],dirty:Boolean(draft.dirty),last_sync:draft.last_sync||null,defects:state.defects,checklists:state.checklists});$('inspection').value=state.inspection_id;$('inspector').value=state.inspector;$('systemType').value=state.system_type;$('objectType').value=state.object_type;ensureProject(state.project_id);$('project').value=state.project_id;$('draftStatus').textContent='Återställd lokal session · '+state.inspection_id;if(state.units.length){renderRond();view('viewRond')}return true}
 async function syncContext(){const response=await fetch('/api/ovk/field/context/'+encodeURIComponent(state.inspection_id),{method:'PUT',headers:{'content-type':'application/json'},body:JSON.stringify({project_id:state.project_id,inspector:state.inspector,previous_inspection_id:state.previous_inspection_id,system_type:state.system_type})});const data=await response.json();if(!response.ok)throw new Error(JSON.stringify(data));return data}
 async function syncSnapshot(){const response=await fetch('/api/ovk/field/sync/'+encodeURIComponent(state.inspection_id),{method:'PUT',headers:{'content-type':'application/json','X-OVK-Base-Revision':state.last_sync||'new'},body:JSON.stringify(payload())});const data=await response.json();if(!response.ok)throw new Error(JSON.stringify(data));state.last_sync=data.snapshot_sha256;return data}
-async function syncPendingMedia(){let uploaded=0;for(const photo of state.photos.filter(item=>item.sync_status!=='synced')){const media=await dbGet('media',photo.photo_id);if(!media||!media.blob)throw new Error('Saknar lokal mediablob för '+photo.photo_id);const response=await fetch('/api/ovk/field/media/'+encodeURIComponent(state.inspection_id)+'/'+encodeURIComponent(photo.photo_id),{method:'PUT',headers:{'content-type':photo.mime_type},body:media.blob});const receipt=await response.json();if(!response.ok)throw new Error(JSON.stringify(receipt));photo.sync_status='synced';media.media_id=receipt.media_id;media.evidence_id=receipt.evidence_id;media.synced_at=now();await dbPut('media',media);uploaded+=1}return uploaded}
+async function syncPendingMedia(){let uploaded=0;for(const photo of state.photos.filter(item=>item.sync_status!=='synced')){const media=await dbGet('media',photo.photo_id);if(!media||!media.blob)throw new Error('Saknar lokal mediablob för '+photo.photo_id);const response=await fetch('/api/ovk/field/media/'+encodeURIComponent(state.inspection_id)+'/'+encodeURIComponent(photo.photo_id),{method:'PUT',headers:{'content-type':photo.mime_type,'X-OVK-Base-Revision':state.last_sync},body:media.blob});const receipt=await response.json();if(!response.ok)throw new Error(JSON.stringify(receipt));photo.sync_status='synced';state.last_sync=receipt.snapshot_sha256;media.media_id=receipt.media_id;media.evidence_id=receipt.evidence_id;media.synced_at=now();await dbPut('media',media);uploaded+=1}return uploaded}
 async function syncDraft(){if(!state.inspection_id){$('syncStatus').textContent='Starta en rondering först.';return}if(!navigator.onLine){$('syncStatus').textContent='Offline · allt ligger kvar säkert lokalt.';return}try{$('syncStatus').className='status';$('syncStatus').textContent='Synkar kontext…';await syncContext();$('syncStatus').textContent='Synkar snapshot…';const summary=await syncSnapshot();const uploaded=await syncPendingMedia();if(uploaded){$('syncStatus').textContent='Media verifierad · uppdaterar snapshot…';await syncSnapshot()}state.dirty=false;await writeDraft(false);$('syncStatus').className='status pass';$('syncStatus').textContent='Synkad · '+state.last_sync.slice(0,12)+'… · '+uploaded+' bilder · täckning '+(summary.coverage_complete?'komplett':'ofullständig')}catch(error){state.dirty=true;await writeDraft(true);$('syncStatus').className='status warn';$('syncStatus').textContent='Synkfel: '+crowErrorText(error)}}
 $('validate').onclick=async()=>{try{const response=await fetch('/api/ovk/field/validate',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(payload())});const data=await response.json();if(!response.ok)throw new Error(JSON.stringify(data));$('syncStatus').className='status pass';$('syncStatus').textContent='Giltig · '+data.units+' enheter · '+data.measurements+' mätningar · '+data.findings+' anm. · täckning '+(data.coverage_complete?'komplett':'ofullständig')}catch(error){$('syncStatus').className='status warn';$('syncStatus').textContent='Validering: '+crowErrorText(error)}};
 $('sync').onclick=syncDraft;
@@ -133,6 +133,26 @@ $('restore').onclick=restoreFromServer;
 $('project').addEventListener('change',prefillObjectType);$('project').onchange=loadHistory;
 window.addEventListener('online',updateNetwork);window.addEventListener('offline',updateNetwork);
 
+async function restoreVerifiedMedia(inspectionId,photos,verified){
+  if(photos.length&&!globalThis.crypto?.subtle)throw new Error('Bildverifiering kräver HTTPS.');
+  for(const photo of photos){
+    const receipt=verified.find(v=>v.photo_id===photo.photo_id&&v.verified&&v.sha256===photo.sha256);
+    if(!receipt)throw new Error('Verifierat bildkvitto saknas.');
+    const existing=await dbGet('media',photo.photo_id);
+    if(existing&&existing.inspection_id!==inspectionId)throw new Error('Foto-ID finns i en annan lokal besiktning.');
+    const url='/api/ovk/field/media/'+encodeURIComponent(inspectionId)+'/'+encodeURIComponent(photo.photo_id)+'/content';
+    const response=await fetch(url,{credentials:'same-origin',cache:'no-store'});
+    if(!response.ok)throw new Error('Bildhämtning misslyckades: '+photo.photo_id);
+    const mime=(response.headers.get('content-type')||'').split(';')[0].toLowerCase();
+    if(mime!==photo.mime_type.toLowerCase()||!mime.startsWith('image/'))throw new Error('Bildtyp stämmer inte.');
+    const blob=await response.blob();
+    if(!blob.size||blob.size>25*1024*1024||blob.size!==receipt.size_bytes)throw new Error('Bildstorlek stämmer inte.');
+    const hash=await crypto.subtle.digest('SHA-256',await blob.arrayBuffer());
+    const digest=[...new Uint8Array(hash)].map(v=>v.toString(16).padStart(2,'0')).join('');
+    if(digest!==photo.sha256.toLowerCase())throw new Error('Bildens kontrollsumma stämmer inte: '+photo.photo_id);
+    await dbPut('media',{photo_id:photo.photo_id,inspection_id:inspectionId,name:photo.local_uri.replace(/^indexeddb:/,''),mime_type:photo.mime_type,sha256:digest,blob,media_id:receipt.media_id,evidence_id:receipt.evidence_id,synced_at:now()});
+  }
+}
 async function resumeServerInspection(projectId,inspectionId,snapshot,workbench,person,property,types){
   const data=snapshot.payload;
   if(snapshot.inspection_id!==inspectionId||data?.inspection_id!==inspectionId||
@@ -147,6 +167,8 @@ async function resumeServerInspection(projectId,inspectionId,snapshot,workbench,
   const draft={...data,project_id:projectId,inspector:workbench.inspector||person.namn,system_type:context.system_type,object_type:property.fastighetstyp,previous_inspection_id:workbench.previous_inspection_id||null,photos:data.photos.map(p=>({...p,sync_status:'synced'})),dirty:false,last_sync:snapshot.snapshot_sha256,updated_at:now()};
   // The server snapshot omits display-only labels; reconstruct from stable IDs.
   draft.findings=data.findings.map(f=>({...f,unit_number:data.units.find(u=>u.unit_id===f.unit_id)?.number||'',room_name:data.rooms.find(r=>r.room_id===f.room_id)?.name||null}));
+  if(await dbGet('drafts',inspectionId))throw new Error('Ett lokalt utkast finns redan. Ladda om för att öppna det.');
+  await restoreVerifiedMedia(inspectionId,data.photos,photos);
   if(await dbGet('drafts',inspectionId))throw new Error('Ett lokalt utkast finns redan. Ladda om för att öppna det.');
   await dbPut('drafts',draft);
   await restoreLatest({project_id:projectId,inspection_id:inspectionId});

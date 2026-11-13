@@ -10,6 +10,8 @@ from typing import Any
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import Response
 
+from crow_ovk_module.ovk_field_surface import _FieldSyncRepository
+
 _SAFE_ID = re.compile(r"^[A-Za-z0-9._-]+$")
 _MAX_MEDIA_BYTES = 25 * 1024 * 1024
 
@@ -37,6 +39,14 @@ def ovk_field_media_router(data_root: Path) -> APIRouter:
                 detail={"code": "OVK_FIELD_SNAPSHOT_REQUIRED"},
             ) from exc
 
+        expected = request.headers.get("X-OVK-Base-Revision")
+        canonical = json.dumps(snapshot, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+        current = sha256(canonical.encode("utf-8")).hexdigest()
+        if expected is not None and expected != current:
+            raise HTTPException(
+                status_code=409,
+                detail={"code": "OVK_FIELD_REVISION_CONFLICT", "current_revision": current},
+            )
         photo = _find_photo(snapshot, photo_id)
         content_type = request.headers.get("content-type", "").split(";", 1)[0].lower()
         expected_mime = str(photo.get("mime_type", "")).lower()
@@ -75,8 +85,8 @@ def ovk_field_media_router(data_root: Path) -> APIRouter:
             digest=digest,
             content=content,
         )
-        repository.mark_photo_synced(inspection_id, snapshot, photo_id)
-        return {**receipt, "sync_status": "synced"}
+        revision = repository.mark_photo_synced(inspection_id, snapshot, photo_id)
+        return {**receipt, "sync_status": "synced", "snapshot_sha256": revision}
 
     @router.get(
         "/api/ovk/field/media/{inspection_id}/{photo_id}",
@@ -137,6 +147,7 @@ def _find_photo(snapshot: dict[str, Any], photo_id: str) -> dict[str, Any]:
 
 class _FieldMediaRepository:
     def __init__(self, data_root: Path) -> None:
+        self._sync = _FieldSyncRepository(data_root)
         self._snapshot_root = data_root / "ovk-field-sync"
         self._media_root = data_root / "ovk-field-media"
 
@@ -197,11 +208,12 @@ class _FieldMediaRepository:
         inspection_id: str,
         snapshot: dict[str, Any],
         photo_id: str,
-    ) -> None:
+    ) -> str:
+        canonical = json.dumps(snapshot, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+        expected = sha256(canonical.encode("utf-8")).hexdigest()
         photo = _find_photo(snapshot, photo_id)
         photo["sync_status"] = "synced"
-        target = self._snapshot_root / f"{inspection_id}.json"
-        self._write_json(target, snapshot)
+        return self._sync.save(inspection_id, snapshot, expected)
 
     @staticmethod
     def _write_json(target: Path, payload: dict[str, Any]) -> None:

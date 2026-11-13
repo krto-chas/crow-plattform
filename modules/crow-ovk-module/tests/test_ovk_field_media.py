@@ -148,3 +148,20 @@ def test_media_upload_rejects_mime_mismatch(tmp_path: Path) -> None:
     )
     assert response.status_code == 415
     assert response.json()["detail"]["code"] == "OVK_MEDIA_TYPE_MISMATCH"
+
+
+def test_media_revision_tracks_snapshot_and_rejects_stale_upload(tmp_path: Path) -> None:
+    client = _client(tmp_path)
+    content = b"photo"
+    snapshot_url = "/api/ovk/field/sync/ovk-1"
+    media_url = "/api/ovk/field/media/ovk-1/photo-1"
+    first = client.put(snapshot_url, json=_payload(sha256(content).hexdigest()))
+    base = first.json()["snapshot_sha256"]
+    headers = {"content-type": "image/jpeg", "X-OVK-Base-Revision": base}
+    uploaded = client.put(media_url, content=content, headers=headers)
+    assert uploaded.status_code == 200
+    current = client.get(snapshot_url).json()
+    assert uploaded.json()["snapshot_sha256"] == current["snapshot_sha256"]
+    assert current["snapshot_sha256"] != base
+    assert client.put(media_url, content=content, headers=headers).status_code == 409
+    assert client.get(snapshot_url).json() == current
