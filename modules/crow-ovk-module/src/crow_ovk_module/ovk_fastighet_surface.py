@@ -114,7 +114,12 @@ def ovk_fastighet_router(data_root: Path) -> APIRouter:
         if not any(b.byggnad_id == building_id for b in property_record.byggnader):
             raise HTTPException(status_code=404, detail={"code": "BYGGNAD_NOT_FOUND"})
         return (
-            data_root / "projects" / project_id / "ovk-structure" / fastighet_id / f"{building_id}.json"
+            data_root
+            / "projects"
+            / project_id
+            / "ovk-structure"
+            / fastighet_id
+            / f"{building_id}.json"
         )
 
     @router.get(
@@ -144,7 +149,9 @@ def ovk_fastighet_router(data_root: Path) -> APIRouter:
                 status_code=422, detail={"code": "INVALID_OVK_STRUCTURE", "message": str(exc)}
             ) from exc
         path.parent.mkdir(parents=True, exist_ok=True)
-        with NamedTemporaryFile(mode="w", encoding="utf-8", dir=path.parent, delete=False) as temporary:
+        with NamedTemporaryFile(
+            mode="w", encoding="utf-8", dir=path.parent, delete=False
+        ) as temporary:
             temp_path = Path(temporary.name)
             json.dump(structure, temporary, ensure_ascii=False, indent=2)
         try:
@@ -220,7 +227,9 @@ def _validate_structure(payload: dict[str, Any]) -> dict[str, Any]:
         kind = required(row, "system_type")
         if kind not in {"S", "F", "FT", "FTX", "FX"}:
             raise ValueError("invalid system_type")
-        systems.append({"system_id": system_id, "system_type": kind, "label": required(row, "label")})
+        systems.append(
+            {"system_id": system_id, "system_type": kind, "label": required(row, "label")}
+        )
 
     unit_ids: set[str] = set()
     room_ids: set[str] = set()
