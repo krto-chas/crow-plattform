@@ -505,6 +505,10 @@ def test_planned_technical_prefill_uses_system_identity(tmp_path: Path) -> None:
 def test_planned_history_is_separate_from_current_results(tmp_path: Path) -> None:
     app = _client(tmp_path).get("/ovk/falt/app.js").text
     assert "item.unit_id===unit.unit_id" in app
+    assert "function historyDisclosure" in app
+    assert "details.open=wasOpen" in app
+    assert "panel.dataset.historyKey===key" in app
+    assert "anmärkning(ar) från föregående OVK" in app
     assert "item.room_id===state.activeRoomId" in app
     assert "c.space_id===space.space_id" in app
     assert "historical_findings:data.historical_findings" in app
