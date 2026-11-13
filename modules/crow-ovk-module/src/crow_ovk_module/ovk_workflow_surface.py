@@ -111,7 +111,11 @@ def ovk_workflow_router(data_root: Path) -> APIRouter:
             elif record.planning is not None:
                 obj = record.inspection.ovk_object
                 path = (
-                    data_root / "projects" / project_id / "ovk-structure" / obj.object_id
+                    data_root
+                    / "projects"
+                    / project_id
+                    / "ovk-structure"
+                    / obj.object_id
                     / f"{obj.building_id}.json"
                 )
                 structure = (
