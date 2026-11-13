@@ -35,6 +35,7 @@ from crow_ovk_field import (
     parse_flow_value,
     validate_field_data,
 )
+from crow_ovk_field.models import FindingFollowup
 
 _SAFE_ID = re.compile(r"^[A-Za-z0-9._-]+$")
 
@@ -293,6 +294,17 @@ def _field_data_from_payload(payload: dict[str, Any]) -> FieldInspectionData:
         )
         for item in _dict_items(payload.get("checkpoints", []), "checkpoints")
     )
+    followups = tuple(
+        FindingFollowup(
+            source_inspection_id=str(item["source_inspection_id"]),
+            source_finding_id=str(item["source_finding_id"]),
+            unit_id=str(item["unit_id"]),
+            status=str(item["status"]),
+            note=str(item.get("note", "")),
+            current_finding_id=_optional_str(item.get("current_finding_id")),
+        )
+        for item in _dict_items(payload.get("finding_followups", []), "finding_followups")
+    )
     return FieldInspectionData(
         inspection_id=inspection_id,
         units=units,
@@ -303,6 +315,7 @@ def _field_data_from_payload(payload: dict[str, Any]) -> FieldInspectionData:
         window_vents=window_vents,
         technical_spaces=technical_spaces,
         checkpoints=checkpoints,
+        finding_followups=followups,
     )
 
 
@@ -324,6 +337,23 @@ def _key_from_payload(value: Any) -> KeyLog | None:
 def _field_data_to_payload(data: FieldInspectionData) -> dict[str, Any]:
     return {
         "inspection_id": data.inspection_id,
+        **(
+            {
+                "finding_followups": [
+                    {
+                        "source_inspection_id": item.source_inspection_id,
+                        "source_finding_id": item.source_finding_id,
+                        "unit_id": item.unit_id,
+                        "status": item.status,
+                        "note": item.note,
+                        "current_finding_id": item.current_finding_id,
+                    }
+                    for item in data.finding_followups
+                ]
+            }
+            if data.finding_followups
+            else {}
+        ),
         "units": [
             {
                 "unit_id": item.unit_id,
