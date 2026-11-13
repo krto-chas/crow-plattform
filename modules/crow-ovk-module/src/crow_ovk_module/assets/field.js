@@ -139,11 +139,11 @@ async function resumeServerInspection(projectId,inspectionId,snapshot,workbench,
      workbench.inspection_id!==inspectionId||workbench.project_id!==projectId||
      workbench.snapshot_sha256!==snapshot.snapshot_sha256)throw new Error('Serverunderlagets identitet eller revision stämmer inte.');
   const photos=[...workbench.units.flatMap(u=>u.findings.flatMap(f=>f.photos)),...workbench.orphan_photos];
-  if(data.photos.some(p=>!photos.some(v=>v.photo_id===p.photo_id&&v.verified&&v.sha256===p.sha256)))throw new Error('Serverunderlaget innehåller bilder som inte är verifierade. Synka klart på ursprungsenheten.');
+  if(data.photos.some(p=>p.sync_status!=='synced'||!photos.some(v=>v.photo_id===p.photo_id&&v.verified&&v.sha256===p.sha256)))throw new Error('Serverunderlaget innehåller bilder som inte är verifierade. Synka klart på ursprungsenheten.');
   const history=await fetch('/api/ovk/field/history/'+encodeURIComponent(inspectionId),{cache:'no-store'});
   if(!history.ok)throw new Error('Kunde inte läsa fältkontext.');
   const context=await history.json();
-  if(context.project_id!==projectId||!types.includes(context.system_type))throw new Error('Fältkontexten stämmer inte med uppdraget.');
+  if(context.project_id!==projectId||context.source_inspection_id!==inspectionId||context.snapshot_sha256!==snapshot.snapshot_sha256||!types.includes(context.system_type))throw new Error('Fältkontexten stämmer inte med uppdraget.');
   const draft={...data,project_id:projectId,inspector:workbench.inspector||person.namn,system_type:context.system_type,object_type:property.fastighetstyp,previous_inspection_id:workbench.previous_inspection_id||null,photos:data.photos.map(p=>({...p,sync_status:'synced'})),dirty:false,last_sync:snapshot.snapshot_sha256,updated_at:now()};
   // The server snapshot omits display-only labels; reconstruct from stable IDs.
   draft.findings=data.findings.map(f=>({...f,unit_number:data.units.find(u=>u.unit_id===f.unit_id)?.number||'',room_name:data.rooms.find(r=>r.room_id===f.room_id)?.name||null}));
