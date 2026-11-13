@@ -133,7 +133,8 @@ Milstolpar:
 - **0.9 Fältklar:** R1–R3 verifierade på verklig enhet, inkl. fullständig datainsamling och offline.
 - **1.0 Produktionsklar för egen verksamhet:** R1–R6 verifierade; hela leveransen kan genomföras, granskas och skickas. Grundläggande historik/ombesiktning/bevakning i befintlig kod integreras där nödvändigt för pilot.
 - **1.1 Kommersiell flerföretagsrelease:** R7–R8 samt extern kundacceptans. Ingen publik flerorganisationsdrift före godkända säkerhetsgrindar.
-- **Senare:** ritningsnavigation, beständiga stam-/donrelationer, avancerad historik-/avvikelseanalys, Vent-kalkyl/åtgärdsoffert, energimotor, förvaltarportal, injustering. Ingen av dessa är blockerande för 1.0, utöver redan nödvändiga data för korrekt OVK.
+- **2.0:** CAD Light, schakt-/kanaltopologi, system- och styrscheman samt driftkort. Se [OVK 2.0 vision](OVK_PRODUCT_VISION_2_0.md). Ingen av dessa funktioner blockerar 1.0.
+- **Senare:** avancerad historik-/avvikelseanalys, Vent-kalkyl/åtgärdsoffert, energimotor, förvaltarportal, injustering.
 
 ## 9. Pilot, verifiering och definition of done
 
@@ -173,3 +174,8 @@ Starta OVK-R1 med inventering av befintlig dashboard, uppdrags-/fastighetsmodell
 - [Protokollbrygga](../modules/crow-ovk-module/src/crow_ovk_workflow/field_bridge.py)
 - [Protokoll-API](../modules/crow-ovk-module/src/crow_ovk_module/ovk_protokoll_surface.py)
 - [Pass 110b, PR #152](https://github.com/krto-chas/crow-plattform/pull/152)
+
+
+### Prioriteringsbeslut efter PR #174
+
+Beständiga mätpunkter är införda i byggnadsregistret. Nästa R1-del är lägenhetsmallar med suffixregler (XX01, XX02 osv.), förhandsgranskning och unika instans-ID:n. Därefter prioriteras uppföljning av tidigare anmärkningar, komplett fältflöde, synk-/integritetsgrindar, protokollbrygga, dokumentpaket och verkliga piloter enligt R1–R6. CAD Light och driftkort är uttryckligen uppskjutna till 2.0. Ändra inte befintliga releasegrindar för att tidigarelägga dessa funktioner.
