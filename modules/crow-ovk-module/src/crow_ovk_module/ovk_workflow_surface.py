@@ -111,7 +111,10 @@ def ovk_workflow_router(data_root: Path) -> APIRouter:
                         raise ValueError("historical reference belongs to another building")
                     if not reference.protocol_ready:
                         raise ValueError("historical reference is not protocol ready")
-                    if reference.planning and reference.planning.planned_date >= record.planning.planned_date:
+                    if (
+                        reference.planning
+                        and reference.planning.planned_date >= record.planning.planned_date
+                    ):
                         raise ValueError("historical reference must precede planned inspection")
                 if previous is None or previous.planning != record.planning:
                     property_record = properties.load(project_id, obj.object_id)
