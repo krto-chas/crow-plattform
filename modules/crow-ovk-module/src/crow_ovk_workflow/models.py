@@ -46,6 +46,7 @@ class OvkWorkflowRecord:
     updated_at: str = ""
     coverage: InspectionCoverage | None = None
     planning: InspectionPlanning | None = None
+    building_structure_json: str | None = None
 
     @property
     def unresolved_review_count(self) -> int:

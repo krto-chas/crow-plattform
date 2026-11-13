@@ -1,6 +1,7 @@
 # ruff: noqa: E501
 from __future__ import annotations
 
+import json
 from dataclasses import replace
 from pathlib import Path
 from typing import Any
@@ -70,6 +71,8 @@ def ovk_workflow_router(data_root: Path) -> APIRouter:
         if not isinstance(payload, dict):
             raise HTTPException(status_code=422, detail={"code": "INVALID_OVK_WORKFLOW"})
         candidate = dict(payload)
+        candidate.pop("building_structure", None)
+        candidate.pop("building_structure_sha256", None)
         inspection = candidate.get("inspection")
         if not isinstance(inspection, dict):
             raise HTTPException(status_code=422, detail={"code": "INVALID_OVK_INSPECTION"})
@@ -103,6 +106,29 @@ def ovk_workflow_router(data_root: Path) -> APIRouter:
                     old = previous.inspection.ovk_object
                     if (old.object_id, old.building_id) != (obj.object_id, obj.building_id):
                         raise ValueError("planned inspection property context cannot change")
+            if previous is not None:
+                record = replace(record, building_structure_json=previous.building_structure_json)
+            elif record.planning is not None:
+                obj = record.inspection.ovk_object
+                path = (
+                    data_root
+                    / "projects"
+                    / project_id
+                    / "ovk-structure"
+                    / obj.object_id
+                    / f"{obj.building_id}.json"
+                )
+                structure = (
+                    json.loads(path.read_text(encoding="utf-8"))
+                    if path.exists()
+                    else {"units": [], "systems": [], "technical_spaces": []}
+                )
+                record = replace(
+                    record,
+                    building_structure_json=json.dumps(
+                        structure, ensure_ascii=False, sort_keys=True, separators=(",", ":")
+                    ),
+                )
             repository.save(record)
         except (ValueError, TypeError, FileNotFoundError) as exc:
             raise HTTPException(

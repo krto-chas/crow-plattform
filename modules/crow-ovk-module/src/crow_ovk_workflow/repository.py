@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from dataclasses import replace
 from pathlib import Path
 
 from .models import OvkWorkflowRecord
@@ -17,6 +18,10 @@ class OvkWorkflowRepository:
         project_id = record.inspection.ovk_object.project_id
         inspection_id = record.inspection.inspection_id
         path = self._path(project_id, inspection_id)
+        if path.exists():
+            previous = self.load(project_id, inspection_id)
+            if previous.building_structure_json is not None:
+                record = replace(record, building_structure_json=previous.building_structure_json)
         path.parent.mkdir(parents=True, exist_ok=True)
         temp = path.with_suffix(".tmp")
         temp.write_text(
