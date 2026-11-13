@@ -362,6 +362,7 @@ def _field_data_from_payload(payload: dict[str, Any]) -> FieldInspectionData:
             status=str(item["status"]),
             note=str(item.get("note", "")),
             current_finding_id=_optional_str(item.get("current_finding_id")),
+            photo_ids=_followup_photo_ids(item.get("photo_ids", [])),
         )
         for item in _dict_items(payload.get("finding_followups", []), "finding_followups")
     )
@@ -377,6 +378,14 @@ def _field_data_from_payload(payload: dict[str, Any]) -> FieldInspectionData:
         checkpoints=checkpoints,
         finding_followups=followups,
     )
+
+
+def _followup_photo_ids(value: Any) -> tuple[str, ...]:
+    if not isinstance(value, list) or any(
+        not isinstance(item, str) or not item.strip() for item in value
+    ):
+        raise ValueError("followup photo_ids must be a list of identifiers")
+    return tuple(value)
 
 
 def _key_from_payload(value: Any) -> KeyLog | None:
@@ -407,6 +416,7 @@ def _field_data_to_payload(data: FieldInspectionData) -> dict[str, Any]:
                         "status": item.status,
                         "note": item.note,
                         "current_finding_id": item.current_finding_id,
+                        **({"photo_ids": list(item.photo_ids)} if item.photo_ids else {}),
                     }
                     for item in data.finding_followups
                 ]
