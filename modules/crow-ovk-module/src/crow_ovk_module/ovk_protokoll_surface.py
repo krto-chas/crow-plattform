@@ -26,8 +26,8 @@ from crow_ovk_workflow import (
 )
 
 from .ovk_field_surface import (
-    _FieldSyncRepository,
     _field_data_from_payload,
+    _FieldSyncRepository,
     _validate_identifier,
     _verify_followup_sources,
 )
