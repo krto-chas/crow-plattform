@@ -204,11 +204,47 @@ $('protocol').onclick = () => {
 let draftProperties = [];
 let draftRevision = 0;
 let draftId = null;
+let draftStructure = null;
+let draftStructureRevision = 0;
+function resetDraftSystems(){
+  ++draftStructureRevision;draftStructure=null;
+  $('draftRegisteredSystems').replaceChildren();$('draftRegisteredSystems').hidden=true;
+  $('draftSystems').replaceChildren();$('draftSystems').hidden=true;$('draftAddSystem').hidden=true;
+  $('draftCreate').disabled=true;$('draftSystemStatus').textContent='Välj byggnad.';
+}
+async function loadDraftStructure(){
+  resetDraftSystems();
+  const revision=draftStructureRevision;
+  const project=$('draftProject').value,property=$('draftProperty').value,building=$('draftBuilding').value;
+  if(!project||!property||!building)return;
+  $('draftSystemStatus').textContent='Laddar registrerade system…';
+  try{
+    const structure=await api('/api/ovk/projects/'+enc(project)+'/fastighet/'+enc(property)+'/byggnad/'+enc(building)+'/struktur',{cache:'no-store'});
+    if(revision!==draftStructureRevision)return;
+    if(!Array.isArray(structure.systems)||!Array.isArray(structure.technical_spaces))throw new Error('Ogiltig byggnadsstruktur.');
+    draftStructure=structure;
+    if(structure.systems.length){
+      const container=$('draftRegisteredSystems');container.hidden=false;
+      for(const system of structure.systems){
+        const row=document.createElement('div');row.className='draft-system';
+        const label=document.createElement('label'),check=document.createElement('input');check.type='checkbox';check.className='draft-registered-system';check.style.width='auto';check.value=system.system_id;
+        label.append(check,document.createTextNode(' '+system.label+' · '+system.system_type));row.append(label);
+        const details=document.createElement('p');details.className='muted';details.textContent=structure.technical_spaces.filter(s=>s.system_id===system.system_id).map(s=>s.label+(s.location?' – '+s.location:'')).join('; ')||'Inga registrerade installationer';row.append(details);container.append(row);
+        check.onchange=()=>{$('draftCreate').disabled=!container.querySelector('input:checked')};
+      }
+      $('draftSystemStatus').textContent='Markera de registrerade system som ska besiktigas.';
+    }else{
+      $('draftSystems').hidden=false;$('draftAddSystem').hidden=false;draftAddSystem();$('draftCreate').disabled=false;
+      $('draftSystemStatus').textContent='Inga registrerade system. Ange system manuellt.';
+    }
+  }catch(error){if(revision===draftStructureRevision)$('draftSystemStatus').textContent='Kunde inte läsa byggnadsstrukturen: '+error.message;}
+}
 function draftOptions(select, items, value, label, placeholder) {
   select.replaceChildren(new Option(placeholder, ''));
   for (const item of items) select.add(new Option(label(item), value(item)));
 }
 function draftBuildingOptions() {
+  resetDraftSystems();
   const property = draftProperties.find(p => p.fastighet_id === $('draftProperty').value);
   draftOptions($('draftBuilding'), property?.byggnader || [], b => b.byggnad_id, b => b.internt_namn, 'Välj byggnad');
   $('draftOwner').textContent = property ? [property.byggnadsagare_namn, property.byggnadens_adress?.gata].filter(Boolean).join(' · ') : '';
@@ -228,7 +264,7 @@ async function draftLoadProperties() {
     draftProperties = data.fastigheter || [];
     draftOptions($('draftProperty'), draftProperties, p => p.fastighet_id, p => p.fastighetsbeteckning, 'Välj fastighet');
     $('draftStatus').textContent = draftProperties.length ? 'Välj fastighet och byggnad.' : 'Inga fastigheter. Registrera en fastighet först.';
-    $('draftCreate').disabled = !draftProperties.length;
+    $('draftCreate').disabled = true;
   } catch (error) {
     if (revision === draftRevision) $('draftStatus').textContent = 'Kunde inte läsa fastigheter: ' + error.message;
   }
@@ -246,7 +282,9 @@ async function createDraft(event) {
   const property = draftProperties.find(p => p.fastighet_id === $('draftProperty').value);
   const building = property?.byggnader?.find(b => b.byggnad_id === $('draftBuilding').value);
   if (!project || !property || !building) { $('draftStatus').textContent = 'Välj fastighet och byggnad.'; return; }
-  const systems = [...$('draftSystems').children].map(row => {
+  if(!draftStructure){$('draftStatus').textContent='Ladda byggnadens system först.';return;}
+  const selected=new Set([...$('draftRegisteredSystems').querySelectorAll('input:checked')].map(input=>input.value));
+  const systems = draftStructure.systems.length ? draftStructure.systems.filter(s=>selected.has(s.system_id)).map(s=>({system_id:s.system_id,system_type:s.system_type,label:s.label,source_ref:null})) : [...$('draftSystems').children].map(row => {
     const id = row.querySelector('.draft-system-id').value.trim();
     return {system_id:id, system_type:row.querySelector('.draft-system-type').value, label:row.querySelector('.draft-system-name').value.trim() || id, source_ref:null};
   });
@@ -274,9 +312,9 @@ async function initDraft(projects, requestedProject) {
   if(projects.some(p=>p.project_id===requestedProject)) $('draftProject').value=requestedProject;
   $('draftProject').onchange=draftLoadProperties;
   $('draftProperty').onchange=draftBuildingOptions;
+  $('draftBuilding').onchange=loadDraftStructure;
   $('draftAddSystem').onclick=draftAddSystem;
   $('draftForm').onsubmit=createDraft;
-  draftAddSystem();
   const registry = await api('/api/ovk/registry/besiktningsman');
   draftOptions($('draftInspector'),registry.besiktningsman||[],p=>p.besiktningsman_id,p=>p.namn+' · '+p.behorighet+' · '+p.certnummer,'Välj besiktningsman');
   $('draftFields').disabled=false;
