@@ -106,7 +106,7 @@ function renderInventory(){
     const identity=document.createElement('p');identity.className='muted';identity.textContent='System-ID: '+system.system_id;card.append(identity);
     inventoryInput(card,'Beteckning / namn',system.label,v=>system.label=v);
     inventoryInput(card,'Systemtyp',system.system_type,v=>system.system_type=v,['S','F','FT','FTX','FX'].map(v=>[v,v]));
-    card.append(inventoryButton('Ta bort system',()=>{if(inventory.technical_spaces.some(s=>s.system_id===system.system_id)){inventoryMessage('Ta först bort eller flytta systemets tekniska utrymmen.',true);return}inventoryRemove(inventory.systems,system)}));
+    card.append(inventoryButton('Ta bort system',()=>{if(inventory.technical_spaces.some(s=>s.system_id===system.system_id)||inventory.units.some(u=>u.rooms.some(r=>(r.measurement_points||[]).some(p=>p.system_id===system.system_id)))){inventoryMessage('Ta först bort eller flytta systemets tekniska utrymmen och mätpunkter.',true);return}inventoryRemove(inventory.systems,system)}));
   }
   for(const unit of inventory.units){
     const card=inventoryCard($('inventoryUnits'));
@@ -114,6 +114,20 @@ function renderInventory(){
     inventoryInput(card,'Typ',unit.kind,v=>unit.kind=v,[['apartment','Lägenhet'],['premises','Lokal']]);
     for(const room of unit.rooms){
       const row=inventoryCard(card);inventoryInput(row,'Rum',room.name,v=>room.name=v);
+      for(const point of (room.measurement_points||[])){
+        const item=inventoryCard(row);
+        inventoryInput(item,'Donets beteckning',point.label,v=>point.label=v);
+        inventoryInput(item,'Dontyp',point.point_type,v=>point.point_type=v,[['franluftsdon','Frånluft'],['tilluftsdon','Tilluft'],['overluftsdon','Överluft']]);
+        inventoryInput(item,'System',point.system_id,v=>point.system_id=v,inventory.systems.map(s=>[s.system_id,s.label||s.system_id]));
+        inventoryInput(item,'Projekterat flöde (l/s)',point.designed_value||'',v=>point.designed_value=v.trim().replace(',','.')||null);
+        item.append(inventoryButton('Ta bort mätpunkt',()=>inventoryRemove(room.measurement_points,point)));
+      }
+      row.append(inventoryButton('+ Mätpunkt',()=>{
+        if(!inventory.systems.length){inventoryMessage('Lägg till ett ventilationssystem först.',true);return}
+        room.measurement_points=room.measurement_points||[];
+        room.measurement_points.push({point_id:inventoryId('point'),label:'',point_type:'franluftsdon',system_id:inventory.systems[0].system_id,designed_value:null,unit_of_measure:'l/s'});
+        inventoryChanged();renderInventory();
+      }));
       row.append(inventoryButton('Ta bort rum',()=>inventoryRemove(unit.rooms,room)));
     }
     card.append(inventoryButton('+ Rum',()=>{unit.rooms.push({room_id:inventoryId('room'),name:''});inventoryChanged();renderInventory()}));
