@@ -457,9 +457,10 @@ def test_field_snapshot_atomic_revision_conflict(tmp_path: Path) -> None:
     def update(number: str) -> int:
         payload = {"inspection_id": "ovk-1", "units": [{"unit_id": "u", "number": number}]}
         with _client(tmp_path) as writer:
-            return writer.put(
+            response = writer.put(
                 url, json=payload, headers={"X-OVK-Base-Revision": revision}
-            ).status_code
+            )
+            return int(response.status_code)
 
     with ThreadPoolExecutor(max_workers=2) as pool:
         results = list(pool.map(update, ["1101", "1102"]))
