@@ -8,7 +8,7 @@ const ROOMS_COMMERCIAL = ['Kontor', 'Vilorum', 'HWC', 'WC', 'Kök', 'Korridor'];
 function roomPresets(){return (state.object_type==='kontorsbyggnad'||state.object_type==='industrifastighet')?ROOMS_COMMERCIAL:ROOMS}
 function isCommercial(){return state.object_type==='kontorsbyggnad'||state.object_type==='industrifastighet'}
 const DEFAULT_STATE = () => ({project_id: 'adhoc', inspection_id: '', inspector: '', system_type: 'F', object_type: 'flerbostadshus',
-  previous_inspection_id: null, historical_findings: [], historical_measurements: [], historical_checkpoints: [], historical_space_photos: [], history_unavailable:false, units: [], rooms: [], findings: [], photos: [],
+  previous_inspection_id: null, historical_findings: [], historical_measurements: [], historical_checkpoints: [], historical_space_photos: [], history_unavailable:false, units: [], rooms: [], findings: [], finding_followups: [], photos: [],
   measurements: [], window_vents: [], technical_spaces: [], checkpoints: [], dirty: false, last_sync: null,
   activeUnitId: null, activeRoomId: null, activeFindingId: null, activeSpaceId: null, defects: [], checklists: {}});
 let state = DEFAULT_STATE();
@@ -22,6 +22,7 @@ function payload(){return {inspection_id:state.inspection_id,object_type:state.o
   units:state.units.map(({unit_id,number,kind,label,status,checked_at,bom_at,bom_note,key,system_type})=>({unit_id,number,kind,label,status,checked_at,bom_at,bom_note,key,system_type:system_type||null})),
   rooms:state.rooms,
   findings:state.findings.map(({unit_number,room_name,...item})=>item),
+  finding_followups:state.finding_followups,
   photos:state.photos,
   measurements:state.measurements,
   window_vents:state.window_vents,
@@ -129,6 +130,73 @@ function historyDisclosure(panel,key,count,photoCount=0){
   title.textContent='Historik – '+(state.previous_inspection_id||'tidigare besiktning');body.append(title);
   details.append(body);panel.append(details);return body;
 }
+const FOLLOWUP_LABELS={not_checked:'Ej återkontrollerad',resolved:'Åtgärdad',remaining:'Kvarstår',changed:'Förändrad anmärkning',not_applicable:'Ej längre tillämplig'};
+function renderFindingFollowup(body,item,unit){
+  const source=item.source_inspection_id;
+  if(!source||source!==state.previous_inspection_id||!item.finding_id)return;
+  const inspectionId=state.inspection_id;
+  const existing=state.finding_followups.find(f=>f.source_inspection_id===source&&f.source_finding_id===item.finding_id);
+  const form=document.createElement('div');form.className='item';
+  const status=document.createElement('select');status.setAttribute('aria-label','Resultat av återkontroll');
+  for(const [value,label] of Object.entries(FOLLOWUP_LABELS))status.add(new Option(label,value));
+  status.value=existing?.status||'not_checked';
+  const note=document.createElement('textarea');note.placeholder='Kommentar till återkontrollen';note.setAttribute('aria-label','Kommentar till återkontrollen');note.value=existing?.note||'';
+  const link=document.createElement('select');link.setAttribute('aria-label','Aktuell anmärkning');
+  link.add(new Option('Välj aktuell anmärkning',''));
+  for(const finding of state.findings.filter(f=>f.unit_id===unit.unit_id&&f.room_id===(item.room_id||null))){
+    link.add(new Option(finding.description||finding.defect_type,finding.finding_id));
+  }
+  link.add(new Option('Skapa ny aktuell anmärkning','__new__'));
+  link.value=existing?.current_finding_id||'';
+  const description=document.createElement('textarea');description.setAttribute('aria-label','Beskrivning av aktuell anmärkning');description.value=item.description||'';
+  const severity=document.createElement('select');severity.setAttribute('aria-label','Klass för aktuell anmärkning');
+  severity.add(new Option('Klass 1','minor'));severity.add(new Option('Klass 2','major'));
+  severity.value=item.severity==='major'?'major':'minor';
+  const message=document.createElement('p');message.setAttribute('role','status');
+  message.textContent=existing?'Sparad: '+FOLLOWUP_LABELS[existing.status]:'Ingen återkontroll registrerad.';
+  const save=document.createElement('button');save.type='button';save.textContent='Spara återkontroll';
+  const needsFinding=()=>status.value==='remaining'||status.value==='changed';
+  const refresh=()=>{
+    link.hidden=!needsFinding();
+    description.hidden=severity.hidden=!needsFinding()||link.value!=='__new__';
+  };
+  status.onchange=link.onchange=refresh;refresh();
+  save.onclick=async()=>{
+    if(state.inspection_id!==inspectionId||state.activeUnitId!==unit.unit_id)return;
+    const result=status.value;const comment=note.value.trim();
+    if((result==='changed'||result==='not_applicable')&&!comment){message.textContent='Ange en kommentar.';return}
+    let current=null;let created=null;
+    if(needsFinding()){
+      if(link.value==='__new__'){
+        const room=item.room_id?state.rooms.find(r=>r.room_id===item.room_id&&r.unit_id===unit.unit_id):null;
+        if(item.room_id&&!room){message.textContent='Det historiska rummet saknas i aktuell besiktning.';return}
+        if(!description.value.trim()){message.textContent='Ange en aktuell beskrivning.';return}
+        created={finding_id:uid('finding'),inspection_id:inspectionId,unit_id:unit.unit_id,unit_number:unit.number,room_id:room?.room_id||null,room_name:room?.name||null,defect_type:item.defect_type,description:description.value.trim(),severity:severity.value,classification:severity.value==='major'?2:1,system_id:item.system_id||null,rule_refs:item.rule_refs||[],origin:'observed'};
+        current=created.finding_id;
+      }else{
+        const selected=state.findings.find(f=>f.finding_id===link.value&&f.unit_id===unit.unit_id&&f.room_id===(item.room_id||null));
+        if(!selected){message.textContent='Välj eller skapa en aktuell anmärkning.';return}
+        current=selected.finding_id;
+      }
+    }
+    if(existing?.current_finding_id&&existing.current_finding_id!==current&&!confirm('Den tidigare kopplade aktuella anmärkningen behålls. Vill du ändra återkontrollen?'))return;
+    const oldFollowups=state.finding_followups;
+    const oldFindings=state.findings;
+    const oldDirty=state.dirty;
+    const next={source_inspection_id:source,source_finding_id:item.finding_id,unit_id:unit.unit_id,status:result,note:comment,current_finding_id:current};
+    state.finding_followups=[...oldFollowups.filter(f=>f.source_inspection_id!==source||f.source_finding_id!==item.finding_id),next];
+    if(created)state.findings=[...oldFindings,created];
+    save.disabled=true;
+    try{await persist()}catch(error){
+      state.finding_followups=oldFollowups;state.findings=oldFindings;state.dirty=oldDirty;
+      message.textContent='Kunde inte spara lokalt: '+crowErrorText(error);save.disabled=false;return;
+    }
+    if(state.inspection_id!==inspectionId)return;
+    if(created){state.activeFindingId=created.finding_id;$('photoStatus').textContent='Anmärkning registrerad · foto binds hit: '+created.description}
+    renderUnit();
+  };
+  form.append(status,note,link,description,severity,save,message);body.append(form);
+}
 function renderPreviousFindings(unit){
   const panel=$('prevFindings');
   const previous=(state.historical_findings||[]).filter(item=>item.unit_id===unit.unit_id&&(!state.activeRoomId||!item.room_id||item.room_id===state.activeRoomId));
@@ -140,6 +208,7 @@ function renderPreviousFindings(unit){
       if(!photo.verified||!photo.content_url)continue;
       const link=document.createElement('a');link.href='/api/ovk/field/media/'+encodeURIComponent(item.source_inspection_id)+'/'+encodeURIComponent(photo.photo_id)+'/content';link.target='_blank';link.rel='noopener noreferrer';link.textContent='Visa historiskt foto';body.append(link,document.createElement('br'));
     }
+    renderFindingFollowup(body,item,unit);
   }
 }
 async function plannedHistory(record,projectId,inspectionId){
@@ -196,7 +265,7 @@ $('keyIn').onclick=async()=>{const key=keyStamp();key.received=!key.received;key
 $('keyOut').onclick=async()=>{const key=keyStamp();if(!key.received&&!key.master_key_used){$('keyInfo').textContent='Markera först nyckel mottagen eller huvudnyckel.';return}if(!key.received){key.received=true;key.received_at=key.received_at||now()}key.returned=!key.returned;key.returned_at=key.returned?now():null;renderKeys();await persist()};
 $('keyMaster').onclick=async()=>{const key=keyStamp();if(key.master_key_used){key.master_key_used=false;key.master_key_note=''}else{const note=(prompt('Kommentar om huvudnyckel (obligatorisk för spårbarhet):')||'').trim();if(!note)return;key.master_key_used=true;key.master_key_note=note;if(!key.received){key.received=true;key.received_at=now()}}renderKeys();await persist()};
 $('unitSystemBtn').onclick=async()=>{const unit=activeUnit();if(!unit)return;const raw=(prompt('Systemtyp för denna enhet (F, S, FX, FT, FTX).\nLämna tomt för fastighetens ('+state.system_type+') – vanligt avvikande i vinds-/källarlägenheter.',unit.system_type||'')||'').trim().toUpperCase();if(raw&&!['F','S','FX','FT','FTX'].includes(raw)){alert('Ogiltig systemtyp: '+raw);return}unit.system_type=raw||null;renderUnit();await persist()};
-$('bom').onclick=async()=>{const unit=activeUnit();const meas=state.measurements.filter(item=>item.unit_id===unit.unit_id);const marks=state.findings.filter(item=>item.unit_id===unit.unit_id);if((meas.length||marks.length)&&!confirm('BOM: '+meas.length+' mätningar och '+marks.length+' anmärkningar för enheten tas bort (foton behålls men kopplas loss). Fortsätt?'))return;const removedFindings=new Set(marks.map(item=>item.finding_id));state.measurements=state.measurements.filter(item=>item.unit_id!==unit.unit_id);state.findings=state.findings.filter(item=>item.unit_id!==unit.unit_id);for(const photo of state.photos)if(photo.finding_id&&removedFindings.has(photo.finding_id))photo.finding_id=null;if(state.activeFindingId&&removedFindings.has(state.activeFindingId))state.activeFindingId=null;const note=(prompt('BOM – valfri notering (tid och datum stämplas automatiskt):')||'').trim();unit.status='bom';unit.bom_at=now();unit.bom_note=note;unit.checked_at=null;renderRond();view('viewRond');await persist()};
+$('bom').onclick=async()=>{const unit=activeUnit();const meas=state.measurements.filter(item=>item.unit_id===unit.unit_id);const marks=state.findings.filter(item=>item.unit_id===unit.unit_id);const followups=state.finding_followups.filter(item=>item.unit_id===unit.unit_id);if((meas.length||marks.length||followups.length)&&!confirm('BOM: '+meas.length+' mätningar och '+marks.length+' anmärkningar för enheten tas bort och återkontroller återställs till ej återkontrollerad (foton behålls men kopplas loss). Fortsätt?'))return;const removedFindings=new Set(marks.map(item=>item.finding_id));state.measurements=state.measurements.filter(item=>item.unit_id!==unit.unit_id);state.findings=state.findings.filter(item=>item.unit_id!==unit.unit_id);state.finding_followups=state.finding_followups.map(item=>item.unit_id===unit.unit_id?{...item,status:'not_checked',note:'',current_finding_id:null}:item);for(const photo of state.photos)if(photo.finding_id&&removedFindings.has(photo.finding_id))photo.finding_id=null;if(state.activeFindingId&&removedFindings.has(state.activeFindingId))state.activeFindingId=null;const note=(prompt('BOM – valfri notering (tid och datum stämplas automatiskt):')||'').trim();unit.status='bom';unit.bom_at=now();unit.bom_note=note;unit.checked_at=null;renderRond();view('viewRond');await persist()};
 for(const chip of document.querySelectorAll('[data-defect]'))chip.onclick=async()=>{if(!activeUnit())return;const map={missing_terminal:['minor','Don saknas'],kitchen_fan_central_system:['minor','Köksfläkt installerad mot centralt system'],window_vent_missing:['minor','Fönsterventil saknas'],general_damage_observation:['info','Skada/observation']};const [severity,base]=map[chip.dataset.defect];const room=activeRoom();if(chip.dataset.defect==='window_vent_missing'&&room){setWindowVent(room.room_id,false)}addFinding(chip.dataset.defect,severity,(room?room.name+': ':'')+base);renderUnit();await persist()};
 function setWindowVent(roomId,present){const existing=state.window_vents.find(item=>item.unit_id===state.activeUnitId&&item.room_id===roomId);if(existing){existing.present=present;return existing}const check={check_id:uid('wv'),inspection_id:state.inspection_id,unit_id:state.activeUnitId,room_id:roomId,present,note:''};state.window_vents.push(check);return check}
 $('wvPresent').onclick=async()=>{const room=activeRoom();if(!room)return;setWindowVent(room.room_id,true);$('photoStatus').textContent='Fönsterventil finns · '+room.name+' registrerad.';await persist()};
@@ -219,7 +288,7 @@ function fillInspectors(persons){if(!persons||!persons.length)return;$('inspecto
 async function prefillObjectType(){if(state.units.length)return;const projectId=$('project').value;if(!projectId||!navigator.onLine)return;try{const response=await fetch('/api/ovk/projects/'+encodeURIComponent(projectId)+'/fastighet');if(!response.ok)return;const data=await response.json();const first=(data.fastigheter||[])[0];if(first&&first.fastighetstyp){$('objectType').value=first.fastighetstyp;state.object_type=first.fastighetstyp}}catch(_){/* offline */}}
 async function loadHistory(){const projectId=$('project').value;$('history').innerHTML='<option value="">Ingen vald</option>';if(!navigator.onLine){$('historyStatus').textContent='Offline · historik kan inte hämtas.';return}try{const response=await fetch('/api/ovk/field/history?project_id='+encodeURIComponent(projectId));const data=await response.json();if(!response.ok)throw new Error(JSON.stringify(data));for(const item of data.inspections||[]){const option=document.createElement('option');option.value=item.inspection_id;const count=item.counts||{};option.textContent=item.inspection_id+' · '+(item.inspector||'okänd')+' · '+(count.findings||0)+' fel';$('history').appendChild(option)}$('historyStatus').textContent=(data.inspections||[]).length?'Välj besiktning för nytt utkast med samma struktur.':'Ingen serverhistorik för projektet.'}catch(error){$('historyStatus').textContent='Kunde inte hämta historik: '+crowErrorText(error)}}
 async function restoreFromServer(){const sourceId=$('history').value;const newId=$('inspection').value.trim();const inspector=$('inspector').value.trim();if(!sourceId){$('historyStatus').textContent='Välj en tidigare besiktning först.';return}if(!newId||!inspector){$('historyStatus').textContent='Ange nytt besiktnings-ID och besiktningsman.';return}if(newId===sourceId){$('historyStatus').textContent='Nytt ID måste skilja sig från källan.';return}if(await dbGet('drafts',newId)){$('historyStatus').textContent='Lokalt utkast med detta ID finns redan.';return}try{const response=await fetch('/api/ovk/field/history/'+encodeURIComponent(sourceId));const data=await response.json();if(!response.ok)throw new Error(JSON.stringify(data));const unitMap=new Map();const units=(data.structure&&data.structure.units||[]).map(source=>{const newUnitId=uid('unit');unitMap.set(source.unit_id,newUnitId);return {unit_id:newUnitId,inspection_id:newId,number:source.number,kind:source.kind,label:source.label||'',status:'ej_paborjad',checked_at:null,bom_at:null,bom_note:'',key:null,system_type:source.system_type||null}});const rooms=(data.structure&&data.structure.rooms||[]).map(source=>({room_id:uid('room'),unit_id:unitMap.get(source.unit_id),name:source.name})).filter(item=>item.unit_id);Object.assign(state,DEFAULT_STATE(),{project_id:data.project_id||$('project').value,inspection_id:newId,inspector,system_type:$('systemType').value,previous_inspection_id:sourceId,historical_findings:data.historical_findings||[],units,rooms,defects:state.defects,checklists:state.checklists,dirty:true});ensureProject(state.project_id);$('project').value=state.project_id;renderRond();view('viewRond');await writeDraft(true);$('historyStatus').textContent='Struktur återställd från '+sourceId}catch(error){$('historyStatus').textContent='Restore misslyckades: '+crowErrorText(error)}}
-async function restoreLatest(requested=null){const drafts=await dbGetAll('drafts');if(!drafts.length)return false;drafts.sort((a,b)=>String(b.updated_at).localeCompare(String(a.updated_at)));const draft=requested?drafts.find(item=>item.inspection_id===requested.inspection_id&&item.project_id===requested.project_id):drafts[0];if(!draft)return false;Object.assign(state,DEFAULT_STATE(),{project_id:draft.project_id||'adhoc',inspection_id:draft.inspection_id||'',inspector:draft.inspector||'',system_type:draft.system_type||'F',object_type:draft.object_type||'flerbostadshus',previous_inspection_id:draft.previous_inspection_id||null,historical_findings:draft.historical_findings||[],historical_measurements:draft.historical_measurements||[],history_unavailable:Boolean(draft.history_unavailable),historical_checkpoints:draft.historical_checkpoints||[],historical_space_photos:draft.historical_space_photos||[],units:draft.units||[],rooms:draft.rooms||[],findings:draft.findings||[],photos:draft.photos||[],measurements:draft.measurements||[],window_vents:draft.window_vents||[],technical_spaces:draft.technical_spaces||[],checkpoints:draft.checkpoints||[],dirty:Boolean(draft.dirty),last_sync:draft.last_sync||null,defects:state.defects,checklists:state.checklists});$('inspection').value=state.inspection_id;$('inspector').value=state.inspector;$('systemType').value=state.system_type;$('objectType').value=state.object_type;ensureProject(state.project_id);$('project').value=state.project_id;$('draftStatus').textContent='Återställd lokal session · '+state.inspection_id;if(state.units.length||state.technical_spaces.length){renderRond();view('viewRond')}return true}
+async function restoreLatest(requested=null){const drafts=await dbGetAll('drafts');if(!drafts.length)return false;drafts.sort((a,b)=>String(b.updated_at).localeCompare(String(a.updated_at)));const draft=requested?drafts.find(item=>item.inspection_id===requested.inspection_id&&item.project_id===requested.project_id):drafts[0];if(!draft)return false;Object.assign(state,DEFAULT_STATE(),{project_id:draft.project_id||'adhoc',inspection_id:draft.inspection_id||'',inspector:draft.inspector||'',system_type:draft.system_type||'F',object_type:draft.object_type||'flerbostadshus',previous_inspection_id:draft.previous_inspection_id||null,historical_findings:draft.historical_findings||[],historical_measurements:draft.historical_measurements||[],history_unavailable:Boolean(draft.history_unavailable),historical_checkpoints:draft.historical_checkpoints||[],historical_space_photos:draft.historical_space_photos||[],units:draft.units||[],rooms:draft.rooms||[],findings:draft.findings||[],finding_followups:draft.finding_followups||[],photos:draft.photos||[],measurements:draft.measurements||[],window_vents:draft.window_vents||[],technical_spaces:draft.technical_spaces||[],checkpoints:draft.checkpoints||[],dirty:Boolean(draft.dirty),last_sync:draft.last_sync||null,defects:state.defects,checklists:state.checklists});$('inspection').value=state.inspection_id;$('inspector').value=state.inspector;$('systemType').value=state.system_type;$('objectType').value=state.object_type;ensureProject(state.project_id);$('project').value=state.project_id;$('draftStatus').textContent='Återställd lokal session · '+state.inspection_id;if(state.units.length||state.technical_spaces.length){renderRond();view('viewRond')}return true}
 async function syncContext(){const response=await fetch('/api/ovk/field/context/'+encodeURIComponent(state.inspection_id),{method:'PUT',headers:{'content-type':'application/json'},body:JSON.stringify({project_id:state.project_id,inspector:state.inspector,previous_inspection_id:state.previous_inspection_id,system_type:state.system_type})});const data=await response.json();if(!response.ok)throw new Error(JSON.stringify(data));return data}
 async function syncSnapshot(){const response=await fetch('/api/ovk/field/sync/'+encodeURIComponent(state.inspection_id),{method:'PUT',headers:{'content-type':'application/json','X-OVK-Base-Revision':state.last_sync||'new'},body:JSON.stringify(payload())});const data=await response.json();if(!response.ok)throw new Error(JSON.stringify(data));state.last_sync=data.snapshot_sha256;return data}
 async function syncPendingMedia(){let uploaded=0;for(const photo of state.photos.filter(item=>item.sync_status!=='synced')){const media=await dbGet('media',photo.photo_id);if(!media||!media.blob)throw new Error('Saknar lokal mediablob för '+photo.photo_id);const response=await fetch('/api/ovk/field/media/'+encodeURIComponent(state.inspection_id)+'/'+encodeURIComponent(photo.photo_id),{method:'PUT',headers:{'content-type':photo.mime_type,'X-OVK-Base-Revision':state.last_sync},body:media.blob});const receipt=await response.json();if(!response.ok)throw new Error(JSON.stringify(receipt));photo.sync_status='synced';state.last_sync=receipt.snapshot_sha256;media.media_id=receipt.media_id;media.evidence_id=receipt.evidence_id;media.synced_at=now();await dbPut('media',media);uploaded+=1}return uploaded}
