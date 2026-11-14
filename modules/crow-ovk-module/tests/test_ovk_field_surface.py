@@ -467,7 +467,9 @@ def test_field_resume_preserves_snapshot_identity(tmp_path: Path) -> None:
     auth = client.get("/ovk/falt/auth.js").text
     assert "async function resumeServerInspection(" in app
     assert "workbench.project_id!==projectId" in app
-    assert "context.snapshot_sha256!==snapshot.snapshot_sha256" in app
+    assert "context.inspection_id!==inspectionId" in app
+    assert "workbench.snapshot_sha256!==snapshot.snapshot_sha256" in app
+    assert "snapshot.project_id!==projectId" in app
     assert "p.sync_status!=='synced'" in app
     assert "last_sync:snapshot.snapshot_sha256" in app
     assert "remote.snapshot_sha256 !== state.last_sync" in auth
