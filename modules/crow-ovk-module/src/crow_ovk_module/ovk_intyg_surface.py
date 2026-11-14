@@ -476,7 +476,9 @@ def ovk_intyg_router(data_root: Path) -> APIRouter:
         changes: dict[str, str] = {}
         for key, value in payload.items():
             if not isinstance(value, str) or not 1 <= len(value.strip()) <= 500:
-                raise HTTPException(status_code=422, detail={"code": "OVK_CORRECTION_INVALID_FIELDS"})
+                raise HTTPException(
+                    status_code=422, detail={"code": "OVK_CORRECTION_INVALID_FIELDS"}
+                )
             if value.strip() != getattr(original, key):
                 changes[key] = value.strip()
         if not changes:
