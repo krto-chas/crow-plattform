@@ -81,10 +81,12 @@ def _payload(content: bytes) -> dict[str, object]:
     }
 
 
-def _seed_previous(client: TestClient, content: bytes) -> dict[str, object]:
+def _seed_previous(
+    client: TestClient, content: bytes, project_id: str = "property-a"
+) -> dict[str, object]:
     context = client.put(
         "/api/ovk/field/context/ovk-2025",
-        json={"project_id": "property-a", "inspector": "Inspector"},
+        json={"project_id": project_id, "inspector": "Inspector"},
     )
     snapshot = client.put("/api/ovk/field/sync/ovk-2025", json=_payload(content))
     media = client.put(
@@ -169,7 +171,7 @@ def test_context_rejects_self_predecessor(tmp_path: Path) -> None:
 def test_scoped_history_never_falls_back_to_global_data(tmp_path: Path) -> None:
     client = _client(tmp_path)
     workflows = OvkWorkflowRepository(tmp_path)
-    _seed_previous(client, b"legacy-photo")
+    _seed_previous(client, b"legacy-photo", "property-legacy")
     for project_id in ("property-a", "property-b"):
         for inspection_id, year, previous in (
             ("ovk-2025", 2025, None),
