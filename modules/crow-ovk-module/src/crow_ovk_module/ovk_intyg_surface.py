@@ -548,9 +548,7 @@ def ovk_intyg_router(data_root: Path) -> APIRouter:
         original = intyg_to_payload(_load(intyg_repository, project_id, intyg_id))
         correction = get_correction(project_id, intyg_id)
         draft = get_correction_draft(project_id, intyg_id)
-        canonical = json.dumps(
-            original, sort_keys=True, ensure_ascii=False, separators=(",", ":")
-        )
+        canonical = json.dumps(original, sort_keys=True, ensure_ascii=False, separators=(",", ":"))
         changes = draft.get("changes")
         if (
             draft.get("original_sha256") != sha256(canonical.encode("utf-8")).hexdigest()
