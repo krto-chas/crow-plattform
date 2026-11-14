@@ -97,7 +97,8 @@ def _router(config_root: Path, manager: SessionManager | None) -> APIRouter:
         }
 
     @router.post("/api/auth/logout", status_code=204)
-    def logout(response: Response) -> Response:
+    def logout() -> Response:
+        response = Response(status_code=204)
         cookie_name = manager.cookie_name if manager is not None else "crow_session"
         response.delete_cookie(cookie_name, path="/")
         return response
