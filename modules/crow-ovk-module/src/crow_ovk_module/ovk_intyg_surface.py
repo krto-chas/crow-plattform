@@ -29,6 +29,7 @@ from crow_ovk_intyg import (
     OvkIntyg,
     OvkIntygRepository,
     build_intyg,
+    intyg_from_payload,
     intyg_html,
     intyg_to_payload,
     intyg_verification_code,
@@ -39,7 +40,7 @@ from crow_ovk_pricing import BuildingCategory, InspectionType
 from crow_ovk_workflow import OvkWorkflowRecord, OvkWorkflowRepository, record_to_payload
 
 from .ovk_issuance_lock import inspection_mutation_guard, require_unissued
-from .ovk_issuance_manifest import publish_manifest
+from .ovk_issuance_manifest import manifest_path, publish_manifest
 from .ovk_protocol_source import require_current_protocol_source
 
 
@@ -636,6 +637,115 @@ def ovk_intyg_router(data_root: Path) -> APIRouter:
             if temporary is not None:
                 temporary.unlink(missing_ok=True)
         return approval
+
+    @router.post("/api/ovk/projects/{project_id}/intyg/{intyg_id}/correction/issue")
+    async def issue_correction(
+        project_id: str, intyg_id: str, request: Request
+    ) -> dict[str, Any]:
+        customer = current_customer_from_request(request)
+        if not customer.user_id or "ovk_correction_issuer" not in customer.roles:
+            raise HTTPException(status_code=403, detail={"code": "OVK_CORRECTION_ISSUE_FORBIDDEN"})
+        original = _load(intyg_repository, project_id, intyg_id)
+        revision = _correction_revision(project_id, intyg_id)
+        draft = get_correction_draft(project_id, intyg_id)
+        correction = get_correction(project_id, intyg_id)
+        if (
+            draft.get("customer_id") != customer.customer_id
+            or correction.get("customer_id") != customer.customer_id
+        ):
+            raise HTTPException(status_code=403, detail={"code": "OVK_CORRECTION_ISSUE_FORBIDDEN"})
+        try:
+            payload: Any = await request.json()
+        except ValueError as exc:
+            raise HTTPException(status_code=422, detail="Invalid JSON") from exc
+        if not isinstance(payload, dict) or payload.get("revision") != revision:
+            raise HTTPException(status_code=409, detail={"code": "OVK_CORRECTION_REVIEW_STALE"})
+        root = data_root / "projects" / project_id
+        review_path = root / "ovk-correction-reviews" / f"{intyg_id}.json"
+        try:
+            approval = json.loads(review_path.read_bytes())
+        except FileNotFoundError as exc:
+            raise HTTPException(
+                status_code=409, detail={"code": "OVK_CORRECTION_REVIEW_REQUIRED"}
+            ) from exc
+        if (
+            not isinstance(approval, dict)
+            or approval.get("revision") != revision
+            or approval.get("project_id") != project_id
+            or approval.get("original_intyg_id") != intyg_id
+            or approval.get("draft_id") != draft["draft_id"]
+            or approval.get("customer_id") != customer.customer_id
+            or not approval.get("reviewer")
+            or not approval.get("reviewed_at")
+        ):
+            raise HTTPException(status_code=409, detail={"code": "OVK_CORRECTION_REVIEW_STALE"})
+        source_path = manifest_path(data_root, project_id, original.inspection_id)
+        try:
+            source_bytes = source_path.read_bytes()
+            source = json.loads(source_bytes)
+        except (OSError, ValueError) as exc:
+            raise HTTPException(
+                status_code=409, detail={"code": "OVK_CORRECTION_SOURCE_CHANGED"}
+            ) from exc
+        if (
+            not isinstance(source, dict)
+            or source.get("project_id") != project_id
+            or source.get("inspection_id") != original.inspection_id
+            or source.get("intyg_id") != intyg_id
+            or source.get("intyg_sha256") != draft["original_sha256"]
+        ):
+            raise HTTPException(status_code=409, detail={"code": "OVK_CORRECTION_SOURCE_CHANGED"})
+        candidate = intyg_from_payload(draft["candidate"])
+        if intyg_repository.exists(project_id, candidate.intyg_id):
+            raise HTTPException(status_code=409, detail={"code": "OVK_CORRECTION_ALREADY_ISSUED"})
+        # Preserve the reviewed certificate dates. The correction event has its own timestamp.
+        certificate = intyg_to_payload(candidate)
+        canonical = json.dumps(
+            certificate, sort_keys=True, ensure_ascii=False, separators=(",", ":")
+        )
+        manifest = {
+            "schema_version": 1,
+            "project_id": project_id,
+            "inspection_id": original.inspection_id,
+            "original_intyg_id": intyg_id,
+            "replacement_intyg_id": candidate.intyg_id,
+            "original_sha256": draft["original_sha256"],
+            "original_manifest_sha256": sha256(source_bytes).hexdigest(),
+            "replacement_sha256": sha256(canonical.encode("utf-8")).hexdigest(),
+            "review_revision": revision,
+            "review": approval,
+            "changes": draft["changes"],
+            "reason": draft["reason"],
+            "issued_by": customer.user_id,
+            "customer_id": customer.customer_id,
+            "corrected_at": datetime.now(UTC).isoformat(),
+        }
+        target = root / "ovk-correction-manifests" / f"{intyg_id}.json"
+        target.parent.mkdir(parents=True, exist_ok=True)
+        temporary: Path | None = None
+        try:
+            with NamedTemporaryFile(
+                mode="w", encoding="utf-8", dir=target.parent, suffix=".tmp", delete=False
+            ) as stream:
+                temporary = Path(stream.name)
+                json.dump(manifest, stream, ensure_ascii=False, sort_keys=True)
+                stream.flush()
+                os.fsync(stream.fileno())
+            os.link(temporary, target)
+            intyg_repository.save(candidate)
+        except FileExistsError as exc:
+            raise HTTPException(
+                status_code=409, detail={"code": "OVK_CORRECTION_RECOVERY_REQUIRED"}
+            ) from exc
+        finally:
+            if temporary is not None:
+                temporary.unlink(missing_ok=True)
+        return {
+            "certificate": certificate,
+            "correction": manifest,
+            "verification_code": intyg_verification_code(candidate),
+            "verify_url": intyg_verify_url(candidate),
+        }
 
     return router
 
