@@ -77,15 +77,24 @@ Every object, relation and property carries a verification status separate from 
 
 Templates and drawing interpretation only ever produce `proposed`. Only `verified` content may be presented as fact in a certificate, protocol or operating card.
 
-### 6. Storage requirements
+### 6. Storage: PostgreSQL through SQLAlchemy
 
 The current repository reads and rewrites the whole graph file for each operation and has no locking. Before any module depends on it, the graph store must provide:
 
-- atomic batch writes (one editor action = one write),
+- atomic batch writes (one editor action = one transaction),
 - an expected-revision check so concurrent edits fail instead of overwriting,
 - acceptable performance at a realistic size (target: a property with 500 units and their rooms, terminals and ducts).
 
-The storage technology is an implementation decision for that change, not part of this ADR.
+The building graph is therefore the first part of Crow to move from JSON files to a database:
+
+- **PostgreSQL** is the production store, accessed through **SQLAlchemy 2.0**, with schema changes managed by **Alembic** under the existing migration policy (ADR-007).
+- The graph keeps a repository contract, as `PERSISTENCE_CONTRACT.md` requires. Core and modules depend on the contract, not on SQL.
+- **SQLite** through the same SQLAlchemy code is supported for local single-user mode. The schema uses portable column types only; PostgreSQL-specific types are not used in the graph tables.
+- CI runs the graph store tests against a real PostgreSQL service, not only SQLite, so that the two cannot drift apart unnoticed.
+- Every row carries `tenant_id` from the first migration, so that ADR-011 can be enforced later without a schema rewrite.
+- Existing `building-graph/graph.json` files are imported once by a migration and kept as read-only backups.
+
+Scope of this decision: the building graph only. Other JSON-backed stores move when they are next reworked, one at a time. The OVK field application's files and SQLite stores for offline sync and issuance locks are explicitly left as they are until OVK 1.0 has shipped.
 
 ### 7. Conformance
 
@@ -96,7 +105,7 @@ The architecture review gains a rule that flags a module persisting building str
 Each step is a small, separately mergeable change.
 
 1. `ModuleContext` in the SDK and shell; graph service obtainable through it. No behaviour change.
-2. Graph store: batch writes, revision check, locking, size test.
+2. Graph store on PostgreSQL through SQLAlchemy and Alembic: batch writes, revision check, size test, import of existing graph files, PostgreSQL in CI and in the Compose stack, database included in backup and restore.
 3. Core: `stairwell`, `shaft`, floor elevation, verification status.
 4. `crow.ventilation` vocabulary module with network validation.
 5. OVK structure registry mirrored into the graph through an adapter. The registry remains the source of truth until OVK 1.0 has shipped; only then is ownership switched.
@@ -118,7 +127,8 @@ Steps 1–4 do not touch OVK field data or release gates.
 ### Negative
 
 - Modules lose the freedom to shape building data for their own convenience.
-- The graph store must be hardened before it is useful, which is work with no visible feature.
+- The graph store must be rebuilt before it is useful, which is work with no visible feature.
+- PostgreSQL becomes a required service in production. Deployment, backup and restore must cover it, and the backup/restore acceptance for OVK 1.0 has to be re-run once the database is part of the stack.
 - During migration the OVK registry and the graph coexist and must be kept consistent by the adapter.
 
 ## Alternatives considered
@@ -130,6 +140,14 @@ Fastest for OVK 2.0, but forces other modules to depend on OVK or to duplicate t
 ### A new shared topology module with its own storage
 
 Avoids touching Core, but duplicates what `crow_building_graph` already provides and leaves the graph unused.
+
+### Harden the JSON file store instead of introducing a database
+
+Locking and batch writes can be added to files, but tenant isolation, concurrent editing and queries across a large graph would each have to be built by hand. PostgreSQL is already the stated target in ADR-011.
+
+### Rewrite the platform in TypeScript to match SecAssess
+
+SecAssess benefits from PostgreSQL and an ORM, not from its language. The same is available in Python, where document, drawing and calculation libraries are stronger and the existing typed and tested code base is kept.
 
 ### Keep per-module models and synchronise them
 
@@ -152,6 +170,7 @@ Every pair of modules needs a mapping, and there is still no single identity for
 
 - ADR-003 Stable module boundary
 - ADR-004 Project aggregate
+- ADR-007 Versioned migrations
 - ADR-009 Crow Knowledge Language
 - ADR-011 Backbone-enforced authorization
 - `docs/OVK_PRODUCT_VISION_2_0.md`
