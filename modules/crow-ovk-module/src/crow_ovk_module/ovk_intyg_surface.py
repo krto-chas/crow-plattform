@@ -866,7 +866,7 @@ def _verify_html(
     )
     return (
         head + '<div class="verdict pass">' + verdict + "</div>" + history
-        "<p>Verifieringskod <code>" + escape(code) + "</code> "
+        + "<p>Verifieringskod <code>" + escape(code) + "</code> "
         "stämmer mot det lagrade intyget.</p>"
         "<table>" + rows + "</table>"
         '<p class="note">Jämför uppgifterna ovan med det tryckta intyget. '
