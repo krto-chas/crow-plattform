@@ -25,7 +25,7 @@ async function crowRequireSession() {
 
 syncContext = async function () {
   const response = await crowAuthenticatedFetch(
-    '/api/ovk/field/context/' + encodeURIComponent(state.inspection_id),
+    fieldEndpoint('context', state.project_id, state.inspection_id),
     {
       method: 'PUT',
       headers: {'content-type': 'application/json'},
@@ -44,7 +44,7 @@ syncContext = async function () {
 
 syncSnapshot = async function () {
   const response = await crowAuthenticatedFetch(
-    '/api/ovk/field/sync/' + encodeURIComponent(state.inspection_id),
+    fieldEndpoint('sync', state.project_id, state.inspection_id),
     {
       method: 'PUT',
       headers: {'content-type': 'application/json', 'X-OVK-Base-Revision': state.last_sync || 'new'},
@@ -64,7 +64,7 @@ syncPendingMedia = async function () {
     const media = await dbGet(MEDIA_STORE, mediaKey(state.project_id, state.inspection_id, photo.photo_id));
     if (!media || !media.blob) throw new Error('Saknar lokal mediablob för ' + photo.photo_id);
     const response = await crowAuthenticatedFetch(
-      '/api/ovk/field/media/' + encodeURIComponent(state.inspection_id) + '/' + encodeURIComponent(photo.photo_id),
+      fieldEndpoint('media', state.project_id, state.inspection_id) + '/' + encodeURIComponent(photo.photo_id),
       {
         method: 'PUT',
         headers: {'content-type': photo.mime_type, 'X-OVK-Base-Revision': state.last_sync},
@@ -97,7 +97,7 @@ syncDraft = async function () {
     $('syncStatus').className = 'status';
     $('syncStatus').textContent = 'Kontrollerar session…';
     await crowRequireSession();
-    const current = await crowAuthenticatedFetch('/api/ovk/field/sync/' + encodeURIComponent(state.inspection_id));
+    const current = await crowAuthenticatedFetch(fieldEndpoint('sync', state.project_id, state.inspection_id));
     if (current.ok) {
       const remote = await current.json();
       if (remote.snapshot_sha256 !== state.last_sync) throw new Error('Serverunderlaget har ändrats på en annan enhet. Lokalt arbete bevaras; synk stoppad.');
