@@ -46,9 +46,7 @@ def test_registered_identity_controls_certificate(tmp_path: Path, monkeypatch: M
         planning=InspectionPlanning("inspector-1", today, "aterkommande"),
         building_structure_json=json.dumps(
             {
-                "systems": [
-                    {"system_id": "FTX01", "system_type": "FTX", "label": "System FTX01"}
-                ],
+                "systems": [{"system_id": "FTX01", "system_type": "FTX", "label": "System FTX01"}],
                 "units": [],
                 "technical_spaces": [],
             },
