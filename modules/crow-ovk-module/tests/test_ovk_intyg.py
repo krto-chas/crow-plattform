@@ -246,7 +246,16 @@ def test_surface_issues_intyg_and_serves_anslag(tmp_path: Path, monkeypatch: Mon
     OvkWorkflowRepository(tmp_path).save(_record())
     client = _client(tmp_path, monkeypatch)
 
-    response = client.post("/api/ovk/projects/p1/inspections/ovk-001/intyg", json=_intyg_body())
+    base = "/api/ovk/projects/p1/inspections/ovk-001/intyg"
+    preview = client.post(base + "/preview", json=_intyg_body())
+    assert preview.status_code == 200
+    approval = client.post(
+        base + "/review",
+        json=_intyg_body(),
+        headers={"X-OVK-Review-Revision": preview.headers["X-OVK-Review-Revision"]},
+    )
+    assert approval.status_code == 200
+    response = client.post(base, json=_intyg_body())
     assert response.status_code == 200, response.text
     payload = response.json()
     assert payload["result"] == "godkand"
