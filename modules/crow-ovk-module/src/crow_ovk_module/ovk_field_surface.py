@@ -106,11 +106,29 @@ def ovk_field_router(data_root: Path) -> APIRouter:
         data = _validated_payload(payload)
         if project_id is None:
             _verify_followup_sources(data_root, data, store)
-        elif data.finding_followups or data.photos:
+        elif data.finding_followups:
             raise HTTPException(
                 status_code=422, detail={"code": "OVK_SCOPED_EVIDENCE_NOT_AVAILABLE"}
             )
         normalized = _field_data_to_payload(data)
+        if project_id is not None:
+            try:
+                existing, _ = store.load(inspection_id)
+            except FileNotFoundError:
+                existing = {}
+            verified = {
+                (item.get("photo_id"), item.get("sha256"))
+                for item in existing.get("photos", [])
+                if item.get("sync_status") == "synced"
+            }
+            for photo in data.photos:
+                _validate_identifier(photo.photo_id)
+                if photo.sync_status is PhotoSyncStatus.SYNCED and (
+                    photo.photo_id, photo.sha256
+                ) not in verified:
+                    raise HTTPException(
+                        status_code=422, detail={"code": "OVK_MEDIA_UPLOAD_REQUIRED"}
+                    )
         expected = request.headers.get("X-OVK-Base-Revision")
         if (
             expected is not None
