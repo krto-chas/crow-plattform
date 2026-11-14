@@ -9,7 +9,7 @@ from importlib import resources
 from pathlib import Path
 from typing import Any
 
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import HTMLResponse, Response
 
 from crow_ovk import CheckStatus, EvidenceOrigin, FindingSeverity
@@ -39,12 +39,13 @@ from crow_ovk_field.models import FindingFollowup
 from crow_ovk_workflow.repository import OvkWorkflowRepository
 
 from .ovk_field_workbench import _FieldWorkbenchRepository
+from .ovk_issuance_lock import inspection_mutation_guard
 
 _SAFE_ID = re.compile(r"^[A-Za-z0-9._-]+$")
 
 
 def ovk_field_router(data_root: Path) -> APIRouter:
-    router = APIRouter()
+    router = APIRouter(dependencies=[Depends(inspection_mutation_guard(data_root))])
     repository = _FieldSyncRepository(data_root)
 
     @router.get("/ovk/falt", response_class=HTMLResponse)
