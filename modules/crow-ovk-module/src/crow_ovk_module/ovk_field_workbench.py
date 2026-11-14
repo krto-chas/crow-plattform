@@ -2,10 +2,12 @@ from __future__ import annotations
 
 import json
 import re
+import sqlite3
 from datetime import UTC, datetime
 from hashlib import sha256
 from hmac import compare_digest
 from pathlib import Path
+from tempfile import NamedTemporaryFile
 from typing import Any
 
 from fastapi import APIRouter, HTTPException, Request
@@ -29,6 +31,7 @@ def ovk_field_workbench_router(data_root: Path) -> APIRouter:
         system_type = _optional_text(payload.get("system_type"))
         if project_id is None or inspector is None:
             raise HTTPException(status_code=422, detail={"code": "INVALID_OVK_FIELD_CONTEXT"})
+        _validate_identifier(project_id)
         if system_type is not None and system_type.upper() not in (
             "S",
             "F",
@@ -55,7 +58,12 @@ def ovk_field_workbench_router(data_root: Path) -> APIRouter:
             "system_type": system_type.upper() if system_type is not None else None,
             "saved_at": datetime.now(UTC).isoformat(),
         }
-        repository.save_context(inspection_id, context)
+        try:
+            repository.save_context(inspection_id, context)
+        except ValueError as exc:
+            raise HTTPException(
+                status_code=409, detail={"code": "OVK_FIELD_PROJECT_CONFLICT"}
+            ) from exc
         return context
 
     @router.get("/api/ovk/field/workbench/{inspection_id}", response_model=None)
@@ -173,7 +181,7 @@ def _project_photo(
 
 
 def _validate_identifier(value: str) -> None:
-    if not _SAFE_ID.fullmatch(value):
+    if value in {".", ".."} or not _SAFE_ID.fullmatch(value):
         raise HTTPException(status_code=422, detail={"code": "INVALID_OVK_IDENTIFIER"})
 
 
@@ -205,7 +213,12 @@ class _FieldWorkbenchRepository:
     def save_context(self, inspection_id: str, payload: dict[str, Any]) -> None:
         self._context_root.mkdir(parents=True, exist_ok=True)
         target = self._context_root / f"{inspection_id}.json"
-        self._write_json(target, payload)
+        with sqlite3.connect(self._context_root / ".write-lock.sqlite3", timeout=30) as lock:
+            lock.execute("BEGIN IMMEDIATE")
+            previous = self.load_context_optional(inspection_id)
+            if previous is not None and previous.get("project_id") != payload.get("project_id"):
+                raise ValueError("field inspection already belongs to another project")
+            self._write_json(target, payload)
 
     def load_context_optional(self, inspection_id: str) -> dict[str, Any] | None:
         target = self._context_root / f"{inspection_id}.json"
@@ -231,6 +244,12 @@ class _FieldWorkbenchRepository:
             sort_keys=True,
             separators=(",", ":"),
         )
-        temporary = target.with_name(f".{target.name}.tmp")
-        temporary.write_text(canonical + "\n", encoding="utf-8")
-        temporary.replace(target)
+        with NamedTemporaryFile(
+            mode="w", encoding="utf-8", dir=target.parent, delete=False
+        ) as stream:
+            temporary = Path(stream.name)
+            stream.write(canonical + "\n")
+        try:
+            temporary.replace(target)
+        finally:
+            temporary.unlink(missing_ok=True)
