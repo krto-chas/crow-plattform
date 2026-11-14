@@ -117,12 +117,22 @@ def ovk_protokoll_router(data_root: Path) -> APIRouter:
         ]
 
         ovk_object = existing.inspection.ovk_object
-        inputs = bridge_inspection_inputs(data, utkast, ovk_object=ovk_object)
+        system_ids = {system.system_id for system in existing.inspection.systems}
+        if any(
+            item.system_id is not None and item.system_id not in system_ids
+            for item in data.measurements
+        ):
+            raise HTTPException(status_code=422, detail="Field measurement system mismatch")
+        try:
+            inputs = bridge_inspection_inputs(data, utkast, ovk_object=ovk_object)
+        except ValueError as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
         record = build_record(
             inspection_id=str(inputs["inspection_id"]),
             ovk_object=ovk_object,
             systems=existing.inspection.systems,
             checkpoints=inputs["checkpoints"],  # type: ignore[arg-type]
+            measurements=inputs["measurements"],  # type: ignore[arg-type]
             findings=inputs["findings"],  # type: ignore[arg-type]
             actions=inputs["actions"],  # type: ignore[arg-type]
             coverage=utkast.suggested_coverage,
@@ -142,6 +152,26 @@ def ovk_protokoll_router(data_root: Path) -> APIRouter:
             "utkast_sha256": sha256(canonical.encode("utf-8")).hexdigest(),
             "record": record_to_payload(record),
             "followup_review": followup_review,
+            "measurement_review": [
+                {
+                    "measurement_id": item.measurement_id,
+                    "unit_id": item.unit_id,
+                    "unit_number": units.get(item.unit_id),
+                    "room_id": item.room_id,
+                    "point_label": item.point_label,
+                    "system_id": item.system_id,
+                    "finding_id": item.finding_id,
+                    "status": (
+                        "pending"
+                        if item.is_pending
+                        else "measured"
+                        if item.measurable
+                        else "not_measurable"
+                    ),
+                    "reason": item.not_measurable_reason,
+                }
+                for item in data.measurements
+            ],
             "note": (
                 "Utkast: täckningsförslaget kräver systemförteckningsbekräftelse "
                 "(STATED) innan protokollet kan färdigställas."

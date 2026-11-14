@@ -19,10 +19,12 @@ from dataclasses import dataclass
 
 from crow_ovk import (
     CheckStatus,
+    EvidenceOrigin,
     FindingSeverity,
     OvkAction,
     OvkCheckpoint,
     OvkFinding,
+    OvkMeasurement,
     OvkObject,
 )
 from crow_ovk_field.models import FieldInspectionData
@@ -166,8 +168,8 @@ def bridge_inspection_inputs(
     """Byggstenar för build_record ur fältdata + utkast.
 
     Kontrollpunkter tas från teknikutrymmenas fältkontroller; protokollraderna
-    blir grupperade findings med severity härledd ur klassen. Mätningarna
-    lämnas till flödesprotokollet (pass 111).
+    blir grupperade findings med severity härledd ur klassen. Uppmätta
+    flöden bevaras med mätpunktens identitet och källreferens.
     """
     checkpoints = tuple(
         OvkCheckpoint(
@@ -205,9 +207,38 @@ def bridge_inspection_inputs(
         for index, row in enumerate(rows)
         if row.classification == 2
     )
+    measurements = []
+    seen: set[str] = set()
+    for item in data.measurements:
+        if item.measurement_id in seen:
+            raise ValueError("duplicate field measurement")
+        seen.add(item.measurement_id)
+        if item.inspection_id != data.inspection_id:
+            raise ValueError("field measurement inspection mismatch")
+        if any(
+            value is not None and not value.is_finite()
+            for value in (item.measured_value, item.designed_value)
+        ):
+            raise ValueError("non-finite field measurement")
+        if item.measured_value is None:
+            continue
+        measurements.append(
+            OvkMeasurement(
+                measurement_id=item.measurement_id,
+                metric=item.point_type.value,
+                measured_value=item.measured_value,
+                designed_value=item.designed_value,
+                unit=item.unit_of_measure,
+                system_id=item.system_id,
+                point_id=item.measurement_id,
+                origin=EvidenceOrigin.MEASURED,
+                evidence_ref=f"field:{data.inspection_id}:measurement:{item.measurement_id}",
+            )
+        )
     return {
         "inspection_id": data.inspection_id,
         "ovk_object": ovk_object,
+        "measurements": tuple(measurements),
         "checkpoints": checkpoints,
         "findings": findings,
         "actions": actions,
