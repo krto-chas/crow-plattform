@@ -2,6 +2,8 @@
 from __future__ import annotations
 
 import json
+import os
+from dataclasses import replace
 from datetime import UTC, date, datetime
 from hashlib import sha256
 from html import escape
@@ -33,7 +35,7 @@ from crow_ovk_intyg import (
     verify_intyg_code,
 )
 from crow_ovk_pricing import BuildingCategory, InspectionType
-from crow_ovk_workflow import OvkWorkflowRepository, record_to_payload
+from crow_ovk_workflow import OvkWorkflowRecord, OvkWorkflowRepository, record_to_payload
 
 
 def ovk_intyg_router(data_root: Path) -> APIRouter:
@@ -96,6 +98,82 @@ def ovk_intyg_router(data_root: Path) -> APIRouter:
             certificate_valid_to=_optional_date(payload.get("kontrollant_certificate_valid_to")),
         )
 
+    def _registered_identity(
+        record: OvkWorkflowRecord, project_id: str, payload: dict[str, Any]
+    ) -> OvkWorkflowRecord:
+        planning = record.planning
+        if planning is None:
+            # Legacy local fixtures and trusted development only; never production sessions.
+            if (
+                os.getenv("CROW_MODE", "local").strip().lower() == "local"
+                and os.getenv("CROW_AUTH_MODE", "environment").strip().lower() == "environment"
+            ):
+                return record
+            raise ValueError("registered inspection planning is required")
+        obj = record.inspection.ovk_object
+        if obj.project_id != project_id:
+            raise ValueError("inspection project does not match")
+        for key, expected in (
+            ("fastighet_id", obj.object_id),
+            ("besiktningsman_id", planning.inspector_id),
+            ("inspection_type", planning.inspection_type),
+        ):
+            supplied = payload.get(key)
+            if supplied is not None and supplied != expected:
+                raise ValueError(f"{key} does not match planned inspection")
+            payload[key] = expected
+        try:
+            property_record = fastighet_repository.load(project_id, obj.object_id)
+            person = besiktningsman_repository.load(planning.inspector_id)
+        except FileNotFoundError as exc:
+            raise ValueError("registered property or inspector is missing") from exc
+        if property_record.project_id != project_id or property_record.fastighet_id != obj.object_id:
+            raise ValueError("registered property identity does not match")
+        building = next(
+            (item for item in property_record.byggnader if item.byggnad_id == obj.building_id),
+            None,
+        )
+        if building is None:
+            raise ValueError("registered building is missing")
+        if not property_record.byggnadsagare_namn.strip():
+            raise ValueError("registered building owner is required")
+        address = property_record.byggnadens_adress
+        if address.is_empty:
+            raise ValueError("registered building address is required")
+        inspection_date = _required_date(payload, "inspection_date")
+        issued_date = _optional_date(payload.get("issued_date")) or date.today()
+        if not inspection_date <= issued_date <= date.today():
+            raise ValueError("inspection and issuance dates are inconsistent")
+        if person.giltig_till is None or person.giltig_till < issued_date:
+            raise ValueError("registered inspector certificate is missing validity or has expired")
+        payload["issued_date"] = issued_date.isoformat()
+        if record.building_structure_json is None:
+            raise ValueError("registered building system snapshot is required")
+        structure = json.loads(record.building_structure_json)
+        registered = {item["system_id"]: item for item in structure["systems"]}
+        systems = record.inspection.systems
+        if not systems or any(
+            system.system_id not in registered
+            or registered[system.system_id]["system_type"] != system.system_type
+            or registered[system.system_id]["label"] != system.label
+            for system in systems
+        ):
+            raise ValueError("inspection systems do not match registered building snapshot")
+        category = {
+            "villa": "smahus",
+            "flerbostadshus": "flerbostadshus",
+            "kontorsbyggnad": "lokal",
+            "industrifastighet": "lokal",
+        }[property_record.fastighetstyp.value]
+        if payload.get("building_category") != category:
+            raise ValueError("building category does not match registered property")
+        canonical = replace(
+            obj,
+            name=f"{property_record.fastighetsbeteckning} · {building.internt_namn}",
+            address=" ".join(part for part in (address.gata, address.postnr, address.ort) if part),
+        )
+        return replace(record, inspection=replace(record.inspection, ovk_object=canonical))
+
     @router.get("/ovk/intyg", response_class=HTMLResponse)
     def intyg_page() -> str:
         return _INTYG_HTML
@@ -151,6 +229,8 @@ def ovk_intyg_router(data_root: Path) -> APIRouter:
         except ValueError as exc:
             raise HTTPException(status_code=422, detail={"code": "INVALID_OVK_IDENTIFIER"}) from exc
         try:
+            original_record = record
+            record = _registered_identity(record, project_id, payload)
             intyg = build_intyg(
                 intyg_id=_required(payload, "intyg_id"),
                 record=record,
@@ -165,7 +245,7 @@ def ovk_intyg_router(data_root: Path) -> APIRouter:
             )
             revision = sha256(
                 json.dumps(
-                    [record_to_payload(record), intyg_to_payload(intyg)],
+                    [record_to_payload(original_record), intyg_to_payload(intyg)],
                     sort_keys=True,
                     ensure_ascii=False,
                     separators=(",", ":"),
@@ -397,7 +477,7 @@ def _optional_date(value: object) -> date | None:
 _INTYG_HTML = r"""<!doctype html>
 <html lang="sv"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Crow OVK Intyg</title>
 <style>:root{font-family:Inter,system-ui,sans-serif;color:#18212b;background:#f4f6f8}*{box-sizing:border-box}body{margin:0}.shell{display:grid;grid-template-columns:230px 1fr;min-height:100vh}aside{background:#17202a;color:#fff;padding:24px}nav a{display:block;color:#dce5ed;text-decoration:none;padding:10px 0}nav a.active{font-weight:700;color:#fff}main{padding:32px;max-width:1200px}.grid{display:grid;grid-template-columns:420px 1fr;gap:18px}.panel{background:#fff;border:1px solid #dfe5ea;border-radius:10px;padding:20px}label{display:block;font-size:13px;font-weight:600;margin:10px 0 4px}input,select{width:100%;padding:8px;border:1px solid #cbd4dc;border-radius:6px}.primary,.secondary{margin-top:10px;padding:10px 14px;border-radius:6px;cursor:pointer}.primary{border:0;background:#17202a;color:#fff}.secondary{border:1px solid #aeb9c3;background:#fff}.status{margin-top:12px;padding:10px;background:#eef2f5;border-radius:6px}.warning{background:#fff4cf}.pass{background:#e5f6ea}.two{display:grid;grid-template-columns:1fr 1fr;gap:10px}pre{white-space:pre-wrap;background:#f7f8fa;padding:12px;border-radius:6px;max-height:420px;overflow:auto}table{width:100%;border-collapse:collapse;margin-top:10px}td,th{border:1px solid #dfe5ea;padding:6px 8px;font-size:13px;text-align:left}@media(max-width:900px){.shell{grid-template-columns:1fr}aside{display:none}.grid{grid-template-columns:1fr}.two{grid-template-columns:1fr}}</style></head>
-<body><div class="shell"><aside><h2>Crow</h2><nav><a href="/">Projekt</a><a href="/vent">Ventilation</a><a href="/provtryckning">Provtryckning</a><a href="/ovk">OVK import</a><a href="/ovk/besiktning">OVK besiktning</a><a href="/ovk/falt">OVK fält</a><a class="active" href="/ovk/intyg">OVK intyg</a></nav></aside><main><p>OVK · INTYG</p><h1>Utfärda OVK-intyg</h1><p>Intyget byggs ur ett sparat, protokollklart workflowrecord. Nästa besiktningsfrist härleds ur BFS 2011:16-intervall och märks som härledd uppgift med skriven basis.</p><div class="grid"><section class="panel"><label>Projekt</label><select id="project"><option value="adhoc">Ad hoc</option></select><label>Besiktnings-ID</label><input id="inspection" value="ovk-001"><label>Intygs-ID</label><input id="intyg" value="intyg-001"><label>Fastighetsbeteckning</label><input id="fastighet" placeholder="Berghällen 1:2"><label>Byggnadens ägare</label><input id="agare"><div class="two"><div><label>Besiktningstyp</label><select id="type"><option value="aterkommande">Återkommande</option><option value="forstagang">Förstagång</option></select></div><div><label>Byggnadskategori</label><select id="category"><option value="flerbostadshus">Flerbostadshus</option><option value="lokal">Lokal</option><option value="hotell">Hotell</option><option value="smahus">Småhus</option></select></div></div><div class="two"><div><label>Besiktningsdatum</label><input id="date" type="date"></div><div><label>Skola/vård</label><select id="school"><option value="false">Nej</option><option value="true">Ja</option></select></div></div><h3>Funktionskontrollant</h3><label>Namn</label><input id="kname"><div class="two"><div><label>Behörighet</label><select id="kbeh"><option value="K">K</option><option value="N">N</option></select></div><div><label>Certifikatnummer</label><input id="kcert"></div></div><label>Certifieringsorgan</label><input id="korgan" placeholder="RISE / Kiwa"><button class="secondary" id="preview">Förhandsgranska (UTKAST)</button><button class="secondary" id="approve" disabled>Godkänn underlag för utfärdande</button><button class="primary" id="create">Utfärda intyg</button><button class="secondary" id="list">Lista intyg</button><button class="secondary" id="anslag">Öppna anslag</button><div id="message" class="status">Klar.</div></section><section class="panel"><h3>Intyg</h3><pre id="result">Inget intyg laddat.</pre><div id="items"></div></section></div></main></div>
+<body><div class="shell"><aside><h2>Crow</h2><nav><a href="/">Projekt</a><a href="/vent">Ventilation</a><a href="/provtryckning">Provtryckning</a><a href="/ovk">OVK import</a><a href="/ovk/besiktning">OVK besiktning</a><a href="/ovk/falt">OVK fält</a><a class="active" href="/ovk/intyg">OVK intyg</a></nav></aside><main><p>OVK · INTYG</p><h1>Utfärda OVK-intyg</h1><p>För planerade besiktningar hämtas fastighet, byggnadsägare och kontrollant från registren. Intyget byggs ur ett sparat, protokollklart workflowrecord. Nästa besiktningsfrist härleds ur BFS 2011:16-intervall och märks som härledd uppgift med skriven basis.</p><div class="grid"><section class="panel"><label>Projekt</label><select id="project"><option value="adhoc">Ad hoc</option></select><label>Besiktnings-ID</label><input id="inspection" value="ovk-001"><label>Intygs-ID</label><input id="intyg" value="intyg-001"><label>Fastighetsbeteckning</label><input id="fastighet" placeholder="Berghällen 1:2"><label>Byggnadens ägare</label><input id="agare"><div class="two"><div><label>Besiktningstyp</label><select id="type"><option value="aterkommande">Återkommande</option><option value="forstagang">Förstagång</option></select></div><div><label>Byggnadskategori</label><select id="category"><option value="flerbostadshus">Flerbostadshus</option><option value="lokal">Lokal</option><option value="hotell">Hotell</option><option value="smahus">Småhus</option></select></div></div><div class="two"><div><label>Besiktningsdatum</label><input id="date" type="date"></div><div><label>Skola/vård</label><select id="school"><option value="false">Nej</option><option value="true">Ja</option></select></div></div><h3>Funktionskontrollant</h3><label>Namn</label><input id="kname"><div class="two"><div><label>Behörighet</label><select id="kbeh"><option value="K">K</option><option value="N">N</option></select></div><div><label>Certifikatnummer</label><input id="kcert"></div></div><label>Certifieringsorgan</label><input id="korgan" placeholder="RISE / Kiwa"><button class="secondary" id="preview">Förhandsgranska (UTKAST)</button><button class="secondary" id="approve" disabled>Godkänn underlag för utfärdande</button><button class="primary" id="create">Utfärda intyg</button><button class="secondary" id="list">Lista intyg</button><button class="secondary" id="anslag">Öppna anslag</button><div id="message" class="status">Klar.</div></section><section class="panel"><h3>Intyg</h3><pre id="result">Inget intyg laddat.</pre><div id="items"></div></section></div></main></div>
 <script>
 const $=id=>document.getElementById(id);let reviewedPreview=null;function esc(value){return String(value??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]))}function ensureProject(id){if(!id)return;if(![...$('project').options].some(o=>o.value===id)){const option=document.createElement('option');option.value=id;option.textContent=id;$('project').appendChild(option)}}
 async function init(){const modules=await fetch('/api/me/modules');if(!modules.ok)return;const data=await modules.json();if(!(data.modules||[]).some(m=>m.id==='ovk')){$('message').textContent='OVK ingår inte i licensen.';$('create').disabled=true;return}const projects=await fetch('/api/projects');if(projects.ok){for(const p of await projects.json()){ensureProject(p.project_id);const o=[...$('project').options].find(x=>x.value===p.project_id);if(o)o.textContent=p.project_name||p.name||p.project_id}}$('date').value=new Date().toISOString().slice(0,10)}
