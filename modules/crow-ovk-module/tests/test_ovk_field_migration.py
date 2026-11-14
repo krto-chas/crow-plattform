@@ -39,10 +39,14 @@ def test_migration_dry_run_and_preserves_originals(tmp_path: Path) -> None:
     original = tmp_path / "ovk-field-sync/ovk-2025.json"
     before = original.read_bytes()
     target = tmp_path / "projects/p1/ovk-field/ovk-2025"
+    scoped = "/api/ovk/projects/p1/field/ovk-2025/sync"
+    assert client.get(scoped).status_code == 409
+    assert client.put(scoped, json=_payload(b"photo")).status_code == 409
     assert migrate_field_data(tmp_path)[0]["status"] == "ready"
     assert not target.exists()
     assert migrate_field_data(tmp_path, apply=True)[0]["status"] == "migrated"
     assert original.read_bytes() == before
+    assert client.get(scoped).status_code == 200
     assert (target / "migration.json").is_file()
     url = "/api/ovk/projects/p1/field/ovk-2025/media/photo-old/content"
     assert client.get(url).content == b"photo"
