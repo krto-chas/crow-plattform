@@ -64,7 +64,19 @@ def _ready_client(
     payload["inspection"]["actions"] = actions or []
     saved = client.put(_BASE, json=payload)
     assert saved.status_code == 200, saved.text
+    _approve(client, _INTYG_BODY)
     return client
+
+
+def _approve(client: TestClient, body: dict[str, object]) -> None:
+    preview = client.post(_BASE + "/intyg/preview", json=body)
+    assert preview.status_code == 200, preview.text
+    approval = client.post(
+        _BASE + "/intyg/review",
+        json=body,
+        headers={"X-OVK-Review-Revision": preview.headers["X-OVK-Review-Revision"]},
+    )
+    assert approval.status_code == 200, approval.text
 
 
 def _finding(
@@ -244,6 +256,7 @@ def test_export_pdf_carries_code_and_handles_non_latin1(
 ) -> None:
     client = _ready_client(tmp_path, monkeypatch)
     body = {**_INTYG_BODY, "byggnadsagare_name": "Łukasz Żak – ägare ✓"}
+    _approve(client, body)
     code = client.post(_BASE + "/intyg", json=body).json()["verification_code"]
 
     signed = client.post("/api/ovk/projects/p1/export/intyg/intyg-001/sign")
@@ -314,3 +327,21 @@ def test_concurrent_issuance_preserves_winner(tmp_path: Path, monkeypatch: Monke
     assert repository.load("p1", "race") == winners[0]
     assert repository.load("p1", "intyg-001") == original
     assert not list((tmp_path / "projects" / "p1" / "ovk-intyg").glob("*.tmp"))
+
+
+def test_issue_requires_exact_review_revision(tmp_path: Path, monkeypatch: MonkeyPatch) -> None:
+    client = _ready_client(tmp_path, monkeypatch)
+    body = {**_INTYG_BODY, "intyg_id": "unreviewed"}
+    assert client.post(_BASE + "/intyg", json=body).status_code == 409
+    preview = client.post(_BASE + "/intyg/preview", json=body)
+    assert preview.status_code == 200
+    assert client.post(_BASE + "/intyg", json=body).status_code == 409
+    _approve(client, body)
+    changed = {**body, "byggnadsagare_name": "Changed"}
+    assert client.post(_BASE + "/intyg", json=changed).status_code == 409
+    payload = _workflow_payload()
+    payload["inspection"]["object"]["name"] = "Changed object"
+    assert client.put(_BASE, json=payload).status_code == 200
+    assert client.post(_BASE + "/intyg", json=body).status_code == 409
+    _approve(client, body)
+    assert client.post(_BASE + "/intyg", json=body).status_code == 200
