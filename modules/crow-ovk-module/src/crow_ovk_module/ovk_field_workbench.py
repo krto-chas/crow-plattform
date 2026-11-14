@@ -140,6 +140,17 @@ def ovk_field_workbench_router(data_root: Path) -> APIRouter:
             raise HTTPException(status_code=404, detail={"code": "OVK_FIELD_CONTEXT_NOT_FOUND"})
         return context
 
+    @router.get("/api/ovk/projects/{project_id}/field/{inspection_id}/workbench")
+    def project_workbench(project_id: str, inspection_id: str) -> dict[str, Any]:
+        store = _scoped_repository(project_id, inspection_id)
+        try:
+            snapshot, revision = store.load_snapshot(inspection_id)
+        except FileNotFoundError as exc:
+            raise HTTPException(status_code=404, detail="Field snapshot unavailable") from exc
+        if snapshot.get("inspection_id") != inspection_id:
+            raise HTTPException(status_code=409, detail="Field snapshot identity mismatch")
+        return _project_snapshot(store, snapshot, revision)
+
     return router
 
 
@@ -223,6 +234,12 @@ def _project_photo(
     photo_id = str(photo.get("photo_id", ""))
     expected_sha256 = str(photo.get("sha256", "")).lower()
     receipt = repository.load_receipt_optional(inspection_id, photo_id)
+    project_id = repository.project_id
+    content_url = f"/api/ovk/field/media/{inspection_id}/{photo_id}/content"
+    if project_id is not None:
+        content_url = (
+            f"/api/ovk/projects/{project_id}/field/{inspection_id}/media/{photo_id}/content"
+        )
     receipt_data = receipt or {}
     verified = bool(
         receipt
@@ -236,9 +253,7 @@ def _project_photo(
         "media_id": None if not verified else receipt_data.get("media_id"),
         "evidence_id": None if not verified else receipt_data.get("evidence_id"),
         "size_bytes": None if not verified else receipt_data.get("size_bytes"),
-        "content_url": (
-            None if not verified else f"/api/ovk/field/media/{inspection_id}/{photo_id}/content"
-        ),
+        "content_url": None if not verified else content_url,
     }
 
 
@@ -260,6 +275,8 @@ def _optional_text(value: object) -> str | None:
 
 class _FieldWorkbenchRepository:
     def __init__(self, data_root: Path, *, project_id: str | None = None) -> None:
+        self.project_id = project_id
+        self._data_root = data_root
         self._project_id = project_id
         self._scoped_root: Path | None
         if project_id is not None:
@@ -322,9 +339,16 @@ class _FieldWorkbenchRepository:
         _validate_identifier(inspection_id)
         _validate_identifier(photo_id)
         if self._scoped_root is not None:
-            target = self._scoped_root / inspection_id / "media" / f"{photo_id}.json"
-        else:
-            target = self._media_root / inspection_id / f"{photo_id}.json"
+            from .ovk_field_media import _FieldMediaRepository
+
+            try:
+                _, receipt = _FieldMediaRepository(
+                    self._data_root, project_id=self.project_id
+                ).load_media(inspection_id, photo_id)
+                return receipt
+            except (FileNotFoundError, ValueError, HTTPException):
+                return None
+        target = self._media_root / inspection_id / f"{photo_id}.json"
         try:
             payload: Any = json.loads(target.read_text(encoding="utf-8"))
         except FileNotFoundError:
