@@ -90,9 +90,10 @@ def ovk_protokoll_router(data_root: Path) -> APIRouter:
         }:
             raise HTTPException(status_code=422, detail="Field system mismatch")
         for photo in snapshot.get("photos", []):
-            if photo.get("sync_status") != "synced" or not _project_photo(
-                contexts, inspection_id, photo
-            )["verified"]:
+            if (
+                photo.get("sync_status") != "synced"
+                or not _project_photo(contexts, inspection_id, photo)["verified"]
+            ):
                 raise HTTPException(status_code=422, detail="Unverified field photo")
         utkast = build_protokoll_utkast(data)
         units = {unit.unit_id: unit.number for unit in data.units}
