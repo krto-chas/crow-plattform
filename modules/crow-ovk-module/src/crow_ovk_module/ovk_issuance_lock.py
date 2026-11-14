@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import re
 import sqlite3
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Callable
 from pathlib import Path
 
 from fastapi import HTTPException, Request
@@ -15,13 +15,12 @@ _SAFE_ID = re.compile(r"^[A-Za-z0-9._-]+$")
 
 def require_unissued(data_root: Path, project_id: str, inspection_id: str) -> None:
     if any(
-        item.inspection_id == inspection_id
-        for item in OvkIntygRepository(data_root).list(project_id)
+        item.inspection_id == inspection_id for item in OvkIntygRepository(data_root).list(project_id)
     ):
         raise HTTPException(status_code=409, detail={"code": "OVK_INSPECTION_ISSUED"})
 
 
-def inspection_mutation_guard(data_root: Path):
+def inspection_mutation_guard(data_root: Path) -> Callable[[Request], AsyncIterator[None]]:
     async def guard(request: Request) -> AsyncIterator[None]:
         project_id = request.path_params.get("project_id")
         inspection_id = request.path_params.get("inspection_id")
