@@ -563,3 +563,17 @@ def test_correction_issuance_preserves_original(tmp_path: Path, monkeypatch: Mon
     assert correction_manifest.read_bytes() == saved
     assert (original.read_bytes(), manifest.read_bytes()) == before
     assert client.get(original_url + "/status").json()["status"] == "superseded"
+
+
+def test_correction_page_exposes_only_administrative_fields(
+    tmp_path: Path, monkeypatch: MonkeyPatch
+) -> None:
+    page = _ready_client(tmp_path, monkeypatch).get("/ovk/intyg").text
+    for control in ("load", "request", "draft", "review", "issue", "recover"):
+        assert f'id="correction-{control}"' in page
+    assert 'id="correction-address"' in page
+    assert 'id="correction-name"' in page
+    assert 'id="correction-result"' not in page
+    assert "td.textContent=String(value??'')" in page
+    assert "revision:correctionSelection?.revision" in page
+    assert "selected.key!==correctionKey()" in page
