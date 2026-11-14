@@ -217,6 +217,11 @@ def test_scoped_history_never_falls_back_to_global_data(tmp_path: Path) -> None:
             },
         )
         assert uploaded.status_code == 200, uploaded.text
+        workbench = client.get(f"{source}/workbench")
+        assert workbench.status_code == 200, workbench.text
+        projected = workbench.json()["units"][0]["findings"][0]["photos"][0]
+        assert projected["verified"] is True
+        assert projected["content_url"] == f"{source}/media/photo-old/content"
         history = client.get(f"{root}/ovk-2028/history")
         assert history.status_code == 200, history.text
         photo = history.json()["historical_findings"][0]["photos"][0]
