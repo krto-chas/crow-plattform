@@ -15,7 +15,6 @@ from typing import Any
 
 from fastapi import APIRouter, HTTPException, Request
 
-from crow_ovk import OvkObject, VentilationSystemRef
 from crow_ovk_workflow import (
     OvkWorkflowRepository,
     bridge_inspection_inputs,
@@ -37,25 +36,6 @@ from .ovk_field_workbench import _FieldWorkbenchRepository, _project_photo
 def ovk_protokoll_router(data_root: Path) -> APIRouter:
     router = APIRouter()
     workflow_repository = OvkWorkflowRepository(data_root)
-    snapshot_root = data_root / "ovk-field-sync"
-
-    def _load_snapshot(inspection_id: str) -> dict[str, Any]:
-        target = snapshot_root / f"{inspection_id}.json"
-        if not target.exists():
-            raise HTTPException(
-                status_code=404,
-                detail={
-                    "code": "FIELD_SNAPSHOT_NOT_FOUND",
-                    "message": "Ingen synkad fältdata för besiktningen.",
-                },
-            )
-        payload: Any = json.loads(target.read_text(encoding="utf-8"))
-        if not isinstance(payload, dict):
-            raise HTTPException(
-                status_code=422,
-                detail={"code": "INVALID_SNAPSHOT", "message": "Snapshot är inte ett objekt."},
-            )
-        return payload
 
     @router.post(
         "/api/ovk/projects/{project_id}/field/{inspection_id}/protokoll-utkast",
@@ -64,21 +44,34 @@ def ovk_protokoll_router(data_root: Path) -> APIRouter:
     async def create_protokoll_utkast(
         project_id: str, inspection_id: str, request: Request
     ) -> dict[str, Any]:
-        body: dict[str, Any] = {}
         raw = await request.body()
         if raw:
-            parsed: Any = json.loads(raw)
+            try:
+                parsed: Any = json.loads(raw)
+            except ValueError as exc:
+                raise HTTPException(status_code=422, detail="Invalid JSON") from exc
             if not isinstance(parsed, dict):
                 raise HTTPException(
                     status_code=422,
                     detail={"code": "INVALID_JSON", "message": "payload must be an object"},
                 )
-            body = parsed
 
+        _validate_identifier(project_id)
         _validate_identifier(inspection_id)
-        snapshot = _load_snapshot(inspection_id)
+        sync_repository = _FieldSyncRepository(data_root, project_id=project_id)
+        contexts = _FieldWorkbenchRepository(data_root, project_id=project_id)
         try:
-            snapshot.setdefault("inspection_id", inspection_id)
+            existing = workflow_repository.load(project_id, inspection_id)
+            snapshot, revision = sync_repository.load(inspection_id)
+        except FileNotFoundError as exc:
+            raise HTTPException(status_code=404, detail="Scoped field data unavailable") from exc
+        if existing.planning is None or existing.inspection.ovk_object.project_id != project_id:
+            raise HTTPException(status_code=422, detail="Planned workflow required")
+        if snapshot.get("inspection_id") != inspection_id:
+            raise HTTPException(status_code=409, detail="Field inspection mismatch")
+        if request.headers.get("X-OVK-Base-Revision") != revision:
+            raise HTTPException(status_code=409, detail="Field revision mismatch")
+        try:
             data = _field_data_from_payload(snapshot)
         except ValueError as exc:
             raise HTTPException(
@@ -86,18 +79,21 @@ def ovk_protokoll_router(data_root: Path) -> APIRouter:
                 detail={"code": "INVALID_FIELD_DATA", "message": str(exc)},
             ) from exc
 
-        sync_repository = _FieldSyncRepository(data_root)
-        _verify_followup_sources(data_root, data, sync_repository)
-        contexts = _FieldWorkbenchRepository(data_root)
+        _verify_followup_sources(data_root, data, sync_repository, project_id=project_id)
         context = contexts.load_context_optional(inspection_id)
-        if context is not None and context.get("project_id") != project_id:
-            raise HTTPException(status_code=422, detail="Field project mismatch")
-        try:
-            existing = workflow_repository.load(project_id, inspection_id)
-        except FileNotFoundError:
-            existing = None
-        if data.finding_followups and (existing is None or existing.planning is None):
-            raise HTTPException(status_code=422, detail="Planned workflow required")
+        if context is None or context.get("inspector_id") != existing.planning.inspector_id:
+            raise HTTPException(status_code=422, detail="Verified field context required")
+        if context.get("previous_inspection_id") != existing.planning.previous_inspection_id:
+            raise HTTPException(status_code=409, detail="Field predecessor mismatch")
+        if context.get("system_type") not in {
+            system.system_type for system in existing.inspection.systems
+        }:
+            raise HTTPException(status_code=422, detail="Field system mismatch")
+        for photo in snapshot.get("photos", []):
+            if photo.get("sync_status") != "synced" or not _project_photo(
+                contexts, inspection_id, photo
+            )["verified"]:
+                raise HTTPException(status_code=422, detail="Unverified field photo")
         utkast = build_protokoll_utkast(data)
         units = {unit.unit_id: unit.number for unit in data.units}
         photos = {photo["photo_id"]: photo for photo in snapshot.get("photos", [])}
@@ -117,37 +113,18 @@ def ovk_protokoll_router(data_root: Path) -> APIRouter:
             for item in data.finding_followups
         ]
 
-        system_type = str(body.get("system_type") or snapshot.get("system_type") or "F")
-        building_id = str(body.get("building_id") or "byggnad-1")
-        object_name = str(body.get("object_name") or inspection_id)
-        ovk_object = OvkObject(
-            object_id=f"{inspection_id}-objekt",
-            project_id=project_id,
-            building_id=building_id,
-            name=object_name,
-            address=None,
-        )
-        if existing is not None and existing.planning is not None:
-            ovk_object = existing.inspection.ovk_object
+        ovk_object = existing.inspection.ovk_object
         inputs = bridge_inspection_inputs(data, utkast, ovk_object=ovk_object)
         record = build_record(
             inspection_id=str(inputs["inspection_id"]),
             ovk_object=ovk_object,
-            systems=(
-                existing.inspection.systems
-                if existing is not None and existing.planning is not None
-                else (
-                    VentilationSystemRef(
-                        f"{system_type}01", system_type, f"System {system_type}01"
-                    ),
-                )
-            ),
+            systems=existing.inspection.systems,
             checkpoints=inputs["checkpoints"],  # type: ignore[arg-type]
             findings=inputs["findings"],  # type: ignore[arg-type]
             actions=inputs["actions"],  # type: ignore[arg-type]
             coverage=utkast.suggested_coverage,
-            planning=existing.planning if existing is not None else None,
-            review=existing.review if existing is not None else (),
+            planning=existing.planning,
+            review=(),
         )
         workflow_repository.save(record)
 
@@ -155,6 +132,7 @@ def ovk_protokoll_router(data_root: Path) -> APIRouter:
             utkast_to_payload(utkast), ensure_ascii=False, sort_keys=True, separators=(",", ":")
         )
         return {
+            "snapshot_sha256": revision,
             "utkast": utkast_to_payload(utkast),
             "utkast_sha256": sha256(canonical.encode("utf-8")).hexdigest(),
             "record": record_to_payload(record),
