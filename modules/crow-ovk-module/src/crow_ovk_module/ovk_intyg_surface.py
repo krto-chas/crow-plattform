@@ -991,7 +991,24 @@ def _optional_date(value: object) -> date | None:
 _INTYG_HTML = r"""<!doctype html>
 <html lang="sv"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Crow OVK Intyg</title>
 <style>:root{font-family:Inter,system-ui,sans-serif;color:#18212b;background:#f4f6f8}*{box-sizing:border-box}body{margin:0}.shell{display:grid;grid-template-columns:230px 1fr;min-height:100vh}aside{background:#17202a;color:#fff;padding:24px}nav a{display:block;color:#dce5ed;text-decoration:none;padding:10px 0}nav a.active{font-weight:700;color:#fff}main{padding:32px;max-width:1200px}.grid{display:grid;grid-template-columns:420px 1fr;gap:18px}.panel{background:#fff;border:1px solid #dfe5ea;border-radius:10px;padding:20px}label{display:block;font-size:13px;font-weight:600;margin:10px 0 4px}input,select{width:100%;padding:8px;border:1px solid #cbd4dc;border-radius:6px}.primary,.secondary{margin-top:10px;padding:10px 14px;border-radius:6px;cursor:pointer}.primary{border:0;background:#17202a;color:#fff}.secondary{border:1px solid #aeb9c3;background:#fff}.status{margin-top:12px;padding:10px;background:#eef2f5;border-radius:6px}.warning{background:#fff4cf}.pass{background:#e5f6ea}.two{display:grid;grid-template-columns:1fr 1fr;gap:10px}pre{white-space:pre-wrap;background:#f7f8fa;padding:12px;border-radius:6px;max-height:420px;overflow:auto}table{width:100%;border-collapse:collapse;margin-top:10px}td,th{border:1px solid #dfe5ea;padding:6px 8px;font-size:13px;text-align:left}@media(max-width:900px){.shell{grid-template-columns:1fr}aside{display:none}.grid{grid-template-columns:1fr}.two{grid-template-columns:1fr}}</style></head>
-<body><div class="shell"><aside><h2>Crow</h2><nav><a href="/">Projekt</a><a href="/vent">Ventilation</a><a href="/provtryckning">Provtryckning</a><a href="/ovk">OVK import</a><a href="/ovk/besiktning">OVK besiktning</a><a href="/ovk/falt">OVK fält</a><a class="active" href="/ovk/intyg">OVK intyg</a></nav></aside><main><p>OVK · INTYG</p><h1>Utfärda OVK-intyg</h1><p>För planerade besiktningar hämtas fastighet, byggnadsägare och kontrollant från registren. Intyget byggs ur ett sparat, protokollklart workflowrecord. Nästa besiktningsfrist härleds ur BFS 2011:16-intervall och märks som härledd uppgift med skriven basis.</p><div class="grid"><section class="panel"><label>Projekt</label><select id="project"><option value="adhoc">Ad hoc</option></select><label>Besiktnings-ID</label><input id="inspection" value="ovk-001"><label>Intygs-ID</label><input id="intyg" value="intyg-001"><label>Fastighetsbeteckning</label><input id="fastighet" placeholder="Berghällen 1:2"><label>Byggnadens ägare</label><input id="agare"><div class="two"><div><label>Besiktningstyp</label><select id="type"><option value="aterkommande">Återkommande</option><option value="forstagang">Förstagång</option></select></div><div><label>Byggnadskategori</label><select id="category"><option value="flerbostadshus">Flerbostadshus</option><option value="lokal">Lokal</option><option value="hotell">Hotell</option><option value="smahus">Småhus</option></select></div></div><div class="two"><div><label>Besiktningsdatum</label><input id="date" type="date"></div><div><label>Skola/vård</label><select id="school"><option value="false">Nej</option><option value="true">Ja</option></select></div></div><h3>Funktionskontrollant</h3><label>Namn</label><input id="kname"><div class="two"><div><label>Behörighet</label><select id="kbeh"><option value="K">K</option><option value="N">N</option></select></div><div><label>Certifikatnummer</label><input id="kcert"></div></div><label>Certifieringsorgan</label><input id="korgan" placeholder="RISE / Kiwa"><button class="secondary" id="preview">Förhandsgranska (UTKAST)</button><button class="secondary" id="approve" disabled>Godkänn underlag för utfärdande</button><button class="primary" id="create">Utfärda intyg</button><button class="secondary" id="list">Lista intyg</button><button class="secondary" id="anslag">Öppna anslag</button><div id="message" class="status">Klar.</div></section><section class="panel"><h3>Intyg</h3><pre id="result">Inget intyg laddat.</pre><div id="items"></div></section></div></main></div>
+<body><div class="shell"><aside><h2>Crow</h2><nav><a href="/">Projekt</a><a href="/vent">Ventilation</a><a href="/provtryckning">Provtryckning</a><a href="/ovk">OVK import</a><a href="/ovk/besiktning">OVK besiktning</a><a href="/ovk/falt">OVK fält</a><a class="active" href="/ovk/intyg">OVK intyg</a></nav></aside><main><p>OVK · INTYG</p><h1>Utfärda OVK-intyg</h1><p>För planerade besiktningar hämtas fastighet, byggnadsägare och kontrollant från registren. Intyget byggs ur ett sparat, protokollklart workflowrecord. Nästa besiktningsfrist härleds ur BFS 2011:16-intervall och märks som härledd uppgift med skriven basis.</p><div class="grid"><section class="panel"><label>Projekt</label><select id="project"><option value="adhoc">Ad hoc</option></select><label>Besiktnings-ID</label><input id="inspection" value="ovk-001"><label>Intygs-ID</label><input id="intyg" value="intyg-001"><label>Fastighetsbeteckning</label><input id="fastighet" placeholder="Berghällen 1:2"><label>Byggnadens ägare</label><input id="agare"><div class="two"><div><label>Besiktningstyp</label><select id="type"><option value="aterkommande">Återkommande</option><option value="forstagang">Förstagång</option></select></div><div><label>Byggnadskategori</label><select id="category"><option value="flerbostadshus">Flerbostadshus</option><option value="lokal">Lokal</option><option value="hotell">Hotell</option><option value="smahus">Småhus</option></select></div></div><div class="two"><div><label>Besiktningsdatum</label><input id="date" type="date"></div><div><label>Skola/vård</label><select id="school"><option value="false">Nej</option><option value="true">Ja</option></select></div></div><h3>Funktionskontrollant</h3><label>Namn</label><input id="kname"><div class="two"><div><label>Behörighet</label><select id="kbeh"><option value="K">K</option><option value="N">N</option></select></div><div><label>Certifikatnummer</label><input id="kcert"></div></div><label>Certifieringsorgan</label><input id="korgan" placeholder="RISE / Kiwa"><button class="secondary" id="preview">Förhandsgranska (UTKAST)</button><button class="secondary" id="approve" disabled>Godkänn underlag för utfärdande</button><button class="primary" id="create">Utfärda intyg</button><button class="secondary" id="list">Lista intyg</button><button class="secondary" id="anslag">Öppna anslag</button><div id="message" class="status">Klar.</div></section><section class="panel"><h3>Intyg</h3><pre id="result">Inget intyg laddat.</pre><div id="items"></div></section></div>
+<section class="panel" style="margin-top:18px" aria-labelledby="correction-heading">
+<h2 id="correction-heading">Administrativ rättelse</h2>
+<p>Välj projekt och ange ett utfärdat intygs-ID ovan. Originalintyget bevaras. Endast adress och objektnamn kan rättas.</p>
+<button class="secondary" id="correction-load">Ladda intyg och rättelsehistorik</button>
+<p id="correction-message" role="status" aria-live="polite"></p>
+<div id="correction-details" hidden>
+<p id="correction-status"></p>
+<label for="correction-reason">Motivering</label><textarea id="correction-reason" maxlength="2000" rows="3" style="width:100%"></textarea>
+<button class="secondary" id="correction-request" disabled>Begär rättelse</button>
+<label for="correction-address">Ny adress</label><input id="correction-address" maxlength="500">
+<label for="correction-name">Nytt objektnamn</label><input id="correction-name" maxlength="500">
+<button class="secondary" id="correction-draft" disabled>Skapa rättelseutkast</button>
+<table><thead><tr><th>Uppgift</th><th>Original</th><th>Föreslagen rättelse</th></tr></thead><tbody id="correction-changes"></tbody></table>
+<button class="secondary" id="correction-review" disabled>Godkänn rättelse</button>
+<button class="primary" id="correction-issue" disabled>Utfärda ersättningsintyg</button>
+<button class="secondary" id="correction-recover" disabled>Återställ avbrutet utfärdande</button>
+</div></section></main></div>
 <script>
 const $=id=>document.getElementById(id);let reviewedPreview=null;function esc(value){return String(value??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]))}function ensureProject(id){if(!id)return;if(![...$('project').options].some(o=>o.value===id)){const option=document.createElement('option');option.value=id;option.textContent=id;$('project').appendChild(option)}}
 async function init(){const modules=await fetch('/api/me/modules');if(!modules.ok)return;const data=await modules.json();if(!(data.modules||[]).some(m=>m.id==='ovk')){$('message').textContent='OVK ingår inte i licensen.';$('create').disabled=true;return}const projects=await fetch('/api/projects');if(projects.ok){for(const p of await projects.json()){ensureProject(p.project_id);const o=[...$('project').options].find(x=>x.value===p.project_id);if(o)o.textContent=p.project_name||p.name||p.project_id}}$('date').value=new Date().toISOString().slice(0,10)}
@@ -1001,4 +1018,89 @@ $('preview').onclick=async()=>{const p=$('project').value,i=$('inspection').valu
 $('approve').onclick=async()=>{const v=reviewedPreview;if(!v||v.project!==$('project').value||v.inspection!==$('inspection').value||v.body!==JSON.stringify(build())){$('message').textContent='Underlaget har ändrats. Förhandsgranska igen.';return}if(!confirm('Jag har granskat protokoll och intyg och godkänner underlaget för utfärdande. Detta innebär inte att OVK-resultatet är godkänt.'))return;const r=await fetch('/api/ovk/projects/'+encodeURIComponent(v.project)+'/inspections/'+encodeURIComponent(v.inspection)+'/intyg/review',{method:'POST',headers:{'content-type':'application/json','X-OVK-Review-Revision':v.revision},body:v.body});const d=await r.json();$('message').textContent=r.ok?'Underlaget granskat. Intyg kan nu utfärdas.':'Fel: '+JSON.stringify(d);};
 $('list').onclick=async()=>{const p=$('project').value;const r=await fetch('/api/ovk/projects/'+encodeURIComponent(p)+'/intyg');const d=await r.json();if(!r.ok){$('message').textContent='Fel: '+JSON.stringify(d);return}$('items').innerHTML='<table><tr><th>Intyg</th><th>Besiktning</th><th>Resultat</th><th>Nästa frist</th></tr>'+d.intyg.map(x=>'<tr><td>'+esc(x.intyg_id)+'</td><td>'+esc(x.inspection_id)+'</td><td>'+esc(x.result)+'</td><td>'+esc(x.next_inspection_due||'—')+'</td></tr>').join('')+'</table>'};
 $('anslag').onclick=()=>{const p=$('project').value,i=$('intyg').value;window.open('/api/ovk/projects/'+encodeURIComponent(p)+'/intyg/'+encodeURIComponent(i)+'/anslag','_blank')};init();
+
+// Correction actions use a frozen selection and the exact server review revision.
+let correctionSelection=null, correctionEpoch=0, correctionBusy=false;
+const correctionButtons=['correction-request','correction-draft','correction-review','correction-issue','correction-recover'];
+function correctionKey(){return JSON.stringify([$('project').value,$('intyg').value.trim()])}
+function clearCorrection(){correctionEpoch++;correctionSelection=null;$('correction-details').hidden=true;$('correction-message').textContent='Ladda valt intyg.';for(const id of correctionButtons)$(id).disabled=true}
+$('project').addEventListener('change',clearCorrection);
+$('intyg').addEventListener('input',clearCorrection);
+async function correctionFetch(url,body,optional=false){
+ const response=await fetch(url,body===undefined?{}:{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(body)});
+ const data=await response.json();
+ if(optional&&response.status===404)return null;
+ if(!response.ok)throw new Error(JSON.stringify(data.detail??data));
+ return data;
+}
+function correctionRow(label,before,after){
+ const tr=document.createElement('tr');
+ for(const value of [label,before,after]){const td=document.createElement('td');td.textContent=String(value??'');tr.appendChild(td)}
+ $('correction-changes').appendChild(tr);
+}
+async function loadCorrection(){
+ clearCorrection();
+ const epoch=correctionEpoch,key=correctionKey(),[project,id]=JSON.parse(key);
+ if(!id){$('correction-message').textContent='Ange intygs-ID.';return}
+ const url='/api/ovk/projects/'+encodeURIComponent(project)+'/intyg/'+encodeURIComponent(id);
+ try{
+  const original=await correctionFetch(url);
+  const status=await correctionFetch(url+'/status');
+  const request=await correctionFetch(url+'/correction',undefined,true);
+  const draft=request?await correctionFetch(url+'/correction/draft',undefined,true):null;
+  const review=draft?await correctionFetch(url+'/correction/review'):null;
+  if(epoch!==correctionEpoch||key!==correctionKey())return;
+  correctionSelection={key,url,original,revision:review?.revision};
+  $('correction-details').hidden=false;
+  const labels={current:'Aktuellt',superseded:'Ersatt',integrity_error:'Integritetsfel'};
+  $('correction-status').textContent=(labels[status.status]??'Okänd status')+(status.replacement_intyg_id?' · Ersättningsintyg: '+status.replacement_intyg_id:'')+(status.original_intyg_id?' · Originalintyg: '+status.original_intyg_id:'');
+  $('correction-reason').value=request?.reason??'';
+  $('correction-address').value=draft?.candidate.address??original.address;
+  $('correction-name').value=draft?.candidate.object_name??original.object_name;
+  $('correction-reason').readOnly=!!request;
+  $('correction-address').readOnly=$('correction-name').readOnly=!!draft;
+  $('correction-changes').replaceChildren();
+  correctionRow('Adress',original.address,draft?.candidate.address??'—');
+  correctionRow('Objektnamn',original.object_name,draft?.candidate.object_name??'—');
+  const eligible=status.status==='current'&&!status.original_intyg_id;
+  $('correction-request').disabled=!eligible||!!request;
+  $('correction-draft').disabled=!eligible||!request||!!draft;
+  $('correction-review').disabled=!eligible||!review;
+  $('correction-issue').disabled=!eligible||!review;
+  $('correction-recover').disabled=status.status!=='integrity_error'||!review;
+  $('correction-message').textContent='Intyg laddat. Servern kontrollerar behörighet och granskningsstatus vid varje åtgärd.';
+ }catch(error){if(epoch===correctionEpoch)$('correction-message').textContent='Fel: '+error.message}
+}
+$('correction-load').onclick=()=>{if(!correctionBusy)loadCorrection()};
+async function correctionAction(path,body,confirmation){
+ const selected=correctionSelection;
+ if(correctionBusy||!selected||selected.key!==correctionKey())return;
+ if(confirmation&&!confirm(confirmation))return;
+ correctionBusy=true;
+ for(const id of correctionButtons)$(id).disabled=true;
+ try{
+  const data=await correctionFetch(selected.url+'/correction'+path,body);
+  if(selected.key===correctionKey()){
+   await loadCorrection();
+   $('correction-message').textContent='Åtgärd slutförd.'+(data.certificate?' Ersättningsintyg: '+data.certificate.intyg_id:'');
+  }
+ }catch(error){
+  if(selected.key===correctionKey()){
+   await loadCorrection();
+   $('correction-message').textContent='Fel: '+error.message;
+  }
+ }finally{correctionBusy=false}
+}
+$('correction-request').onclick=()=>correctionAction('',{reason:$('correction-reason').value});
+$('correction-draft').onclick=()=>{
+ const selected=correctionSelection;if(!selected)return;
+ const changes={};
+ for(const [key,id] of [['address','correction-address'],['object_name','correction-name']]){
+  const value=$(id).value.trim();if(value!==selected.original[key])changes[key]=value;
+ }
+ correctionAction('/draft',changes,'Skapa ett permanent rättelseutkast med dessa ändringar?');
+};
+$('correction-review').onclick=()=>correctionAction('/review',{revision:correctionSelection?.revision},'Jag har granskat original och föreslagna värden och godkänner rättelsen.');
+$('correction-issue').onclick=()=>correctionAction('/issue',{revision:correctionSelection?.revision},'Utfärda ersättningsintyg? Originalet bevaras.');
+$('correction-recover').onclick=()=>correctionAction('/recover',{revision:correctionSelection?.revision},'Återställ det tidigare godkända utfärdandet?');
 </script></body></html>"""
