@@ -710,7 +710,9 @@ def ovk_intyg_router(data_root: Path) -> APIRouter:
         return await _publish_correction(project_id, intyg_id, request, recover=False)
 
     @router.post("/api/ovk/projects/{project_id}/intyg/{intyg_id}/correction/recover")
-    async def recover_correction(project_id: str, intyg_id: str, request: Request) -> dict[str, Any]:
+    async def recover_correction(
+        project_id: str, intyg_id: str, request: Request
+    ) -> dict[str, Any]:
         return await _publish_correction(project_id, intyg_id, request, recover=True)
 
     async def _publish_correction(
