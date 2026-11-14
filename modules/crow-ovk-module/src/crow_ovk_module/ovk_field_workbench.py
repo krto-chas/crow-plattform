@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import re
 import sqlite3
+from contextlib import closing
 from datetime import UTC, datetime
 from hashlib import sha256
 from hmac import compare_digest
@@ -213,12 +214,13 @@ class _FieldWorkbenchRepository:
     def save_context(self, inspection_id: str, payload: dict[str, Any]) -> None:
         self._context_root.mkdir(parents=True, exist_ok=True)
         target = self._context_root / f"{inspection_id}.json"
-        with sqlite3.connect(self._context_root / ".write-lock.sqlite3", timeout=30) as lock:
-            lock.execute("BEGIN IMMEDIATE")
-            previous = self.load_context_optional(inspection_id)
-            if previous is not None and previous.get("project_id") != payload.get("project_id"):
-                raise ValueError("field inspection already belongs to another project")
-            self._write_json(target, payload)
+        with closing(sqlite3.connect(self._context_root / ".write-lock.sqlite3")) as lock:
+            with lock:
+                lock.execute("BEGIN IMMEDIATE")
+                previous = self.load_context_optional(inspection_id)
+                if previous is not None and previous.get("project_id") != payload.get("project_id"):
+                    raise ValueError("field inspection already belongs to another project")
+                self._write_json(target, payload)
 
     def load_context_optional(self, inspection_id: str) -> dict[str, Any] | None:
         target = self._context_root / f"{inspection_id}.json"
@@ -244,9 +246,7 @@ class _FieldWorkbenchRepository:
             sort_keys=True,
             separators=(",", ":"),
         )
-        with NamedTemporaryFile(
-            mode="w", encoding="utf-8", dir=target.parent, delete=False
-        ) as stream:
+        with NamedTemporaryFile(mode="w", encoding="utf-8", dir=target.parent, delete=False) as stream:
             temporary = Path(stream.name)
             stream.write(canonical + "\n")
         try:
