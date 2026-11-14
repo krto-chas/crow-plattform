@@ -261,6 +261,7 @@ def _optional_text(value: object) -> str | None:
 class _FieldWorkbenchRepository:
     def __init__(self, data_root: Path, *, project_id: str | None = None) -> None:
         self._project_id = project_id
+        self._scoped_root: Path | None
         if project_id is not None:
             _validate_identifier(project_id)
             self._scoped_root = data_root / "projects" / project_id / "ovk-field"
