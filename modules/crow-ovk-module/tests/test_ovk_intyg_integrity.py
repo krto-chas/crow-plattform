@@ -339,7 +339,7 @@ def test_issue_requires_exact_review_revision(tmp_path: Path, monkeypatch: Monke
     _approve(client, body)
     changed = {**body, "byggnadsagare_name": "Changed"}
     assert client.post(_BASE + "/intyg", json=changed).status_code == 409
-    payload = _workflow_payload()
+    payload: dict[str, Any] = _workflow_payload()
     payload["inspection"]["object"]["name"] = "Changed object"
     assert client.put(_BASE, json=payload).status_code == 200
     assert client.post(_BASE + "/intyg", json=body).status_code == 409
