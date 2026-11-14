@@ -639,9 +639,7 @@ def ovk_intyg_router(data_root: Path) -> APIRouter:
         return approval
 
     @router.post("/api/ovk/projects/{project_id}/intyg/{intyg_id}/correction/issue")
-    async def issue_correction(
-        project_id: str, intyg_id: str, request: Request
-    ) -> dict[str, Any]:
+    async def issue_correction(project_id: str, intyg_id: str, request: Request) -> dict[str, Any]:
         customer = current_customer_from_request(request)
         if not customer.user_id or "ovk_correction_issuer" not in customer.roles:
             raise HTTPException(status_code=403, detail={"code": "OVK_CORRECTION_ISSUE_FORBIDDEN"})
