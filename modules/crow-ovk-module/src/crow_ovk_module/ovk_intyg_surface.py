@@ -167,6 +167,14 @@ def ovk_intyg_router(data_root: Path) -> APIRouter:
         }[property_record.fastighetstyp.value]
         if payload.get("building_category") != category:
             raise ValueError("building category does not match registered property")
+        if not isinstance(payload.get("school_or_care", False), bool):
+            raise ValueError("school_or_care must be a boolean")
+        if (
+            person.behorighet.value == "N"
+            and category != "smahus"
+            and any(system.system_type in {"FT", "FTX"} for system in systems)
+        ):
+            raise ValueError("registered inspector requires K for this system")
         canonical = replace(
             obj,
             name=f"{property_record.fastighetsbeteckning} · {building.internt_namn}",
