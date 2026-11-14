@@ -166,14 +166,15 @@ def ovk_field_media_router(data_root: Path) -> APIRouter:
     @router.get("/api/ovk/projects/{project_id}/field/{inspection_id}/media/{photo_id}/content")
     def project_content(project_id: str, inspection_id: str, photo_id: str) -> Response:
         try:
-            content, receipt = _scoped(project_id, inspection_id).load_media(inspection_id, photo_id)
+            store = _scoped(project_id, inspection_id)
+            content, receipt = store.load_media(inspection_id, photo_id)
         except FileNotFoundError as exc:
             raise HTTPException(status_code=404, detail={"code": "OVK_MEDIA_NOT_FOUND"}) from exc
         return Response(
             content,
             media_type=str(receipt["mime_type"]),
             headers={
-                "ETag": f\'"{receipt["sha256"]}"\',
+                "ETag": f'"{receipt["sha256"]}"',
                 "Cache-Control": "no-store",
                 "X-Content-Type-Options": "nosniff",
                 "Content-Disposition": "attachment",
@@ -206,7 +207,6 @@ class _FieldMediaRepository:
         if project_id is not None:
             _validate_identifier(project_id)
             self._scoped_root = data_root / "projects" / project_id / "ovk-field"
-        self._snapshot_root = data_root / "ovk-field-sync"
         self._media_root = data_root / "ovk-field-media"
 
     def load_snapshot(self, inspection_id: str) -> dict[str, Any]:
