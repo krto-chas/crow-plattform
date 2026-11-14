@@ -18,9 +18,9 @@ from .ovk_field_media import _FieldMediaRepository
 
 def _digest(payload: Any) -> str:
     return sha256(
-        json.dumps(
-            payload, sort_keys=True, ensure_ascii=False, separators=(",", ":")
-        ).encode("utf-8")
+        json.dumps(payload, sort_keys=True, ensure_ascii=False, separators=(",", ":")).encode(
+            "utf-8"
+        )
     ).hexdigest()
 
 
