@@ -3,6 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from fastapi import APIRouter
+from fastapi.routing import APIRoute
 
 from crow_module_sdk.models import (
     Claim,
@@ -33,6 +34,33 @@ from .ovk_surface import ovk_router
 from .ovk_time_surface import ovk_time_router
 from .ovk_workflow_page import ovk_workflow_page_router
 from .ovk_workflow_surface import ovk_workflow_router
+
+
+_LEGACY_FIELD_PREFIX = "/api/ovk/field/"
+_FIELD_REFERENCE_PATHS = frozenset(
+    {
+        "/api/ovk/field/checklists",
+        "/api/ovk/field/defect-types",
+        "/api/ovk/field/validate",
+    }
+)
+
+
+def _production_field_router(router: APIRouter) -> APIRouter:
+    """Keep legacy repositories available offline, never mount their HTTP routes."""
+    router.routes[:] = [
+        route
+        for route in router.routes
+        if not isinstance(route, APIRoute)
+        or (
+            (
+                not route.path.startswith(_LEGACY_FIELD_PREFIX)
+                or route.path in _FIELD_REFERENCE_PATHS
+            )
+            and not route.path.endswith("/field-history")
+        )
+    ]
+    return router
 
 
 class CrowOvkModulePlugin:
@@ -90,10 +118,10 @@ class CrowOvkModulePlugin:
             ovk_fastighet_router(data_root),
             ovk_protokoll_router(data_root),
             ovk_field_context_page_router(),
-            ovk_field_router(data_root),
-            ovk_field_media_router(data_root),
-            ovk_field_workbench_router(data_root),
-            ovk_field_history_router(data_root),
+            _production_field_router(ovk_field_router(data_root)),
+            _production_field_router(ovk_field_media_router(data_root)),
+            _production_field_router(ovk_field_workbench_router(data_root)),
+            _production_field_router(ovk_field_history_router(data_root)),
             ovk_legacy_router(data_root),
             ovk_reporting_router(data_root),
             ovk_time_router(data_root),
