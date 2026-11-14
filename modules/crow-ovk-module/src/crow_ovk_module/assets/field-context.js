@@ -39,8 +39,14 @@ restoreLatest = async function (requested=null) {
 
 $('generate').onclick = async () => {
   if ($('start').disabled || !$('systemType').value) return;
-  state.project_id = $('project').value;
-  state.inspection_id = $('inspection').value.trim();
+  const projectId = $('project').value;
+  const inspectionId = $('inspection').value.trim();
+  if (state.inspection_id && (state.project_id !== projectId || state.inspection_id !== inspectionId)) {
+    $('draftStatus').textContent = 'Öppna rätt uppdrag innan du ändrar enhetslistan.';
+    return;
+  }
+  state.project_id = projectId;
+  state.inspection_id = inspectionId;
   state.inspector = $('inspector').value.trim();
   state.system_type = $('systemType').value;
   await originalGenerateHandler();

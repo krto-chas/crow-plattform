@@ -61,7 +61,7 @@ syncSnapshot = async function () {
 syncPendingMedia = async function () {
   let uploaded = 0;
   for (const photo of state.photos.filter(item => item.sync_status !== 'synced')) {
-    const media = await dbGet('media', photo.photo_id);
+    const media = await dbGet(MEDIA_STORE, mediaKey(state.project_id, state.inspection_id, photo.photo_id));
     if (!media || !media.blob) throw new Error('Saknar lokal mediablob för ' + photo.photo_id);
     const response = await crowAuthenticatedFetch(
       '/api/ovk/field/media/' + encodeURIComponent(state.inspection_id) + '/' + encodeURIComponent(photo.photo_id),
@@ -78,7 +78,7 @@ syncPendingMedia = async function () {
     media.media_id = receipt.media_id;
     media.evidence_id = receipt.evidence_id;
     media.synced_at = now();
-    await dbPut('media', media);
+    await dbPut(MEDIA_STORE, media);
     uploaded += 1;
   }
   return uploaded;
