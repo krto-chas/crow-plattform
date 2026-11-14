@@ -429,3 +429,32 @@ def test_correction_request_preserves_issued_certificate(
     assert client.get(url.replace("/p1/", "/p2/")).status_code == 404
     assert client.put(_BASE, json=_workflow_payload()).status_code == 409
     assert (certificate.read_bytes(), manifest.read_bytes()) == before
+
+
+def test_correction_draft_preserves_technical_result(
+    tmp_path: Path, monkeypatch: MonkeyPatch
+) -> None:
+    client = _ready_client(tmp_path, monkeypatch)
+    assert client.post(_BASE + "/intyg", json=_INTYG_BODY).status_code == 200
+    original_url = "/api/ovk/projects/p1/intyg/intyg-001"
+    original = client.get(original_url).json()
+    url = original_url + "/correction/draft"
+    assert client.post(url, json={"address": "Ny adress"}).status_code == 404
+    assert (
+        client.post(original_url + "/correction", json={"reason": "Adressfel"}).status_code == 200
+    )
+    assert client.post(url, json={"result": "approved"}).status_code == 422
+    assert client.post(url, json={"inspection_date": "2026-01-01"}).status_code == 422
+    response = client.post(url, json={"address": "Ny adress"})
+    assert response.status_code == 200, response.text
+    draft = response.json()
+    assert draft["status"] == "draft"
+    candidate = draft["candidate"]
+    assert candidate["intyg_id"] != original["intyg_id"]
+    assert candidate["address"] == "Ny adress"
+    assert candidate == {**original, "intyg_id": draft["draft_id"], "address": "Ny adress"}
+    assert draft["changes"]["address"] == {"before": original["address"], "after": "Ny adress"}
+    assert client.get(url).json() == draft
+    assert client.post(url, json={"address": "Annan adress"}).status_code == 409
+    assert client.get(original_url).json() == original
+    assert client.get("/api/ovk/projects/p1/intyg/" + draft["draft_id"]).status_code == 404
