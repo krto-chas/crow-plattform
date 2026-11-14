@@ -239,17 +239,24 @@ def test_intyg_surface_resolves_registry_references(
             "giltig_till": "2028-01-01",
         },
     )
-    response = client.post(
-        "/api/ovk/projects/p1/inspections/ovk-001/intyg",
-        json={
-            "intyg_id": "intyg-1",
-            "fastighet_id": "berget-1",
-            "besiktningsman_id": "stina-b",
-            "inspection_type": "aterkommande",
-            "building_category": "flerbostadshus",
-            "inspection_date": "2026-08-01",
-        },
+    base = "/api/ovk/projects/p1/inspections/ovk-001/intyg"
+    request_body = {
+        "intyg_id": "intyg-1",
+        "fastighet_id": "berget-1",
+        "besiktningsman_id": "stina-b",
+        "inspection_type": "aterkommande",
+        "building_category": "flerbostadshus",
+        "inspection_date": "2026-08-01",
+    }
+    preview = client.post(base + "/preview", json=request_body)
+    assert preview.status_code == 200
+    approval = client.post(
+        base + "/review",
+        json=request_body,
+        headers={"X-OVK-Review-Revision": preview.headers["X-OVK-Review-Revision"]},
     )
+    assert approval.status_code == 200
+    response = client.post(base, json=request_body)
     assert response.status_code == 200, response.text
     body = response.json()
     assert body["fastighetsbeteckning"] == "Berget 1"
