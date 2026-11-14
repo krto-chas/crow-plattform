@@ -219,14 +219,11 @@ def test_protokoll_utkast_endpoint_builds_record_from_snapshot(
     missing = client.post("/api/ovk/projects/p1/field/saknas/protokoll-utkast", json={})
     assert missing.status_code == 404
 
-
     preview_url = "/api/ovk/projects/p1/inspections/ovk-brygga/intyg/preview"
     source = tmp_path / "projects" / "p1" / "ovk-field" / "ovk-brygga" / "protocol-source.json"
     assert source.is_file()
     snapshot["findings"] = []
-    changed = client.put(
-        f"{base}/sync", json=snapshot, headers={"X-OVK-Base-Revision": revision}
-    )
+    changed = client.put(f"{base}/sync", json=snapshot, headers={"X-OVK-Base-Revision": revision})
     assert changed.status_code == 200, changed.text
     stale = client.post(preview_url, json={})
     assert stale.status_code == 409, stale.text
