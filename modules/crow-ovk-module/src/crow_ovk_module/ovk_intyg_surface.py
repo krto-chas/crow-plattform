@@ -39,6 +39,7 @@ from crow_ovk_workflow import OvkWorkflowRecord, OvkWorkflowRepository, record_t
 
 from .ovk_issuance_lock import inspection_mutation_guard, require_unissued
 from .ovk_issuance_manifest import publish_manifest
+from .ovk_protocol_source import require_current_protocol_source
 
 
 def ovk_intyg_router(data_root: Path) -> APIRouter:
@@ -243,6 +244,7 @@ def ovk_intyg_router(data_root: Path) -> APIRouter:
         except ValueError as exc:
             raise HTTPException(status_code=422, detail={"code": "INVALID_OVK_IDENTIFIER"}) from exc
         try:
+            require_current_protocol_source(data_root, project_id, inspection_id, record)
             original_record = record
             record = _registered_identity(record, project_id, payload)
             intyg = build_intyg(
@@ -260,7 +262,7 @@ def ovk_intyg_router(data_root: Path) -> APIRouter:
             field_root = data_root / "projects" / project_id / "ovk-field" / inspection_id
             field_digests = {
                 name: sha256((field_root / name).read_bytes()).hexdigest()
-                for name in ("snapshot.json", "context.json")
+                for name in ("snapshot.json", "context.json", "protocol-source.json")
                 if (field_root / name).is_file()
             }
             revision = sha256(
