@@ -2,7 +2,7 @@ from decimal import Decimal
 
 import pytest
 
-from crow_ovk import EvidenceOrigin, OvkObject
+from crow_ovk import EvidenceOrigin, OvkObject, VentilationSystemRef
 from crow_ovk_field.models import FieldInspectionData, FieldMeasurement, MeasurePointType
 from crow_ovk_workflow import bridge_inspection_inputs, build_protokoll_utkast, build_record
 
@@ -31,7 +31,10 @@ def test_field_measurements_preserve_values_and_identity() -> None:
     )
     data = FieldInspectionData("i1", measurements=(measured, pending, unavailable))
     inputs = bridge_inspection_inputs(data, build_protokoll_utkast(data), ovk_object=obj)
-    record = build_record(**inputs)  # type: ignore[arg-type]
+    record = build_record(
+        systems=(VentilationSystemRef("F01", "F", "Frånluft F01"),),
+        **inputs,  # type: ignore[arg-type]
+    )
     (result,) = record.inspection.measurements
     assert result.measurement_id == result.point_id == "don-1"
     assert result.measured_value == Decimal("0")
