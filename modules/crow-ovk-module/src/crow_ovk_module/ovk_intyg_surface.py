@@ -256,9 +256,15 @@ def ovk_intyg_router(data_root: Path) -> APIRouter:
                 school_or_care=bool(payload.get("school_or_care", False)),
                 issued_date=_optional_date(payload.get("issued_date")),
             )
+            field_root = data_root / "projects" / project_id / "ovk-field" / inspection_id
+            field_digests = {
+                name: sha256((field_root / name).read_bytes()).hexdigest()
+                for name in ("snapshot.json", "context.json")
+                if (field_root / name).is_file()
+            }
             revision = sha256(
                 json.dumps(
-                    [record_to_payload(original_record), intyg_to_payload(intyg)],
+                    [record_to_payload(original_record), intyg_to_payload(intyg), field_digests],
                     sort_keys=True,
                     ensure_ascii=False,
                     separators=(",", ":"),
