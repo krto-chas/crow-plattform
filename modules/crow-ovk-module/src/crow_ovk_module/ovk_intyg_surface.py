@@ -544,6 +544,101 @@ def ovk_intyg_router(data_root: Path) -> APIRouter:
             ) from exc
         return payload
 
+    def _correction_revision(project_id: str, intyg_id: str) -> str:
+        original = intyg_to_payload(_load(intyg_repository, project_id, intyg_id))
+        correction = get_correction(project_id, intyg_id)
+        draft = get_correction_draft(project_id, intyg_id)
+        canonical = json.dumps(
+            original, sort_keys=True, ensure_ascii=False, separators=(",", ":")
+        )
+        changes = draft.get("changes")
+        if (
+            draft.get("original_sha256") != sha256(canonical.encode("utf-8")).hexdigest()
+            or draft.get("project_id") != project_id
+            or draft.get("original_intyg_id") != intyg_id
+            or draft.get("reason") != correction.get("reason")
+            or not isinstance(changes, dict)
+            or not changes
+            or set(changes) - {"address", "object_name"}
+        ):
+            raise HTTPException(status_code=409, detail={"code": "OVK_CORRECTION_SOURCE_CHANGED"})
+        expected = dict(original)
+        draft_id = draft.get("draft_id")
+        if not isinstance(draft_id, str) or not draft_id.startswith("correction-"):
+            raise HTTPException(status_code=409, detail={"code": "OVK_CORRECTION_SOURCE_CHANGED"})
+        expected["intyg_id"] = draft_id
+        for key, change in changes.items():
+            if (
+                not isinstance(change, dict)
+                or change.get("before") != original[key]
+                or not isinstance(change.get("after"), str)
+                or not 1 <= len(change["after"].strip()) <= 500
+                or change["after"] == original[key]
+            ):
+                raise HTTPException(
+                    status_code=409, detail={"code": "OVK_CORRECTION_SOURCE_CHANGED"}
+                )
+            expected[key] = change["after"]
+        if draft.get("candidate") != expected:
+            raise HTTPException(status_code=409, detail={"code": "OVK_CORRECTION_SOURCE_CHANGED"})
+        source = json.dumps(
+            [original, correction, draft], sort_keys=True, ensure_ascii=False, separators=(",", ":")
+        )
+        return sha256(source.encode("utf-8")).hexdigest()
+
+    @router.get("/api/ovk/projects/{project_id}/intyg/{intyg_id}/correction/review")
+    def correction_review(project_id: str, intyg_id: str) -> dict[str, Any]:
+        revision = _correction_revision(project_id, intyg_id)
+        return {"revision": revision, "draft": get_correction_draft(project_id, intyg_id)}
+
+    @router.post("/api/ovk/projects/{project_id}/intyg/{intyg_id}/correction/review")
+    async def approve_correction(
+        project_id: str, intyg_id: str, request: Request
+    ) -> dict[str, Any]:
+        customer = current_customer_from_request(request)
+        if not customer.user_id or "ovk_correction_reviewer" not in customer.roles:
+            raise HTTPException(status_code=403, detail={"code": "OVK_CORRECTION_REVIEW_FORBIDDEN"})
+        revision = _correction_revision(project_id, intyg_id)
+        draft = get_correction_draft(project_id, intyg_id)
+        if draft.get("customer_id") != customer.customer_id:
+            raise HTTPException(status_code=403, detail={"code": "OVK_CORRECTION_REVIEW_FORBIDDEN"})
+        try:
+            payload: Any = await request.json()
+        except ValueError as exc:
+            raise HTTPException(status_code=422, detail="Invalid JSON") from exc
+        if not isinstance(payload, dict) or payload.get("revision") != revision:
+            raise HTTPException(status_code=409, detail={"code": "OVK_CORRECTION_REVIEW_STALE"})
+        approval = {
+            "schema_version": 1,
+            "project_id": project_id,
+            "original_intyg_id": intyg_id,
+            "draft_id": draft["draft_id"],
+            "revision": revision,
+            "reviewer": customer.user_id,
+            "customer_id": customer.customer_id,
+            "reviewed_at": datetime.now(UTC).isoformat(),
+        }
+        target = data_root / "projects" / project_id / "ovk-correction-reviews" / f"{intyg_id}.json"
+        target.parent.mkdir(parents=True, exist_ok=True)
+        temporary: Path | None = None
+        try:
+            with NamedTemporaryFile(
+                mode="w", encoding="utf-8", dir=target.parent, suffix=".tmp", delete=False
+            ) as stream:
+                temporary = Path(stream.name)
+                json.dump(approval, stream, ensure_ascii=False, sort_keys=True)
+                stream.flush()
+                os.fsync(stream.fileno())
+            os.link(temporary, target)
+        except FileExistsError as exc:
+            raise HTTPException(
+                status_code=409, detail={"code": "OVK_CORRECTION_ALREADY_REVIEWED"}
+            ) from exc
+        finally:
+            if temporary is not None:
+                temporary.unlink(missing_ok=True)
+        return approval
+
     return router
 
 
