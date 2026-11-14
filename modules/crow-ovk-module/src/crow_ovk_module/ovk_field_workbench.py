@@ -247,7 +247,9 @@ class _FieldWorkbenchRepository:
             sort_keys=True,
             separators=(",", ":"),
         )
-        with NamedTemporaryFile(mode="w", encoding="utf-8", dir=target.parent, delete=False) as stream:
+        with NamedTemporaryFile(
+            mode="w", encoding="utf-8", dir=target.parent, delete=False
+        ) as stream:
             temporary = Path(stream.name)
             stream.write(canonical + "\n")
         try:
