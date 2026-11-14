@@ -135,3 +135,60 @@ def test_environment_identity_remains_compatible(
 
     assert session.status_code == 200
     assert session.json()["customer_id"] == "legacy"
+
+
+def test_session_boundary_blocks_private_routes_before_dispatch(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _session_mode(monkeypatch)
+    app = create_app(tmp_path)
+    client = TestClient(app)
+
+    for route in app.routes:
+        path = getattr(route, "path", "")
+        if not path.startswith("/api/") or path == "/api/auth/login":
+            continue
+        for method in getattr(route, "methods", set()) or set():
+            response = client.request(method, path, follow_redirects=False)
+            assert response.status_code == 401, (method, path, response.text)
+            assert response.json()["detail"]["code"] == "AUTHENTICATION_REQUIRED"
+
+    for path in ("/docs", "/redoc", "/openapi.json", "/docs/oauth2-redirect"):
+        assert client.get(path, follow_redirects=False).status_code == 401
+    assert client.get("/health").status_code == 200
+    assert client.get("/login").status_code == 200
+    assert client.post("/api/auth/login", json={}).status_code == 422
+    assert client.get("/api/auth/login").status_code == 401
+    assert client.post("/health").status_code == 401
+    client.cookies.set("crow_session", "invalid")
+    assert client.get("/api/projects").status_code == 401
+    client.cookies.clear()
+
+    @app.get("/future-private-route")
+    def future_route() -> dict[str, bool]:
+        return {"private": True}
+
+    assert client.get("/future-private-route", follow_redirects=False).status_code == 303
+
+
+def test_authenticated_session_can_use_core_projects_and_docs(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _session_mode(monkeypatch)
+    _write_user(tmp_path, "anna", "acme", ())
+    client = TestClient(create_app(tmp_path))
+    blocked = client.post("/api/projects", json={"name": "Blocked", "project_id": "blocked"})
+    assert blocked.status_code == 401
+    login = client.post(
+        "/api/auth/login",
+        json={"username": "anna", "password": "correct-horse-battery-staple"},
+    )
+    assert login.status_code == 200
+    assert client.get("/api/projects").status_code == 200
+    assert client.get("/openapi.json").status_code == 200
+    assert client.get("/docs").status_code == 200
+    allowed = client.post("/api/projects", json={"name": "Allowed", "project_id": "allowed"})
+    assert allowed.status_code in {200, 201}
+    assert not (tmp_path / "projects" / "blocked").exists()
+    assert client.post("/api/auth/logout").status_code == 204
+    assert client.get("/api/projects").status_code == 401

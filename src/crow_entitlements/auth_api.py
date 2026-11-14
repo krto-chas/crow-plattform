@@ -1,10 +1,11 @@
 from __future__ import annotations
 
 import os
+from collections.abc import Awaitable, Callable
 from pathlib import Path
 
 from fastapi import APIRouter, FastAPI, HTTPException, Request, Response
-from fastapi.responses import RedirectResponse
+from fastapi.responses import JSONResponse, RedirectResponse
 from pydantic import BaseModel, Field
 
 from .auth import SessionManager, load_user, verify_password
@@ -22,6 +23,50 @@ def configure_auth(app: FastAPI, *, config_root: Path) -> None:
     app.state.crow_session_manager = manager
     app.state.crow_auth_config_root = config_root
     app.include_router(_router(config_root, manager))
+
+
+# Exact method/path exceptions only. Login is self-contained; no public static mount.
+_PUBLIC_SESSION_ROUTES = frozenset(
+    {
+        ("GET", "/"),
+        ("GET", "/login"),
+        ("GET", "/health"),
+        ("HEAD", "/health"),
+        ("POST", "/api/auth/login"),
+    }
+)
+
+
+def configure_session_boundary(app: FastAPI) -> None:
+    """Authenticate before dispatch, independently of product entitlements."""
+
+    @app.middleware("http")
+    async def session_boundary(
+        request: Request,
+        call_next: Callable[[Request], Awaitable[Response]],
+    ) -> Response:
+        if os.getenv("CROW_AUTH_MODE", "environment").strip().lower() != "session":
+            return await call_next(request)
+        path = request.url.path
+        if (request.method, path) in _PUBLIC_SESSION_ROUTES:
+            return await call_next(request)
+        try:
+            customer = current_customer_from_request(request)
+        except RuntimeError:
+            if request.method == "GET" and not (
+                path == "/api"
+                or path.startswith("/api/")
+                or path in {"/docs", "/redoc", "/openapi.json"}
+                or path.startswith("/docs/")
+            ):
+                return RedirectResponse("/login", status_code=303)
+            return JSONResponse(
+                status_code=401,
+                content={"detail": {"code": "AUTHENTICATION_REQUIRED"}},
+                headers={"Cache-Control": "no-store"},
+            )
+        request.state.customer = customer
+        return await call_next(request)
 
 
 def _router(config_root: Path, manager: SessionManager | None) -> APIRouter:
@@ -52,7 +97,8 @@ def _router(config_root: Path, manager: SessionManager | None) -> APIRouter:
         }
 
     @router.post("/api/auth/logout", status_code=204)
-    def logout(response: Response) -> Response:
+    def logout() -> Response:
+        response = Response(status_code=204)
         cookie_name = manager.cookie_name if manager is not None else "crow_session"
         response.delete_cookie(cookie_name, path="/")
         return response
