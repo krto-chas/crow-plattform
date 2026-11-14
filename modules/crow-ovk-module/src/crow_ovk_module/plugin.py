@@ -35,7 +35,6 @@ from .ovk_time_surface import ovk_time_router
 from .ovk_workflow_page import ovk_workflow_page_router
 from .ovk_workflow_surface import ovk_workflow_router
 
-
 _LEGACY_FIELD_PREFIX = "/api/ovk/field/"
 _FIELD_REFERENCE_PATHS = frozenset(
     {
