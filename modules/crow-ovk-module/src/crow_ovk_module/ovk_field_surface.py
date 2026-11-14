@@ -91,8 +91,9 @@ def ovk_field_router(data_root: Path) -> APIRouter:
         data = _validated_payload(await request.json())
         return _validation_summary(data)
 
-    @router.put("/api/ovk/field/sync/{inspection_id}", response_model=None)
-    async def sync_field_payload(inspection_id: str, request: Request) -> dict[str, Any]:
+    async def _sync(
+        inspection_id: str, request: Request, store: _FieldSyncRepository, project_id: str | None
+    ) -> dict[str, Any]:
         _validate_identifier(inspection_id)
         payload: Any = await request.json()
         if not isinstance(payload, dict):
@@ -103,7 +104,12 @@ def ovk_field_router(data_root: Path) -> APIRouter:
                 detail={"code": "OVK_FIELD_INSPECTION_MISMATCH"},
             )
         data = _validated_payload(payload)
-        _verify_followup_sources(data_root, data, repository)
+        if project_id is None:
+            _verify_followup_sources(data_root, data, store)
+        elif data.finding_followups or data.photos:
+            raise HTTPException(
+                status_code=422, detail={"code": "OVK_SCOPED_EVIDENCE_NOT_AVAILABLE"}
+            )
         normalized = _field_data_to_payload(data)
         expected = request.headers.get("X-OVK-Base-Revision")
         if (
@@ -112,7 +118,7 @@ def ovk_field_router(data_root: Path) -> APIRouter:
             and not re.fullmatch(r"[0-9a-f]{64}", expected)
         ):
             raise HTTPException(status_code=422, detail={"code": "INVALID_OVK_REVISION"})
-        snapshot_sha256 = repository.save(inspection_id, normalized, expected)
+        snapshot_sha256 = store.save(inspection_id, normalized, expected)
         return {
             **_validation_summary(data),
             "snapshot_sha256": snapshot_sha256,
@@ -122,17 +128,54 @@ def ovk_field_router(data_root: Path) -> APIRouter:
             "synced": True,
         }
 
-    @router.get("/api/ovk/field/sync/{inspection_id}", response_model=None)
-    def get_synced_field_payload(inspection_id: str) -> dict[str, Any]:
+    def _get(inspection_id: str, store: _FieldSyncRepository) -> dict[str, Any]:
         _validate_identifier(inspection_id)
         try:
-            payload, digest = repository.load(inspection_id)
+            payload, digest = store.load(inspection_id)
         except FileNotFoundError as exc:
             raise HTTPException(
                 status_code=404,
                 detail={"code": "OVK_FIELD_SNAPSHOT_NOT_FOUND"},
             ) from exc
         return {"inspection_id": inspection_id, "snapshot_sha256": digest, "payload": payload}
+
+    @router.put("/api/ovk/field/sync/{inspection_id}", response_model=None)
+    async def sync_field_payload(inspection_id: str, request: Request) -> dict[str, Any]:
+        return await _sync(inspection_id, request, repository, None)
+
+    @router.get("/api/ovk/field/sync/{inspection_id}", response_model=None)
+    def get_synced_field_payload(inspection_id: str) -> dict[str, Any]:
+        return _get(inspection_id, repository)
+
+    def _project_store(project_id: str, inspection_id: str) -> _FieldSyncRepository:
+        _validate_identifier(project_id)
+        _validate_identifier(inspection_id)
+        try:
+            record = OvkWorkflowRepository(data_root).load(project_id, inspection_id)
+        except FileNotFoundError as exc:
+            raise HTTPException(
+                status_code=404, detail={"code": "OVK_INSPECTION_NOT_FOUND"}
+            ) from exc
+        if record.inspection.ovk_object.project_id != project_id:
+            raise HTTPException(status_code=409, detail={"code": "OVK_FIELD_PROJECT_CONFLICT"})
+        return _FieldSyncRepository(data_root, project_id=project_id)
+
+    @router.put(
+        "/api/ovk/projects/{project_id}/field/{inspection_id}/sync", response_model=None
+    )
+    async def sync_project_field(
+        project_id: str, inspection_id: str, request: Request
+    ) -> dict[str, Any]:
+        store = _project_store(project_id, inspection_id)
+        result = await _sync(inspection_id, request, store, project_id)
+        return {**result, "project_id": project_id}
+
+    @router.get(
+        "/api/ovk/projects/{project_id}/field/{inspection_id}/sync", response_model=None
+    )
+    def get_project_field(project_id: str, inspection_id: str) -> dict[str, Any]:
+        result = _get(inspection_id, _project_store(project_id, inspection_id))
+        return {**result, "project_id": project_id}
 
     return router
 
@@ -560,7 +603,7 @@ def _optional_str(value: Any) -> str | None:
 
 
 def _validate_identifier(value: str) -> None:
-    if not _SAFE_ID.fullmatch(value):
+    if value in {".", ".."} or not _SAFE_ID.fullmatch(value):
         raise HTTPException(status_code=422, detail={"code": "INVALID_OVK_IDENTIFIER"})
 
 
@@ -569,8 +612,18 @@ def _asset_text(name: str) -> str:
 
 
 class _FieldSyncRepository:
-    def __init__(self, data_root: Path) -> None:
-        self._root = data_root / "ovk-field-sync"
+    def __init__(self, data_root: Path, *, project_id: str | None = None) -> None:
+        if project_id is not None:
+            _validate_identifier(project_id)
+            self._root = data_root / "projects" / project_id / "ovk-field"
+        else:
+            self._root = data_root / "ovk-field-sync"
+        self._project_scoped = project_id is not None
+
+    def _path(self, inspection_id: str) -> Path:
+        if self._project_scoped:
+            return self._root / inspection_id / "snapshot.json"
+        return self._root / f"{inspection_id}.json"
 
     def save(self, inspection_id: str, payload: dict[str, Any], expected: str | None = None) -> str:
         _validate_identifier(inspection_id)
@@ -582,7 +635,8 @@ class _FieldSyncRepository:
         )
         digest = sha256(canonical.encode("utf-8")).hexdigest()
         self._root.mkdir(parents=True, exist_ok=True)
-        target = self._root / f"{inspection_id}.json"
+        target = self._path(inspection_id)
+        target.parent.mkdir(parents=True, exist_ok=True)
         # SQLite serializes writers across threads and processes on the same data root.
         # Snapshot JSON remains the canonical storage format for existing readers.
         with closing(sqlite3.connect(self._root / ".write-lock.sqlite3", timeout=30)) as lock:
@@ -601,7 +655,7 @@ class _FieldSyncRepository:
                             "current_revision": current,
                         },
                     )
-                temporary = self._root / f".{inspection_id}.tmp"
+                temporary = target.with_name(f".{target.name}.tmp")
                 temporary.write_text(canonical + "\n", encoding="utf-8")
                 temporary.replace(target)
                 return digest
@@ -610,7 +664,7 @@ class _FieldSyncRepository:
 
     def load(self, inspection_id: str) -> tuple[dict[str, Any], str]:
         _validate_identifier(inspection_id)
-        target = self._root / f"{inspection_id}.json"
+        target = self._path(inspection_id)
         canonical = target.read_text(encoding="utf-8").rstrip("\n")
         payload: Any = json.loads(canonical)
         if not isinstance(payload, dict):
