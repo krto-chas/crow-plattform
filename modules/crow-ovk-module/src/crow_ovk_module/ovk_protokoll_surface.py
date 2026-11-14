@@ -23,6 +23,7 @@ from crow_ovk_workflow import (
     record_to_payload,
     utkast_to_payload,
 )
+from crow_ovk_workflow.flow_protocol import build_flow_protocol
 
 from .ovk_field_surface import (
     _field_data_from_payload,
@@ -125,6 +126,7 @@ def ovk_protokoll_router(data_root: Path) -> APIRouter:
             raise HTTPException(status_code=422, detail="Field measurement system mismatch")
         try:
             inputs = bridge_inspection_inputs(data, utkast, ovk_object=ovk_object)
+            flow_protocol = build_flow_protocol(data)
         except ValueError as exc:
             raise HTTPException(status_code=422, detail=str(exc)) from exc
         record = build_record(
@@ -152,6 +154,7 @@ def ovk_protokoll_router(data_root: Path) -> APIRouter:
             "utkast_sha256": sha256(canonical.encode("utf-8")).hexdigest(),
             "record": record_to_payload(record),
             "followup_review": followup_review,
+            "flow_protocol": flow_protocol,
             "measurement_review": [
                 {
                     "measurement_id": item.measurement_id,
