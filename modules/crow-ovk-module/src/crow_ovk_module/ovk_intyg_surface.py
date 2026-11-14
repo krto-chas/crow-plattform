@@ -38,6 +38,7 @@ from crow_ovk_pricing import BuildingCategory, InspectionType
 from crow_ovk_workflow import OvkWorkflowRecord, OvkWorkflowRepository, record_to_payload
 
 from .ovk_issuance_lock import inspection_mutation_guard, require_unissued
+from .ovk_issuance_manifest import publish_manifest
 
 
 def ovk_intyg_router(data_root: Path) -> APIRouter:
@@ -367,6 +368,14 @@ def ovk_intyg_router(data_root: Path) -> APIRouter:
             require_unissued(data_root, project_id, inspection_id)
             if not _review_path(project_id, inspection_id, revision).is_file():
                 raise HTTPException(status_code=409, detail={"code": "OVK_INTYG_REVIEW_REQUIRED"})
+            publish_manifest(
+                data_root,
+                project_id,
+                inspection_id,
+                intyg,
+                revision,
+                _review_path(project_id, inspection_id, revision),
+            )
             intyg_repository.save(intyg)
         except FileExistsError as exc:
             raise HTTPException(
