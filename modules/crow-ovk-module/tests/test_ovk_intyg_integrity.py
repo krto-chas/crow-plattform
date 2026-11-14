@@ -6,10 +6,12 @@
 from __future__ import annotations
 
 import io
+import json
 import os
 import re
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import replace
+from hashlib import sha256
 from pathlib import Path
 from threading import Barrier
 from typing import Any
@@ -368,3 +370,35 @@ def test_issued_inspection_rejects_mutations(tmp_path: Path, monkeypatch: Monkey
     assert second.json()["detail"]["code"] == "OVK_INSPECTION_ISSUED"
     assert client.get(_BASE).json() == before
     assert len(client.get("/api/ovk/projects/p1/intyg").json()["intyg"]) == 1
+
+
+def test_issuance_manifest_is_published_and_preserved(
+    tmp_path: Path, monkeypatch: MonkeyPatch
+) -> None:
+    client = _ready_client(tmp_path, monkeypatch)
+    path = tmp_path / "projects" / "p1" / "ovk-issuance-manifest" / "ovk-001.json"
+    assert not path.exists()
+    issued = client.post(_BASE + "/intyg", json=_INTYG_BODY)
+    assert issued.status_code == 200, issued.text
+    original = path.read_bytes()
+    manifest = json.loads(original)
+    assert manifest["inspection_id"] == "ovk-001"
+    assert manifest["intyg_id"] == "intyg-001"
+    assert manifest["review_revision"] == manifest["review"]["revision"]
+    stored = client.get("/api/ovk/projects/p1/intyg/intyg-001").json()
+    canonical = json.dumps(stored, sort_keys=True, ensure_ascii=False, separators=(",", ":"))
+    assert manifest["intyg_sha256"] == sha256(canonical.encode("utf-8")).hexdigest()
+    assert client.post(_BASE + "/intyg", json=_INTYG_BODY).status_code == 409
+    assert path.read_bytes() == original
+
+
+def test_orphan_manifest_blocks_mutations(tmp_path: Path, monkeypatch: MonkeyPatch) -> None:
+    client = _ready_client(tmp_path, monkeypatch)
+    path = tmp_path / "projects" / "p1" / "ovk-issuance-manifest" / "ovk-001.json"
+    path.parent.mkdir(parents=True)
+    path.write_text("{}", encoding="utf-8")
+    response = client.post(_BASE + "/intyg", json=_INTYG_BODY)
+    assert response.status_code == 409
+    assert response.json()["detail"]["code"] == "OVK_ISSUANCE_RECOVERY_REQUIRED"
+    assert client.put(_BASE, json=_workflow_payload()).status_code == 409
+    assert client.get("/api/ovk/projects/p1/intyg").json()["intyg"] == []

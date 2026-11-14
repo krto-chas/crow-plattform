@@ -19,6 +19,11 @@ def require_unissued(data_root: Path, project_id: str, inspection_id: str) -> No
         for item in OvkIntygRepository(data_root).list(project_id)
     ):
         raise HTTPException(status_code=409, detail={"code": "OVK_INSPECTION_ISSUED"})
+    manifest = (
+        data_root / "projects" / project_id / "ovk-issuance-manifest" / f"{inspection_id}.json"
+    )
+    if manifest.exists():
+        raise HTTPException(status_code=409, detail={"code": "OVK_ISSUANCE_RECOVERY_REQUIRED"})
 
 
 def inspection_mutation_guard(data_root: Path) -> Callable[[Request], AsyncIterator[None]]:
