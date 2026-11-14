@@ -10,6 +10,7 @@ from html import escape
 from pathlib import Path
 from tempfile import NamedTemporaryFile
 from typing import Any
+from uuid import uuid4
 
 from crow_ovk_export import intyg_pdf
 from crow_ovk_fastighet import (
@@ -454,6 +455,90 @@ def ovk_intyg_router(data_root: Path) -> APIRouter:
         except FileNotFoundError as exc:
             raise HTTPException(
                 status_code=404, detail={"code": "OVK_CORRECTION_NOT_FOUND"}
+            ) from exc
+        return payload
+
+    @router.post("/api/ovk/projects/{project_id}/intyg/{intyg_id}/correction/draft")
+    async def create_correction_draft(
+        project_id: str, intyg_id: str, request: Request
+    ) -> dict[str, Any]:
+        original = _load(intyg_repository, project_id, intyg_id)
+        correction = get_correction(project_id, intyg_id)
+        if correction.get("original_verification_code") != intyg_verification_code(original):
+            raise HTTPException(status_code=409, detail={"code": "OVK_CORRECTION_SOURCE_CHANGED"})
+        try:
+            payload: Any = await request.json()
+        except ValueError as exc:
+            raise HTTPException(status_code=422, detail="Invalid JSON") from exc
+        allowed = {"address", "object_name"}
+        if not isinstance(payload, dict) or not payload or set(payload) - allowed:
+            raise HTTPException(status_code=422, detail={"code": "OVK_CORRECTION_INVALID_FIELDS"})
+        changes: dict[str, str] = {}
+        for key, value in payload.items():
+            if not isinstance(value, str) or not 1 <= len(value.strip()) <= 500:
+                raise HTTPException(status_code=422, detail={"code": "OVK_CORRECTION_INVALID_FIELDS"})
+            if value.strip() != getattr(original, key):
+                changes[key] = value.strip()
+        if not changes:
+            raise HTTPException(status_code=422, detail={"code": "OVK_CORRECTION_NO_CHANGES"})
+        candidate = replace(
+            original,
+            intyg_id=f"correction-{uuid4().hex}",
+            address=changes.get("address", original.address),
+            object_name=changes.get("object_name", original.object_name),
+        )
+        original_payload = intyg_to_payload(original)
+        canonical = json.dumps(
+            original_payload, sort_keys=True, ensure_ascii=False, separators=(",", ":")
+        )
+        customer = current_customer_from_request(request)
+        draft = {
+            "schema_version": 1,
+            "status": "draft",
+            "project_id": project_id,
+            "original_intyg_id": intyg_id,
+            "original_sha256": sha256(canonical.encode("utf-8")).hexdigest(),
+            "draft_id": candidate.intyg_id,
+            "reason": correction["reason"],
+            "changes": {
+                key: {"before": getattr(original, key), "after": value}
+                for key, value in changes.items()
+            },
+            "created_by": customer.user_id,
+            "customer_id": customer.customer_id,
+            "created_at": datetime.now(UTC).isoformat(),
+            "candidate": intyg_to_payload(candidate),
+        }
+        target = data_root / "projects" / project_id / "ovk-correction-drafts" / f"{intyg_id}.json"
+        target.parent.mkdir(parents=True, exist_ok=True)
+        temporary: Path | None = None
+        try:
+            with NamedTemporaryFile(
+                mode="w", encoding="utf-8", dir=target.parent, suffix=".tmp", delete=False
+            ) as stream:
+                temporary = Path(stream.name)
+                json.dump(draft, stream, ensure_ascii=False, sort_keys=True)
+                stream.flush()
+                os.fsync(stream.fileno())
+            os.link(temporary, target)
+        except FileExistsError as exc:
+            raise HTTPException(
+                status_code=409, detail={"code": "OVK_CORRECTION_DRAFT_EXISTS"}
+            ) from exc
+        finally:
+            if temporary is not None:
+                temporary.unlink(missing_ok=True)
+        return draft
+
+    @router.get("/api/ovk/projects/{project_id}/intyg/{intyg_id}/correction/draft")
+    def get_correction_draft(project_id: str, intyg_id: str) -> dict[str, Any]:
+        _load(intyg_repository, project_id, intyg_id)
+        target = data_root / "projects" / project_id / "ovk-correction-drafts" / f"{intyg_id}.json"
+        try:
+            payload: dict[str, Any] = json.loads(target.read_bytes())
+        except FileNotFoundError as exc:
+            raise HTTPException(
+                status_code=404, detail={"code": "OVK_CORRECTION_DRAFT_NOT_FOUND"}
             ) from exc
         return payload
 
