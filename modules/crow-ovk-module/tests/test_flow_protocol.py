@@ -35,9 +35,7 @@ def test_flow_totals_separate_systems_directions_and_missing_values() -> None:
         ),
     )
     result = build_flow_protocol(data)
-    totals = {
-        (row["system_id"], row["direction"]): row for row in result["system_totals"]
-    }
+    totals = {(row["system_id"], row["direction"]): row for row in result["system_totals"]}
     partial = totals[("F01", "franluftsdon")]
     assert partial["measured_sum"] == "0"
     assert partial["designed_sum"] == "20"
