@@ -267,9 +267,11 @@ class _FieldMediaRepository:
         try:
             try:
                 target.hardlink_to(temporary)
-            except FileExistsError:
+            except FileExistsError as exc:
                 if target.read_bytes() != content:
-                    raise HTTPException(status_code=409, detail={"code": "OVK_MEDIA_CONFLICT"})
+                    raise HTTPException(
+                        status_code=409, detail={"code": "OVK_MEDIA_CONFLICT"}
+                    ) from exc
         finally:
             temporary.unlink(missing_ok=True)
 
