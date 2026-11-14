@@ -546,3 +546,20 @@ def test_correction_issuance_preserves_original(tmp_path: Path, monkeypatch: Mon
     assert client.get(original_url + "/status").json() == {"status": "integrity_error"}
     page = client.get("/ovk/verifiera/p1/intyg-001", params={"c": original_code})
     assert "INTEGRITETSFEL" in page.text
+    monkeypatch.setenv("CROW_ROLES", "ovk_correction_reviewer")
+    assert client.post(base + "/recover", json=body).status_code == 403
+    monkeypatch.setenv("CROW_ROLES", "ovk_correction_issuer")
+    assert client.post(base + "/recover", json={"revision": "stale"}).status_code == 409
+    damaged = json.loads(saved)
+    damaged["replacement_sha256"] = "invalid"
+    correction_manifest.write_text(json.dumps(damaged), encoding="utf-8")
+    assert client.post(base + "/recover", json=body).status_code == 409
+    assert not replacement_file.exists()
+    correction_manifest.write_bytes(saved)
+    recovered = client.post(base + "/recover", json=body)
+    assert recovered.status_code == 200, recovered.text
+    assert recovered.json() == result
+    assert client.post(base + "/recover", json=body).json() == result
+    assert correction_manifest.read_bytes() == saved
+    assert (original.read_bytes(), manifest.read_bytes()) == before
+    assert client.get(original_url + "/status").json()["status"] == "superseded"
