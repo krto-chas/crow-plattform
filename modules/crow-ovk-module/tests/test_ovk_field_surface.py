@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 from concurrent.futures import ThreadPoolExecutor
 from datetime import date
+from hashlib import sha256
 from pathlib import Path
 
 import pytest
@@ -11,6 +12,7 @@ from fastapi.testclient import TestClient
 
 from crow_ovk import CheckStatus, OvkCheckpoint, OvkObject, VentilationSystemRef
 from crow_ovk_module.ovk_field_context_page import ovk_field_context_page_router
+from crow_ovk_module.ovk_field_media import ovk_field_media_router
 from crow_ovk_module.ovk_field_surface import ovk_field_router
 from crow_ovk_workflow import (
     AggregatCoverage,
@@ -28,6 +30,7 @@ def _client(data_root: Path) -> TestClient:
     app = FastAPI()
     app.include_router(ovk_field_context_page_router())
     app.include_router(ovk_field_router(data_root))
+    app.include_router(ovk_field_media_router(data_root))
     return TestClient(app)
 
 
@@ -694,7 +697,49 @@ def test_project_scoped_field_snapshots_are_independent(tmp_path: Path) -> None:
     assert client.get(second).json()["payload"]["units"] == []
     assert client.get("/api/ovk/field/sync/ovk-1").status_code == 404
     assert client.get("/api/ovk/projects/p3/field/ovk-1/sync").status_code == 404
-    assert client.put(first, json=_field_payload()).status_code == 422
+    assert client.put(first, json=_field_payload()).status_code == 409
     assert client.get(first).json()["snapshot_sha256"] == saved.json()["snapshot_sha256"]
     assert (tmp_path / "projects/p1/ovk-field/ovk-1/snapshot.json").is_file()
     assert (tmp_path / "projects/p2/ovk-field/ovk-1/snapshot.json").is_file()
+
+
+def test_scoped_media_isolated_and_revision_bound(tmp_path: Path) -> None:
+    client = _client(tmp_path)
+    workflows = OvkWorkflowRepository(tmp_path)
+    for project_id in ("p1", "p2"):
+        workflows.save(
+            build_record(
+                inspection_id="ovk-1",
+                ovk_object=OvkObject("object-1", project_id, "building-1", "Building"),
+                systems=(VentilationSystemRef("F01", "F", "System F01"),),
+                checkpoints=(),
+                findings=(),
+                actions=(),
+            )
+        )
+    first = "/api/ovk/projects/p1/field/ovk-1"
+    second = "/api/ovk/projects/p2/field/ovk-1"
+    for root, content in ((first, b"first"), (second, b"second")):
+        payload = _field_payload()
+        photos = payload["photos"]
+        assert isinstance(photos, list)
+        photos[0]["sha256"] = sha256(content).hexdigest()
+        saved = client.put(f"{root}/sync", json=payload)
+        assert saved.status_code == 200, saved.text
+        url = f"{root}/media/photo-1"
+        headers = {
+            "Content-Type": "image/jpeg",
+            "X-OVK-Base-Revision": saved.json()["snapshot_sha256"],
+        }
+        assert client.get(url).status_code == 404
+        uploaded = client.put(url, content=content, headers=headers)
+        assert uploaded.status_code == 200, uploaded.text
+        assert client.put(url, content=content, headers=headers).status_code == 409
+        assert client.get(f"{url}/content").content == content
+    assert client.get(f"{first}/media/photo-1/content").content == b"first"
+    assert client.get(f"{second}/media/photo-1/content").content == b"second"
+    assert client.get("/api/ovk/field/media/ovk-1/photo-1/content").status_code == 404
+    assert (
+        client.get(f"{first}/media/photo-1").json()["evidence_id"]
+        != client.get(f"{second}/media/photo-1").json()["evidence_id"]
+    )
