@@ -402,3 +402,30 @@ def test_orphan_manifest_blocks_mutations(tmp_path: Path, monkeypatch: MonkeyPat
     assert response.json()["detail"]["code"] == "OVK_ISSUANCE_RECOVERY_REQUIRED"
     assert client.put(_BASE, json=_workflow_payload()).status_code == 409
     assert client.get("/api/ovk/projects/p1/intyg").json()["intyg"] == []
+
+
+def test_correction_request_preserves_issued_certificate(
+    tmp_path: Path, monkeypatch: MonkeyPatch
+) -> None:
+    client = _ready_client(tmp_path, monkeypatch)
+    url = "/api/ovk/projects/p1/intyg/intyg-001/correction"
+    assert client.post(url, json={"reason": "Felaktig adress"}).status_code == 404
+    assert client.post(_BASE + "/intyg", json=_INTYG_BODY).status_code == 200
+    certificate = tmp_path / "projects" / "p1" / "ovk-intyg" / "intyg-001.json"
+    manifest = tmp_path / "projects" / "p1" / "ovk-issuance-manifest" / "ovk-001.json"
+    before = (certificate.read_bytes(), manifest.read_bytes())
+    assert client.get(url).status_code == 404
+    assert client.post(url, json={"reason": " "}).status_code == 422
+    response = client.post(url, json={"reason": "Felaktig adress"})
+    assert response.status_code == 200, response.text
+    correction = response.json()
+    assert correction["status"] == "requested"
+    assert correction["original_intyg_id"] == "intyg-001"
+    assert correction["inspection_id"] == "ovk-001"
+    assert correction["reason"] == "Felaktig adress"
+    assert client.get(url).json() == correction
+    assert client.post(url, json={"reason": "Annan rättelse"}).status_code == 409
+    assert client.get(url).json() == correction
+    assert client.get(url.replace("/p1/", "/p2/")).status_code == 404
+    assert client.put(_BASE, json=_workflow_payload()).status_code == 409
+    assert (certificate.read_bytes(), manifest.read_bytes()) == before
