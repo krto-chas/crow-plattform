@@ -487,9 +487,7 @@ def test_correction_review_requires_role_and_exact_revision(
     assert client.get(url).status_code == 409
 
 
-def test_correction_issuance_preserves_original(
-    tmp_path: Path, monkeypatch: MonkeyPatch
-) -> None:
+def test_correction_issuance_preserves_original(tmp_path: Path, monkeypatch: MonkeyPatch) -> None:
     client = _ready_client(tmp_path, monkeypatch)
     assert client.post(_BASE + "/intyg", json=_INTYG_BODY).status_code == 200
     root = tmp_path / "projects" / "p1"
