@@ -458,3 +458,30 @@ def test_correction_draft_preserves_technical_result(
     assert client.post(url, json={"address": "Annan adress"}).status_code == 409
     assert client.get(original_url).json() == original
     assert client.get("/api/ovk/projects/p1/intyg/" + draft["draft_id"]).status_code == 404
+
+
+def test_correction_review_requires_role_and_exact_revision(
+    tmp_path: Path, monkeypatch: MonkeyPatch
+) -> None:
+    client = _ready_client(tmp_path, monkeypatch)
+    assert client.post(_BASE + "/intyg", json=_INTYG_BODY).status_code == 200
+    base = "/api/ovk/projects/p1/intyg/intyg-001/correction"
+    assert client.post(base, json={"reason": "Adressfel"}).status_code == 200
+    assert client.post(base + "/draft", json={"address": "Ny adress"}).status_code == 200
+    url = base + "/review"
+    revision = client.get(url).json()["revision"]
+    monkeypatch.setenv("CROW_ROLES", "")
+    assert client.post(url, json={"revision": revision}).status_code == 403
+    monkeypatch.setenv("CROW_USER_ID", "reviewer")
+    monkeypatch.setenv("CROW_ROLES", "ovk_correction_reviewer")
+    assert client.post(url, json={"revision": "stale"}).status_code == 409
+    approved = client.post(url, json={"revision": revision})
+    assert approved.status_code == 200, approved.text
+    assert approved.json()["revision"] == revision
+    assert approved.json()["reviewer"] == "reviewer"
+    assert client.post(url, json={"revision": revision}).status_code == 409
+    path = tmp_path / "projects" / "p1" / "ovk-correction-drafts" / "intyg-001.json"
+    draft = json.loads(path.read_bytes())
+    draft["candidate"]["result"] = "tampered"
+    path.write_text(json.dumps(draft), encoding="utf-8")
+    assert client.get(url).status_code == 409
