@@ -90,6 +90,14 @@ Distribute only the root certificate, never the CA private key.
 
 ## Session boundary
 
+In session mode the platform shell authenticates all requests before dispatch, independently of
+module entitlements. Only GET `/`, GET `/login`, GET/HEAD `/health` and POST `/api/auth/login`
+are public. Private API and OpenAPI/Swagger requests without a valid session receive 401;
+private browser GET routes redirect to login. Environment mode remains a trusted local/legacy
+compatibility mode and must not be exposed as an authenticated production deployment.
+Authentication alone does not provide project or tenant isolation; use isolated customer deployments
+until resource-level authorization has been implemented and verified.
+
 Compose defaults to `CROW_AUTH_MODE=session` and `CROW_COOKIE_SECURE=true`. The Debian bootstrap
 configures the file-backed secret path and leaves the direct HTTP backend as a diagnostic route;
 browser login/session traffic uses HTTPS through Caddy.
