@@ -53,7 +53,13 @@
         if(!project||!inspection){out.textContent='Ange projekt-id och besiktnings-id.';return}
         out.textContent='Bygger…';
         try{
-          const response=await fetch('/api/ovk/projects/'+encodeURIComponent(project)+'/field/'+encodeURIComponent(inspection)+'/protokoll-utkast',{method:'POST',headers:{'content-type':'application/json'},body:'{}'});
+          const base='/api/ovk/projects/'+encodeURIComponent(project)+'/field/'+encodeURIComponent(inspection);
+          const snapshot=await fetch(base+'/sync',{cache:'no-store'});
+          if(!snapshot.ok)throw new Error('Projektbundet fältunderlag saknas.');
+          const field=await snapshot.json();
+          if(field.project_id!==project||field.inspection_id!==inspection||!field.snapshot_sha256)throw new Error('Fältidentiteten stämmer inte.');
+          if(revision!==loadRevision)return;
+          const response=await fetch(base+'/protokoll-utkast',{method:'POST',headers:{'content-type':'application/json','X-OVK-Base-Revision':field.snapshot_sha256},body:'{}'});
           const data=await response.json();
           if(revision!==loadRevision)return;
           if(!response.ok){out.textContent=(data.detail&&(data.detail.code+' · '+(data.detail.message||'')))||'Fel';return}
@@ -68,7 +74,7 @@
               const row=document.createElement('p');row.textContent='Lgh '+item.unit_number+' · '+(labels[item.status]||item.status)+' · '+item.source_finding_id+(item.note?' · '+item.note:'');section.append(row);
               for(const photo of item.photos||[]){
                 if(!photo.verified){const warning=document.createElement('span');warning.textContent='Foto ej verifierat. ';section.append(warning);continue}
-                const link=document.createElement('a');link.href='/api/ovk/field/media/'+encodeURIComponent(inspection)+'/'+encodeURIComponent(photo.photo_id)+'/content';link.target='_blank';link.rel='noopener noreferrer';link.textContent='Visa återkontrollfoto';section.append(link,document.createElement('br'));
+                const link=document.createElement('a');link.href=base+'/media/'+encodeURIComponent(photo.photo_id)+'/content';link.target='_blank';link.rel='noopener noreferrer';link.textContent='Visa återkontrollfoto';section.append(link,document.createElement('br'));
               }
             }
             out.append(section);
