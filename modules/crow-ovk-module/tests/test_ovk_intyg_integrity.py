@@ -431,14 +431,18 @@ def test_correction_request_preserves_issued_certificate(
     assert (certificate.read_bytes(), manifest.read_bytes()) == before
 
 
-def test_correction_draft_preserves_technical_result(tmp_path: Path, monkeypatch: MonkeyPatch) -> None:
+def test_correction_draft_preserves_technical_result(
+    tmp_path: Path, monkeypatch: MonkeyPatch
+) -> None:
     client = _ready_client(tmp_path, monkeypatch)
     assert client.post(_BASE + "/intyg", json=_INTYG_BODY).status_code == 200
     original_url = "/api/ovk/projects/p1/intyg/intyg-001"
     original = client.get(original_url).json()
     url = original_url + "/correction/draft"
     assert client.post(url, json={"address": "Ny adress"}).status_code == 404
-    assert client.post(original_url + "/correction", json={"reason": "Adressfel"}).status_code == 200
+    assert (
+        client.post(original_url + "/correction", json={"reason": "Adressfel"}).status_code == 200
+    )
     assert client.post(url, json={"result": "approved"}).status_code == 422
     assert client.post(url, json={"inspection_date": "2026-01-01"}).status_code == 422
     response = client.post(url, json={"address": "Ny adress"})
