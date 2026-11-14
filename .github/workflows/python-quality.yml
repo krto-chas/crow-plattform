@@ -1,0 +1,38 @@
+name: Python quality
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  python-quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install Ruff
+        run: python -m pip install "ruff>=0.5"
+      - name: Check Python syntax
+        run: |
+          python - <<'PY'
+          import ast
+          import subprocess
+          from pathlib import Path
+
+          files = subprocess.check_output(["git", "ls-files", "-z", "--", "*.py"])
+          for name in files.decode("utf-8").split("\0"):
+              if name:
+                  path = Path(name)
+                  compile(path.read_bytes(), str(path), "exec", ast.PyCF_ONLY_AST)
+          PY
+      - name: Check formatting
+        run: python -m ruff format --check .
+      - name: Check lint
+        run: python -m ruff check .
