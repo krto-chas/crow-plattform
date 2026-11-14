@@ -27,7 +27,6 @@ from crow_ovk import (
     OvkFinding,
     unresolved_required_finding_ids,
 )
-
 from crow_ovk_intyg import Byggnadsagare, OvkIntyg, OvkIntygRepository
 
 _INTYG_BODY: dict[str, object] = {
@@ -284,9 +283,7 @@ def test_fonts_are_packaged(module: str) -> None:
     assert "LICENSE-DejaVu.txt" in names
 
 
-def test_concurrent_issuance_preserves_winner(
-    tmp_path: Path, monkeypatch: MonkeyPatch
-) -> None:
+def test_concurrent_issuance_preserves_winner(tmp_path: Path, monkeypatch: MonkeyPatch) -> None:
     client = _ready_client(tmp_path, monkeypatch)
     assert client.post(_BASE + "/intyg", json=_INTYG_BODY).status_code == 200
     repository = OvkIntygRepository(tmp_path)
