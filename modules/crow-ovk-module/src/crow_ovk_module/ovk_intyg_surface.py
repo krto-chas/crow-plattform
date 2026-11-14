@@ -399,6 +399,64 @@ def ovk_intyg_router(data_root: Path) -> APIRouter:
             "verify_url": intyg_verify_url(intyg),
         }
 
+    @router.post("/api/ovk/projects/{project_id}/intyg/{intyg_id}/correction")
+    async def request_correction(
+        project_id: str, intyg_id: str, request: Request
+    ) -> dict[str, Any]:
+        original = _load(intyg_repository, project_id, intyg_id)
+        try:
+            payload: Any = await request.json()
+        except ValueError as exc:
+            raise HTTPException(status_code=422, detail="Invalid JSON") from exc
+        reason = payload.get("reason") if isinstance(payload, dict) else None
+        if not isinstance(reason, str) or not 1 <= len(reason.strip()) <= 2000:
+            raise HTTPException(status_code=422, detail={"code": "OVK_CORRECTION_REASON_REQUIRED"})
+        customer = current_customer_from_request(request)
+        correction = {
+            "schema_version": 1,
+            "project_id": project_id,
+            "inspection_id": original.inspection_id,
+            "original_intyg_id": intyg_id,
+            "original_verification_code": intyg_verification_code(original),
+            "reason": reason.strip(),
+            "requested_by": customer.user_id,
+            "customer_id": customer.customer_id,
+            "requested_at": datetime.now(UTC).isoformat(),
+            "status": "requested",
+        }
+        target = data_root / "projects" / project_id / "ovk-corrections" / f"{intyg_id}.json"
+        target.parent.mkdir(parents=True, exist_ok=True)
+        temporary: Path | None = None
+        try:
+            with NamedTemporaryFile(
+                mode="w", encoding="utf-8", dir=target.parent, suffix=".tmp", delete=False
+            ) as stream:
+                temporary = Path(stream.name)
+                json.dump(correction, stream, ensure_ascii=False, sort_keys=True)
+                stream.flush()
+                os.fsync(stream.fileno())
+            os.link(temporary, target)
+        except FileExistsError as exc:
+            raise HTTPException(
+                status_code=409, detail={"code": "OVK_CORRECTION_ALREADY_REQUESTED"}
+            ) from exc
+        finally:
+            if temporary is not None:
+                temporary.unlink(missing_ok=True)
+        return correction
+
+    @router.get("/api/ovk/projects/{project_id}/intyg/{intyg_id}/correction")
+    def get_correction(project_id: str, intyg_id: str) -> dict[str, Any]:
+        _load(intyg_repository, project_id, intyg_id)
+        target = data_root / "projects" / project_id / "ovk-corrections" / f"{intyg_id}.json"
+        try:
+            payload: dict[str, Any] = json.loads(target.read_bytes())
+        except FileNotFoundError as exc:
+            raise HTTPException(
+                status_code=404, detail={"code": "OVK_CORRECTION_NOT_FOUND"}
+            ) from exc
+        return payload
+
     return router
 
 
