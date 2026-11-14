@@ -6,8 +6,12 @@
 from __future__ import annotations
 
 import io
+import os
 import re
+from concurrent.futures import ThreadPoolExecutor
+from dataclasses import replace
 from pathlib import Path
+from threading import Barrier
 from typing import Any
 
 import pytest
@@ -23,6 +27,7 @@ from crow_ovk import (
     OvkFinding,
     unresolved_required_finding_ids,
 )
+from crow_ovk_intyg import Byggnadsagare, OvkIntyg, OvkIntygRepository
 
 _INTYG_BODY: dict[str, object] = {
     "intyg_id": "intyg-001",
@@ -276,3 +281,36 @@ def test_fonts_are_packaged(module: str) -> None:
     names = {item.name for item in (files(module) / "fonts").iterdir()}
     assert {"DejaVuSans.ttf", "DejaVuSans-Bold.ttf", "DejaVuSans-Oblique.ttf"} <= names
     assert "LICENSE-DejaVu.txt" in names
+
+
+def test_concurrent_issuance_preserves_winner(tmp_path: Path, monkeypatch: MonkeyPatch) -> None:
+    client = _ready_client(tmp_path, monkeypatch)
+    assert client.post(_BASE + "/intyg", json=_INTYG_BODY).status_code == 200
+    repository = OvkIntygRepository(tmp_path)
+    original = repository.load("p1", "intyg-001")
+    first = replace(original, intyg_id="race", byggnadsagare=Byggnadsagare("Ägare A"))
+    second = replace(original, intyg_id="race", byggnadsagare=Byggnadsagare("Ägare B"))
+    barrier = Barrier(2)
+    real_link = os.link
+
+    def synchronized_link(source: Path, destination: Path) -> None:
+        barrier.wait(timeout=10)
+        real_link(source, destination)
+
+    monkeypatch.setattr(os, "link", synchronized_link)
+
+    def issue(candidate: OvkIntyg) -> OvkIntyg | None:
+        try:
+            repository.save(candidate)
+        except FileExistsError:
+            return None
+        return candidate
+
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        results = list(pool.map(issue, (first, second)))
+
+    winners = [candidate for candidate in results if candidate is not None]
+    assert len(winners) == 1
+    assert repository.load("p1", "race") == winners[0]
+    assert repository.load("p1", "intyg-001") == original
+    assert not list((tmp_path / "projects" / "p1" / "ovk-intyg").glob("*.tmp"))

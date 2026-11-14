@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import os
 from pathlib import Path
+from tempfile import NamedTemporaryFile
 
 from .models import OvkIntyg
 from .service import intyg_from_payload, intyg_to_payload
@@ -22,17 +23,21 @@ class OvkIntygRepository:
         Ett felaktigt intyg ersätts genom nytt utfärdande med nytt ID."""
         path = self._path(intyg.project_id, intyg.intyg_id)
         path.parent.mkdir(parents=True, exist_ok=True)
-        temp = path.with_name(f".{path.stem}.{os.getpid()}.tmp")
-        temp.write_text(
-            json.dumps(intyg_to_payload(intyg), ensure_ascii=False, indent=2) + "\n",
-            encoding="utf-8",
-        )
+        payload = json.dumps(intyg_to_payload(intyg), ensure_ascii=False, indent=2) + "\n"
+        temp: Path | None = None
         try:
-            # Hårdlänk är atomisk och misslyckas om målet finns — två samtidiga
-            # utfärdanden med samma ID kan därför aldrig skriva över varandra.
+            with NamedTemporaryFile(
+                mode="w", encoding="utf-8", dir=path.parent, suffix=".tmp", delete=False
+            ) as stream:
+                temp = Path(stream.name)
+                stream.write(payload)
+                stream.flush()
+                os.fsync(stream.fileno())
+            # Publish only a complete, private temporary file; never replace an issued intyg.
             os.link(temp, path)
         finally:
-            temp.unlink(missing_ok=True)
+            if temp is not None:
+                temp.unlink(missing_ok=True)
         return path
 
     def exists(self, project_id: str, intyg_id: str) -> bool:
