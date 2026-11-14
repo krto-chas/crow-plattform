@@ -127,7 +127,10 @@ def ovk_intyg_router(data_root: Path) -> APIRouter:
             person = besiktningsman_repository.load(planning.inspector_id)
         except FileNotFoundError as exc:
             raise ValueError("registered property or inspector is missing") from exc
-        if property_record.project_id != project_id or property_record.fastighet_id != obj.object_id:
+        if (
+            property_record.project_id != project_id
+            or property_record.fastighet_id != obj.object_id
+        ):
             raise ValueError("registered property identity does not match")
         building = next(
             (item for item in property_record.byggnader if item.byggnad_id == obj.building_id),
