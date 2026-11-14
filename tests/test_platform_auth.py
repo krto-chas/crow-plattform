@@ -160,7 +160,9 @@ def test_session_boundary_blocks_private_routes_before_dispatch(
     assert client.post("/api/auth/login", json={}).status_code == 422
     assert client.get("/api/auth/login").status_code == 401
     assert client.post("/health").status_code == 401
-    assert client.get("/api/projects", cookies={"crow_session": "invalid"}).status_code == 401
+    client.cookies.set("crow_session", "invalid")
+    assert client.get("/api/projects").status_code == 401
+    client.cookies.clear()
 
     @app.get("/future-private-route")
     def future_route() -> dict[str, bool]:
@@ -175,19 +177,18 @@ def test_authenticated_session_can_use_core_projects_and_docs(
     _session_mode(monkeypatch)
     _write_user(tmp_path, "anna", "acme", ())
     client = TestClient(create_app(tmp_path))
-    assert client.post(
-        "/api/projects", json={"name": "Blocked", "project_id": "blocked"}
-    ).status_code == 401
-    assert client.post(
+    blocked = client.post("/api/projects", json={"name": "Blocked", "project_id": "blocked"})
+    assert blocked.status_code == 401
+    login = client.post(
         "/api/auth/login",
         json={"username": "anna", "password": "correct-horse-battery-staple"},
-    ).status_code == 200
+    )
+    assert login.status_code == 200
     assert client.get("/api/projects").status_code == 200
     assert client.get("/openapi.json").status_code == 200
     assert client.get("/docs").status_code == 200
-    assert client.post(
-        "/api/projects", json={"name": "Allowed", "project_id": "allowed"}
-    ).status_code in {200, 201}
+    allowed = client.post("/api/projects", json={"name": "Allowed", "project_id": "allowed"})
+    assert allowed.status_code in {200, 201}
     assert not (tmp_path / "projects" / "blocked").exists()
     assert client.post("/api/auth/logout").status_code == 204
     assert client.get("/api/projects").status_code == 401
