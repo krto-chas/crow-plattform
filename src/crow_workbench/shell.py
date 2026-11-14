@@ -11,7 +11,7 @@ from fastapi.routing import APIRoute
 from crow_deployment.runtime import platform_config_root, platform_data_root
 from crow_entitlements.api import configure_entitlement_shell
 from crow_entitlements.audit import audit_router
-from crow_entitlements.auth_api import configure_auth
+from crow_entitlements.auth_api import configure_auth, configure_session_boundary
 from crow_entitlements.context import current_customer_from_request
 from crow_entitlements.management import management_router
 from crow_entitlements.models import CustomerContext
@@ -61,6 +61,7 @@ def create_app(data_root: Path | None = None, config_root: Path | None = None) -
 
     configure_auth(app, config_root=resolved_config_root)
     configure_entitlement_shell(app, config_root=resolved_config_root)
+    configure_session_boundary(app)
     app.include_router(management_router(resolved_config_root))
     app.include_router(user_admin_router(resolved_config_root))
     app.include_router(audit_router(resolved_config_root))
