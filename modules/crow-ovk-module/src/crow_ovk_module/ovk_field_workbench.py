@@ -218,7 +218,8 @@ class _FieldWorkbenchRepository:
             with lock:
                 lock.execute("BEGIN IMMEDIATE")
                 previous = self.load_context_optional(inspection_id)
-                if previous is not None and previous.get("project_id") != payload.get("project_id"):
+                project_id = payload.get("project_id")
+                if previous is not None and previous.get("project_id") != project_id:
                     raise ValueError("field inspection already belongs to another project")
                 self._write_json(target, payload)
 
