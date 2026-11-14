@@ -8,12 +8,20 @@ from typing import cast
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-from crow_ovk import OvkObject, VentilationSystemRef
+from crow_ovk import CheckStatus, OvkCheckpoint, OvkObject, VentilationSystemRef
 from crow_ovk_module.ovk_field_history import ovk_field_history_router
 from crow_ovk_module.ovk_field_media import ovk_field_media_router
 from crow_ovk_module.ovk_field_surface import ovk_field_router
 from crow_ovk_module.ovk_field_workbench import ovk_field_workbench_router
-from crow_ovk_workflow import OvkWorkflowRepository, build_record
+from crow_ovk_workflow import (
+    AggregatCoverage,
+    AggregatStatus,
+    BekraftelseRoll,
+    InspectionCoverage,
+    OvkWorkflowRepository,
+    SystemForteckningBekraftelse,
+    build_record,
+)
 from crow_ovk_workflow.models import InspectionPlanning
 
 
@@ -172,7 +180,16 @@ def test_scoped_history_never_falls_back_to_global_data(tmp_path: Path) -> None:
                     inspection_id=inspection_id,
                     ovk_object=OvkObject("object-1", project_id, "building-1", "Building"),
                     systems=(VentilationSystemRef("F1", "F", "System F1"),),
-                    checkpoints=(),
+                    checkpoints=(
+                        OvkCheckpoint("cp1", "Function", CheckStatus.PASS, system_id="F1"),
+                    ),
+                    coverage=InspectionCoverage(
+                        inspection_id=inspection_id,
+                        aggregat=(AggregatCoverage("agg-1", "F1", AggregatStatus.BESIKTIGAD),),
+                        system_list_confirmation=SystemForteckningBekraftelse(
+                            confirmed_by="Inspector", role=BekraftelseRoll.BESIKTNINGSMAN
+                        ),
+                    ),
                     findings=(),
                     actions=(),
                     planning=InspectionPlanning(
