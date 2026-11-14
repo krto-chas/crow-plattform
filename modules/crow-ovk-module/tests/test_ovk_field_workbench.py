@@ -1,14 +1,18 @@
 from __future__ import annotations
 
+from datetime import date
 from hashlib import sha256
 from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
+from crow_ovk import OvkObject, VentilationSystemRef
 from crow_ovk_module.ovk_field_media import ovk_field_media_router
 from crow_ovk_module.ovk_field_surface import ovk_field_router
 from crow_ovk_module.ovk_field_workbench import ovk_field_workbench_router
+from crow_ovk_workflow import OvkWorkflowRepository, build_record
+from crow_ovk_workflow.models import InspectionPlanning
 
 
 def _client(data_root: Path) -> TestClient:
@@ -138,3 +142,46 @@ def test_field_context_cannot_be_reassigned_to_another_project(tmp_path: Path) -
     assert result.status_code == 200
     assert result.json()["project_id"] == "project-1"
     assert result.json()["inspector"] == "Updated"
+
+
+def test_project_context_is_independent_and_bound_to_planning(tmp_path: Path) -> None:
+    client = _client(tmp_path)
+    workflows = OvkWorkflowRepository(tmp_path)
+    for project_id in ("p1", "p2"):
+        workflows.save(
+            build_record(
+                inspection_id="ovk-78",
+                ovk_object=OvkObject("object-1", project_id, "building-1", "Building"),
+                systems=(VentilationSystemRef("F01", "F", "System F01"),),
+                checkpoints=(),
+                findings=(),
+                actions=(),
+                planning=InspectionPlanning(
+                    inspector_id=f"inspector-{project_id}",
+                    planned_date=date(2026, 11, 14),
+                    inspection_type="aterkommande",
+                ),
+            )
+        )
+    first = "/api/ovk/projects/p1/field/ovk-78/context"
+    second = "/api/ovk/projects/p2/field/ovk-78/context"
+    payload = {"system_type": "F"}
+    saved = client.put(first, json=payload)
+    assert saved.status_code == 200, saved.text
+    assert client.get(second).status_code == 404
+    assert client.put(second, json=payload).status_code == 200
+    assert client.get(first).json()["inspector_id"] == "inspector-p1"
+    assert client.get(second).json()["inspector_id"] == "inspector-p2"
+    for invalid in (
+        {"project_id": "p2"},
+        {"inspection_id": "other"},
+        {"inspector_id": "inspector-p2"},
+        {"previous_inspection_id": "other"},
+    ):
+        assert client.put(first, json={**payload, **invalid}).status_code == 409
+    assert client.put(first, json={"system_type": "FTX"}).status_code == 422
+    assert client.get(first).json() == saved.json()
+    assert client.get("/api/ovk/projects/p3/field/ovk-78/context").status_code == 404
+    assert (tmp_path / "projects/p1/ovk-field/ovk-78/context.json").is_file()
+    assert (tmp_path / "projects/p2/ovk-field/ovk-78/context.json").is_file()
+    assert not (tmp_path / "ovk-field-context/ovk-78.json").exists()
