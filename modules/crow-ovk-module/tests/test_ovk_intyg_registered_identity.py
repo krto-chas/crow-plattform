@@ -5,9 +5,6 @@ from dataclasses import replace
 from datetime import date, timedelta
 from pathlib import Path
 
-from pytest import MonkeyPatch
-from test_ovk_workflow import _client, _record
-
 from crow_ovk_fastighet import (
     Adress,
     Behorighet,
@@ -17,6 +14,9 @@ from crow_ovk_fastighet import (
     Fastighet,
     FastighetRepository,
 )
+from pytest import MonkeyPatch
+from test_ovk_workflow import _client, _record
+
 from crow_ovk_workflow import OvkWorkflowRepository
 from crow_ovk_workflow.models import InspectionPlanning
 
