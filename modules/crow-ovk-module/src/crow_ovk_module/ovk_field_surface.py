@@ -174,17 +174,36 @@ def ovk_field_router(data_root: Path) -> APIRouter:
             raise HTTPException(status_code=409, detail={"code": "OVK_FIELD_PROJECT_CONFLICT"})
         return _FieldSyncRepository(data_root, project_id=project_id)
 
+    def _require_migrated(project_id: str, inspection_id: str) -> None:
+        target = data_root / "projects" / project_id / "ovk-field" / inspection_id
+        if (target / "snapshot.json").is_file():
+            return
+        legacy = data_root / "ovk-field-sync" / f"{inspection_id}.json"
+        if not legacy.exists():
+            return
+        context_path = data_root / "ovk-field-context" / f"{inspection_id}.json"
+        try:
+            context = json.loads(context_path.read_text(encoding="utf-8"))
+            owner = context.get("project_id") if isinstance(context, dict) else None
+        except (OSError, ValueError):
+            owner = None
+        if owner == project_id or not isinstance(owner, str) or not _SAFE_ID.fullmatch(owner):
+            raise HTTPException(status_code=409, detail={"code": "OVK_MIGRATION_REQUIRED"})
+
     @router.put("/api/ovk/projects/{project_id}/field/{inspection_id}/sync", response_model=None)
     async def sync_project_field(
         project_id: str, inspection_id: str, request: Request
     ) -> dict[str, Any]:
         store = _project_store(project_id, inspection_id)
+        _require_migrated(project_id, inspection_id)
         result = await _sync(inspection_id, request, store, project_id)
         return {**result, "project_id": project_id}
 
     @router.get("/api/ovk/projects/{project_id}/field/{inspection_id}/sync", response_model=None)
     def get_project_field(project_id: str, inspection_id: str) -> dict[str, Any]:
-        result = _get(inspection_id, _project_store(project_id, inspection_id))
+        store = _project_store(project_id, inspection_id)
+        _require_migrated(project_id, inspection_id)
+        result = _get(inspection_id, store)
         return {**result, "project_id": project_id}
 
     return router
