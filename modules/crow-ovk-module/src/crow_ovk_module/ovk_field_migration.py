@@ -10,6 +10,7 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import Any
 
+from crow_ovk_fastighet import BesiktningsmanRepository
 from fastapi import HTTPException
 
 from crow_ovk_workflow.repository import OvkWorkflowRepository
@@ -76,8 +77,18 @@ def migrate_field_data(data_root: Path, *, apply: bool = False) -> list[dict[str
                 system.system_type for system in record.inspection.systems
             }:
                 raise ValueError("system type mismatch")
-            if context.get("inspector_id") != planning.inspector_id:
-                raise ValueError("legacy inspector identity requires manual reconciliation")
+            person = BesiktningsmanRepository(data_root).load(planning.inspector_id)
+            if context.get("inspector_id") not in (None, planning.inspector_id):
+                raise ValueError("legacy inspector identity mismatch")
+            if context.get("inspector_id") is None:
+                matches = [
+                    item.besiktningsman_id
+                    for item in BesiktningsmanRepository(data_root).list()
+                    if item.namn == context.get("inspector")
+                ]
+                if matches != [planning.inspector_id]:
+                    raise ValueError("legacy inspector identity requires manual reconciliation")
+            context = {**context, "inspector_id": planning.inspector_id, "inspector": person.namn}
             _validated_payload(snapshot)
             target = data_root / "projects" / project_id / "ovk-field" / inspection_id
             if target.exists() or target.is_symlink():
@@ -103,9 +114,7 @@ def migrate_field_data(data_root: Path, *, apply: bool = False) -> list[dict[str
                 ):
                     raise ValueError("legacy media verification failed")
                 photos.append((photo_id, digest, mime, content))
-            result.update(
-                status="ready", snapshot_sha256=revision, verified_photos=len(photos)
-            )
+            result.update(status="ready", snapshot_sha256=revision, verified_photos=len(photos))
             if apply:
                 target.parent.mkdir(parents=True, exist_ok=True)
                 with TemporaryDirectory(dir=target.parent) as directory:
@@ -122,7 +131,7 @@ def migrate_field_data(data_root: Path, *, apply: bool = False) -> list[dict[str
                     staged = stage / "projects" / project_id / "ovk-field" / inspection_id
                     _write(staged / "context.json", context)
                     _write(staged / "snapshot.json", snapshot)
-                    _write(staged / "migration.json", result)
+                    _write(staged / "migration.json", {**result, "status": "migrated"})
                     if target.exists() or target.is_symlink():
                         raise ValueError("destination already exists")
                     staged.rename(target)
