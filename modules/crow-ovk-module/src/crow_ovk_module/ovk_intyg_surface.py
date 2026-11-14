@@ -207,7 +207,10 @@ def ovk_intyg_router(data_root: Path) -> APIRouter:
 
     def _review_path(project_id: str, inspection_id: str, revision: str) -> Path:
         # Project and inspection identifiers have already been validated by workflow.load.
-        return data_root / "projects" / project_id / "ovk-issuance-review" / inspection_id / f"{revision}.json"
+        return (
+            data_root / "projects" / project_id / "ovk-issuance-review" / inspection_id
+            / f"{revision}.json"
+        )
 
     @router.post(
         "/api/ovk/projects/{project_id}/inspections/{inspection_id}/intyg/review",
@@ -218,7 +221,9 @@ def ovk_intyg_router(data_root: Path) -> APIRouter:
     ) -> dict[str, Any]:
         intyg, revision = await _build_from_request(project_id, inspection_id, request)
         if request.headers.get("X-OVK-Review-Revision") != revision:
-            raise HTTPException(status_code=409, detail={"code": "OVK_REVIEW_REVISION_MISMATCH"})
+            raise HTTPException(
+                status_code=409, detail={"code": "OVK_REVIEW_REVISION_MISMATCH"}
+            )
         customer = current_customer_from_request(request)
         approval = {
             "revision": revision,
@@ -261,11 +266,11 @@ def ovk_intyg_router(data_root: Path) -> APIRouter:
         request: Request,
     ) -> dict[str, Any]:
         intyg, revision = await _build_from_request(project_id, inspection_id, request)
-        if intyg_repository.exists(project_id, intyg.intyg_id):
-            raise HTTPException(status_code=409, detail={"code": "OVK_INTYG_ALREADY_EXISTS"})
-        if not _review_path(project_id, inspection_id, revision).is_file():
-            raise HTTPException(status_code=409, detail={"code": "OVK_INTYG_REVIEW_REQUIRED"})
         try:
+            if intyg_repository.exists(project_id, intyg.intyg_id):
+                raise FileExistsError(intyg.intyg_id)
+            if not _review_path(project_id, inspection_id, revision).is_file():
+                raise HTTPException(status_code=409, detail={"code": "OVK_INTYG_REVIEW_REQUIRED"})
             intyg_repository.save(intyg)
         except FileExistsError as exc:
             raise HTTPException(
