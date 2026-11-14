@@ -49,7 +49,7 @@ def publish_manifest(
     root = data_root / "projects" / project_id / "ovk-field" / inspection_id
     field_digests = {
         name: sha256((root / name).read_bytes()).hexdigest()
-        for name in ("snapshot.json", "context.json")
+        for name in ("snapshot.json", "context.json", "protocol-source.json")
         if (root / name).is_file()
     }
     photos: list[dict[str, Any]] = []
