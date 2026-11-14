@@ -13,6 +13,8 @@ from typing import Any
 
 from fastapi import APIRouter, HTTPException, Request
 
+from crow_ovk_workflow import OvkWorkflowRepository
+
 _SAFE_ID = re.compile(r"^[A-Za-z0-9._-]+$")
 
 
@@ -78,6 +80,65 @@ def ovk_field_workbench_router(data_root: Path) -> APIRouter:
                 detail={"code": "OVK_FIELD_SNAPSHOT_NOT_FOUND"},
             ) from exc
         return _project_snapshot(repository, snapshot, snapshot_sha256)
+
+    def _scoped_repository(project_id: str, inspection_id: str) -> _FieldWorkbenchRepository:
+        _validate_identifier(project_id)
+        _validate_identifier(inspection_id)
+        try:
+            record = OvkWorkflowRepository(data_root).load(project_id, inspection_id)
+        except FileNotFoundError as exc:
+            raise HTTPException(
+                status_code=404, detail={"code": "OVK_INSPECTION_NOT_FOUND"}
+            ) from exc
+        if record.inspection.ovk_object.project_id != project_id:
+            raise HTTPException(status_code=409, detail={"code": "OVK_FIELD_PROJECT_CONFLICT"})
+        return _FieldWorkbenchRepository(data_root, project_id=project_id)
+
+    @router.put("/api/ovk/projects/{project_id}/field/{inspection_id}/context", response_model=None)
+    async def save_project_context(
+        project_id: str, inspection_id: str, request: Request
+    ) -> dict[str, Any]:
+        store = _scoped_repository(project_id, inspection_id)
+        payload: Any = await request.json()
+        if not isinstance(payload, dict):
+            raise HTTPException(status_code=422, detail={"code": "INVALID_OVK_FIELD_CONTEXT"})
+        if payload.get("project_id", project_id) != project_id:
+            raise HTTPException(status_code=409, detail={"code": "OVK_FIELD_PROJECT_CONFLICT"})
+        if payload.get("inspection_id", inspection_id) != inspection_id:
+            raise HTTPException(status_code=409, detail={"code": "OVK_FIELD_INSPECTION_MISMATCH"})
+        record = OvkWorkflowRepository(data_root).load(project_id, inspection_id)
+        planning = record.planning
+        if planning is None:
+            raise HTTPException(status_code=422, detail={"code": "OVK_FIELD_PLANNING_REQUIRED"})
+        if payload.get("inspector_id", planning.inspector_id) != planning.inspector_id:
+            raise HTTPException(status_code=409, detail={"code": "OVK_FIELD_INSPECTOR_MISMATCH"})
+        previous = planning.previous_inspection_id
+        if payload.get("previous_inspection_id", previous) != previous:
+            raise HTTPException(status_code=409, detail={"code": "OVK_FIELD_PREDECESSOR_MISMATCH"})
+        system_type = payload.get("system_type")
+        if not isinstance(system_type, str) or system_type not in {
+            system.system_type for system in record.inspection.systems
+        }:
+            raise HTTPException(status_code=422, detail={"code": "INVALID_OVK_FIELD_SYSTEM_TYPE"})
+        context = {
+            "inspection_id": inspection_id,
+            "project_id": project_id,
+            "inspector_id": planning.inspector_id,
+            "inspector": planning.inspector_id,
+            "previous_inspection_id": previous,
+            "system_type": system_type,
+            "saved_at": datetime.now(UTC).isoformat(),
+        }
+        store.save_context(inspection_id, context)
+        return context
+
+    @router.get("/api/ovk/projects/{project_id}/field/{inspection_id}/context", response_model=None)
+    def get_project_context(project_id: str, inspection_id: str) -> dict[str, Any]:
+        store = _scoped_repository(project_id, inspection_id)
+        context = store.load_context_optional(inspection_id)
+        if context is None:
+            raise HTTPException(status_code=404, detail={"code": "OVK_FIELD_CONTEXT_NOT_FOUND"})
+        return context
 
     return router
 
@@ -198,7 +259,13 @@ def _optional_text(value: object) -> str | None:
 
 
 class _FieldWorkbenchRepository:
-    def __init__(self, data_root: Path) -> None:
+    def __init__(self, data_root: Path, *, project_id: str | None = None) -> None:
+        self._project_id = project_id
+        if project_id is not None:
+            _validate_identifier(project_id)
+            self._scoped_root = data_root / "projects" / project_id / "ovk-field"
+        else:
+            self._scoped_root = None
         self._snapshot_root = data_root / "ovk-field-sync"
         self._media_root = data_root / "ovk-field-media"
         self._context_root = data_root / "ovk-field-context"
@@ -211,10 +278,18 @@ class _FieldWorkbenchRepository:
             raise ValueError("OVK field snapshot must contain an object")
         return payload, sha256(canonical.encode()).hexdigest()
 
+    def _context_path(self, inspection_id: str) -> Path:
+        _validate_identifier(inspection_id)
+        if self._scoped_root is not None:
+            return self._scoped_root / inspection_id / "context.json"
+        return self._context_root / f"{inspection_id}.json"
+
     def save_context(self, inspection_id: str, payload: dict[str, Any]) -> None:
-        self._context_root.mkdir(parents=True, exist_ok=True)
-        target = self._context_root / f"{inspection_id}.json"
-        with closing(sqlite3.connect(self._context_root / ".write-lock.sqlite3")) as lock:
+        target = self._context_path(inspection_id)
+        target.parent.mkdir(parents=True, exist_ok=True)
+        if self._project_id is not None and payload.get("project_id") != self._project_id:
+            raise ValueError("field context project mismatch")
+        with closing(sqlite3.connect(target.parent / ".write-lock.sqlite3")) as lock:
             with lock:
                 lock.execute("BEGIN IMMEDIATE")
                 previous = self.load_context_optional(inspection_id)
@@ -224,12 +299,19 @@ class _FieldWorkbenchRepository:
                 self._write_json(target, payload)
 
     def load_context_optional(self, inspection_id: str) -> dict[str, Any] | None:
-        target = self._context_root / f"{inspection_id}.json"
+        target = self._context_path(inspection_id)
         try:
             payload: Any = json.loads(target.read_text(encoding="utf-8"))
         except FileNotFoundError:
             return None
-        return payload if isinstance(payload, dict) else None
+        if not isinstance(payload, dict):
+            return None
+        if self._project_id is not None and (
+            payload.get("project_id") != self._project_id
+            or payload.get("inspection_id") != inspection_id
+        ):
+            raise ValueError("field context identity mismatch")
+        return payload
 
     def load_receipt_optional(self, inspection_id: str, photo_id: str) -> dict[str, Any] | None:
         target = self._media_root / inspection_id / f"{photo_id}.json"
