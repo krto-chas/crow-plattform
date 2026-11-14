@@ -356,6 +356,11 @@ def ovk_intyg_router(data_root: Path) -> APIRouter:
 
         error = {"status": "integrity_error"}
         project_id = intyg.project_id
+        if not intyg.inspection_id or any(
+            char not in "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_"
+            for char in intyg.inspection_id
+        ):
+            return error
         try:
             source_path = manifest_path(data_root, project_id, intyg.inspection_id)
             source_bytes = source_path.read_bytes()
@@ -371,10 +376,8 @@ def ovk_intyg_router(data_root: Path) -> APIRouter:
                 or source["intyg_sha256"] != digest(original)
             ):
                 return error
-            path = (
-                data_root / "projects" / project_id / "ovk-correction-manifests"
-                / f"{original_id}.json"
-            )
+            directory = data_root / "projects" / project_id / "ovk-correction-manifests"
+            path = directory / f"{original_id}.json"
             if not path.exists():
                 return {"status": "current"} if intyg.intyg_id == original_id else error
             correction = json.loads(path.read_bytes())
@@ -831,12 +834,16 @@ def _verify_html(
             "intyget, eller kontakta utfärdaren.</p></main></body></html>"
         )
     if status is not None and status["status"] == "integrity_error":
-        return head + '<div class="verdict fail">INTEGRITETSFEL</div><p>Intygets utfärdandehistorik kunde inte verifieras.</p></main></body></html>'
+        return (
+            head + '<div class="verdict fail">INTEGRITETSFEL</div>'
+            "<p>Intygets utfärdandehistorik kunde inte verifieras.</p></main></body></html>"
+        )
     superseded = status is not None and status["status"] == "superseded"
     verdict = "ERSATT INTYG" if superseded else "GILTIGT INTYG"
     history = ""
     if superseded and status is not None:
-        history = "<p>Historiskt intyg. Ersättningsintyg: " + escape(status["replacement_intyg_id"]) + ".</p>"
+        replacement_id = escape(status["replacement_intyg_id"])
+        history = f"<p>Historiskt intyg. Ersättningsintyg: {replacement_id}.</p>"
     elif status is not None and "original_intyg_id" in status:
         history = "<p>Rättelse av intyg: " + escape(status["original_intyg_id"]) + ".</p>"
     rows = "".join(
