@@ -2,12 +2,14 @@
 
 from __future__ import annotations
 
+from datetime import date
 from pathlib import Path
 
 import pytest
 from fastapi.testclient import TestClient
 from test_ovk_workflow import _client, _workflow_payload  # noqa: F401  (fixture-mönster)
 
+from crow_ovk import OvkObject, VentilationSystemRef
 from crow_ovk_field import default_position_for, load_positions, position_by_id
 from crow_ovk_field.models import (
     FieldFinding,
@@ -17,7 +19,13 @@ from crow_ovk_field.models import (
     TechnicalSpace,
     TechnicalSpaceKind,
 )
-from crow_ovk_workflow import Besiktningsresultat, build_protokoll_utkast
+from crow_ovk_workflow import (
+    Besiktningsresultat,
+    OvkWorkflowRepository,
+    build_protokoll_utkast,
+    build_record,
+)
+from crow_ovk_workflow.models import InspectionPlanning
 
 
 def _data(*findings: FieldFinding) -> FieldInspectionData:
@@ -163,10 +171,33 @@ def test_protokoll_utkast_endpoint_builds_record_from_snapshot(
             {"checkpoint_id": "cp1", "space_id": "ts1", "label": "Filter", "status": "pass"}
         ],
     }
-    saved = client.put("/api/ovk/field/sync/ovk-brygga", json=snapshot)
+    workflows = OvkWorkflowRepository(tmp_path)
+    for project in ("p1", "p2"):
+        workflows.save(
+            build_record(
+                inspection_id="ovk-brygga",
+                ovk_object=OvkObject("object-1", project, "building-1", "Building"),
+                systems=(VentilationSystemRef("FTX01", "FTX", "System FTX01"),),
+                planning=InspectionPlanning("person-1", date.today(), "aterkommande"),
+            )
+        )
+    base = "/api/ovk/projects/p1/field/ovk-brygga"
+    context = client.put(f"{base}/context", json={"system_type": "FTX"})
+    assert context.status_code == 200, context.text
+    saved = client.put(f"{base}/sync", json=snapshot)
     assert saved.status_code == 200, saved.text
 
-    response = client.post("/api/ovk/projects/p1/field/ovk-brygga/protokoll-utkast", json={})
+    revision = saved.json()["snapshot_sha256"]
+    assert client.post(f"{base}/protokoll-utkast", json={}).status_code == 409
+    other = client.post(
+        "/api/ovk/projects/p2/field/ovk-brygga/protokoll-utkast",
+        headers={"X-OVK-Base-Revision": revision},
+        json={},
+    )
+    assert other.status_code == 404
+    response = client.post(
+        f"{base}/protokoll-utkast", headers={"X-OVK-Base-Revision": revision}, json={}
+    )
     assert response.status_code == 200, response.text
     body = response.json()
     utkast = body["utkast"]
