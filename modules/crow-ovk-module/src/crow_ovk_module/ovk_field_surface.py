@@ -104,12 +104,7 @@ def ovk_field_router(data_root: Path) -> APIRouter:
                 detail={"code": "OVK_FIELD_INSPECTION_MISMATCH"},
             )
         data = _validated_payload(payload)
-        if project_id is None:
-            _verify_followup_sources(data_root, data, store)
-        elif data.finding_followups:
-            raise HTTPException(
-                status_code=422, detail={"code": "OVK_SCOPED_EVIDENCE_NOT_AVAILABLE"}
-            )
+        _verify_followup_sources(data_root, data, store, project_id=project_id)
         normalized = _field_data_to_payload(data)
         if project_id is not None:
             try:
@@ -196,16 +191,23 @@ def ovk_field_router(data_root: Path) -> APIRouter:
 
 
 def _verify_followup_sources(
-    data_root: Path, data: FieldInspectionData, repository: _FieldSyncRepository
+    data_root: Path,
+    data: FieldInspectionData,
+    repository: _FieldSyncRepository,
+    *,
+    project_id: str | None = None,
 ) -> None:
     if not data.finding_followups:
         return
     try:
-        contexts = _FieldWorkbenchRepository(data_root)
+        contexts = _FieldWorkbenchRepository(data_root, project_id=project_id)
         context = contexts.load_context_optional(data.inspection_id)
         if context is None or context.get("inspection_id") != data.inspection_id:
             raise ValueError("current field context missing")
-        project_id = context.get("project_id")
+        context_project = context.get("project_id")
+        if project_id is not None and context_project != project_id:
+            raise ValueError("current field project mismatch")
+        project_id = context_project
         if not isinstance(project_id, str):
             raise ValueError("current project missing")
         workflows = OvkWorkflowRepository(data_root)
