@@ -13,7 +13,7 @@ from hashlib import sha256
 from pathlib import Path
 from typing import Any
 
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Request
 
 from crow_ovk_workflow import (
     OvkWorkflowRepository,
@@ -31,10 +31,11 @@ from .ovk_field_surface import (
     _verify_followup_sources,
 )
 from .ovk_field_workbench import _FieldWorkbenchRepository, _project_photo
+from .ovk_issuance_lock import inspection_mutation_guard
 
 
 def ovk_protokoll_router(data_root: Path) -> APIRouter:
-    router = APIRouter()
+    router = APIRouter(dependencies=[Depends(inspection_mutation_guard(data_root))])
     workflow_repository = OvkWorkflowRepository(data_root)
 
     @router.post(

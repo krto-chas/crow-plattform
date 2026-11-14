@@ -345,3 +345,26 @@ def test_issue_requires_exact_review_revision(tmp_path: Path, monkeypatch: Monke
     assert client.post(_BASE + "/intyg", json=body).status_code == 409
     _approve(client, body)
     assert client.post(_BASE + "/intyg", json=body).status_code == 200
+
+
+def test_issued_inspection_rejects_mutations(tmp_path: Path, monkeypatch: MonkeyPatch) -> None:
+    client = _ready_client(tmp_path, monkeypatch)
+    before = client.get(_BASE).json()
+    assert client.post(_BASE + "/intyg", json=_INTYG_BODY).status_code == 200
+    field = "/api/ovk/projects/p1/field/ovk-001"
+    for method, url in (
+        ("PUT", _BASE),
+        ("PUT", field + "/sync"),
+        ("PUT", field + "/context"),
+        ("PUT", field + "/media/photo-1"),
+        ("POST", field + "/protokoll-utkast"),
+        ("POST", _BASE + "/intyg/review"),
+    ):
+        response = client.request(method, url, json={})
+        assert response.status_code == 409, response.text
+        assert response.json()["detail"]["code"] == "OVK_INSPECTION_ISSUED"
+    second = client.post(_BASE + "/intyg", json={**_INTYG_BODY, "intyg_id": "another"})
+    assert second.status_code == 409
+    assert second.json()["detail"]["code"] == "OVK_INSPECTION_ISSUED"
+    assert client.get(_BASE).json() == before
+    assert len(client.get("/api/ovk/projects/p1/intyg").json()["intyg"]) == 1

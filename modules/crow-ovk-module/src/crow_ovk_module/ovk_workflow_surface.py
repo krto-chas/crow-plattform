@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import Any
 
 from crow_ovk_fastighet import BesiktningsmanRepository, FastighetRepository
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import HTMLResponse
 
 from crow_ovk_workflow import (
@@ -19,9 +19,11 @@ from crow_ovk_workflow import (
     record_to_payload,
 )
 
+from .ovk_issuance_lock import inspection_mutation_guard
+
 
 def ovk_workflow_router(data_root: Path) -> APIRouter:
-    router = APIRouter()
+    router = APIRouter(dependencies=[Depends(inspection_mutation_guard(data_root))])
     repository = OvkWorkflowRepository(data_root)
     properties = FastighetRepository(data_root)
     inspectors = BesiktningsmanRepository(data_root)

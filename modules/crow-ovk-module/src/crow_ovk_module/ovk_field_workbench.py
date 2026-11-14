@@ -11,15 +11,17 @@ from pathlib import Path
 from tempfile import NamedTemporaryFile
 from typing import Any
 
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Request
 
 from crow_ovk_workflow import OvkWorkflowRepository
+
+from .ovk_issuance_lock import inspection_mutation_guard
 
 _SAFE_ID = re.compile(r"^[A-Za-z0-9._-]+$")
 
 
 def ovk_field_workbench_router(data_root: Path) -> APIRouter:
-    router = APIRouter()
+    router = APIRouter(dependencies=[Depends(inspection_mutation_guard(data_root))])
     repository = _FieldWorkbenchRepository(data_root)
 
     @router.put("/api/ovk/field/context/{inspection_id}", response_model=None)
