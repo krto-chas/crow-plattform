@@ -9,6 +9,7 @@ from typing import Any
 
 from fastapi import APIRouter, HTTPException, Query
 
+from crow_ovk_module.ovk_field_media import _FieldMediaRepository
 from crow_ovk_workflow.repository import OvkWorkflowRepository
 
 _SAFE_ID = re.compile(r"^[A-Za-z0-9._-]+$")
@@ -62,11 +63,56 @@ def ovk_field_history_router(data_root: Path) -> APIRouter:
         except ValueError as exc:
             raise HTTPException(status_code=422, detail=str(exc)) from exc
 
+    @router.get(
+        "/api/ovk/projects/{project_id}/field/{inspection_id}/history",
+        response_model=None,
+    )
+    def scoped_history(project_id: str, inspection_id: str) -> dict[str, Any]:
+        _validate_identifier(project_id)
+        _validate_identifier(inspection_id)
+        try:
+            current = workflows.load(project_id, inspection_id)
+            new = current.inspection.ovk_object
+            if new.project_id != project_id:
+                raise ValueError("current project mismatch")
+            source_id = current.planning.previous_inspection_id if current.planning else None
+            if source_id is None:
+                return {
+                    "project_id": project_id,
+                    "source_inspection_id": None,
+                    "historical_findings": [],
+                }
+            _validate_identifier(source_id)
+            source = workflows.load(project_id, source_id)
+            old = source.inspection.ovk_object
+            if (
+                source_id == inspection_id
+                or old.project_id != project_id
+                or (old.object_id, old.building_id) != (new.object_id, new.building_id)
+                or not source.protocol_ready
+            ):
+                raise ValueError("historical workflow mismatch")
+            return _FieldHistoryRepository(data_root, project_id=project_id).restore_projection(
+                source_id
+            )
+        except FileNotFoundError as exc:
+            raise HTTPException(
+                status_code=404, detail="Historical field data unavailable"
+            ) from exc
+        except ValueError as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
+
     return router
 
 
 class _FieldHistoryRepository:
-    def __init__(self, data_root: Path) -> None:
+    def __init__(self, data_root: Path, *, project_id: str | None = None) -> None:
+        self._project_id = project_id
+        self._scoped_root: Path | None = None
+        self._media = _FieldMediaRepository(data_root, project_id=project_id)
+        if project_id is not None:
+            _validate_identifier(project_id)
+            self._scoped_root = data_root / "projects" / project_id / "ovk-field"
         self._snapshot_root = data_root / "ovk-field-sync"
         self._context_root = data_root / "ovk-field-context"
         self._media_root = data_root / "ovk-field-media"
@@ -113,7 +159,16 @@ class _FieldHistoryRepository:
 
     def restore_projection(self, inspection_id: str) -> dict[str, Any]:
         snapshot, digest = self._load_snapshot(inspection_id)
-        context = _read_object(self._context_root / f"{inspection_id}.json")
+        if self._scoped_root is not None:
+            context = _read_object(self._scoped_root / inspection_id / "context.json")
+            if (
+                context.get("project_id") != self._project_id
+                or context.get("inspection_id") != inspection_id
+                or snapshot.get("inspection_id") != inspection_id
+            ):
+                raise ValueError("historical field identity mismatch")
+        else:
+            context = _read_object(self._context_root / f"{inspection_id}.json")
         rooms = _object_list(snapshot.get("rooms"))
         photos = _object_list(snapshot.get("photos"))
         units = _object_list(snapshot.get("units"))
@@ -177,7 +232,11 @@ class _FieldHistoryRepository:
         }
 
     def _load_snapshot(self, inspection_id: str) -> tuple[dict[str, Any], str]:
-        target = self._snapshot_root / f"{inspection_id}.json"
+        _validate_identifier(inspection_id)
+        if self._scoped_root is not None:
+            target = self._scoped_root / inspection_id / "snapshot.json"
+        else:
+            target = self._snapshot_root / f"{inspection_id}.json"
         canonical = target.read_text(encoding="utf-8").rstrip("\n")
         payload: Any = json.loads(canonical)
         if not isinstance(payload, dict):
@@ -186,6 +245,27 @@ class _FieldHistoryRepository:
 
     def _historical_photo(self, inspection_id: str, photo: dict[str, Any]) -> dict[str, Any]:
         photo_id = str(photo.get("photo_id", ""))
+        _validate_identifier(photo_id)
+        if self._project_id is not None:
+            receipt: dict[str, Any] = {}
+            if photo.get("sync_status") == "synced":
+                try:
+                    _, receipt = self._media.load_media(inspection_id, photo_id)
+                except (FileNotFoundError, ValueError, HTTPException):
+                    pass
+            verified = bool(receipt and receipt.get("sha256") == photo.get("sha256"))
+            url = (
+                f"/api/ovk/projects/{self._project_id}/field/{inspection_id}"
+                f"/media/{photo_id}/content"
+            )
+            return {
+                **photo,
+                "historical": True,
+                "verified": verified,
+                "media_id": receipt.get("media_id") if verified else None,
+                "evidence_id": receipt.get("evidence_id") if verified else None,
+                "content_url": url if verified else None,
+            }
         receipt_path = self._media_root / inspection_id / f"{photo_id}.json"
         try:
             receipt = _read_object(receipt_path)
@@ -229,5 +309,5 @@ def _optional_text(value: object) -> str | None:
 
 
 def _validate_identifier(value: str) -> None:
-    if not _SAFE_ID.fullmatch(value):
+    if value in {".", ".."} or not _SAFE_ID.fullmatch(value):
         raise HTTPException(status_code=422, detail={"code": "INVALID_OVK_IDENTIFIER"})
