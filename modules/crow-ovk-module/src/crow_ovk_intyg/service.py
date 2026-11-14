@@ -5,7 +5,12 @@ from __future__ import annotations
 from datetime import date
 from typing import Any
 
-from crow_ovk import EvidenceOrigin, InspectionConclusion
+from crow_ovk import (
+    CheckStatus,
+    EvidenceOrigin,
+    InspectionConclusion,
+    unresolved_required_finding_ids,
+)
 from crow_ovk_pricing import BuildingCategory, InspectionType, OvkTaxa, VentilationSystemType
 from crow_ovk_pricing import load_taxa as load_ovk_taxa
 from crow_ovk_workflow import (
@@ -52,11 +57,20 @@ def build_intyg(
         if conclusion is InspectionConclusion.APPROVED
         else IntygResult.EJ_GODKAND
     )
-    failing_systems = {
-        finding.system_id
-        for finding in record.inspection.findings
-        if finding.action_required and finding.system_id is not None
-    }
+    inspection = record.inspection
+    unresolved = unresolved_required_finding_ids(inspection.findings, inspection.actions)
+    deficiencies: list[str | None] = [
+        finding.system_id for finding in inspection.findings if finding.finding_id in unresolved
+    ]
+    deficiencies.extend(
+        checkpoint.system_id
+        for checkpoint in inspection.checkpoints
+        if checkpoint.status is CheckStatus.FAIL
+    )
+    failing_systems = {system_id for system_id in deficiencies if system_id is not None}
+    # En brist som inte är knuten till ett visst system kan inte frikänna något
+    # system: då redovisas samtliga systemrader som ej godkända.
+    unattributed = any(system_id is None for system_id in deficiencies)
     systems = tuple(
         IntygSystemRow(
             system_id=system.system_id,
@@ -64,11 +78,11 @@ def build_intyg(
             label=system.label,
             result=(
                 IntygResult.EJ_GODKAND
-                if system.system_id in failing_systems
+                if unattributed or system.system_id in failing_systems
                 else IntygResult.GODKAND
             ),
         )
-        for system in record.inspection.systems
+        for system in inspection.systems
     )
     next_inspection = _derive_next_inspection(
         result=result,

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import io
 import json
+import re
 import time
 from datetime import date
 from pathlib import Path
@@ -130,7 +131,10 @@ def _intyg() -> OvkIntyg:
 
 def _pdf_text(content: bytes) -> str:
     reader = PdfReader(io.BytesIO(content))
-    return "\n".join(page.extract_text() or "" for page in reader.pages)
+    text = "\n".join(page.extract_text() or "" for page in reader.pages)
+    # Radbrytning och mellanrum beror på fontmetriken; normalisera så att
+    # fraskontrollerna inte gör det.
+    return re.sub(r"\s+", " ", text)
 
 
 def test_sign_and_verify_roundtrip() -> None:

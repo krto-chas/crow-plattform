@@ -12,7 +12,12 @@ from .models import (
     OvkObject,
     VentilationSystemRef,
 )
-from .service import build_inspection, derive_conclusion, inspection_to_payload
+from .service import (
+    build_inspection,
+    derive_conclusion,
+    inspection_to_payload,
+    unresolved_required_finding_ids,
+)
 
 __all__ = [
     "ActionStatus",
@@ -30,4 +35,5 @@ __all__ = [
     "build_inspection",
     "derive_conclusion",
     "inspection_to_payload",
+    "unresolved_required_finding_ids",
 ]

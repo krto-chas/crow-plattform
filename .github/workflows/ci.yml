@@ -36,6 +36,14 @@ jobs:
             modules/crow-ovk-module/src \
             modules/crow-ovk-module/tests
       - run: pytest -q
+      - name: Test first-party modules
+        run: |
+          set -euo pipefail
+          for module in modules/*; do
+            if [ -d "$module/tests" ]; then
+              pytest -q "$module/tests"
+            fi
+          done
       - name: Architecture review
         run: python -m crow_module_conformance.cli review --root .
       - name: Build distribution

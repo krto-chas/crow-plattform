@@ -15,7 +15,7 @@ from crow_ovk_export import (
 from fastapi import APIRouter, HTTPException, Query, Request
 from fastapi.responses import Response
 
-from crow_ovk_intyg import OvkIntygRepository
+from crow_ovk_intyg import OvkIntygRepository, intyg_verification_code, intyg_verify_url
 from crow_ovk_workflow import OvkWorkflowRepository
 
 _SIGNING_KEY_ENV = "CROW_EXPORT_SIGNING_KEY"
@@ -155,7 +155,11 @@ def _render(
                 )
             return protocol_pdf(record)
         intyg = intyg_repository.load(project_id, document_id)
-        return intyg_pdf(intyg)
+        return intyg_pdf(
+            intyg,
+            verify_url=intyg_verify_url(intyg),
+            verification_code=intyg_verification_code(intyg),
+        )
     except FileNotFoundError as exc:
         raise HTTPException(
             status_code=404, detail={"code": "OVK_EXPORT_DOCUMENT_NOT_FOUND"}

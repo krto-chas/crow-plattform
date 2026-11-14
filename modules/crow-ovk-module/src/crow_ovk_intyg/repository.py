@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 from pathlib import Path
 
 from .models import OvkIntyg
@@ -16,15 +17,26 @@ class OvkIntygRepository:
         self.root = root
 
     def save(self, intyg: OvkIntyg) -> Path:
+        """Sparar ett utfärdat intyg. Ett intyg är omutbart: finns intygs-ID:t
+        redan höjs ``FileExistsError`` och det lagrade intyget lämnas orört.
+        Ett felaktigt intyg ersätts genom nytt utfärdande med nytt ID."""
         path = self._path(intyg.project_id, intyg.intyg_id)
         path.parent.mkdir(parents=True, exist_ok=True)
-        temp = path.with_suffix(".tmp")
+        temp = path.with_name(f".{path.stem}.{os.getpid()}.tmp")
         temp.write_text(
             json.dumps(intyg_to_payload(intyg), ensure_ascii=False, indent=2) + "\n",
             encoding="utf-8",
         )
-        temp.replace(path)
+        try:
+            # Hårdlänk är atomisk och misslyckas om målet finns — två samtidiga
+            # utfärdanden med samma ID kan därför aldrig skriva över varandra.
+            os.link(temp, path)
+        finally:
+            temp.unlink(missing_ok=True)
         return path
+
+    def exists(self, project_id: str, intyg_id: str) -> bool:
+        return self._path(project_id, intyg_id).exists()
 
     def load(self, project_id: str, intyg_id: str) -> OvkIntyg:
         path = self._path(project_id, intyg_id)
