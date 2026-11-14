@@ -29,7 +29,7 @@ from crow_ovk import (
     OvkFinding,
     unresolved_required_finding_ids,
 )
-from crow_ovk_intyg import Byggnadsagare, OvkIntyg, OvkIntygRepository
+from crow_ovk_intyg import Byggnadsagare, OvkIntyg, OvkIntygRepository, intyg_verification_code
 
 _INTYG_BODY: dict[str, object] = {
     "intyg_id": "intyg-001",
@@ -526,3 +526,23 @@ def test_correction_issuance_preserves_original(tmp_path: Path, monkeypatch: Mon
     assert correction_manifest.read_bytes() == saved
     assert (original.read_bytes(), manifest.read_bytes()) == before
     assert client.put(_BASE, json=_workflow_payload()).status_code == 409
+    original_url = "/api/ovk/projects/p1/intyg/intyg-001"
+    replacement_url = "/api/ovk/projects/p1/intyg/" + replacement
+    assert client.get(original_url + "/status").json() == {
+        "status": "superseded",
+        "replacement_intyg_id": replacement,
+    }
+    assert client.get(replacement_url + "/status").json() == {
+        "status": "current",
+        "original_intyg_id": "intyg-001",
+    }
+    original_code = intyg_verification_code(OvkIntygRepository(tmp_path).load("p1", "intyg-001"))
+    page = client.get("/ovk/verifiera/p1/intyg-001", params={"c": original_code})
+    assert "ERSATT INTYG" in page.text and replacement in page.text
+    page = client.get("/ovk/verifiera/p1/" + replacement, params={"c": result["verification_code"]})
+    assert "GILTIGT INTYG" in page.text and "Rättelse av intyg" in page.text
+    replacement_file = root / "ovk-intyg" / f"{replacement}.json"
+    replacement_file.unlink()
+    assert client.get(original_url + "/status").json() == {"status": "integrity_error"}
+    page = client.get("/ovk/verifiera/p1/intyg-001", params={"c": original_code})
+    assert "INTEGRITETSFEL" in page.text

@@ -347,6 +347,70 @@ def ovk_intyg_router(data_root: Path) -> APIRouter:
                 temp.unlink(missing_ok=True)
         return approval
 
+    def _certificate_status(intyg: OvkIntyg) -> dict[str, Any]:
+        def digest(item: OvkIntyg) -> str:
+            canonical = json.dumps(
+                intyg_to_payload(item), sort_keys=True, ensure_ascii=False, separators=(",", ":")
+            )
+            return sha256(canonical.encode("utf-8")).hexdigest()
+
+        error = {"status": "integrity_error"}
+        project_id = intyg.project_id
+        if not intyg.inspection_id or any(
+            char not in "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_"
+            for char in intyg.inspection_id
+        ):
+            return error
+        try:
+            source_path = manifest_path(data_root, project_id, intyg.inspection_id)
+            source_bytes = source_path.read_bytes()
+            source = json.loads(source_bytes)
+            original_id = source["intyg_id"]
+            original = intyg_repository.load(project_id, original_id)
+            if (
+                source["project_id"] != project_id
+                or source["inspection_id"] != intyg.inspection_id
+                or original.project_id != project_id
+                or original.inspection_id != intyg.inspection_id
+                or original.intyg_id != original_id
+                or source["intyg_sha256"] != digest(original)
+            ):
+                return error
+            directory = data_root / "projects" / project_id / "ovk-correction-manifests"
+            path = directory / f"{original_id}.json"
+            if not path.exists():
+                return {"status": "current"} if intyg.intyg_id == original_id else error
+            correction = json.loads(path.read_bytes())
+            replacement_id = correction["replacement_intyg_id"]
+            replacement = intyg_repository.load(project_id, replacement_id)
+            if (
+                correction["project_id"] != project_id
+                or correction["inspection_id"] != intyg.inspection_id
+                or correction["original_intyg_id"] != original_id
+                or correction["original_sha256"] != digest(original)
+                or correction["original_manifest_sha256"] != sha256(source_bytes).hexdigest()
+                or replacement_id == original_id
+                or replacement.project_id != project_id
+                or replacement.inspection_id != intyg.inspection_id
+                or replacement.intyg_id != replacement_id
+                or correction["replacement_sha256"] != digest(replacement)
+            ):
+                return error
+            if intyg.intyg_id == original_id:
+                return {"status": "superseded", "replacement_intyg_id": replacement_id}
+            if intyg.intyg_id == replacement_id:
+                return {"status": "current", "original_intyg_id": original_id}
+        except (OSError, ValueError, KeyError, TypeError):
+            return error
+        return error
+
+    @router.get("/api/ovk/projects/{project_id}/intyg/{intyg_id}/status")
+    def certificate_status(project_id: str, intyg_id: str) -> dict[str, Any]:
+        intyg = _load(intyg_repository, project_id, intyg_id)
+        if intyg.project_id != project_id or intyg.intyg_id != intyg_id:
+            return {"status": "integrity_error"}
+        return _certificate_status(intyg)
+
     @router.get("/ovk/verifiera/{project_id}/{intyg_id}", response_class=HTMLResponse)
     def verify_page(project_id: str, intyg_id: str, c: str = Query(default="")) -> str:
         try:
@@ -354,7 +418,10 @@ def ovk_intyg_router(data_root: Path) -> APIRouter:
         except (FileNotFoundError, ValueError):
             return _verify_html(None, valid=False, code=c)
         valid = bool(c.strip()) and verify_intyg_code(intyg, c)
-        return _verify_html(intyg, valid=valid, code=c)
+        if not valid or intyg.project_id != project_id or intyg.intyg_id != intyg_id:
+            return _verify_html(None, valid=False, code=c)
+        status = _certificate_status(intyg)
+        return _verify_html(intyg, valid=True, code=c, status=status)
 
     @router.post(
         "/api/ovk/projects/{project_id}/inspections/{inspection_id}/intyg",
@@ -748,7 +815,9 @@ def ovk_intyg_router(data_root: Path) -> APIRouter:
     return router
 
 
-def _verify_html(intyg: OvkIntyg | None, *, valid: bool, code: str) -> str:
+def _verify_html(
+    intyg: OvkIntyg | None, *, valid: bool, code: str, status: dict[str, Any] | None = None
+) -> str:
     head = (
         '<!doctype html><html lang="sv"><head><meta charset="utf-8">'
         '<meta name="viewport" content="width=device-width,initial-scale=1">'
@@ -764,6 +833,19 @@ def _verify_html(intyg: OvkIntyg | None, *, valid: bool, code: str) -> str:
             "<p>Intyget kunde inte verifieras. Kontrollera adressen och koden på "
             "intyget, eller kontakta utfärdaren.</p></main></body></html>"
         )
+    if status is not None and status["status"] == "integrity_error":
+        return (
+            head + '<div class="verdict fail">INTEGRITETSFEL</div>'
+            "<p>Intygets utfärdandehistorik kunde inte verifieras.</p></main></body></html>"
+        )
+    superseded = status is not None and status["status"] == "superseded"
+    verdict = "ERSATT INTYG" if superseded else "GILTIGT INTYG"
+    history = ""
+    if superseded and status is not None:
+        replacement_id = escape(status["replacement_intyg_id"])
+        history = f"<p>Historiskt intyg. Ersättningsintyg: {replacement_id}.</p>"
+    elif status is not None and "original_intyg_id" in status:
+        history = "<p>Rättelse av intyg: " + escape(status["original_intyg_id"]) + ".</p>"
     rows = "".join(
         f"<tr><th>{escape(label)}</th><td>{escape(value)}</td></tr>"
         for label, value in (
@@ -783,10 +865,10 @@ def _verify_html(intyg: OvkIntyg | None, *, valid: bool, code: str) -> str:
         )
     )
     return (
-        head + '<div class="verdict pass">GILTIGT INTYG</div>'
-        "<p>Verifieringskod <code>" + escape(code) + "</code> "
+        f'{head}<div class="verdict pass">{verdict}</div>{history}'
+        f"<p>Verifieringskod <code>{escape(code)}</code> "
         "stämmer mot det lagrade intyget.</p>"
-        "<table>" + rows + "</table>"
+        f"<table>{rows}</table>"
         '<p class="note">Jämför uppgifterna ovan med det tryckta intyget. '
         "Avviker de är dokumentet inte giltigt.</p></main></body></html>"
     )
