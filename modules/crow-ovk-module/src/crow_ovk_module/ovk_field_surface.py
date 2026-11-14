@@ -123,9 +123,10 @@ def ovk_field_router(data_root: Path) -> APIRouter:
             }
             for photo in data.photos:
                 _validate_identifier(photo.photo_id)
-                if photo.sync_status is PhotoSyncStatus.SYNCED and (
-                    photo.photo_id, photo.sha256
-                ) not in verified:
+                if (
+                    photo.sync_status is PhotoSyncStatus.SYNCED
+                    and (photo.photo_id, photo.sha256) not in verified
+                ):
                     raise HTTPException(
                         status_code=422, detail={"code": "OVK_MEDIA_UPLOAD_REQUIRED"}
                     )
