@@ -707,6 +707,15 @@ def ovk_intyg_router(data_root: Path) -> APIRouter:
 
     @router.post("/api/ovk/projects/{project_id}/intyg/{intyg_id}/correction/issue")
     async def issue_correction(project_id: str, intyg_id: str, request: Request) -> dict[str, Any]:
+        return await _publish_correction(project_id, intyg_id, request, recover=False)
+
+    @router.post("/api/ovk/projects/{project_id}/intyg/{intyg_id}/correction/recover")
+    async def recover_correction(project_id: str, intyg_id: str, request: Request) -> dict[str, Any]:
+        return await _publish_correction(project_id, intyg_id, request, recover=True)
+
+    async def _publish_correction(
+        project_id: str, intyg_id: str, request: Request, *, recover: bool
+    ) -> dict[str, Any]:
         customer = current_customer_from_request(request)
         if not customer.user_id or "ovk_correction_issuer" not in customer.roles:
             raise HTTPException(status_code=403, detail={"code": "OVK_CORRECTION_ISSUE_FORBIDDEN"})
@@ -761,7 +770,7 @@ def ovk_intyg_router(data_root: Path) -> APIRouter:
         ):
             raise HTTPException(status_code=409, detail={"code": "OVK_CORRECTION_SOURCE_CHANGED"})
         candidate = intyg_from_payload(draft["candidate"])
-        if intyg_repository.exists(project_id, candidate.intyg_id):
+        if not recover and intyg_repository.exists(project_id, candidate.intyg_id):
             raise HTTPException(status_code=409, detail={"code": "OVK_CORRECTION_ALREADY_ISSUED"})
         # Preserve the reviewed certificate dates. The correction event has its own timestamp.
         certificate = intyg_to_payload(candidate)
@@ -786,6 +795,50 @@ def ovk_intyg_router(data_root: Path) -> APIRouter:
             "corrected_at": datetime.now(UTC).isoformat(),
         }
         target = root / "ovk-correction-manifests" / f"{intyg_id}.json"
+        if recover:
+            try:
+                saved = json.loads(target.read_bytes())
+            except (OSError, ValueError) as exc:
+                raise HTTPException(
+                    status_code=409, detail={"code": "OVK_CORRECTION_RECOVERY_INVALID"}
+                ) from exc
+            if (
+                not isinstance(saved, dict)
+                or set(saved) != set(manifest)
+                or any(
+                    saved[key] != value
+                    for key, value in manifest.items()
+                    if key not in {"issued_by", "corrected_at"}
+                )
+                or not isinstance(saved.get("issued_by"), str)
+                or not saved["issued_by"]
+                or not isinstance(saved.get("corrected_at"), str)
+            ):
+                raise HTTPException(
+                    status_code=409, detail={"code": "OVK_CORRECTION_RECOVERY_INVALID"}
+                )
+            try:
+                timestamp = datetime.fromisoformat(saved["corrected_at"])
+                if timestamp.tzinfo is None:
+                    raise ValueError("Missing timezone")
+            except ValueError as exc:
+                raise HTTPException(
+                    status_code=409, detail={"code": "OVK_CORRECTION_RECOVERY_INVALID"}
+                ) from exc
+            try:
+                intyg_repository.save(candidate)
+            except FileExistsError:
+                pass
+            if _certificate_status(candidate).get("status") != "current":
+                raise HTTPException(
+                    status_code=409, detail={"code": "OVK_CORRECTION_RECOVERY_INVALID"}
+                )
+            return {
+                "certificate": certificate,
+                "correction": saved,
+                "verification_code": intyg_verification_code(candidate),
+                "verify_url": intyg_verify_url(candidate),
+            }
         target.parent.mkdir(parents=True, exist_ok=True)
         temporary: Path | None = None
         try:
