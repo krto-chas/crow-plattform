@@ -271,7 +271,11 @@ class _FieldWorkbenchRepository:
         self._context_root = data_root / "ovk-field-context"
 
     def load_snapshot(self, inspection_id: str) -> tuple[dict[str, Any], str]:
-        target = self._snapshot_root / f"{inspection_id}.json"
+        _validate_identifier(inspection_id)
+        if self._scoped_root is not None:
+            target = self._scoped_root / inspection_id / "snapshot.json"
+        else:
+            target = self._snapshot_root / f"{inspection_id}.json"
         canonical = target.read_text(encoding="utf-8").rstrip("\n")
         payload: Any = json.loads(canonical)
         if not isinstance(payload, dict):
@@ -314,7 +318,12 @@ class _FieldWorkbenchRepository:
         return payload
 
     def load_receipt_optional(self, inspection_id: str, photo_id: str) -> dict[str, Any] | None:
-        target = self._media_root / inspection_id / f"{photo_id}.json"
+        _validate_identifier(inspection_id)
+        _validate_identifier(photo_id)
+        if self._scoped_root is not None:
+            target = self._scoped_root / inspection_id / "media" / f"{photo_id}.json"
+        else:
+            target = self._media_root / inspection_id / f"{photo_id}.json"
         try:
             payload: Any = json.loads(target.read_text(encoding="utf-8"))
         except FileNotFoundError:
