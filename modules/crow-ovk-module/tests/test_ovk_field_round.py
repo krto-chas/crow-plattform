@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from datetime import date
 from decimal import Decimal
 from pathlib import Path
 
@@ -8,7 +9,7 @@ import pytest
 from fastapi.testclient import TestClient
 from pytest import MonkeyPatch
 
-from crow_ovk import FindingSeverity
+from crow_ovk import FindingSeverity, OvkObject, VentilationSystemRef
 from crow_ovk_field import (
     FieldFinding,
     FieldInspectionData,
@@ -22,6 +23,8 @@ from crow_ovk_field import (
     parse_flow_value,
     validate_field_data,
 )
+from crow_ovk_workflow import OvkWorkflowRepository, build_record
+from crow_ovk_workflow.models import InspectionPlanning
 from crow_workbench.shell import create_app
 
 
@@ -225,6 +228,14 @@ def _client(tmp_path: Path, monkeypatch: MonkeyPatch) -> TestClient:
     monkeypatch.setenv("CROW_MODE", "local")
     monkeypatch.setenv("CROW_CUSTOMER_ID", "acme")
     _write_entitlements(tmp_path)
+    OvkWorkflowRepository(tmp_path).save(
+        build_record(
+            inspection_id="ovk-1",
+            ovk_object=OvkObject("object-1", "p1", "building-1", "Building"),
+            systems=(VentilationSystemRef("FTX01", "FTX", "System FTX01"),),
+            planning=InspectionPlanning("inspector-1", date(2026, 8, 10), "aterkommande"),
+        )
+    )
     return TestClient(create_app(tmp_path))
 
 
@@ -281,7 +292,7 @@ def test_surface_sync_roundtrip_preserves_round_data(
     tmp_path: Path, monkeypatch: MonkeyPatch
 ) -> None:
     client = _client(tmp_path, monkeypatch)
-    response = client.put("/api/ovk/field/sync/ovk-1", json=_round_payload())
+    response = client.put("/api/ovk/projects/p1/field/ovk-1/sync", json=_round_payload())
     assert response.status_code == 200, response.text
     summary = response.json()
     assert summary["measurements"] == 1
@@ -294,7 +305,7 @@ def test_surface_sync_roundtrip_preserves_round_data(
     }
     assert summary["coverage_complete"] is True
 
-    stored = client.get("/api/ovk/field/sync/ovk-1")
+    stored = client.get("/api/ovk/projects/p1/field/ovk-1/sync")
     assert stored.status_code == 200
     payload = stored.json()["payload"]
     assert payload["measurements"][0]["measured_value"] == "34.5"
@@ -316,7 +327,7 @@ def test_surface_rejects_ua_unit_with_remark(tmp_path: Path, monkeypatch: Monkey
             "room_id": "room-1",
         }
     ]
-    response = client.put("/api/ovk/field/sync/ovk-1", json=payload)
+    response = client.put("/api/ovk/projects/p1/field/ovk-1/sync", json=payload)
     assert response.status_code == 422
     assert "marked UA" in response.json()["detail"]["message"]
 
@@ -326,14 +337,14 @@ def test_context_accepts_and_validates_system_type(
 ) -> None:
     client = _client(tmp_path, monkeypatch)
     saved = client.put(
-        "/api/ovk/field/context/ovk-1",
-        json={"project_id": "p1", "inspector": "Stoffe", "system_type": "ftx"},
+        "/api/ovk/projects/p1/field/ovk-1/context",
+        json={"project_id": "p1", "inspector_id": "inspector-1", "system_type": "FTX"},
     )
     assert saved.status_code == 200
     assert saved.json()["system_type"] == "FTX"
     invalid = client.put(
-        "/api/ovk/field/context/ovk-1",
-        json={"project_id": "p1", "inspector": "Stoffe", "system_type": "XYZ"},
+        "/api/ovk/projects/p1/field/ovk-1/context",
+        json={"project_id": "p1", "inspector_id": "inspector-1", "system_type": "XYZ"},
     )
     assert invalid.status_code == 422
     assert invalid.json()["detail"]["code"] == "INVALID_OVK_FIELD_SYSTEM_TYPE"
