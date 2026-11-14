@@ -122,3 +122,19 @@ def test_field_context_requires_project_and_inspector(tmp_path: Path) -> None:
     )
     assert response.status_code == 422
     assert response.json()["detail"]["code"] == "INVALID_OVK_FIELD_CONTEXT"
+
+
+def test_field_context_cannot_be_reassigned_to_another_project(tmp_path: Path) -> None:
+    client = _client(tmp_path)
+    url = "/api/ovk/field/context/ovk-78"
+    original = {"project_id": "project-1", "inspector": "Inspector"}
+    assert client.put(url, json=original).status_code == 200
+    assert client.put("/api/ovk/field/sync/ovk-78", json=_payload(b"photo")).status_code == 200
+    conflict = client.put(url, json={**original, "project_id": "project-2"})
+    assert conflict.status_code == 409
+    assert conflict.json()["detail"]["code"] == "OVK_FIELD_PROJECT_CONFLICT"
+    assert client.put(url, json={**original, "inspector": "Updated"}).status_code == 200
+    result = client.get("/api/ovk/field/workbench/ovk-78")
+    assert result.status_code == 200
+    assert result.json()["project_id"] == "project-1"
+    assert result.json()["inspector"] == "Updated"
