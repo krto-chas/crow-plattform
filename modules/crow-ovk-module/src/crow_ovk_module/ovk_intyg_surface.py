@@ -17,7 +17,7 @@ from crow_ovk_fastighet import (
     FastighetRepository,
     funktionskontrollant_from,
 )
-from fastapi import APIRouter, HTTPException, Query, Request
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import HTMLResponse, Response
 
 from crow_entitlements.context import current_customer_from_request
@@ -37,9 +37,11 @@ from crow_ovk_intyg import (
 from crow_ovk_pricing import BuildingCategory, InspectionType
 from crow_ovk_workflow import OvkWorkflowRecord, OvkWorkflowRepository, record_to_payload
 
+from .ovk_issuance_lock import inspection_mutation_guard, require_unissued
+
 
 def ovk_intyg_router(data_root: Path) -> APIRouter:
-    router = APIRouter()
+    router = APIRouter(dependencies=[Depends(inspection_mutation_guard(data_root))])
     workflow_repository = OvkWorkflowRepository(data_root)
     intyg_repository = OvkIntygRepository(data_root)
     fastighet_repository = FastighetRepository(data_root)
@@ -356,6 +358,7 @@ def ovk_intyg_router(data_root: Path) -> APIRouter:
         try:
             if intyg_repository.exists(project_id, intyg.intyg_id):
                 raise FileExistsError(intyg.intyg_id)
+            require_unissued(data_root, project_id, inspection_id)
             if not _review_path(project_id, inspection_id, revision).is_file():
                 raise HTTPException(status_code=409, detail={"code": "OVK_INTYG_REVIEW_REQUIRED"})
             intyg_repository.save(intyg)
@@ -365,7 +368,7 @@ def ovk_intyg_router(data_root: Path) -> APIRouter:
                 detail={
                     "code": "OVK_INTYG_ALREADY_EXISTS",
                     "message": "Intyget är redan utfärdat och kan inte skrivas över; "
-                    "utfärda med ett nytt intygs-ID.",
+                    "använd rättelseflödet.",
                 },
             ) from exc
         except ValueError as exc:
