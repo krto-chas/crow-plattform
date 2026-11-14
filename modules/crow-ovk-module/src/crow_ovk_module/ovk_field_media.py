@@ -8,18 +8,20 @@ from pathlib import Path
 from tempfile import NamedTemporaryFile
 from typing import Any
 
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import Response
 
 from crow_ovk_module.ovk_field_surface import _FieldSyncRepository
 from crow_ovk_workflow import OvkWorkflowRepository
+
+from .ovk_issuance_lock import inspection_mutation_guard
 
 _SAFE_ID = re.compile(r"^[A-Za-z0-9._-]+$")
 _MAX_MEDIA_BYTES = 25 * 1024 * 1024
 
 
 def ovk_field_media_router(data_root: Path) -> APIRouter:
-    router = APIRouter()
+    router = APIRouter(dependencies=[Depends(inspection_mutation_guard(data_root))])
     repository = _FieldMediaRepository(data_root)
 
     async def _upload(
