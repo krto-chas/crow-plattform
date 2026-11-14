@@ -865,10 +865,10 @@ def _verify_html(
         )
     )
     return (
-        head + '<div class="verdict pass">' + verdict + "</div>" + history
-        + "<p>Verifieringskod <code>" + escape(code) + "</code> "
+        f'{head}<div class="verdict pass">{verdict}</div>{history}'
+        f"<p>Verifieringskod <code>{escape(code)}</code> "
         "stämmer mot det lagrade intyget.</p>"
-        "<table>" + rows + "</table>"
+        f"<table>{rows}</table>"
         '<p class="note">Jämför uppgifterna ovan med det tryckta intyget. '
         "Avviker de är dokumentet inte giltigt.</p></main></body></html>"
     )
