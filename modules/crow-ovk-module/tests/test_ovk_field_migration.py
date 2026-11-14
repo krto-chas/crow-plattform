@@ -23,18 +23,19 @@ def test_migration_dry_run_and_preserves_originals(tmp_path: Path) -> None:
             planning=InspectionPlanning("person-1", date.today(), "aterkommande"),
         )
     )
-    assert client.put(
+    context = client.put(
         "/api/ovk/field/context/ovk-2025",
         json={"project_id": "p1", "inspector": "Inspector", "system_type": "F"},
-    ).status_code == 200
-    assert client.put(
-        "/api/ovk/field/sync/ovk-2025", json=_payload(b"photo")
-    ).status_code == 200
-    assert client.put(
+    )
+    assert context.status_code == 200
+    snapshot = client.put("/api/ovk/field/sync/ovk-2025", json=_payload(b"photo"))
+    assert snapshot.status_code == 200
+    media = client.put(
         "/api/ovk/field/media/ovk-2025/photo-old",
         content=b"photo",
         headers={"Content-Type": "image/jpeg"},
-    ).status_code == 200
+    )
+    assert media.status_code == 200
     original = tmp_path / "ovk-field-sync/ovk-2025.json"
     before = original.read_bytes()
     target = tmp_path / "projects/p1/ovk-field/ovk-2025"
@@ -51,8 +52,7 @@ def test_migration_dry_run_and_preserves_originals(tmp_path: Path) -> None:
 
 def test_migration_blocks_unbound_snapshot(tmp_path: Path) -> None:
     client = _client(tmp_path)
-    assert client.put(
-        "/api/ovk/field/sync/ovk-2025", json=_payload(b"photo")
-    ).status_code == 200
+    snapshot = client.put("/api/ovk/field/sync/ovk-2025", json=_payload(b"photo"))
+    assert snapshot.status_code == 200
     assert migrate_field_data(tmp_path, apply=True)[0]["status"] == "blocked"
     assert not (tmp_path / "projects").exists()
