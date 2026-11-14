@@ -32,6 +32,7 @@ from .ovk_field_surface import (
 )
 from .ovk_field_workbench import _FieldWorkbenchRepository, _project_photo
 from .ovk_issuance_lock import inspection_mutation_guard
+from .ovk_protocol_source import save_protocol_source
 
 
 def ovk_protokoll_router(data_root: Path) -> APIRouter:
@@ -129,6 +130,8 @@ def ovk_protokoll_router(data_root: Path) -> APIRouter:
             review=(),
         )
         workflow_repository.save(record)
+        record = workflow_repository.load(project_id, inspection_id)
+        save_protocol_source(data_root, project_id, inspection_id, record)
 
         canonical = json.dumps(
             utkast_to_payload(utkast), ensure_ascii=False, sort_keys=True, separators=(",", ":")
