@@ -666,3 +666,35 @@ def test_followup_photo_reference_roundtrip(tmp_path: Path) -> None:
     assert client.post("/api/ovk/field/validate", json=payload).status_code == 200
     followup["photo_ids"] = ["missing"]
     assert client.post("/api/ovk/field/validate", json=payload).status_code == 422
+
+
+def test_project_scoped_field_snapshots_are_independent(tmp_path: Path) -> None:
+    client = _client(tmp_path)
+    workflows = OvkWorkflowRepository(tmp_path)
+    for project_id in ("p1", "p2"):
+        workflows.save(
+            build_record(
+                inspection_id="ovk-1",
+                ovk_object=OvkObject("object-1", project_id, "building-1", "Building"),
+                systems=(VentilationSystemRef("F01", "F", "System F01"),),
+                checkpoints=(),
+                findings=(),
+                actions=(),
+            )
+        )
+    first = "/api/ovk/projects/p1/field/ovk-1/sync"
+    second = "/api/ovk/projects/p2/field/ovk-1/sync"
+    payload = {**_field_payload(), "photos": []}
+    saved = client.put(first, json=payload)
+    assert saved.status_code == 200, saved.text
+    assert client.get(second).status_code == 404
+    other = client.put(second, json={"inspection_id": "ovk-1"})
+    assert other.status_code == 200, other.text
+    assert client.get(first).json()["payload"]["units"][0]["number"] == "1203"
+    assert client.get(second).json()["payload"]["units"] == []
+    assert client.get("/api/ovk/field/sync/ovk-1").status_code == 404
+    assert client.get("/api/ovk/projects/p3/field/ovk-1/sync").status_code == 404
+    assert client.put(first, json=_field_payload()).status_code == 422
+    assert client.get(first).json()["snapshot_sha256"] == saved.json()["snapshot_sha256"]
+    assert (tmp_path / "projects/p1/ovk-field/ovk-1/snapshot.json").is_file()
+    assert (tmp_path / "projects/p2/ovk-field/ovk-1/snapshot.json").is_file()
