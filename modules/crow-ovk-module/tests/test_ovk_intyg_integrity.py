@@ -485,3 +485,46 @@ def test_correction_review_requires_role_and_exact_revision(
     draft["candidate"]["result"] = "tampered"
     path.write_text(json.dumps(draft), encoding="utf-8")
     assert client.get(url).status_code == 409
+
+
+def test_correction_issuance_preserves_original(
+    tmp_path: Path, monkeypatch: MonkeyPatch
+) -> None:
+    client = _ready_client(tmp_path, monkeypatch)
+    assert client.post(_BASE + "/intyg", json=_INTYG_BODY).status_code == 200
+    root = tmp_path / "projects" / "p1"
+    original = root / "ovk-intyg" / "intyg-001.json"
+    manifest = root / "ovk-issuance-manifest" / "ovk-001.json"
+    before = (original.read_bytes(), manifest.read_bytes())
+    base = "/api/ovk/projects/p1/intyg/intyg-001/correction"
+    assert client.post(base, json={"reason": "Adressfel"}).status_code == 200
+    assert client.post(base + "/draft", json={"address": "Ny adress"}).status_code == 200
+    revision = client.get(base + "/review").json()["revision"]
+    body = {"revision": revision}
+    monkeypatch.setenv("CROW_USER_ID", "reviewer")
+    monkeypatch.setenv("CROW_ROLES", "ovk_correction_reviewer")
+    assert client.post(base + "/issue", json=body).status_code == 403
+    monkeypatch.setenv("CROW_ROLES", "ovk_correction_issuer")
+    assert client.post(base + "/issue", json=body).status_code == 409
+    monkeypatch.setenv("CROW_ROLES", "ovk_correction_reviewer")
+    assert client.post(base + "/review", json=body).status_code == 200
+    monkeypatch.setenv("CROW_ROLES", "ovk_correction_issuer")
+    assert client.post(base + "/issue", json={"revision": "stale"}).status_code == 409
+    response = client.post(base + "/issue", json=body)
+    assert response.status_code == 200, response.text
+    result = response.json()
+    candidate = result["certificate"]
+    replacement = candidate["intyg_id"]
+    assert candidate == {
+        **json.loads(before[0]),
+        "intyg_id": replacement,
+        "address": "Ny adress",
+    }
+    assert client.get("/api/ovk/projects/p1/intyg/" + replacement).json() == candidate
+    correction_manifest = root / "ovk-correction-manifests" / "intyg-001.json"
+    saved = correction_manifest.read_bytes()
+    assert json.loads(saved) == result["correction"]
+    assert client.post(base + "/issue", json=body).status_code == 409
+    assert correction_manifest.read_bytes() == saved
+    assert (original.read_bytes(), manifest.read_bytes()) == before
+    assert client.put(_BASE, json=_workflow_payload()).status_code == 409
