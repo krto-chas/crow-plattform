@@ -1,13 +1,14 @@
 from __future__ import annotations
 
 import json
+from datetime import date
 from pathlib import Path
 
 import pytest
 from fastapi.testclient import TestClient
 from pytest import MonkeyPatch
 
-from crow_ovk import CheckStatus
+from crow_ovk import CheckStatus, OvkObject, VentilationSystemRef
 from crow_ovk_field import (
     FieldCheckpoint,
     FieldInspectionData,
@@ -18,6 +19,8 @@ from crow_ovk_field import (
     nameplate_missing_spaces,
     validate_field_data,
 )
+from crow_ovk_workflow import OvkWorkflowRepository, build_record
+from crow_ovk_workflow.models import InspectionPlanning
 from crow_workbench.shell import create_app
 
 _SHA = "a" * 64
@@ -153,6 +156,14 @@ def _client(tmp_path: Path, monkeypatch: MonkeyPatch) -> TestClient:
     monkeypatch.setenv("CROW_MODE", "local")
     monkeypatch.setenv("CROW_CUSTOMER_ID", "acme")
     _write_entitlements(tmp_path)
+    OvkWorkflowRepository(tmp_path).save(
+        build_record(
+            inspection_id="ovk-1",
+            ovk_object=OvkObject("object-1", "p1", "building-1", "Building"),
+            systems=(VentilationSystemRef("FTX01", "FTX", "System FTX01"),),
+            planning=InspectionPlanning("inspector-1", date(2026, 8, 10), "aterkommande"),
+        )
+    )
     return TestClient(create_app(tmp_path))
 
 
@@ -216,7 +227,7 @@ def test_surface_sync_roundtrip_with_technical_spaces(
             },
         ],
     }
-    response = client.put("/api/ovk/field/sync/ovk-1", json=payload)
+    response = client.put("/api/ovk/projects/p1/field/ovk-1/sync", json=payload)
     assert response.status_code == 200, response.text
     summary = response.json()
     assert summary["technical_spaces"] == 2
@@ -224,7 +235,7 @@ def test_surface_sync_roundtrip_with_technical_spaces(
     assert summary["checkpoint_failures"] == 1
     assert summary["nameplates_missing"] == ["space-2"]
 
-    stored = client.get("/api/ovk/field/sync/ovk-1").json()["payload"]
+    stored = client.get("/api/ovk/projects/p1/field/ovk-1/sync").json()["payload"]
     assert stored["checkpoints"][0]["status"] == "not_checked"
     assert stored["checkpoints"][1]["note"] == "Säkerhetsbrytare saknas vid fläkten"
     assert stored["photos"][0]["space_id"] == "space-1"
@@ -246,6 +257,6 @@ def test_surface_rejects_failed_checkpoint_without_note(
             }
         ],
     }
-    response = client.put("/api/ovk/field/sync/ovk-1", json=payload)
+    response = client.put("/api/ovk/projects/p1/field/ovk-1/sync", json=payload)
     assert response.status_code == 422
     assert "written note" in response.json()["detail"]["message"]

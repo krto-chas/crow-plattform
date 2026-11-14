@@ -438,10 +438,7 @@ async function openRequestedInspection(projectId,inspectionId){
     const person=await get('/api/ovk/registry/besiktningsman/'+encodeURIComponent(record.planning.inspector_id));
     const snapshot=await fetch(fieldEndpoint('sync',projectId,inspectionId),{cache:'no-store'});
     if(snapshot.status!==404&&!snapshot.ok)throw new Error('Serverunderlag kunde inte verifieras. Nytt tomt underlag skapas inte.');
-    if(snapshot.status===404){
-      const legacy=await fetch('/api/ovk/field/sync/'+encodeURIComponent(inspectionId),{cache:'no-store'});
-      if(legacy.status!==404)throw new Error('Äldre fältunderlag måste migreras innan uppdraget öppnas.');
-    }
+
     ensureProject(projectId);
     $('project').value=projectId;
     $('inspection').value=inspectionId;
