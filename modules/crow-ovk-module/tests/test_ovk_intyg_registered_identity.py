@@ -72,6 +72,13 @@ def test_registered_identity_controls_certificate(tmp_path: Path, monkeypatch: M
         {"building_category": "lokal"},
     ):
         assert client.post(base + "/preview", json={**body, **change}).status_code == 422
+    inspectors.save(replace(person, giltig_till=today - timedelta(days=1)))
+    assert client.post(base + "/preview", json=body).status_code == 422
+    inspectors.save(person)
+    system = replace(record.inspection.systems[0], system_type="F")
+    repository.save(replace(record, inspection=replace(record.inspection, systems=(system,))))
+    assert client.post(base + "/preview", json=body).status_code == 422
+    repository.save(record)
     preview = client.post(base + "/preview", json=body)
     assert preview.status_code == 200, preview.text
     approved = client.post(
@@ -87,9 +94,6 @@ def test_registered_identity_controls_certificate(tmp_path: Path, monkeypatch: M
     assert data["byggnadsagare"]["name"] == "Registrerad ägare"
     assert data["funktionskontrollant"]["name"] == "Registrerad kontrollant"
     assert data["next_inspection"]["interval_years"] == 3
-    inspectors.save(replace(person, giltig_till=today - timedelta(days=1)))
-    assert client.post(base + "/preview", json=body).status_code == 422
-    inspectors.save(person)
-    system = replace(record.inspection.systems[0], system_type="F")
-    repository.save(replace(record, inspection=replace(record.inspection, systems=(system,))))
-    assert client.post(base + "/preview", json=body).status_code == 422
+    locked = client.post(base + "/preview", json=body)
+    assert locked.status_code == 409
+    assert locked.json()["detail"]["code"] == "OVK_INSPECTION_ISSUED"
