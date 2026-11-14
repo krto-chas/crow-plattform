@@ -9,7 +9,6 @@ from pathlib import Path
 from tempfile import NamedTemporaryFile
 from typing import Any
 
-from crow_entitlements.context import current_customer_from_request
 from crow_ovk_export import intyg_pdf
 from crow_ovk_fastighet import (
     BesiktningsmanRepository,
@@ -19,6 +18,7 @@ from crow_ovk_fastighet import (
 from fastapi import APIRouter, HTTPException, Query, Request
 from fastapi.responses import HTMLResponse, Response
 
+from crow_entitlements.context import current_customer_from_request
 from crow_ovk_intyg import (
     Behorighet,
     Byggnadsagare,
@@ -207,10 +207,8 @@ def ovk_intyg_router(data_root: Path) -> APIRouter:
 
     def _review_path(project_id: str, inspection_id: str, revision: str) -> Path:
         # Project and inspection identifiers have already been validated by workflow.load.
-        return (
-            data_root / "projects" / project_id / "ovk-issuance-review" / inspection_id
-            / f"{revision}.json"
-        )
+        directory = data_root / "projects" / project_id / "ovk-issuance-review"
+        return directory / inspection_id / f"{revision}.json"
 
     @router.post(
         "/api/ovk/projects/{project_id}/inspections/{inspection_id}/intyg/review",
@@ -221,9 +219,7 @@ def ovk_intyg_router(data_root: Path) -> APIRouter:
     ) -> dict[str, Any]:
         intyg, revision = await _build_from_request(project_id, inspection_id, request)
         if request.headers.get("X-OVK-Review-Revision") != revision:
-            raise HTTPException(
-                status_code=409, detail={"code": "OVK_REVIEW_REVISION_MISMATCH"}
-            )
+            raise HTTPException(status_code=409, detail={"code": "OVK_REVIEW_REVISION_MISMATCH"})
         customer = current_customer_from_request(request)
         approval = {
             "revision": revision,
