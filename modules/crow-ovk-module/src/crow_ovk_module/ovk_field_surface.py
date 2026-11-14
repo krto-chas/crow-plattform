@@ -160,9 +160,7 @@ def ovk_field_router(data_root: Path) -> APIRouter:
             raise HTTPException(status_code=409, detail={"code": "OVK_FIELD_PROJECT_CONFLICT"})
         return _FieldSyncRepository(data_root, project_id=project_id)
 
-    @router.put(
-        "/api/ovk/projects/{project_id}/field/{inspection_id}/sync", response_model=None
-    )
+    @router.put("/api/ovk/projects/{project_id}/field/{inspection_id}/sync", response_model=None)
     async def sync_project_field(
         project_id: str, inspection_id: str, request: Request
     ) -> dict[str, Any]:
@@ -170,9 +168,7 @@ def ovk_field_router(data_root: Path) -> APIRouter:
         result = await _sync(inspection_id, request, store, project_id)
         return {**result, "project_id": project_id}
 
-    @router.get(
-        "/api/ovk/projects/{project_id}/field/{inspection_id}/sync", response_model=None
-    )
+    @router.get("/api/ovk/projects/{project_id}/field/{inspection_id}/sync", response_model=None)
     def get_project_field(project_id: str, inspection_id: str) -> dict[str, Any]:
         result = _get(inspection_id, _project_store(project_id, inspection_id))
         return {**result, "project_id": project_id}
