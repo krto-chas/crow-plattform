@@ -1,3 +1,24 @@
+# Unreleased — OVK: intygets integritet (augustigranskningens fixar)
+
+- Utfärdade intyg är omutbara: samma intygs-ID ger `409 OVK_INTYG_ALREADY_EXISTS`
+  och det lagrade intyget lämnas orört (atomiskt, även vid samtidiga anrop).
+- Verifiering: SHA-256-checksumma över intygets kanoniska payload, verifieringskod
+  (12 hex, 4-4-4) och QR-kod på skarpa intygs-PDF:er, samt verifieringssidan
+  `/ovk/verifiera/{projekt}/{intyg}?c=KOD`. Sidan ligger bakom OVK-guarden
+  (intern tills vidare); adressen på trycket styrs av `CROW_OVK_VERIFY_BASE`
+  (standard `https://crowab.se/ovk/verifiera`).
+- Förhandsgranskning: `POST …/intyg/preview` ger PDF med vattenstämpeln
+  "UTKAST – EJ GILTIGT INTYG", utan verifieringsuppgifter och utan att spara.
+- PDF-exporten bäddar in DejaVu Sans och kraschar inte längre på tecken utanför
+  latin-1. Nytt runtime-beroende: `segno`.
+- Gemensam regel `unresolved_required_finding_ids` för protokollslutsats och
+  intyg: allvarlig åtgärdskrävande anmärkning utan registrerad åtgärd ger nu
+  brister, och intygets systemrader följer samma regel som helhetsresultatet.
+  Brist utan systemkoppling underkänner samtliga systemrader.
+- Intygssidans lista escapar alla värden.
+- CI kör nu även `modules/*/tests`. Fyra föråldrade strängtester är markerade
+  `xfail(strict=True)` tills de uppdaterats mot dagens vyer.
+
 # Unreleased — Pass 102: Allmänna delar – teknikutrymmen med checklistor
 
 - Nya fältmodeller `TechnicalSpace` (fläktrum med aggregat, frånluftsfläkt tak/vind)

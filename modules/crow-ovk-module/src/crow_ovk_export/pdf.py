@@ -1,12 +1,30 @@
-"""PDF-rendering av OVK-protokoll och OVK-intyg (fpdf2, latin-1-säker svenska)."""
+"""PDF-rendering av OVK-protokoll och OVK-intyg (fpdf2 med inbäddad Unicode-font).
+
+DejaVu Sans följer med paketet så att tecken utanför latin-1 — tankstreck,
+bockar och namn som "Łukasz" från mobiltangentbord — inte kraschar exporten.
+Skarpa intyg bär verifieringskod och QR-kod; utkast bär vattenstämpel på
+varje sida och saknar verifieringsuppgifter.
+"""
 
 from __future__ import annotations
 
+from importlib.resources import as_file, files
+from typing import Literal
+
+import segno
 from fpdf import FPDF
 
 from crow_ovk import CheckStatus, FindingSeverity, InspectionConclusion
 from crow_ovk_intyg import IntygResult, OvkIntyg
 from crow_ovk_workflow import AggregatStatus, FastighetsnivaStatus, OvkWorkflowRecord
+
+_FONT_FAMILY = "CrowSans"
+_FONT_FILES: dict[Literal["", "B", "I"], str] = {
+    "": "DejaVuSans.ttf",
+    "B": "DejaVuSans-Bold.ttf",
+    "I": "DejaVuSans-Oblique.ttf",
+}
+_DRAFT_WATERMARK = "UTKAST – EJ GILTIGT INTYG"
 
 _CHECK_LABELS = {
     CheckStatus.PASS: "Godkänd",
@@ -51,20 +69,35 @@ _TYPE_LABELS = {
 
 
 class _CrowPdf(FPDF):
-    def __init__(self, footer_text: str) -> None:
+    def __init__(self, footer_text: str, *, draft: bool = False) -> None:
         super().__init__(format="A4")
         self._footer_text = footer_text
+        self._draft = draft
         self.set_auto_page_break(auto=True, margin=18)
+        font_root = files("crow_ovk_export") / "fonts"
+        for style, filename in _FONT_FILES.items():
+            with as_file(font_root / filename) as path:
+                self.add_font(_FONT_FAMILY, style=style, fname=str(path))
 
     def footer(self) -> None:
+        if self._draft:
+            self._draw_draft_watermark()
         self.set_y(-14)
-        self.set_font("helvetica", size=8)
+        self.set_font(_FONT_FAMILY, size=8)
         self.set_text_color(96, 106, 116)
         self.cell(0, 6, self._footer_text, align="C")
 
+    def _draw_draft_watermark(self) -> None:
+        self.set_font(_FONT_FAMILY, style="B", size=30)
+        self.set_text_color(205, 92, 92)
+        width = self.get_string_width(_DRAFT_WATERMARK)
+        with self.rotation(38, self.w / 2, self.h / 2):
+            self.text((self.w - width) / 2, self.h / 2, _DRAFT_WATERMARK)
+        self.set_text_color(24, 33, 43)
+
 
 def _title(pdf: FPDF, text: str) -> None:
-    pdf.set_font("helvetica", style="B", size=20)
+    pdf.set_font(_FONT_FAMILY, style="B", size=20)
     pdf.set_text_color(24, 33, 43)
     pdf.cell(0, 12, text, new_x="LMARGIN", new_y="NEXT")
     pdf.ln(2)
@@ -72,20 +105,20 @@ def _title(pdf: FPDF, text: str) -> None:
 
 def _heading(pdf: FPDF, text: str) -> None:
     pdf.ln(3)
-    pdf.set_font("helvetica", style="B", size=12)
+    pdf.set_font(_FONT_FAMILY, style="B", size=12)
     pdf.set_text_color(24, 33, 43)
     pdf.cell(0, 8, text, new_x="LMARGIN", new_y="NEXT")
 
 
 def _kv(pdf: FPDF, key: str, value: str) -> None:
-    pdf.set_font("helvetica", style="B", size=10)
+    pdf.set_font(_FONT_FAMILY, style="B", size=10)
     pdf.cell(58, 7, key, border=1)
-    pdf.set_font("helvetica", size=10)
+    pdf.set_font(_FONT_FAMILY, size=10)
     pdf.multi_cell(0, 7, value, border=1, new_x="LMARGIN", new_y="NEXT")
 
 
 def _table_header(pdf: FPDF, columns: tuple[tuple[str, int], ...]) -> None:
-    pdf.set_font("helvetica", style="B", size=9)
+    pdf.set_font(_FONT_FAMILY, style="B", size=9)
     pdf.set_fill_color(238, 242, 245)
     for label, width in columns:
         pdf.cell(width, 7, label, border=1, fill=True)
@@ -93,7 +126,7 @@ def _table_header(pdf: FPDF, columns: tuple[tuple[str, int], ...]) -> None:
 
 
 def _table_row(pdf: FPDF, cells: tuple[tuple[str, int], ...]) -> None:
-    pdf.set_font("helvetica", size=9)
+    pdf.set_font(_FONT_FAMILY, size=9)
     for text, width in cells:
         pdf.cell(width, 7, text, border=1)
     pdf.ln()
@@ -101,7 +134,7 @@ def _table_row(pdf: FPDF, cells: tuple[tuple[str, int], ...]) -> None:
 
 def _result_banner(pdf: FPDF, label: str, *, positive: bool) -> None:
     pdf.ln(4)
-    pdf.set_font("helvetica", style="B", size=18)
+    pdf.set_font(_FONT_FAMILY, style="B", size=18)
     if positive:
         pdf.set_fill_color(229, 246, 234)
         pdf.set_text_color(28, 107, 52)
@@ -154,7 +187,7 @@ def protocol_pdf(record: OvkWorkflowRecord) -> bytes:
                 ),
             )
     else:
-        pdf.set_font("helvetica", size=10)
+        pdf.set_font(_FONT_FAMILY, size=10)
         pdf.cell(0, 7, "Inga anmärkningar.", new_x="LMARGIN", new_y="NEXT")
 
     _heading(pdf, "Besiktningstäckning - fläktar/aggregat")
@@ -169,7 +202,7 @@ def protocol_pdf(record: OvkWorkflowRecord) -> bytes:
             _table_row(pdf, ((item.label, 40), (_AGGREGAT_LABELS[item.status], 45), (note, 105)))
         _kv(pdf, "Fastighetsnivå", _FASTIGHETSNIVA_LABELS[record.coverage.fastighetsniva])
     else:
-        pdf.set_font("helvetica", size=10)
+        pdf.set_font(_FONT_FAMILY, size=10)
         pdf.cell(
             0,
             7,
@@ -186,11 +219,41 @@ def protocol_pdf(record: OvkWorkflowRecord) -> bytes:
     return bytes(pdf.output())
 
 
-def intyg_pdf(intyg: OvkIntyg) -> bytes:
-    pdf = _CrowPdf(f"OVK-intyg · Intygs-ID {intyg.intyg_id} · Crow-plattformen")
+def _draw_qr(pdf: FPDF, content: str, *, x: float, y: float, size: float) -> None:
+    """Ritar QR-koden som rektanglar direkt ur segno-matrisen (ingen bildpipeline)."""
+    matrix = [list(row) for row in segno.make(content, error="m").matrix]
+    module_size = size / len(matrix)
+    pdf.set_fill_color(24, 33, 43)
+    for row_index, row in enumerate(matrix):
+        for col_index, value in enumerate(row):
+            if value:
+                pdf.rect(
+                    x + col_index * module_size,
+                    y + row_index * module_size,
+                    module_size,
+                    module_size,
+                    style="F",
+                )
+
+
+def intyg_pdf(
+    intyg: OvkIntyg,
+    *,
+    draft: bool = False,
+    verify_url: str | None = None,
+    verification_code: str | None = None,
+) -> bytes:
+    """Renderar intyget. ``draft=True`` ger vattenstämplat utkast utan
+    verifieringsuppgifter — ett utkast kan aldrig verifieras."""
+    footer = (
+        "UTKAST · EJ GILTIGT INTYG · Crow-plattformen"
+        if draft
+        else f"OVK-intyg · Intygs-ID {intyg.intyg_id} · Crow-plattformen"
+    )
+    pdf = _CrowPdf(footer, draft=draft)
     pdf.add_page()
     _title(pdf, "OVK-INTYG")
-    pdf.set_font("helvetica", size=10)
+    pdf.set_font(_FONT_FAMILY, size=10)
     pdf.multi_cell(
         0,
         6,
@@ -246,7 +309,7 @@ def intyg_pdf(intyg: OvkIntyg) -> bytes:
     _heading(pdf, "Besiktningsomfattning")
     _kv(pdf, "Fastighetsnivå", _FASTIGHETSNIVA_LABELS[intyg.fastighetsniva])
     if intyg.delbesiktning:
-        pdf.set_font("helvetica", style="B", size=10)
+        pdf.set_font(_FONT_FAMILY, style="B", size=10)
         pdf.set_text_color(146, 64, 14)
         pdf.cell(
             0,
@@ -271,7 +334,7 @@ def intyg_pdf(intyg: OvkIntyg) -> bytes:
         if intyg.next_inspection.due_date is not None
         else "-",
     )
-    pdf.set_font("helvetica", style="I", size=9)
+    pdf.set_font(_FONT_FAMILY, style="I", size=9)
     pdf.set_text_color(82, 97, 111)
     pdf.multi_cell(
         0,
@@ -282,7 +345,7 @@ def intyg_pdf(intyg: OvkIntyg) -> bytes:
     )
     pdf.set_text_color(24, 33, 43)
     pdf.ln(4)
-    pdf.set_font("helvetica", size=9)
+    pdf.set_font(_FONT_FAMILY, size=9)
     pdf.multi_cell(
         0,
         5,
@@ -291,4 +354,29 @@ def intyg_pdf(intyg: OvkIntyg) -> bytes:
         new_x="LMARGIN",
         new_y="NEXT",
     )
+    if not draft and verify_url is not None and verification_code is not None:
+        qr_size = 26.0
+        if pdf.get_y() + 14 + qr_size > pdf.h - 20:
+            pdf.add_page()
+        _heading(pdf, "Verifiering")
+        qr_x = pdf.l_margin
+        qr_y = pdf.get_y() + 2
+        _draw_qr(pdf, verify_url, x=qr_x, y=qr_y, size=qr_size)
+        text_x = qr_x + qr_size + 6
+        pdf.set_xy(text_x, qr_y)
+        pdf.set_font(_FONT_FAMILY, style="B", size=11)
+        pdf.cell(0, 6, f"Verifieringskod: {verification_code}", new_x="LMARGIN", new_y="NEXT")
+        pdf.set_x(text_x)
+        pdf.set_font(_FONT_FAMILY, size=8)
+        pdf.set_text_color(82, 97, 111)
+        pdf.multi_cell(
+            pdf.w - pdf.r_margin - text_x,
+            4,
+            "Skanna QR-koden eller öppna adressen nedan och kontrollera att koden "
+            f"stämmer mot det visade intyget.\n{verify_url}",
+            new_x="LMARGIN",
+            new_y="NEXT",
+        )
+        pdf.set_text_color(24, 33, 43)
+        pdf.set_y(max(pdf.get_y(), qr_y + qr_size + 2))
     return bytes(pdf.output())

@@ -5,6 +5,7 @@ from typing import Any
 from .models import (
     ActionStatus,
     CheckStatus,
+    FindingSeverity,
     InspectionConclusion,
     OvkAction,
     OvkCheckpoint,
@@ -42,6 +43,36 @@ def build_inspection(
     )
 
 
+def unresolved_required_finding_ids(
+    findings: tuple[OvkFinding, ...],
+    actions: tuple[OvkAction, ...],
+) -> frozenset[str]:
+    """Åtgärdskrävande anmärkningar som fortfarande hindrar godkännande.
+
+    Delad regel för protokollslutsats och intyg, så att de aldrig kan säga
+    olika saker om samma besiktning. En åtgärdskrävande anmärkning är olöst när
+
+    * minst en registrerad åtgärd för den är öppen, eller
+    * den är allvarlig (klass 2 / ``MAJOR``) och ingen åtgärd alls har
+      registrerats — en allvarlig brist kan inte godkännas bara för att
+      åtgärdspunkten aldrig lades upp.
+
+    Mindre anmärkningar (klass 1) utan öppen åtgärd hindrar inte godkännande:
+    de redovisas som "godkänd med anmärkning".
+    """
+    open_ids = {action.finding_id for action in actions if action.status is ActionStatus.OPEN}
+    with_action = {action.finding_id for action in actions}
+    return frozenset(
+        finding.finding_id
+        for finding in findings
+        if finding.action_required
+        and (
+            finding.finding_id in open_ids
+            or (finding.severity is FindingSeverity.MAJOR and finding.finding_id not in with_action)
+        )
+    )
+
+
 def derive_conclusion(
     checkpoints: tuple[OvkCheckpoint, ...],
     findings: tuple[OvkFinding, ...],
@@ -49,14 +80,9 @@ def derive_conclusion(
 ) -> InspectionConclusion:
     if any(checkpoint.status is CheckStatus.NOT_CHECKED for checkpoint in checkpoints):
         return InspectionConclusion.PENDING
-    open_action_ids = {
-        action.finding_id for action in actions if action.status is ActionStatus.OPEN
-    }
     if any(checkpoint.status is CheckStatus.FAIL for checkpoint in checkpoints):
         return InspectionConclusion.DEFICIENCIES
-    if any(
-        finding.action_required and finding.finding_id in open_action_ids for finding in findings
-    ):
+    if unresolved_required_finding_ids(findings, actions):
         return InspectionConclusion.DEFICIENCIES
     return InspectionConclusion.APPROVED
 
