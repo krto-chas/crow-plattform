@@ -15,7 +15,8 @@ _SAFE_ID = re.compile(r"^[A-Za-z0-9._-]+$")
 
 def require_unissued(data_root: Path, project_id: str, inspection_id: str) -> None:
     if any(
-        item.inspection_id == inspection_id for item in OvkIntygRepository(data_root).list(project_id)
+        item.inspection_id == inspection_id
+        for item in OvkIntygRepository(data_root).list(project_id)
     ):
         raise HTTPException(status_code=409, detail={"code": "OVK_INSPECTION_ISSUED"})
 
