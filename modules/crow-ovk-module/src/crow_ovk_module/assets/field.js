@@ -116,6 +116,7 @@ if($('unitFilter'))$('unitFilter').onchange=renderRoundUnits;
 function openUnit(unitId){
   const unit=state.units.find(item=>item.unit_id===unitId);if(!unit)return;
   state.activeUnitId=unitId;state.activeFindingId=null;
+  $('fieldTemplateStatus').textContent='';
   const rooms=unitRooms();
   const pending=rooms.find(room=>state.measurements.some(point=>point.unit_id===unitId&&point.room_id===room.room_id&&pendingPoint(point)));
   state.activeRoomId=(pending||rooms[0])?.room_id||null;
@@ -124,6 +125,146 @@ function openUnit(unitId){
   renderUnit();view('viewUnit');window.scrollTo(0,0);$('unitNr').focus({preventScroll:true});
 }
 function unitRooms(){return state.rooms.filter(item=>item.unit_id===state.activeUnitId)}
+
+/* ---------- lägenhetsmallar i samma fältutkast ---------- */
+let fieldTemplateBusy=false;
+function apartmentSuffix(unit){
+  const number=String(unit?.number||'').trim();
+  return unit?.kind==='apartment'&&/^\d{4}$/.test(number)&&number.slice(-2)!=='00'?number.slice(-2):null;
+}
+function fieldTemplateEligible(target){
+  if(!state.project_id||!state.inspection_id||!apartmentSuffix(target)||target.status!=='ej_paborjad')return false;
+  return ![state.rooms,state.measurements,state.findings,state.finding_followups,state.photos,state.window_vents].some(rows=>rows.some(row=>row.unit_id===target.unit_id));
+}
+function fieldTemplatePlan(sourceId,targetId){
+  const source=state.units.find(u=>u.unit_id===sourceId);
+  const target=state.units.find(u=>u.unit_id===targetId);
+  if(!fieldTemplateEligible(target)||!source||source===target||source.status==='bom'||apartmentSuffix(source)!==apartmentSuffix(target)||unitSystem(source)!==unitSystem(target))throw new Error('Lägenheterna är inte lämpliga för denna mall.');
+  for(const unit of [source,target]){
+    if(state.units.filter(u=>String(u.number).trim()===String(unit.number).trim()).length!==1)throw new Error('Lägenhetsnumret är inte entydigt.');
+  }
+  const sourceRooms=state.rooms.filter(r=>r.unit_id===sourceId);
+  const sourcePoints=state.measurements.filter(p=>p.unit_id===sourceId);
+  const roomIds=new Set(),pointIds=new Set();
+  if(!sourceRooms.length)throw new Error('Referenslägenheten saknar rum.');
+  const rooms=sourceRooms.map(room=>{
+    if(!room.room_id||roomIds.has(room.room_id)||typeof room.name!=='string'||!room.name.trim())throw new Error('Ogiltig rumsstruktur i referenslägenheten.');
+    roomIds.add(room.room_id);
+    const points=sourcePoints.filter(p=>p.room_id===room.room_id).map(point=>{
+      if(!point.measurement_id||pointIds.has(point.measurement_id)||!['franluftsdon','tilluftsdon','overluftsdon'].includes(point.point_type)||typeof point.point_label!=='string'||!point.point_label.trim()||point.unit_of_measure!=='l/s')throw new Error('Ogiltig mätpunkt i referenslägenheten.');
+      if(point.point_type==='tilluftsdon'&&!['FT','FTX'].includes(unitSystem(target)))throw new Error('Referenslägenhetens tilluft stämmer inte med systemtypen.');
+      const design=point.designed_value==null?null:String(point.designed_value);
+      if(design!==null&&(!/^\d+(?:\.\d+)?$/.test(design)||!Number.isFinite(Number(design))))throw new Error('Ogiltigt projekterat flöde i referenslägenheten.');
+      if(point.system_id!=null&&(typeof point.system_id!=='string'||!point.system_id.trim()))throw new Error('Ogiltig systemkoppling i referenslägenheten.');
+      pointIds.add(point.measurement_id);
+      return {source_id:point.measurement_id,point_type:point.point_type,point_label:point.point_label,system_id:point.system_id??null,designed_value:design,unit_of_measure:'l/s'};
+    });
+    return {source_id:room.room_id,name:room.name,points};
+  });
+  if(pointIds.size!==sourcePoints.length)throw new Error('Referenslägenheten har don utan säker rumskoppling.');
+  return {project_id:state.project_id,inspection_id:state.inspection_id,source_id:sourceId,target_id:targetId,source_number:source.number,target_number:target.number,system_type:unitSystem(target),rooms};
+}
+function fieldTemplateCandidates(target){
+  if(!fieldTemplateEligible(target))return [];
+  return state.units.filter(source=>{
+    try{fieldTemplatePlan(source.unit_id,target.unit_id);return true}catch(_){return false}
+  }).sort((a,b)=>Math.abs(Number(a.number)-Number(target.number))-Math.abs(Number(b.number)-Number(target.number))||String(a.number).localeCompare(String(b.number)));
+}
+function fieldTemplateCopy(plan,roomIds,pointIds){
+  const rooms=[],measurements=[];
+  for(const room of plan.rooms){
+    if(!roomIds.has(room.source_id))continue;
+    const roomId=uid('room');
+    rooms.push({room_id:roomId,unit_id:plan.target_id,name:room.name});
+    for(const point of room.points){
+      if(!pointIds.has(point.source_id))continue;
+      measurements.push({measurement_id:uid('meas'),unit_id:plan.target_id,room_id:roomId,point_type:point.point_type,point_label:point.point_label,system_id:point.system_id,designed_value:point.designed_value,unit_of_measure:'l/s',measurable:true,measured_value:null,not_measurable_reason:'',finding_id:null});
+    }
+  }
+  return {rooms,measurements};
+}
+function renderFieldTemplate(){
+  const panel=$('fieldTemplatePanel'),source=$('fieldTemplateSource'),preview=$('fieldTemplatePreview'),confirmation=$('fieldTemplateConfirm'),apply=$('fieldTemplateApply');
+  const target=activeUnit(),candidates=fieldTemplateCandidates(target);
+  panel.classList.toggle('hidden',!candidates.length);
+  preview.replaceChildren();source.replaceChildren();confirmation.checked=false;apply.disabled=true;
+  apply.onclick=null;source.onchange=null;confirmation.onchange=null;
+  if(!candidates.length)return;
+  for(const candidate of candidates)source.add(new Option(candidate.number+' · '+unitSystem(candidate),candidate.unit_id));
+  source.value=candidates[0].unit_id;
+  function renderPreview(){
+    confirmation.checked=false;apply.disabled=true;preview.replaceChildren();
+    const plan=fieldTemplatePlan(source.value,target.unit_id);
+    const roomIds=new Set(plan.rooms.map(room=>room.source_id)),pointIds=new Set(plan.rooms.flatMap(room=>room.points.map(point=>point.source_id)));
+    const summary=document.createElement('p');summary.className='template-summary';summary.setAttribute('role','status');
+    const refresh=()=>{
+      const count=plan.rooms.filter(r=>roomIds.has(r.source_id)).reduce((total,r)=>total+r.points.filter(p=>pointIds.has(p.source_id)).length,0);
+      summary.textContent=roomIds.size+' rum · '+count+' don · inga tidigare kontrollresultat';
+      apply.disabled=fieldTemplateBusy||!confirmation.checked||!roomIds.size;
+    };
+    const change=()=>{confirmation.checked=false;refresh()};
+    for(const room of plan.rooms){
+      const card=document.createElement('div');card.className='template-room';
+      const label=document.createElement('label');label.className='template-check';
+      const check=document.createElement('input');check.type='checkbox';check.checked=true;
+      const name=document.createElement('strong');name.textContent=room.name;label.append(check,name);card.append(label);
+      const pointChecks=[];
+      for(const point of room.points){
+        const line=document.createElement('label');line.className='template-check template-point';
+        const input=document.createElement('input');input.type='checkbox';input.checked=true;pointChecks.push(input);
+        const detail=document.createElement('span');detail.textContent=point.point_label+' · '+({franluftsdon:'Frånluft',tilluftsdon:'Tilluft',overluftsdon:'Överluft'}[point.point_type]);
+        const sub=document.createElement('small');sub.textContent=(point.system_id?'System '+point.system_id:'Systemkoppling saknas')+' · '+(point.designed_value==null?'Projekterat värde saknas':point.designed_value+' l/s projekterat');
+        detail.append(sub);line.append(input,detail);card.append(line);
+        input.onchange=()=>{if(input.checked)pointIds.add(point.source_id);else pointIds.delete(point.source_id);change()};
+      }
+      check.onchange=()=>{if(check.checked)roomIds.add(room.source_id);else roomIds.delete(room.source_id);for(const input of pointChecks)input.disabled=!check.checked;change()};
+      preview.append(card);
+    }
+    preview.append(summary);confirmation.onchange=refresh;
+    apply.onclick=async()=>{
+      if(fieldTemplateBusy||!confirmation.checked||!roomIds.size)return;
+      let current;
+      try{current=fieldTemplatePlan(source.value,target.unit_id);if(state.activeUnitId!==target.unit_id||JSON.stringify(current)!==JSON.stringify(plan))throw new Error('Underlaget har ändrats. Granska mallen igen.')}
+      catch(error){renderFieldTemplate();$('fieldTemplateStatus').textContent=crowErrorText(error);return}
+      const copy=fieldTemplateCopy(current,roomIds,pointIds);
+      await applyFieldTemplate(current,copy);
+    };
+    refresh();
+  }
+  source.onchange=renderPreview;
+  renderPreview();
+}
+async function applyFieldTemplate(plan,copy){
+  if(fieldTemplateBusy||state.activeUnitId!==plan.target_id||!fieldTemplateEligible(activeUnit())||state.project_id!==plan.project_id||state.inspection_id!==plan.inspection_id||!copy.rooms.length)return;
+  fieldTemplateBusy=true;
+  const controls=[...document.querySelectorAll('#viewUnit button,#viewUnit input,#viewUnit select,#viewUnit textarea,#syncCard button,#footBack,#footDone')].map(element=>({element,disabled:element.disabled}));
+  for(const {element} of controls)element.disabled=true;
+  const previousRoom=state.activeRoomId;
+  const roomIds=new Set(copy.rooms.map(room=>room.room_id)),pointIds=new Set(copy.measurements.map(point=>point.measurement_id));
+  const sameContext=()=>state.project_id===plan.project_id&&state.inspection_id===plan.inspection_id;
+  let message='';
+  try{
+    state.rooms.push(...copy.rooms);state.measurements.push(...copy.measurements);
+    state.activeRoomId=(copy.rooms.find(room=>copy.measurements.some(point=>point.room_id===room.room_id))||copy.rooms[0]).room_id;
+    clearFindingSelection();
+    try{await persist();message=copy.rooms.length+' rum och '+copy.measurements.length+' don sparade lokalt. Kontrollera strukturen och börja mäta.'}
+    catch(error){
+      if(sameContext()){
+        state.rooms=state.rooms.filter(room=>!roomIds.has(room.room_id));
+        state.measurements=state.measurements.filter(point=>!pointIds.has(point.measurement_id));
+        if(state.activeUnitId===plan.target_id)state.activeRoomId=previousRoom;
+      }
+      message='Mallen kunde inte sparas lokalt. Försök igen: '+crowErrorText(error);
+    }
+  }finally{
+    fieldTemplateBusy=false;
+    for(const {element,disabled} of controls)element.disabled=disabled;
+    if(sameContext()&&state.activeUnitId===plan.target_id&&document.querySelector('.view.on')?.id==='viewUnit'){
+      renderUnit();$('fieldTemplateStatus').textContent=message;
+    }
+  }
+}
+
 const PRESET_EXTRACT_ROOMS=['badrum','wc','kök','hwc','vilorum'];
 function ensureRoom(name){const existing=unitRooms().find(item=>item.name===name);if(existing)return existing;const room={room_id:uid('room'),unit_id:state.activeUnitId,name};state.rooms.push(room);if(PRESET_EXTRACT_ROOMS.includes(name.trim().toLowerCase().split(/\s+/)[0])){state.measurements.push({measurement_id:uid('meas'),unit_id:state.activeUnitId,point_type:'franluftsdon',point_label:name+' 1',room_id:room.room_id,measurable:true,measured_value:null,designed_value:null,unit_of_measure:'l/s',not_measurable_reason:'',finding_id:null})}return room}
 function roomStats(roomId){
@@ -370,7 +511,7 @@ async function plannedHistory(record,projectId,inspectionId){
   if(data.source_inspection_id!==source||data.project_id!==projectId||!Array.isArray(data.historical_findings))throw new Error('Historikens identitet stämmer inte.');
   return {previous_inspection_id:source,historical_findings:data.historical_findings,historical_measurements:data.historical_measurements||[],historical_checkpoints:data.historical_checkpoints||[],historical_space_photos:data.historical_space_photos||[]};
 }
-function renderUnit(){const unit=activeUnit();if(!unit)return;renderKeys();renderRooms();const roomName=activeRoom()?activeRoom().name:'välj rum';$('visRoom').textContent=roomName;$('measRoom').textContent=roomName;const ftx=isFtx();$('wvMissing').classList.toggle('hidden',ftx);$('wvRow').classList.toggle('hidden',ftx||!activeRoom());$('addSupply').classList.toggle('hidden',!ftx);$('unitSystemBtn').textContent='System: '+(unit.system_type?unit.system_type+' · avvikande':state.system_type+' · fastighet');$('unitSystemBtn').classList.toggle('quick',Boolean(unit.system_type));renderPreviousFindings(unit);renderMeasurements();renderFindings();updateUnitProgress();updateFooter('viewUnit')}
+function renderUnit(){const unit=activeUnit();if(!unit)return;renderKeys();renderRooms();renderFieldTemplate();const roomName=activeRoom()?activeRoom().name:'välj rum';$('visRoom').textContent=roomName;$('measRoom').textContent=roomName;const ftx=isFtx();$('wvMissing').classList.toggle('hidden',ftx);$('wvRow').classList.toggle('hidden',ftx||!activeRoom());$('addSupply').classList.toggle('hidden',!ftx);$('unitSystemBtn').textContent='System: '+(unit.system_type?unit.system_type+' · avvikande':state.system_type+' · fastighet');$('unitSystemBtn').classList.toggle('quick',Boolean(unit.system_type));renderPreviousFindings(unit);renderMeasurements();renderFindings();updateUnitProgress();updateFooter('viewUnit')}
 function updateFooter(name){if(name==='viewSpace'){const fails=activeSpace()?spaceCheckpoints(state.activeSpaceId).filter(item=>item.status==='fail').length:0;$('footDone').textContent=spacePending(state.activeSpaceId)?'Till listan – ej klar':fails?'Klar – med anmärkning ('+fails+')':'Klar – UA';$('footDone').className='btn '+(fails?'anm':'ua');$('footBack').textContent='Till listan';return}if(name==='viewUnit'){const remarks=unitRemarks(state.activeUnitId).length;const next=nextPendingUnit(state.activeUnitId);$('footDone').textContent=(remarks?'Klar – ANM ('+remarks+')':'Klar – UA')+(next?' · nästa':'');$('footDone').className='btn '+(remarks?'anm':'ua');$('footBack').textContent='Till listan'}else if(name==='viewRond'){$('footDone').textContent='Synka';$('footDone').className='btn';$('footBack').textContent='Till start'}else{$('footDone').textContent='Starta rondering';$('footDone').className='btn';$('footBack').textContent='–'}}
 
 function addFinding(defectType,severity,description){const unit=activeUnit();const room=activeRoom();const defect=state.defects.find(item=>item.id===defectType);const classification=severity==='major'?2:severity==='minor'?1:0;const finding={finding_id:uid('finding'),inspection_id:state.inspection_id,unit_id:unit.unit_id,unit_number:unit.number,room_id:room?room.room_id:null,room_name:room?room.name:null,defect_type:defectType,description,severity,classification,system_id:null,rule_refs:defect?defect.default_rule_refs||[]:[],origin:'observed'};state.findings.push(finding);state.activeFindingId=finding.finding_id;$('photoStatus').className='status';$('photoStatus').textContent='Anmärkning registrerad · foto binds hit: '+description;return finding}

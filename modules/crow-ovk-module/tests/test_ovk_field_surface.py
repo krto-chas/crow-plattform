@@ -814,4 +814,35 @@ def test_r2a_round_workspace_controls(tmp_path: Path) -> None:
     assert "button.setAttribute('aria-pressed',String(selected))" in script
     assert "Mätpunkterna blir kvar som ofullständiga." in script
     assert "Ronderingen är komplett" not in script
-    assert "v13" in client.get("/ovk/falt/sw.js").text
+    assert "v14" in client.get("/ovk/falt/sw.js").text
+
+
+def test_field_apartment_template_controls(tmp_path: Path) -> None:
+    client = _client(tmp_path)
+    page = client.get("/ovk/falt").text
+    script = client.get("/ovk/falt/app.js").text
+
+    for element_id in (
+        "fieldTemplatePanel",
+        "fieldTemplateSource",
+        "fieldTemplatePreview",
+        "fieldTemplateConfirm",
+        "fieldTemplateApply",
+        "fieldTemplateStatus",
+    ):
+        assert page.count(f'id="{element_id}"') == 1
+    assert 'id="fieldTemplateApply" disabled' in page
+    assert "function fieldTemplateEligible(target)" in script
+    assert "function fieldTemplatePlan(sourceId,targetId)" in script
+    assert "function fieldTemplateCopy(plan,roomIds,pointIds)" in script
+    assert "apartmentSuffix(source)!==apartmentSuffix(target)" in script
+    assert "unitSystem(source)!==unitSystem(target)" in script
+    assert "target.status!=='ej_paborjad'" in script
+    assert "JSON.stringify(current)!==JSON.stringify(plan)" in script
+    assert "fieldTemplateBusy||!confirmation.checked||!roomIds.size" in script
+    assert "if(!roomIds.has(room.source_id))continue" in script
+    assert "if(!pointIds.has(point.source_id))continue" in script
+    assert "measurable:true,measured_value:null" in script
+    assert "state.rooms=state.rooms.filter(room=>!roomIds.has(room.room_id))" in script
+    assert "state.measurements=state.measurements.filter(point=>!pointIds.has" in script
+    assert "renderKeys();renderRooms();renderFieldTemplate()" in script
