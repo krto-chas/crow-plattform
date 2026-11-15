@@ -7,6 +7,9 @@ from __future__ import annotations
 
 import json
 import re
+import sqlite3
+from collections.abc import Iterator
+from contextlib import closing, contextmanager
 from datetime import UTC, datetime
 from importlib.resources import files
 from pathlib import Path
@@ -23,6 +26,12 @@ from crow_ovk_fastighet import (
 )
 from fastapi import APIRouter, HTTPException, Request, Response
 from fastapi.responses import HTMLResponse
+from starlette.concurrency import run_in_threadpool
+
+from crow_ovk_workflow.repository import OvkWorkflowRepository
+
+from .ovk_field_surface import _FieldSyncRepository, _validated_payload
+from .ovk_inventory_promotion import inventory_revision, plan_inventory_promotion
 
 _NO_CACHE = {"Cache-Control": "no-cache"}
 
@@ -126,11 +135,13 @@ def ovk_fastighet_router(data_root: Path) -> APIRouter:
         "/api/ovk/projects/{project_id}/fastighet/{fastighet_id}/byggnad/{building_id}/struktur",
         response_model=None,
     )
-    def get_structure(project_id: str, fastighet_id: str, building_id: str) -> dict[str, Any]:
+    def get_structure(
+        project_id: str, fastighet_id: str, building_id: str, response: Response
+    ) -> dict[str, Any]:
         path = structure_path(project_id, fastighet_id, building_id)
-        if not path.exists():
-            return {"units": [], "systems": [], "technical_spaces": []}
-        result: dict[str, Any] = json.loads(path.read_text(encoding="utf-8"))
+        result = _read_structure(path)
+        response.headers["X-OVK-Inventory-Revision"] = inventory_revision(result)
+        response.headers["Cache-Control"] = "no-store"
         return result
 
     @router.put(
@@ -138,7 +149,7 @@ def ovk_fastighet_router(data_root: Path) -> APIRouter:
         response_model=None,
     )
     async def save_structure(
-        project_id: str, fastighet_id: str, building_id: str, request: Request
+        project_id: str, fastighet_id: str, building_id: str, request: Request, response: Response
     ) -> dict[str, Any]:
         path = structure_path(project_id, fastighet_id, building_id)
         payload = await _json_body(request)
@@ -148,17 +159,149 @@ def ovk_fastighet_router(data_root: Path) -> APIRouter:
             raise HTTPException(
                 status_code=422, detail={"code": "INVALID_OVK_STRUCTURE", "message": str(exc)}
             ) from exc
-        path.parent.mkdir(parents=True, exist_ok=True)
-        with NamedTemporaryFile(
-            mode="w", encoding="utf-8", dir=path.parent, delete=False
-        ) as temporary:
-            temp_path = Path(temporary.name)
-            json.dump(structure, temporary, ensure_ascii=False, indent=2)
-        try:
-            temp_path.replace(path)
-        finally:
-            temp_path.unlink(missing_ok=True)
+        expected = request.headers.get("X-OVK-Inventory-Revision")
+
+        def save() -> None:
+            with _structure_lock(path):
+                if expected is not None and expected != inventory_revision(_read_structure(path)):
+                    raise HTTPException(
+                        status_code=409, detail={"code": "OVK_INVENTORY_REVISION_CONFLICT"}
+                    )
+                _write_structure(path, structure)
+
+        await run_in_threadpool(save)
+        response.headers["X-OVK-Inventory-Revision"] = inventory_revision(structure)
         return structure
+
+    def promotion_plan(
+        project_id: str,
+        fastighet_id: str,
+        building_id: str,
+        inspection_id: str,
+        path: Path,
+        assignments: dict[str, str],
+    ) -> dict[str, Any]:
+        try:
+            record = OvkWorkflowRepository(data_root).load(project_id, inspection_id)
+        except FileNotFoundError as exc:
+            raise HTTPException(
+                status_code=404, detail={"code": "OVK_INSPECTION_NOT_FOUND"}
+            ) from exc
+        except ValueError as exc:
+            raise HTTPException(status_code=422, detail={"code": "INVALID_IDENTIFIER"}) from exc
+        obj = record.inspection.ovk_object
+        if (obj.project_id, obj.object_id, obj.building_id) != (
+            project_id,
+            fastighet_id,
+            building_id,
+        ) or record.inspection.inspection_id != inspection_id:
+            raise HTTPException(status_code=409, detail={"code": "OVK_INVENTORY_SOURCE_MISMATCH"})
+        try:
+            snapshot, snapshot_revision = _FieldSyncRepository(
+                data_root, project_id=project_id
+            ).load(inspection_id)
+        except FileNotFoundError as exc:
+            raise HTTPException(
+                status_code=404, detail={"code": "OVK_FIELD_SNAPSHOT_NOT_FOUND"}
+            ) from exc
+        if snapshot.get("inspection_id") != inspection_id:
+            raise HTTPException(status_code=409, detail={"code": "OVK_INVENTORY_SOURCE_MISMATCH"})
+        _validated_payload(snapshot)
+        inventory = _read_structure(path)
+        try:
+            if _validate_structure(inventory) != inventory:
+                raise ValueError("Existing inventory must be normalized before promotion.")
+            valid_systems = {item["system_id"] for item in inventory["systems"]}
+            valid_points = {item["measurement_id"] for item in snapshot["measurements"]}
+            if any(
+                point_id not in valid_points or system_id not in valid_systems
+                for point_id, system_id in assignments.items()
+            ):
+                raise ValueError("Unknown measurement point or inventory system.")
+            plan = plan_inventory_promotion(inventory, snapshot, assignments)
+            plan["structure"] = _validate_structure(plan["structure"])
+        except (KeyError, TypeError, ValueError) as exc:
+            raise HTTPException(
+                status_code=422,
+                detail={"code": "INVALID_OVK_INVENTORY_PROMOTION", "message": str(exc)},
+            ) from exc
+        base_revision = inventory_revision(inventory)
+        token = inventory_revision(
+            {
+                "project_id": project_id,
+                "fastighet_id": fastighet_id,
+                "building_id": building_id,
+                "inspection_id": inspection_id,
+                "snapshot_revision": snapshot_revision,
+                "inventory_revision": base_revision,
+                "assignments": assignments,
+                "plan": plan,
+            }
+        )
+        return {
+            **plan,
+            "preview_token": token,
+            "snapshot_revision": snapshot_revision,
+            "inventory_revision": base_revision,
+        }
+
+    @router.post(
+        "/api/ovk/projects/{project_id}/fastighet/{fastighet_id}/byggnad/"
+        "{building_id}/struktur/aterforing/{inspection_id}/preview",
+        response_model=None,
+    )
+    async def preview_promotion(
+        project_id: str,
+        fastighet_id: str,
+        building_id: str,
+        inspection_id: str,
+        request: Request,
+    ) -> dict[str, Any]:
+        path = structure_path(project_id, fastighet_id, building_id)
+        assignments = _promotion_assignments(await _json_body(request))
+        return await run_in_threadpool(
+            promotion_plan, project_id, fastighet_id, building_id, inspection_id, path, assignments
+        )
+
+    @router.post(
+        "/api/ovk/projects/{project_id}/fastighet/{fastighet_id}/byggnad/"
+        "{building_id}/struktur/aterforing/{inspection_id}/apply",
+        response_model=None,
+    )
+    async def apply_promotion(
+        project_id: str,
+        fastighet_id: str,
+        building_id: str,
+        inspection_id: str,
+        request: Request,
+    ) -> dict[str, Any]:
+        path = structure_path(project_id, fastighet_id, building_id)
+        payload = await _json_body(request)
+        assignments = _promotion_assignments(payload)
+        expected = payload.get("preview_token")
+        if payload.get("confirmed") is not True or not isinstance(expected, str):
+            raise HTTPException(status_code=422, detail={"code": "OVK_PROMOTION_CONFIRM_REQUIRED"})
+
+        def apply() -> dict[str, Any]:
+            with _structure_lock(path):
+                plan = promotion_plan(
+                    project_id, fastighet_id, building_id, inspection_id, path, assignments
+                )
+                if plan["preview_token"] != expected:
+                    raise HTTPException(
+                        status_code=409, detail={"code": "OVK_PROMOTION_PREVIEW_STALE"}
+                    )
+                if not plan["additions"]:
+                    raise HTTPException(
+                        status_code=409, detail={"code": "OVK_PROMOTION_NO_ADDITIONS"}
+                    )
+                _write_structure(path, plan["structure"])
+                return {
+                    **plan,
+                    "inventory_revision": inventory_revision(plan["structure"]),
+                }
+
+        return await run_in_threadpool(apply)
 
     @router.put("/api/ovk/registry/besiktningsman/{besiktningsman_id}", response_model=None)
     async def save_besiktningsman(besiktningsman_id: str, request: Request) -> dict[str, Any]:
@@ -197,6 +340,47 @@ def ovk_fastighet_router(data_root: Path) -> APIRouter:
         }
 
     return router
+
+
+def _promotion_assignments(payload: dict[str, Any]) -> dict[str, str]:
+    assignments = payload.get("assignments", {})
+    if not isinstance(assignments, dict) or not all(
+        isinstance(key, str) and isinstance(value, str) for key, value in assignments.items()
+    ):
+        raise HTTPException(status_code=422, detail={"code": "INVALID_OVK_PROMOTION_ASSIGNMENTS"})
+    return assignments
+
+
+def _read_structure(path: Path) -> dict[str, Any]:
+    if not path.exists():
+        return {"units": [], "systems": [], "technical_spaces": []}
+    result: Any = json.loads(path.read_text(encoding="utf-8"))
+    if not isinstance(result, dict):
+        raise ValueError("Stored building inventory must be an object.")
+    return result
+
+
+@contextmanager
+def _structure_lock(path: Path) -> Iterator[None]:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with closing(sqlite3.connect(path.parent / ".structure-write-lock.sqlite3", timeout=30)) as lock:
+        lock.execute("BEGIN IMMEDIATE")
+        try:
+            yield
+        finally:
+            lock.rollback()
+
+
+def _write_structure(path: Path, structure: dict[str, Any]) -> None:
+    with NamedTemporaryFile(
+        mode="w", encoding="utf-8", dir=path.parent, delete=False
+    ) as temporary:
+        temp_path = Path(temporary.name)
+        json.dump(structure, temporary, ensure_ascii=False, indent=2)
+    try:
+        temp_path.replace(path)
+    finally:
+        temp_path.unlink(missing_ok=True)
 
 
 def _validate_structure(payload: dict[str, Any]) -> dict[str, Any]:
