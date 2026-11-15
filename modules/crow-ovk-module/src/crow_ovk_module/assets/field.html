@@ -81,6 +81,7 @@
     .room-section-label{font-size:13px;color:var(--mut);margin:14px 0 4px}.room-section-label:empty{display:none}
     .room-progress{font-size:14px;color:var(--mut);line-height:1.5;margin:8px 0}.mrow{grid-template-columns:minmax(0,1fr) minmax(64px,92px) 44px;gap:8px;padding:12px 0;border-top:1px solid var(--line)}
     .mrow .lbl{overflow-wrap:anywhere}.mrow .lbl small{font-size:12px;line-height:1.5}.mrow input{min-width:0;min-height:48px;font-size:20px}.mrow .x{min-height:44px}
+    .finding-choice{display:block;width:100%;text-align:left;background:#fff;color:var(--ink);padding:14px;overflow-wrap:anywhere;min-height:48px}.finding-choice.selected{border-color:var(--accent);background:#edf2f6}.finding-choice strong,.finding-choice span{display:block}.finding-choice strong{margin-top:6px}.mrow input[aria-invalid=true]{border-color:var(--bom)}
     .mrow.nm{opacity:1}.measurement-state{display:block;font-size:12px;font-weight:600;color:var(--mut);margin-top:3px}
     .foot{background:#f7f8fa;border-top-color:var(--line)}.foot .inner{grid-template-columns:minmax(0,1fr) minmax(0,2fr)}.foot .btn{margin:0;padding:12px 8px;font-size:14px;overflow-wrap:anywhere}
     button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible,summary:focus-visible{outline:3px solid var(--accent);outline-offset:3px}
@@ -188,11 +189,11 @@
     </div>
 
     <div class="card"><div class="eyebrow">4 · Anteckning &amp; foto</div><h2 class="section-heading">Anmärkningar och bildbevis</h2>
-      <div class="row" id="classRow" style="margin-bottom:6px"><span class="sub">Klass för senaste anm.:</span><button class="chip" data-class="0">0 · upplysning</button><button class="chip" data-class="1">1 · åtgärdas</button><button class="chip" data-class="2">2 · EG</button></div>
-      <textarea id="note" placeholder="Valfri kommentar till senaste anmärkning…"></textarea>
-      <input id="photo" type="file" accept="image/*" capture="environment">
-      <div id="photoStatus" class="status">Foto binds automatiskt till senaste anmärkning.</div>
       <div id="unitFindings"></div>
+      <div class="row" id="classRow" style="margin-bottom:6px"><span class="sub">Klass för vald anm.:</span><button class="chip" data-class="0">0 · upplysning</button><button class="chip" data-class="1">1 · åtgärdas</button><button class="chip" data-class="2">2 · EG</button></div>
+      <label for="note">Kommentar till vald anmärkning</label><textarea id="note" placeholder="Valfri kommentar…"></textarea>
+      <label for="photo">Foto till vald anmärkning</label><input id="photo" type="file" accept="image/*" capture="environment">
+      <div id="photoStatus" class="status">Välj eller registrera en anmärkning innan du tar foto.</div>
     </div>
   </section>
 
