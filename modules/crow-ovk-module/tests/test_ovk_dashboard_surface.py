@@ -92,3 +92,19 @@ def test_workbench_import_can_be_previewed_without_reupload(tmp_path: Path) -> N
         item["field"] == "system_id" and item["value"] == "FTX01" for item in payload["facts"]
     )
     assert any(item["field"] == "finding" for item in payload["facts"])
+
+
+def test_mobile_home_preserves_field_and_project_entry_points(tmp_path: Path) -> None:
+    response = _client(tmp_path).get("/ovk")
+
+    assert response.status_code == 200
+    assert 'id="fieldHomeTitle">Besiktningar' in response.text
+    assert 'href="/ovk/besiktning?new=1">+ Ny besiktning' in response.text
+    assert 'href="/ovk/falt">Fortsätt besikta' in response.text
+    assert 'id="fieldOngoing" hidden' in response.text
+    assert 'id="fieldPrepared" hidden' in response.text
+    assert 'id="desktopTools" open' in response.text
+    assert "OVK_FIELD_SNAPSHOT_NOT_FOUND" in response.text
+    assert "data.project_id===project.project_id" in response.text
+    assert "data.inspection_id===item.inspection_id" in response.text
+    assert "item.planning&&!item.protocol_ready" in response.text
