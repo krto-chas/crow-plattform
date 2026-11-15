@@ -337,6 +337,7 @@ function chooseProperty(project, property) {
   $('propertyNew').hidden = true;
   $('newPropertyForm').hidden = true;
   $('draftForm').hidden = false;
+  $('propertySearchForm').hidden = true;
   $('propertySearchStatus').textContent = '';
   $('selectedPropertyTitle').textContent = property.fastighetsbeteckning;
   const address = property.byggnadens_adress || {};
@@ -409,7 +410,11 @@ function showNewProperty() {
   $('newPropertyOrt').focus();
 }
 async function getOrCreateProject(request) {
-  if (request.existingProject) return request.existingProject;
+  if (request.existingProject) {
+    const data = await api('/api/projects/'+enc(request.existingProject.project_id), {cache:'no-store'});
+    if (!data.summary || data.summary.project_id!==request.existingProject.project_id) throw new Error('Valt projekt kunde inte verifieras.');
+    return data.summary;
+  }
   const id = request.projectId;
   try {
     const created = await api('/api/projects', {method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({name:request.designation,project_id:id})});
@@ -485,6 +490,7 @@ async function initDraft(projects, requestedProject) {
   $('draftAddSystem').onclick=draftAddSystem;
   $('draftForm').onsubmit=createDraft;
   const today=new Date();
+  if(matchMedia('(max-width:900px)').matches) $('draftCreate').textContent='Starta besiktning';
   $('draftDate').value=[today.getFullYear(),String(today.getMonth()+1).padStart(2,'0'),String(today.getDate()).padStart(2,'0')].join('-');
   const registry = await api('/api/ovk/registry/besiktningsman');
   draftOptions($('draftInspector'),registry.besiktningsman||[],p=>p.besiktningsman_id,p=>p.namn+' · '+p.behorighet+' · '+p.certnummer,'Välj besiktningsman');
