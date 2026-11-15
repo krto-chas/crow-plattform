@@ -78,7 +78,7 @@ const inventoryId=prefix=>prefix+'-'+Array.from(crypto.getRandomValues(new Uint8
 function inventoryMessage(message,error=false){$('inventoryStatus').textContent=message;$('inventoryStatus').className='status'+(error?' warn':'')}
 function inventoryCanLeave(){return !inventoryBusy&&(!inventoryDirty||confirm('Byggnadsstrukturen har osparade ändringar. Vill du lämna dem?'))}
 function inventoryReset(property=null){
-  clearBulkPreview();inventoryRevision++;inventory=null;inventoryDirty=false;inventoryBusy=false;
+  clearBulkPreview();clearTemplatePreview();inventoryRevision++;inventory=null;inventoryDirty=false;inventoryBusy=false;
   inventoryContext=property?{project:$('project').value,property:property.fastighet_id,buildings:property.byggnader||[]}:null;
   const select=$('inventoryBuilding');select.replaceChildren(new Option('Välj byggnad…',''));
   if(inventoryContext)for(const b of inventoryContext.buildings)select.add(new Option(b.internt_namn,b.byggnad_id));
@@ -88,7 +88,7 @@ function inventoryReset(property=null){
   inventoryMessage(property?'Välj byggnad.':'Välj en sparad fastighet.');
 }
 function inventoryUrl(building){return '/api/ovk/projects/'+enc(inventoryContext.project)+'/fastighet/'+enc(inventoryContext.property)+'/byggnad/'+enc(building)+'/struktur'}
-function inventoryChanged(){clearBulkPreview();inventoryDirty=true;inventoryMessage('Osparade ändringar.')}
+function inventoryChanged(){clearBulkPreview();clearTemplatePreview();inventoryDirty=true;inventoryMessage('Osparade ändringar.')}
 function inventoryButton(label,action){const button=document.createElement('button');button.type='button';button.className='button secondary';button.textContent=label;button.onclick=action;return button}
 function inventoryInput(parent,label,value,change,options=null){
   const wrap=document.createElement('label');wrap.textContent=label;
@@ -146,7 +146,7 @@ function renderInventory(){
 $('inventoryBuilding').onchange=async()=>{
   const select=$('inventoryBuilding'),building=select.value;
   if(!inventoryCanLeave()){select.value=inventoryContext?.building||'';return}
-  clearBulkPreview();const revision=++inventoryRevision;inventory=null;inventoryDirty=false;inventoryContext.building=building;
+  clearBulkPreview();clearTemplatePreview();const revision=++inventoryRevision;inventory=null;inventoryDirty=false;inventoryContext.building=building;
   $('inventoryFields').disabled=true;
   for(const id of ['inventorySystems','inventoryUnits','inventorySpaces'])$(id).replaceChildren();
   if(!building){inventoryMessage('Välj byggnad.');return}
@@ -208,14 +208,15 @@ let templateRules=[{suffix:'01',source:''}];
 let templatePreview=null;
 let templateContext=null;
 function clearTemplatePreview(){
-  templatePreview=null;$('templateApply').disabled=true;$('templateResult').replaceChildren();
+  templatePreview=null;$('templateApply').disabled=true;$('templateConfirmSystems').checked=false;$('templateResult').replaceChildren();
   $('templateStatus').textContent='Förhandsgranska innan generering.';
 }
 function renderTemplateRules(){
-  if(templateContext!==inventoryContext){templateContext=inventoryContext;templateRules=[{suffix:'01',source:''}]}
+  const context=inventoryContext?JSON.stringify([inventoryContext.project,inventoryContext.property,inventoryContext.building]):null;
+  if(templateContext!==context){templateContext=context;templateRules=[{suffix:'01',source:''}];$('templateFillEmpty').checked=false}
   clearTemplatePreview();
   const root=$('templateRules');root.replaceChildren();
-  const sources=(inventory?.units||[]).filter(u=>u.kind==='apartment');
+  const sources=(inventory?.units||[]).filter(u=>u.kind==='apartment'&&u.rooms.length);
   for(const rule of templateRules){
     const row=document.createElement('div');row.className='row';
     const suffix=document.createElement('input');suffix.value=rule.suffix;suffix.maxLength=2;suffix.setAttribute('aria-label','Lägenhetssuffix XX');
@@ -233,7 +234,13 @@ function templatePlan(){
   if(!inventory||inventoryBusy)throw new Error('Välj en sparad byggnad först.');
   const floor=$('templateFloor').valueAsNumber,floors=$('templateFloors').valueAsNumber;
   if(!Number.isInteger(floor)||!Number.isInteger(floors)||floor<0||floors<1||floor+floors>100||!templateRules.length||floors*templateRules.length>500)throw new Error('Ogiltigt våningsintervall eller antal regler (max 500 lägenheter).');
-  const suffixes=new Set(),existing=new Set(inventory.units.map(u=>String(u.number).trim())),additions=[],skipped=[];
+  const suffixes=new Set(),existing=new Map(),additions=[],completions=[],skipped=[];
+  const fillEmpty=$('templateFillEmpty').checked;
+  for(const unit of inventory.units){
+    const number=String(unit.number).trim();
+    if(existing.has(number))throw new Error('Dubbla enhetsnummer i byggnaden: '+number+'. Rätta numreringen först.');
+    existing.set(number,unit);
+  }
   const systems=new Set(inventory.systems.map(s=>s.system_id));
   for(const rule of templateRules){
     if(!/^(0[1-9]|[1-9][0-9])$/.test(rule.suffix)||suffixes.has(rule.suffix))throw new Error('Ange unika suffix 01–99.');
@@ -241,40 +248,62 @@ function templatePlan(){
     const source=inventory.units.find(u=>u.unit_id===rule.source&&u.kind==='apartment');
     if(!source||!source.rooms.length)throw new Error('Välj en lägenhetsmall med minst ett rum för XX'+rule.suffix);
     const rooms=source.rooms.map(room=>({name:room.name,measurement_points:(room.measurement_points||[]).map(point=>{
-      if(!systems.has(point.system_id)||!point.label||!['franluftsdon','tilluftsdon','overluftsdon'].includes(point.point_type)||point.unit_of_measure!=='l/s'||(point.designed_value!=null&&!/^[0-9]+(?:\.[0-9]+)?$/.test(point.designed_value)))throw new Error('Ogiltig mätpunkt i mall '+source.number);
+      if(!systems.has(point.system_id)||!String(point.label||'').trim()||!['franluftsdon','tilluftsdon','overluftsdon'].includes(point.point_type)||point.unit_of_measure!=='l/s'||(point.designed_value!=null&&!/^[0-9]+(?:\.[0-9]+)?$/.test(point.designed_value)))throw new Error('Ogiltig mätpunkt i mall '+source.number);
       return {label:point.label,point_type:point.point_type,system_id:point.system_id,designed_value:point.designed_value??null,unit_of_measure:'l/s'};
     })}));
     if(rooms.some(r=>!r.name.trim()))throw new Error('Mallens rum måste ha namn.');
     for(let f=floor;f<floor+floors;f++){
       const number=String(f).padStart(2,'0')+rule.suffix;
-      if(existing.has(number)){skipped.push(number);continue}
+      if(existing.has(number)){
+        const target=existing.get(number);
+        if(fillEmpty&&target.kind==='apartment'&&!target.rooms.length){
+          completions.push({unit_id:target.unit_id,number,source:source.number,rooms});
+        }else skipped.push(number);
+        continue;
+      }
       additions.push({number,source:source.number,rooms});
     }
   }
-  return {revision:inventoryRevision,additions,skipped};
+  return {revision:inventoryRevision,additions,completions,skipped};
 }
 $('templateAdd').onclick=()=>{templateRules.push({suffix:'',source:''});renderTemplateRules()};
-for(const id of ['templateFloor','templateFloors'])$(id).oninput=clearTemplatePreview;
+for(const id of ['templateFloor','templateFloors','templateFillEmpty'])$(id).oninput=clearTemplatePreview;
+$('templateConfirmSystems').onchange=()=>{
+  $('templateApply').disabled=!templatePreview||!$('templateConfirmSystems').checked||!(templatePreview.additions.length+templatePreview.completions.length);
+};
 $('templatePreview').onclick=()=>{
   clearTemplatePreview();
   try{
     templatePreview=templatePlan();
-    const {additions,skipped}=templatePreview;
-    const points=additions.reduce((n,u)=>n+u.rooms.reduce((m,r)=>m+r.measurement_points.length,0),0);
-    $('templateStatus').textContent=additions.length+' nya lägenheter · '+points+' mätpunkter · '+skipped.length+' befintliga hoppas över.';
-    for(const u of additions){const p=document.createElement('p');p.textContent=u.number+' ← mall '+u.source+' · '+u.rooms.length+' rum';$('templateResult').append(p)}
-    if(skipped.length){const p=document.createElement('p');p.textContent='Befintliga: '+skipped.join(', ');$('templateResult').append(p)}
-    $('templateApply').disabled=!additions.length;
+    const {additions,completions,skipped}=templatePreview;
+    const targets=[...additions,...completions];
+    const points=targets.reduce((n,u)=>n+u.rooms.reduce((m,r)=>m+r.measurement_points.length,0),0);
+    $('templateStatus').textContent=additions.length+' nya · '+completions.length+' tomma kompletteras · '+points+' mätpunkter · '+skipped.length+' befintliga lämnas oförändrade.';
+    for(const u of targets){
+      const p=document.createElement('p');
+      const detail=u.rooms.map(room=>room.name+(room.measurement_points.length?' ('+room.measurement_points.map(point=>point.label+' · '+(inventory.systems.find(s=>s.system_id===point.system_id)?.label||point.system_id)+' · '+(point.designed_value??'saknar projekterat värde')+(point.designed_value!=null?' l/s':'')).join('; ')+')':'')).join(', ');
+      p.textContent=(u.unit_id?'Komplettera ':'Skapa ')+u.number+' ← mall '+u.source+' · '+detail;
+      $('templateResult').append(p);
+    }
+    if(skipped.length){const p=document.createElement('p');p.textContent='Lämnas oförändrade: '+skipped.join(', ');$('templateResult').append(p)}
+    $('templateApply').disabled=true;
   }catch(error){$('templateStatus').textContent=errText(error)}
 };
 $('templateApply').onclick=()=>{
-  if(!templatePreview||inventoryBusy)return;
+  if(!templatePreview||inventoryBusy||!$('templateConfirmSystems').checked)return;
   try{
     const plan=templatePlan();
     if(JSON.stringify(plan)!==JSON.stringify(templatePreview))throw new Error('Underlaget ändrades. Förhandsgranska igen.');
-    const additions=plan.additions.map(u=>({unit_id:inventoryId('unit'),number:u.number,kind:'apartment',rooms:u.rooms.map(r=>({room_id:inventoryId('room'),name:r.name,measurement_points:r.measurement_points.map(p=>({...p,point_id:inventoryId('point')}))}))}));
+    const copyRooms=rooms=>rooms.map(r=>({room_id:inventoryId('room'),name:r.name,measurement_points:r.measurement_points.map(p=>({...p,point_id:inventoryId('point')}))}));
+    const additions=plan.additions.map(u=>({unit_id:inventoryId('unit'),number:u.number,kind:'apartment',rooms:copyRooms(u.rooms)}));
+    const completions=plan.completions.map(u=>{
+      const target=inventory.units.find(item=>item.unit_id===u.unit_id&&item.kind==='apartment'&&!item.rooms.length&&String(item.number).trim()===u.number);
+      if(!target)throw new Error('Mållägenheten ändrades. Förhandsgranska igen.');
+      return {target,rooms:copyRooms(u.rooms)};
+    });
+    for(const item of completions)item.target.rooms=item.rooms;
     inventory.units.push(...additions);inventoryChanged();renderInventory();
-    $('templateStatus').textContent=additions.length+' lägenheter tillagda. Spara byggnadsstrukturen.';
+    $('templateStatus').textContent=additions.length+' nya lägenheter och '+completions.length+' kompletterade. Spara byggnadsstrukturen.';
   }catch(error){clearTemplatePreview();$('templateStatus').textContent=errText(error)}
 };
 window.addEventListener('beforeunload',event=>{if(inventoryDirty||inventoryBusy){event.preventDefault();event.returnValue=''}});

@@ -6,6 +6,7 @@
   <title>Crow OVK · Fastighet</title>
   <style>
     :root{font-family:Inter,system-ui,sans-serif;color:#18212b;background:#f4f6f8}*{box-sizing:border-box}body{margin:0}.shell{display:grid;grid-template-columns:230px 1fr;min-height:100vh}aside{background:#17202a;color:#fff;padding:24px}aside h1{font-size:20px;margin:0 0 28px}nav a{display:block;color:#dce5ed;text-decoration:none;padding:10px 0}nav a.active{font-weight:700;color:#fff}main{padding:32px;max-width:1300px}.eyebrow{font-size:12px;letter-spacing:.12em;color:#687684}.panel{background:#fff;border:1px solid #dfe5ea;border-radius:10px;padding:20px;margin-top:18px}label{display:block;font-size:13px;font-weight:600;margin:10px 0 4px}input,select{width:100%;padding:9px;border:1px solid #cbd4dc;border-radius:6px}.row{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px}.button{display:inline-block;border:0;border-radius:6px;background:#17202a;color:#fff;padding:9px 12px;cursor:pointer;margin-top:12px}.secondary{background:#e8edf1;color:#25313d}.muted{color:#607080}.status{padding:12px;border-radius:6px;background:#eef2f5;margin-top:12px}.warn{background:#fff4cf}.item{border-top:1px solid #e6eaee;padding:10px 0;cursor:pointer}.item:first-child{border-top:0}.pill{display:inline-block;padding:3px 7px;border-radius:999px;background:#eef2f5;font-size:11px;margin-left:6px}.bygg{border:1px dashed #cbd4dc;border-radius:8px;padding:12px;margin-top:10px}.split{display:grid;grid-template-columns:1fr 1fr;gap:18px}@media(max-width:1000px){.shell{grid-template-columns:1fr}aside{display:none}.split{grid-template-columns:1fr}}
+    .template-check{display:flex;align-items:flex-start;gap:10px;line-height:1.5;padding:8px 0}.template-check input{width:20px;height:20px;flex:none;margin:0}.template-check input:focus-visible,.button:focus-visible,summary:focus-visible{outline:3px solid #416c89;outline-offset:3px}#templatePanel .button{min-height:44px;border-radius:10px}#templatePanel .button:not(.secondary){background:#416c89}#templatePanel .button:disabled{opacity:.55}#templateResult p{border-bottom:1px solid #e6eaee;padding:8px 0;overflow-wrap:anywhere}
   </style>
 </head>
 <body>
@@ -58,11 +59,14 @@ Sovrum</textarea>
         </details>
         <details class="bygg" id="templatePanel">
           <summary>Generera från lägenhetstyper (XX01, XX02…)</summary>
-          <p class="muted">Använd befintliga lägenheter i byggnaden som mallar. Befintliga nummer hoppas över; rum och don får nya ID:n.</p>
+          <p class="muted">Använd en inventerad referenslägenhet för varje typ. Skapa nya lägenheter eller komplettera redan registrerade tomma lägenheter. Individuella inventeringar ändras aldrig.</p>
           <div class="row"><div><label for="templateFloor">Första våningskod</label><input id="templateFloor" type="number" min="0" max="99" value="10"></div><div><label for="templateFloors">Antal våningar</label><input id="templateFloors" type="number" min="1" max="100" value="4"></div></div>
           <div id="templateRules"></div>
+          <label class="template-check"><input type="checkbox" id="templateFillEmpty"> Komplettera även befintliga lägenheter utan rum</label>
+          <p class="muted">Kontrollera att referenslägenhetens system och projekterade flöden gäller för varje mållägenhet. Suffixet är ett urval, inte bevis på identisk ventilation.</p>
+          <label class="template-check"><input type="checkbox" id="templateConfirmSystems"> Jag har kontrollerat att mallarnas systemkopplingar och projekterade flöden gäller för de valda lägenheterna</label>
           <button type="button" class="button secondary" id="templateAdd">+ Nummerregel</button>
-          <div class="row"><button type="button" class="button secondary" id="templatePreview">Förhandsgranska</button><button type="button" class="button" id="templateApply" disabled>Generera lägenheter</button></div>
+          <div class="row"><button type="button" class="button secondary" id="templatePreview">Förhandsgranska</button><button type="button" class="button" id="templateApply" disabled>Tillämpa mallar</button></div>
           <div id="templateStatus" class="status" role="status" aria-live="polite"></div>
           <div id="templateResult" style="max-height:240px;overflow:auto"></div>
         </details>
