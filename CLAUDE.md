@@ -32,12 +32,18 @@ product owner och den enda som godkänner merge till `main`.
 
 ## Innan PR
 
+Committa först. Hämta aktuell origin/main och fastställ basen med
+`git merge-base origin/main HEAD`. Ge båda agenterna bas-SHA och HEAD-SHA.
+Arbetskatalogen ska vara ren. Rapporterna måste avse samma revision.
+Efter varje korrigering: committa och kör om båda agenterna. Tidigare PASS
+är inaktuellt. Om basen ändras, upprepa kontrollerna.
+
 Kör subagenterna i den här ordningen och åtgärda det de hittar:
 
 1. `verifier` – kör alla grindar och kontrollerar påståenden mot koden.
 2. `reviewer` – granskar diffen mot arkitektur och säkerhet.
 
-Skapa PR först när verifier rapporterar PASS och reviewer inte har några
+Skapa PR först när verifier rapporterar lokal PASS och reviewer inte har några
 blockerare. Lägg verifierns kommandoutfall i PR-beskrivningen. Skriv aldrig
 "alla grindar gröna" eller ett testantal som du inte har sett i ett utfall
 från den här grenen.
@@ -46,7 +52,7 @@ Extra säkerhetsgranskning krävs för ändringar som rör autentisering, sessio
 kundisolering, filuppladdning/-konvertering eller intygens checksumma och
 verifiering. Säg det uttryckligen till `reviewer` när du anropar den.
 
-## Grindar (samma som `.github/workflows/ci.yml`)
+## Lokala obligatoriska grindar (delmängd av CI)
 
 ```bash
 ruff format --check .
@@ -54,8 +60,15 @@ ruff check .
 mypy
 mypy --strict modules/*/src modules/*/tests
 pytest -q
-for m in modules/*; do [ -d "$m/tests" ] && pytest -q "$m/tests"; done
+bash scripts/verify-agent-modules.sh
 python -m crow_module_conformance.cli review --root .
 ```
 
 CI är den slutliga kontrollen. Lokalt gröna grindar ersätter den inte.
+
+CI kör dessutom distribution build, deployment/backup-restore och Compose/HTTPS
+smoke inklusive secure cookies och Caddy-version. Redovisa dessa som VÄNTAR PÅ CI
+fram till faktiska CI-resultat för aktuell PR-revision. Använd Python 3.11 och
+installera dev-beroenden och förstapartsmoduler som i CI. Agenternas Bash-hook
+är en kommandobegränsning, inte en OS-sandbox; kör i isolerad utvecklingsmiljö
+utan produktionshemligheter.
