@@ -7,6 +7,8 @@
   <style>
     :root{font-family:Inter,system-ui,sans-serif;color:#18212b;background:#f4f6f8}*{box-sizing:border-box}body{margin:0}.shell{display:grid;grid-template-columns:230px 1fr;min-height:100vh}aside{background:#17202a;color:#fff;padding:24px}aside h1{font-size:20px;margin:0 0 28px}nav a{display:block;color:#dce5ed;text-decoration:none;padding:10px 0}nav a.active{font-weight:700;color:#fff}main{padding:32px;max-width:1250px}.panel{background:#fff;border:1px solid #dfe5ea;border-radius:10px;padding:20px;margin-bottom:16px}.grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}.three{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px}label{display:block;font-size:13px;font-weight:700;margin:10px 0 5px}input,select,textarea{width:100%;padding:10px;border:1px solid #cbd4dc;border-radius:6px;font:inherit}textarea{min-height:110px}.actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}.button{display:inline-block;border:0;border-radius:6px;background:#17202a;color:#fff;padding:10px 13px;text-decoration:none;cursor:pointer;font:inherit}.secondary{background:#e8edf1;color:#25313d}.status{padding:12px;border-radius:6px;background:#eef2f5;margin:12px 0}.warn{background:#fff4cf}.pass{background:#e5f6ea}.muted{color:#607080}.summary{display:grid;grid-template-columns:repeat(5,1fr);gap:10px}.metric{background:#f5f7f9;padding:12px;border-radius:6px}.metric strong{display:block;font-size:18px}.eyebrow{font-size:12px;letter-spacing:.12em;color:#687684}@media(max-width:900px){.shell{grid-template-columns:1fr}aside{display:none}.grid,.three,.summary{grid-template-columns:1fr}}
   fieldset{border:0;padding:0;margin:0;min-width:0}.draft-system{border:1px solid #dfe5ea;border-radius:8px;padding:12px;margin:10px 0}.button:disabled{opacity:.5;cursor:not-allowed}[hidden]{display:none!important}
+    .property-step{max-width:760px}.property-step h2{margin:0 0 10px;font-size:26px;letter-spacing:-.025em}.property-step .button{min-height:44px;border-radius:10px}.property-step .primary-action{background:#416c89}.property-step input,.property-step select{min-height:44px;border-radius:9px}.property-step .result-card{display:block;width:100%;text-align:left;background:#fff;border:1px solid #dfe5ea;border-radius:12px;padding:16px;margin:10px 0;color:#18212b;font:inherit;cursor:pointer;overflow-wrap:anywhere}.result-card strong,.result-card span{display:block}.result-card span{color:#526475;margin-top:5px}.property-step :focus-visible{outline:3px solid #416c89;outline-offset:3px}.property-step details{margin:16px 0}.property-step summary{cursor:pointer;padding:10px 0}.property-step .status{overflow-wrap:anywhere}.property-step h3{margin-top:24px}
+    @media(max-width:900px){main{padding:20px;max-width:640px;margin:auto}.property-step{padding:18px}.property-step .actions{display:grid}.property-step .actions .button{text-align:center}.property-step h2{font-size:24px}}
   </style>
 </head>
 <body>
@@ -17,13 +19,37 @@
     <h1>Besiktningsunderlag</h1>
     <p class="muted">Projekt och sparad besiktning följer med mellan OVK-arbetsytan, denna sida och fältläget.</p>
 
-    <section class="panel" id="guidedDraft" hidden>
-      <h2>Ny OVK – besiktningsunderlag</h2>
-      <p class="muted">Välj en registrerad fastighet och byggnad. Lägg till de system som ska besiktigas. Inga kontroller markeras som utförda.</p>
-      <form id="draftForm">
+    <section class="panel property-step" id="guidedDraft" hidden>
+      <h2>Ny besiktning</h2>
+      <p class="muted">Börja med fastigheten. Vi hjälper dig hitta tidigare underlag eller registrera en ny fastighet.</p>
+      <form id="propertySearchForm">
+        <fieldset id="propertySearchFields" disabled>
+          <label for="propertyDesignation">Fastighetsbeteckning</label>
+          <input id="propertyDesignation" required maxlength="120" placeholder="Exempel: Eken 12:3" autocomplete="off">
+          <div class="actions"><button class="button primary-action" type="submit">Sök fastighet</button></div>
+        </fieldset>
+      </form>
+      <p id="propertySearchStatus" role="status" aria-live="polite" class="muted"></p>
+      <div id="propertyMatches"></div>
+      <button type="button" class="button secondary" id="propertyNew" hidden>Registrera ny fastighet</button>
+      <form id="newPropertyForm" hidden>
+        <fieldset id="newPropertyFields">
+          <h3>Ny fastighet</h3>
+          <p id="newPropertyNote" class="muted"></p>
+          <label for="newPropertyOrt">Ort</label><input id="newPropertyOrt" required maxlength="120" autocomplete="address-level2">
+          <label for="newPropertyAddress">Gatuadress (valfritt)</label><input id="newPropertyAddress" maxlength="160" autocomplete="street-address">
+          <label for="newPropertyType">Fastighetstyp</label><select id="newPropertyType" required><option value="">Välj typ</option><option value="flerbostadshus">Flerbostadshus</option><option value="villa">Villa</option><option value="kontorsbyggnad">Kontorsbyggnad</option><option value="industrifastighet">Industrifastighet</option></select>
+          <label for="newPropertyBuilding">Byggnadens namn</label><input id="newPropertyBuilding" required maxlength="120" placeholder="Exempel: Hus A">
+          <details><summary>Projekt (valfritt)</summary><label for="newPropertyProject">Befintligt projekt</label><select id="newPropertyProject"><option value="">Skapa automatiskt</option></select><p class="muted">Om inget projekt väljs används fastighetsbeteckningen som projektnamn.</p></details>
+        </fieldset>
+        <div class="actions"><button type="submit" id="newPropertySave" class="button primary-action">Spara fastighet och fortsätt</button></div>
+      </form>
+      <form id="draftForm" hidden>
         <fieldset id="draftFields" disabled>
-          <label for="draftProject">Projekt</label><select id="draftProject" required></select>
-          <label for="draftProperty">Fastighet</label><select id="draftProperty" required></select>
+          <h3 id="selectedPropertyTitle">Vald fastighet</h3>
+          <p class="muted" id="selectedPropertyContext"></p>
+          <select id="draftProject" aria-label="Projekt" required hidden></select>
+          <select id="draftProperty" aria-label="Fastighet" required hidden></select>
           <p id="draftOwner" class="muted"></p>
           <label for="draftBuilding">Byggnad</label><select id="draftBuilding" required></select>
           <h3>Besiktningsuppgifter</h3><label for="draftInspector">Besiktningsman</label><select id="draftInspector" required></select><label for="draftDate">Planerat datum</label><input id="draftDate" type="date" required><label for="draftType">Besiktningstyp</label><select id="draftType" required><option value="aterkommande">Återkommande</option><option value="forstagang">Första besiktning</option></select><div id="draftHistoryPanel"><label for="draftPrevious">Tidigare besiktning (valfritt)</label><select id="draftPrevious" disabled><option value="">Ingen historisk referens</option></select><p id="draftHistoryStatus" class="muted" role="status"></p></div><h3>Ventilationssystem</h3>
@@ -31,8 +57,8 @@
           <p id="draftSystemStatus" class="muted" role="status"></p>
           <div id="draftSystems" hidden></div>
           <button type="button" class="button secondary" id="draftAddSystem" hidden>Lägg till system</button>
-          <p><a href="/ovk/fastighet">Registrera eller komplettera fastighet</a></p>
-          <button type="submit" class="button" id="draftCreate">Skapa besiktningsutkast</button>
+          <p><a href="/ovk/fastighet">Komplettera fastighet eller registrera besiktningsman</a></p>
+          <button type="submit" class="button primary-action" id="draftCreate">Skapa besiktningsutkast</button>
         </fieldset>
       </form>
       <div id="draftStatus" class="status" role="status" aria-live="polite">Laddar…</div>
