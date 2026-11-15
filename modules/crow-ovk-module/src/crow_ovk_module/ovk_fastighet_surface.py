@@ -190,11 +190,11 @@ def ovk_fastighet_router(data_root: Path) -> APIRouter:
         except ValueError as exc:
             raise HTTPException(status_code=422, detail={"code": "INVALID_IDENTIFIER"}) from exc
         obj = record.inspection.ovk_object
-        if (obj.project_id, obj.object_id, obj.building_id) != (
-            project_id,
-            fastighet_id,
-            building_id,
-        ) or record.inspection.inspection_id != inspection_id:
+        if (
+            (obj.project_id, obj.object_id, obj.building_id)
+            != (project_id, fastighet_id, building_id)
+            or record.inspection.inspection_id != inspection_id
+        ):
             raise HTTPException(status_code=409, detail={"code": "OVK_INVENTORY_SOURCE_MISMATCH"})
         try:
             snapshot, snapshot_revision = _FieldSyncRepository(
@@ -363,7 +363,8 @@ def _read_structure(path: Path) -> dict[str, Any]:
 @contextmanager
 def _structure_lock(path: Path) -> Iterator[None]:
     path.parent.mkdir(parents=True, exist_ok=True)
-    with closing(sqlite3.connect(path.parent / ".structure-write-lock.sqlite3", timeout=30)) as lock:
+    lock_path = path.parent / ".structure-write-lock.sqlite3"
+    with closing(sqlite3.connect(lock_path, timeout=30)) as lock:
         lock.execute("BEGIN IMMEDIATE")
         try:
             yield
