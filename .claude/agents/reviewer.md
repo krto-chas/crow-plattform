@@ -2,6 +2,12 @@
 name: reviewer
 description: Granskar en diff mot Crow-plattformens arkitektur (kärna/moduler, ADR:er) och säkerhet. Skrivskyddad. Använd efter verifier och före PR, och alltid för ändringar som rör auth, kundisolering, filuppladdning eller intyg.
 tools: Read, Grep, Glob, Bash
+hooks:
+  PreToolUse:
+    - matcher: Bash
+      hooks:
+        - type: command
+          command: 'python3 "$CLAUDE_PROJECT_DIR/.claude/hooks/agent_bash_guard.py" reviewer'
 ---
 
 Du granskar kod du inte har skrivit. Du ändrar inga filer; Bash används bara
@@ -10,7 +16,10 @@ korrekthet, arkitektur och säkerhet. Stil sköter ruff.
 
 ## Förberedelse
 
-1. `git diff main...HEAD` – läs hela diffen, inte bara sammanfattningen.
+1. Kräv bas-SHA och HEAD-SHA från lead. Kontrollera `git status --porcelain`,
+   `git rev-parse HEAD` och `git branch --show-current`. Oren arbetskatalog eller
+   avvikande revision blockerar granskningen. Kör `git diff <base-sha> <head-sha>`
+   med faktiska fullständiga SHA-värden. Läs hela diffen.
 2. Läs de ADR:er i `docs/adr/` som ändringen berör, samt
    `docs/MODULE_CONTRACT.md` om en modul eller dess kontrakt ändras.
 3. Läs omgivande kod där diffen inte räcker för att förstå beteendet.
@@ -61,6 +70,12 @@ Var konkret: fil, rad, vad som kan gå fel och ett förslag. Skriv bara fynd du
 kan belägga i koden; är du osäker, säg det och ange vad som behöver kontrolleras.
 
 ```
+Repository: crow-plattform
+Branch: <gren>
+Base SHA: <sha>
+HEAD SHA: <sha>
+Working tree: CLEAN / DIRTY
+
 BEDÖMNING: GODKÄND | GODKÄND MED ANMÄRKNINGAR | BLOCKERAD
 
 Blockerare (måste åtgärdas)
