@@ -78,7 +78,7 @@ const inventoryId=prefix=>prefix+'-'+Array.from(crypto.getRandomValues(new Uint8
 function inventoryMessage(message,error=false){$('inventoryStatus').textContent=message;$('inventoryStatus').className='status'+(error?' warn':'')}
 function inventoryCanLeave(){return !inventoryBusy&&(!inventoryDirty||confirm('Byggnadsstrukturen har osparade ändringar. Vill du lämna dem?'))}
 function inventoryReset(property=null){
-  clearBulkPreview();inventoryRevision++;inventory=null;inventoryDirty=false;inventoryBusy=false;
+  clearBulkPreview();clearTemplatePreview();inventoryRevision++;inventory=null;inventoryDirty=false;inventoryBusy=false;
   inventoryContext=property?{project:$('project').value,property:property.fastighet_id,buildings:property.byggnader||[]}:null;
   const select=$('inventoryBuilding');select.replaceChildren(new Option('Välj byggnad…',''));
   if(inventoryContext)for(const b of inventoryContext.buildings)select.add(new Option(b.internt_namn,b.byggnad_id));
@@ -146,7 +146,7 @@ function renderInventory(){
 $('inventoryBuilding').onchange=async()=>{
   const select=$('inventoryBuilding'),building=select.value;
   if(!inventoryCanLeave()){select.value=inventoryContext?.building||'';return}
-  clearBulkPreview();const revision=++inventoryRevision;inventory=null;inventoryDirty=false;inventoryContext.building=building;
+  clearBulkPreview();clearTemplatePreview();const revision=++inventoryRevision;inventory=null;inventoryDirty=false;inventoryContext.building=building;
   $('inventoryFields').disabled=true;
   for(const id of ['inventorySystems','inventoryUnits','inventorySpaces'])$(id).replaceChildren();
   if(!building){inventoryMessage('Välj byggnad.');return}
@@ -212,7 +212,8 @@ function clearTemplatePreview(){
   $('templateStatus').textContent='Förhandsgranska innan generering.';
 }
 function renderTemplateRules(){
-  if(templateContext!==inventoryContext){templateContext=inventoryContext;templateRules=[{suffix:'01',source:''}]}
+  const context=inventoryContext?JSON.stringify([inventoryContext.project,inventoryContext.property,inventoryContext.building]):null;
+  if(templateContext!==context){templateContext=context;templateRules=[{suffix:'01',source:''}];$('templateFillEmpty').checked=false}
   clearTemplatePreview();
   const root=$('templateRules');root.replaceChildren();
   const sources=(inventory?.units||[]).filter(u=>u.kind==='apartment'&&u.rooms.length);
@@ -247,7 +248,7 @@ function templatePlan(){
     const source=inventory.units.find(u=>u.unit_id===rule.source&&u.kind==='apartment');
     if(!source||!source.rooms.length)throw new Error('Välj en lägenhetsmall med minst ett rum för XX'+rule.suffix);
     const rooms=source.rooms.map(room=>({name:room.name,measurement_points:(room.measurement_points||[]).map(point=>{
-      if(!systems.has(point.system_id)||!point.label||!['franluftsdon','tilluftsdon','overluftsdon'].includes(point.point_type)||point.unit_of_measure!=='l/s'||(point.designed_value!=null&&!/^[0-9]+(?:\.[0-9]+)?$/.test(point.designed_value)))throw new Error('Ogiltig mätpunkt i mall '+source.number);
+      if(!systems.has(point.system_id)||!String(point.label||'').trim()||!['franluftsdon','tilluftsdon','overluftsdon'].includes(point.point_type)||point.unit_of_measure!=='l/s'||(point.designed_value!=null&&!/^[0-9]+(?:\.[0-9]+)?$/.test(point.designed_value)))throw new Error('Ogiltig mätpunkt i mall '+source.number);
       return {label:point.label,point_type:point.point_type,system_id:point.system_id,designed_value:point.designed_value??null,unit_of_measure:'l/s'};
     })}));
     if(rooms.some(r=>!r.name.trim()))throw new Error('Mallens rum måste ha namn.');
