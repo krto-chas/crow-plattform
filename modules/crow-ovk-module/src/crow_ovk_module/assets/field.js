@@ -51,37 +51,117 @@ function isFtx(){const sys=unitSystem(activeUnit());return sys==='FT'||sys==='FT
 function parseSeries(text){const numbers=[];for(const part of text.split(',').map(item=>item.trim()).filter(Boolean)){const range=part.match(/^(\d{1,6})\s*-\s*(\d{1,6})$/);if(range){const start=parseInt(range[1],10),end=parseInt(range[2],10);if(end<start||end-start>500)throw new Error('Ogiltigt intervall: '+part);for(let value=start;value<=end;value++)numbers.push(String(value).padStart(range[1].length,'0'))}else if(/^\d{1,6}$/.test(part)){numbers.push(part)}else{throw new Error('Ogiltigt nummer: '+part)}}return [...new Set(numbers)]}
 function generateUnits(){const text=$('unitSeries').value.trim();if(!text){$('draftStatus').textContent='Ange en nummerserie först.';return}let numbers;try{numbers=parseSeries(text)}catch(error){$('draftStatus').className='status warn';$('draftStatus').textContent=String(error.message||error);return}const existing=new Set(state.units.map(item=>item.number));let added=0;for(const number of numbers){if(existing.has(number))continue;state.units.push({unit_id:uid('unit'),inspection_id:state.inspection_id||$('inspection').value.trim(),number,kind:'apartment',label:'',status:'ej_paborjad',checked_at:null,bom_at:null,bom_note:'',key:null,system_type:null});added+=1}$('draftStatus').className='status pass';$('draftStatus').textContent=added+' enheter tillagda · totalt '+state.units.length}
 
-function renderRond(){const total=state.units.length;const done=state.units.filter(item=>item.status!=='ej_paborjad').length;$('rondMeta').textContent=(state.assignment_name||state.inspection_id)+' · '+state.system_type;$('cDone').textContent=done;$('cTotal').textContent=total;$('cAnm').textContent=state.units.filter(item=>item.status==='anmarkning').length;$('cBom').textContent=state.units.filter(item=>item.status==='bom').length;$('cMeas').textContent=state.measurements.length;
-  $('rondbar').innerHTML=state.units.map(item=>'<i class="'+item.status+'"></i>').join('');
-  $('unitList').innerHTML=state.units.map(item=>{const remarks=unitRemarks(item.unit_id).length;const meas=state.measurements.filter(m=>m.unit_id===item.unit_id).length;const tags={ej_paborjad:'',ua:'UA',anmarkning:remarks+' anm.',bom:'BOM'};const key=item.key&&item.key.received&&!item.key.returned?' · 🔑 ute':'';return '<button class="unitrow '+item.status+'" data-unit="'+item.unit_id+'"><span class="nr">'+esc(item.number)+'</span><span class="sub">'+(item.kind==='premises'?'Lokal':'Lgh')+(meas?' · '+meas+' mätn.':'')+key+'</span><span class="spacer"></span>'+(tags[item.status]?'<span class="tag '+item.status+'">'+tags[item.status]+'</span>':'<span class="tag">öppna</span>')+'</button>'}).join('');
-  for(const button of $('unitList').querySelectorAll('[data-unit]'))button.onclick=()=>openUnit(button.dataset.unit);renderSpaces()}
+function validFlowValue(value){
+  if(value==null)return false;
+  const text=String(value).trim().replace(',','.');
+  return /^[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?$/.test(text)&&Number.isFinite(Number(text));
+}
+function measuredPoint(point){return point.measurable!==false&&validFlowValue(point.measured_value)}
+function pendingPoint(point){return point.measurable!==false&&!measuredPoint(point)}
+function checkedUnit(unit){return unit.status==='ua'||unit.status==='anmarkning'}
+function roundCounts(){
+  return {total:state.units.length,checked:state.units.filter(checkedUnit).length,pending:state.units.filter(u=>u.status==='ej_paborjad').length,bom:state.units.filter(u=>u.status==='bom').length,measured:state.measurements.filter(measuredPoint).length,pendingMeasurements:state.measurements.filter(pendingPoint).length};
+}
+function nextPendingUnit(afterId=null){
+  const index=state.units.findIndex(u=>u.unit_id===afterId);
+  const ordered=index<0?state.units:[...state.units.slice(index+1),...state.units.slice(0,index)];
+  return ordered.find(u=>u.status==='ej_paborjad')||null;
+}
+function visibleRoundUnits(search='',filter='all'){
+  const query=search.trim().toLocaleLowerCase('sv');
+  return state.units.filter(unit=>{
+    const match=filter==='all'||(filter==='pending'&&unit.status==='ej_paborjad')||(filter==='checked'&&checkedUnit(unit))||(filter==='bom'&&unit.status==='bom');
+    return match&&[unit.number,unit.label,unit.kind==='premises'?'Lokal':'Lägenhet'].some(v=>String(v||'').toLocaleLowerCase('sv').includes(query));
+  });
+}
+function renderRoundUnits(){
+  const rows=visibleRoundUnits($('unitSearch')?.value||'',$('unitFilter')?.value||'all');
+  const list=$('unitList');list.replaceChildren();
+  for(const unit of rows){
+    const remarks=unitRemarks(unit.unit_id).length;
+    const points=state.measurements.filter(m=>m.unit_id===unit.unit_id);
+    const button=document.createElement('button');button.type='button';button.className='unitrow '+unit.status;button.dataset.unit=unit.unit_id;
+    const number=document.createElement('span');number.className='nr';number.textContent=unit.number;
+    const meta=document.createElement('span');meta.className='sub';
+    meta.textContent=(unit.kind==='premises'?'Lokal':'Lgh')+(points.length?' · '+points.filter(measuredPoint).length+'/'+points.length+' uppmätta':'')+(unit.key?.received&&!unit.key.returned?' · Nyckel ute':'');
+    const status=document.createElement('span');status.className='tag '+unit.status;
+    status.textContent={ej_paborjad:'Ej klar',ua:'UA',anmarkning:remarks+' anm.',bom:'BOM'}[unit.status]||'Okänd status';
+    button.append(number,meta,status);button.onclick=()=>openUnit(unit.unit_id);list.append(button);
+  }
+  if($('unitEmpty')){
+    $('unitEmpty').hidden=rows.length>0;
+    $('unitEmpty').textContent=state.units.length?'Inga enheter matchar sökningen eller filtret.':'Inga enheter ännu. Lägg till lägenheter eller lokaler.';
+  }
+}
+function renderRond(){
+  const counts=roundCounts();
+  $('rondMeta').textContent=(state.assignment_name||state.inspection_id)+' · '+state.system_type;
+  $('cDone').textContent=counts.checked;$('cTotal').textContent=counts.total;
+  $('cAnm').textContent=state.units.filter(u=>u.status==='anmarkning').length;
+  $('cBom').textContent=counts.bom;$('cMeas').textContent=counts.measured;
+  $('rondbar').replaceChildren(...state.units.map(unit=>{const segment=document.createElement('i');segment.className=unit.status;return segment}));
+  if($('roundSummary'))$('roundSummary').textContent=counts.pending+' ej färdiga · '+counts.bom+' BOM · '+counts.pendingMeasurements+' mätpunkter utan giltigt värde';
+  if($('continueUnit')){
+    const next=nextPendingUnit();
+    $('continueUnit').hidden=!next;
+    $('continueUnit').textContent=next?'Fortsätt med '+(next.kind==='premises'?'lokal ':'lgh ')+next.number:'Fortsätt med nästa enhet';
+    $('continueUnit').onclick=()=>{const target=nextPendingUnit();if(target)openUnit(target.unit_id)};
+  }
+  renderRoundUnits();renderSpaces();
+}
+if($('unitSearch'))$('unitSearch').oninput=renderRoundUnits;
+if($('unitFilter'))$('unitFilter').onchange=renderRoundUnits;
 
 /* ---------- enhetsvyn ---------- */
-function openUnit(unitId){state.activeUnitId=unitId;state.activeRoomId=null;state.activeFindingId=null;const unit=activeUnit();$('unitNr').textContent=unit.number;$('unitKindLabel').textContent=unit.kind==='premises'?'Lokal':'Lägenhet';renderUnit();view('viewUnit')}
+function openUnit(unitId){
+  const unit=state.units.find(item=>item.unit_id===unitId);if(!unit)return;
+  state.activeUnitId=unitId;state.activeFindingId=null;
+  const rooms=unitRooms();
+  const pending=rooms.find(room=>state.measurements.some(point=>point.unit_id===unitId&&point.room_id===room.room_id&&pendingPoint(point)));
+  state.activeRoomId=(pending||rooms[0])?.room_id||null;
+  $('unitNr').textContent=unit.number;$('unitKindLabel').textContent=unit.kind==='premises'?'Lokal':'Lägenhet';
+  $('photoStatus').className='status';$('photoStatus').textContent='Välj eller registrera en anmärkning innan du tar foto.';
+  renderUnit();view('viewUnit');window.scrollTo(0,0);$('unitNr').focus({preventScroll:true});
+}
 function unitRooms(){return state.rooms.filter(item=>item.unit_id===state.activeUnitId)}
 const PRESET_EXTRACT_ROOMS=['badrum','wc','kök','hwc','vilorum'];
 function ensureRoom(name){const existing=unitRooms().find(item=>item.name===name);if(existing)return existing;const room={room_id:uid('room'),unit_id:state.activeUnitId,name};state.rooms.push(room);if(PRESET_EXTRACT_ROOMS.includes(name.trim().toLowerCase().split(/\s+/)[0])){state.measurements.push({measurement_id:uid('meas'),unit_id:state.activeUnitId,point_type:'franluftsdon',point_label:name+' 1',room_id:room.room_id,measurable:true,measured_value:null,designed_value:null,unit_of_measure:'l/s',not_measurable_reason:'',finding_id:null})}return room}
-function roomStats(roomId){return {meas:state.measurements.filter(item=>item.unit_id===state.activeUnitId&&item.room_id===roomId).length,marks:state.findings.filter(item=>item.unit_id===state.activeUnitId&&item.room_id===roomId&&(item.severity==='minor'||item.severity==='major')).length}}
+function roomStats(roomId){
+  const points=state.measurements.filter(item=>item.unit_id===state.activeUnitId&&item.room_id===roomId);
+  return {meas:points.length,measured:points.filter(measuredPoint).length,marks:state.findings.filter(item=>item.unit_id===state.activeUnitId&&item.room_id===roomId&&(item.severity==='minor'||item.severity==='major')).length};
+}
+function updateUnitProgress(){
+  const unit=activeUnit();const target=$('unitProgress');if(!unit||!target)return;
+  const points=state.measurements.filter(item=>item.unit_id===unit.unit_id);
+  const pending=points.filter(pendingPoint).length;
+  const position=state.units.findIndex(item=>item.unit_id===unit.unit_id)+1;
+  target.textContent='Enhet '+position+' av '+state.units.length+' · '+unitRooms().length+' registrerade rum · '+pending+' mätpunkter utan giltigt värde';
+}
 function renderRooms(){
   const registered=unitRooms();
   const entries=[...registered.map(room=>({name:room.name,id:room.room_id})),...roomPresets().filter(name=>!registered.some(room=>room.name===name)).map(name=>({name,id:''}))];
   $('roomChips').replaceChildren();
+  const presets=$('roomPresetChips')||$('roomChips');
+  if(presets!==$('roomChips'))presets.replaceChildren();
+  if($('roomPresetLabel'))$('roomPresetLabel').textContent='Lägg till rum';
   for(const entry of entries){
     const button=document.createElement('button');button.type='button';button.className='chip'+(entry.id&&entry.id===state.activeRoomId?' on':'');
     const stats=entry.id?roomStats(entry.id):null;
-    button.textContent=entry.name+(stats&&(stats.meas||stats.marks)?' · '+stats.meas+' mätn. · '+stats.marks+' anm.':'');
+    button.textContent=entry.name+(stats&&(stats.meas||stats.marks)?' · '+stats.measured+'/'+stats.meas+' uppm. · '+stats.marks+' anm.':'');
+    if(entry.id)button.setAttribute('aria-pressed',String(entry.id===state.activeRoomId));
+    else button.textContent='+ '+entry.name;
     button.onclick=async()=>{
       let name=entry.name;
       if(!entry.id&&isCommercial()){const nr=(prompt('Rumsnr för '+name+' (valfritt):')||'').trim();if(nr)name+=' '+nr}
-      state.activeRoomId=entry.id||ensureRoom(name).room_id;renderUnit();await persist();
+      state.activeRoomId=entry.id||ensureRoom(name).room_id;clearFindingSelection();renderUnit();await persist();
     };
-    $('roomChips').append(button);
+    (entry.id?$('roomChips'):presets).append(button);
   }
   const add=document.createElement('button');add.type='button';add.className='chip';add.textContent='+ Rum/rumsnr';
-  add.onclick=async()=>{const name=(prompt('Rumsnamn eller rumsnr:')||'').trim();if(!name)return;state.activeRoomId=ensureRoom(name).room_id;renderUnit();await persist()};
-  $('roomChips').append(add);
+  add.onclick=async()=>{const name=(prompt('Rumsnamn eller rumsnr:')||'').trim();if(!name)return;state.activeRoomId=ensureRoom(name).room_id;clearFindingSelection();renderUnit();await persist()};
+  presets.append(add);
   if(isCommercial()&&activeRoom()){const done=document.createElement('button');done.type='button';done.id='roomDone';done.className='chip quick';done.textContent='Rum klart → nästa';$('roomChips').append(done)}
-  const roomDone=document.getElementById('roomDone');if(roomDone)roomDone.onclick=async()=>{const closed=activeRoom();state.activeRoomId=null;$('photoStatus').className='status pass';$('photoStatus').textContent=(closed?closed.name+' klart. ':'')+'Välj nästa rum.';renderUnit();await persist()}}
+  const roomDone=document.getElementById('roomDone');if(roomDone)roomDone.onclick=async()=>{const closed=activeRoom();state.activeRoomId=null;clearFindingSelection();$('photoStatus').className='status pass';$('photoStatus').textContent=(closed?closed.name+' klart. ':'')+'Välj nästa rum.';renderUnit();await persist()}}
 function keyStamp(){const unit=activeUnit();unit.key=unit.key||{received:false,received_at:null,returned:false,returned_at:null,master_key_used:false,master_key_note:''};return unit.key}
 function renderKeys(){const key=activeUnit().key;$('keyIn').classList.toggle('set',Boolean(key&&key.received));$('keyOut').classList.toggle('set',Boolean(key&&key.returned));$('keyMaster').classList.toggle('set',Boolean(key&&key.master_key_used));const parts=[];if(key&&key.received)parts.push('Mottagen '+key.received_at.slice(11,16));if(key&&key.master_key_used)parts.push('Huvudnyckel: '+key.master_key_note);if(key&&key.returned)parts.push('Återlämnad '+key.returned_at.slice(11,16));$('keyInfo').textContent=parts.join(' · ')}
 function historicalMeasurementText(item){
@@ -114,10 +194,50 @@ function renderMeasurementHistory(){
   }
   panel.append(details);
 }
-function renderMeasurements(){const unitId=state.activeUnitId;const roomId=state.activeRoomId;const rows=state.measurements.filter(item=>item.unit_id===unitId&&item.room_id===roomId);$('mrows').innerHTML=rows.map(item=>{const label={franluftsdon:'Frånluft',tilluftsdon:'Tilluft',overluftsdon:'Överluft'}[item.point_type];const detail=item.measurable?esc(item.point_label)+(item.designed_value!=null?' · Proj. '+esc(item.designed_value)+' l/s':'')+(item.system_id?' · '+esc(item.system_id):''):esc(item.point_label)+' · EJ MÄTBAR: '+esc(item.not_measurable_reason);return '<div class="mrow'+(item.measurable?'':' nm')+'"><span class="lbl">'+label+'<small>'+detail+'</small></span><input inputmode="decimal" placeholder="l/s" value="'+esc(item.measured_value||'')+'" data-meas="'+item.measurement_id+'"'+(item.measurable?'':' disabled')+'><button class="x" data-nm="'+item.measurement_id+'" title="Ej mätbar">✕</button></div>'}).join('');
-  for(const input of $('mrows').querySelectorAll('[data-meas]'))input.onchange=async()=>{const item=state.measurements.find(m=>m.measurement_id===input.dataset.meas);item.measured_value=input.value.trim().replace(',','.')||null;renderMeasurementHistory();await persist()};
-  for(const button of $('mrows').querySelectorAll('[data-nm]'))button.onclick=()=>markNotMeasurable(button.dataset.nm);renderMeasurementHistory()}
-function renderFindings(){const items=state.findings.filter(item=>item.unit_id===state.activeUnitId);$('unitFindings').innerHTML=items.map(item=>'<div class="item"><span class="pill">'+esc(item.room_name||'utan rum')+'</span><span class="pill">'+(item.classification!==null&&item.classification!==undefined?'Klass '+item.classification:esc(item.severity))+'</span><span class="pill">📷 '+state.photos.filter(photo=>photo.finding_id===item.finding_id).length+'</span>'+esc(item.description)+'</div>').join('')}
+function renderMeasurements(){
+  const rows=state.measurements.filter(item=>item.unit_id===state.activeUnitId&&item.room_id===state.activeRoomId);
+  const container=$('mrows');container.replaceChildren();
+  if(!rows.length){const empty=document.createElement('p');empty.className='room-progress';empty.textContent=state.activeRoomId?'Inga mätpunkter i rummet. Lägg till don vid behov.':'Välj ett rum för att se eller lägga till mätpunkter.';container.append(empty)}
+  for(const item of rows){
+    const label={franluftsdon:'Frånluft',tilluftsdon:'Tilluft',overluftsdon:'Överluft'}[item.point_type]||'Mätpunkt';
+    const row=document.createElement('div');row.className='mrow'+(item.measurable?'':' nm');
+    const info=document.createElement('div');info.className='lbl';info.textContent=label;
+    const detail=document.createElement('small');detail.textContent=[item.point_label,item.system_id,item.designed_value!=null?'Projekterat '+item.designed_value+' l/s':'Projekterat värde saknas'].filter(Boolean).join(' · ');
+    const status=document.createElement('span');status.className='measurement-state';
+    const input=document.createElement('input');input.inputMode='decimal';input.placeholder='l/s';input.value=item.measured_value??'';input.dataset.meas=item.measurement_id;input.disabled=!item.measurable;input.setAttribute('aria-label',item.point_label+' – uppmätt luftflöde i liter per sekund');
+    const renderStatus=()=>{
+      const invalid=item.measurable!==false&&item.measured_value!=null&&String(item.measured_value).trim()!==''&&!validFlowValue(item.measured_value);
+      status.textContent=item.measurable?(invalid?'Ogiltigt mätvärde':measuredPoint(item)?'Uppmätt':'Ej mätt'):'Ej mätbar: '+item.not_measurable_reason;
+      input.setAttribute('aria-invalid',String(invalid));
+    };
+    renderStatus();info.append(detail,status);
+    input.onchange=async()=>{item.measured_value=input.value.trim().replace(',','.')||null;renderStatus();updateUnitProgress();renderMeasurementHistory();await persist()};
+    const button=document.createElement('button');button.type='button';button.className='x';button.dataset.nm=item.measurement_id;button.textContent='×';button.title='Ej mätbar';button.setAttribute('aria-label','Markera '+item.point_label+' som ej mätbar');button.onclick=()=>markNotMeasurable(item.measurement_id);
+    row.append(info,input,button);container.append(row);
+  }
+  renderMeasurementHistory();
+}
+function clearFindingSelection(){
+  state.activeFindingId=null;
+  $('photoStatus').className='status';$('photoStatus').textContent='Välj eller registrera en anmärkning innan du tar foto.';
+}
+function renderFindings(){
+  const items=state.findings.filter(item=>item.unit_id===state.activeUnitId);
+  const container=$('unitFindings');container.replaceChildren();
+  if(!items.length){const empty=document.createElement('p');empty.className='room-progress';empty.textContent='Inga anmärkningar registrerade.';container.append(empty)}
+  for(const item of items){
+    const selected=item.finding_id===state.activeFindingId;
+    const button=document.createElement('button');button.type='button';button.className='item finding-choice'+(selected?' selected':'');button.setAttribute('aria-pressed',String(selected));
+    const meta=document.createElement('span');meta.className='sub';meta.textContent=[item.room_name||'Utan rum',item.classification!=null?'Klass '+item.classification:item.severity,state.photos.filter(photo=>photo.finding_id===item.finding_id).length+' bilder'].join(' · ');
+    const description=document.createElement('strong');description.textContent=item.description;
+    button.append(meta,description);button.onclick=()=>{
+      state.activeFindingId=item.finding_id;
+      state.activeRoomId=unitRooms().some(room=>room.room_id===item.room_id)?item.room_id:null;
+      $('photoStatus').className='status';$('photoStatus').textContent='Vald anmärkning · foto och kommentar binds hit: '+item.description;
+      renderUnit();
+    };container.append(button);
+  }
+}
 function historyDisclosure(panel,key,count,photoCount=0){
   const wasOpen=panel.dataset.historyKey===key&&Boolean(panel.querySelector('details')?.open);
   panel.dataset.historyKey=key;panel.replaceChildren();
@@ -250,8 +370,8 @@ async function plannedHistory(record,projectId,inspectionId){
   if(data.source_inspection_id!==source||data.project_id!==projectId||!Array.isArray(data.historical_findings))throw new Error('Historikens identitet stämmer inte.');
   return {previous_inspection_id:source,historical_findings:data.historical_findings,historical_measurements:data.historical_measurements||[],historical_checkpoints:data.historical_checkpoints||[],historical_space_photos:data.historical_space_photos||[]};
 }
-function renderUnit(){const unit=activeUnit();if(!unit)return;renderKeys();renderRooms();const roomName=activeRoom()?activeRoom().name:'välj rum';$('visRoom').textContent=roomName;$('measRoom').textContent=roomName;const ftx=isFtx();$('wvMissing').classList.toggle('hidden',ftx);$('wvRow').classList.toggle('hidden',ftx||!activeRoom());$('addSupply').classList.toggle('hidden',!ftx);$('unitSystemBtn').textContent='System: '+(unit.system_type?unit.system_type+' · avvikande':state.system_type+' · fastighet');$('unitSystemBtn').classList.toggle('quick',Boolean(unit.system_type));renderPreviousFindings(unit);renderMeasurements();renderFindings();updateFooter('viewUnit')}
-function updateFooter(name){if(name==='viewSpace'){const fails=activeSpace()?spaceCheckpoints(state.activeSpaceId).filter(item=>item.status==='fail').length:0;$('footDone').textContent=spacePending(state.activeSpaceId)?'Till listan – ej klar':fails?'Klar – med anmärkning ('+fails+')':'Klar – UA';$('footDone').className='btn '+(fails?'anm':'ua');$('footBack').textContent='Till listan';return}if(name==='viewUnit'){const remarks=unitRemarks(state.activeUnitId).length;$('footDone').textContent=remarks?'Klar – med anmärkning ('+remarks+')':'Klar – UA';$('footDone').className='btn '+(remarks?'anm':'ua');$('footBack').textContent='Till listan'}else if(name==='viewRond'){$('footDone').textContent='Synka';$('footDone').className='btn';$('footBack').textContent='Till start'}else{$('footDone').textContent='Starta rondering';$('footDone').className='btn';$('footBack').textContent='–'}}
+function renderUnit(){const unit=activeUnit();if(!unit)return;renderKeys();renderRooms();const roomName=activeRoom()?activeRoom().name:'välj rum';$('visRoom').textContent=roomName;$('measRoom').textContent=roomName;const ftx=isFtx();$('wvMissing').classList.toggle('hidden',ftx);$('wvRow').classList.toggle('hidden',ftx||!activeRoom());$('addSupply').classList.toggle('hidden',!ftx);$('unitSystemBtn').textContent='System: '+(unit.system_type?unit.system_type+' · avvikande':state.system_type+' · fastighet');$('unitSystemBtn').classList.toggle('quick',Boolean(unit.system_type));renderPreviousFindings(unit);renderMeasurements();renderFindings();updateUnitProgress();updateFooter('viewUnit')}
+function updateFooter(name){if(name==='viewSpace'){const fails=activeSpace()?spaceCheckpoints(state.activeSpaceId).filter(item=>item.status==='fail').length:0;$('footDone').textContent=spacePending(state.activeSpaceId)?'Till listan – ej klar':fails?'Klar – med anmärkning ('+fails+')':'Klar – UA';$('footDone').className='btn '+(fails?'anm':'ua');$('footBack').textContent='Till listan';return}if(name==='viewUnit'){const remarks=unitRemarks(state.activeUnitId).length;const next=nextPendingUnit(state.activeUnitId);$('footDone').textContent=(remarks?'Klar – ANM ('+remarks+')':'Klar – UA')+(next?' · nästa':'');$('footDone').className='btn '+(remarks?'anm':'ua');$('footBack').textContent='Till listan'}else if(name==='viewRond'){$('footDone').textContent='Synka';$('footDone').className='btn';$('footBack').textContent='Till start'}else{$('footDone').textContent='Starta rondering';$('footDone').className='btn';$('footBack').textContent='–'}}
 
 function addFinding(defectType,severity,description){const unit=activeUnit();const room=activeRoom();const defect=state.defects.find(item=>item.id===defectType);const classification=severity==='major'?2:severity==='minor'?1:0;const finding={finding_id:uid('finding'),inspection_id:state.inspection_id,unit_id:unit.unit_id,unit_number:unit.number,room_id:room?room.room_id:null,room_name:room?room.name:null,defect_type:defectType,description,severity,classification,system_id:null,rule_refs:defect?defect.default_rule_refs||[]:[],origin:'observed'};state.findings.push(finding);state.activeFindingId=finding.finding_id;$('photoStatus').className='status';$('photoStatus').textContent='Anmärkning registrerad · foto binds hit: '+description;return finding}
 function markNotMeasurable(measurementId){const item=state.measurements.find(m=>m.measurement_id===measurementId);if(!item)return;const reason=(prompt('Varför är donet ej mätbart? (obligatoriskt, ta foto efteråt)')||'').trim();if(!reason)return;item.measurable=false;item.measured_value=null;item.not_measurable_reason=reason;const room=state.rooms.find(r=>r.room_id===item.room_id);const finding=addFinding('terminal_not_measurable','minor',(room?room.name+': ':'')+item.point_label+' ej mätbart – '+reason);item.finding_id=finding.finding_id;renderUnit();persist()}
@@ -303,7 +423,39 @@ for(const chip of document.querySelectorAll('[data-class]'))chip.onclick=async()
 $('note').onchange=async()=>{const finding=state.findings.find(item=>item.finding_id===state.activeFindingId);if(finding&&$('note').value.trim()){finding.description=finding.description+' – '+$('note').value.trim();$('note').value='';renderFindings();await persist()}};
 $('photo').onchange=async()=>{const file=$('photo').files[0];const projectId=state.project_id,inspectionId=state.inspection_id;if(!file)return;const unit=activeUnit();const finding=state.findings.find(item=>item.finding_id===state.activeFindingId);if(!unit||!finding){$('photoStatus').className='status warn';$('photoStatus').textContent='Registrera en anmärkning först – fotot binds till den.';$('photo').value='';return}const buffer=await file.arrayBuffer();const hash=await crypto.subtle.digest('SHA-256',buffer);const digest=[...new Uint8Array(hash)].map(value=>value.toString(16).padStart(2,'0')).join('');if(state.project_id!==projectId||state.inspection_id!==inspectionId)return;const photo={photo_id:uid('photo'),inspection_id:inspectionId,unit_id:unit.unit_id,unit_number:unit.number,defect_type:finding.defect_type,captured_at:now(),captured_by:state.inspector,local_uri:'indexeddb:'+file.name,sha256:digest,mime_type:file.type||'image/jpeg',room_id:finding.room_id,finding_id:finding.finding_id,checkpoint_id:null,system_id:finding.system_id,description:finding.description,rule_refs:finding.rule_refs,sync_status:'local'};state.photos.push(photo);await dbPut(MEDIA_STORE,{project_id:state.project_id,photo_id:photo.photo_id,inspection_id:state.inspection_id,name:file.name,mime_type:photo.mime_type,sha256:digest,blob:file});$('photo').value='';$('photoStatus').className='status pass';$('photoStatus').textContent='Foto bundet till anmärkningen · '+digest.slice(0,10)+'…';renderFindings();await persist()};
 $('footBack').onclick=()=>{const current=document.querySelector('.view.on').id;if(current==='viewUnit'||current==='viewSpace'){renderRond();view('viewRond')}else if(current==='viewRond'){view('viewStart')}};
-$('footDone').onclick=async()=>{const current=document.querySelector('.view.on').id;if(current==='viewStart'){$('start').click();return}if(current==='viewRond'){syncDraft();return}if(current==='viewSpace'){renderRond();view('viewRond');await persist();return}const unit=activeUnit();const remarks=unitRemarks(unit.unit_id).length;unit.status=remarks?'anmarkning':'ua';unit.checked_at=now();unit.bom_at=null;unit.bom_note='';await persist();const next=state.units.find(item=>item.status==='ej_paborjad');if(next){openUnit(next.unit_id)}else{renderRond();view('viewRond');$('syncStatus').className='status pass';$('syncStatus').textContent='Ronderingen är komplett – synka när du har nät.'}};
+let finishingUnit=false;
+async function finishCurrentUnit(){
+  if(finishingUnit)return;
+  const unit=activeUnit();if(!unit)return;
+  const points=state.measurements.filter(p=>p.unit_id===unit.unit_id);
+  if(points.some(p=>pendingPoint(p)&&p.measured_value!=null&&String(p.measured_value).trim()!=='')){
+    if($('unitProgress'))$('unitProgress').textContent='Rätta ogiltiga mätvärden innan enheten markeras som besiktigad.';
+    return;
+  }
+  const pending=points.filter(pendingPoint).length;
+  if(pending&&!confirm(pending+' mätpunkter saknar värde. Markera enheten som besiktigad ändå? Mätpunkterna blir kvar som ofullständiga.'))return;
+  const context=[state.project_id,state.inspection_id,unit.unit_id];
+  const previous={status:unit.status,checked_at:unit.checked_at,bom_at:unit.bom_at,bom_note:unit.bom_note};
+  finishingUnit=true;$('footDone').disabled=true;$('footBack').disabled=true;
+  try{
+    const remarks=unitRemarks(unit.unit_id).length;
+    unit.status=remarks?'anmarkning':'ua';unit.checked_at=now();unit.bom_at=null;unit.bom_note='';
+    try{await persist()}catch(error){Object.assign(unit,previous);if($('unitProgress'))$('unitProgress').textContent='Kunde inte spara enhetens status. Försök igen: '+crowErrorText(error);return}
+    if(state.project_id!==context[0]||state.inspection_id!==context[1]||state.activeUnitId!==context[2]||document.querySelector('.view.on').id!=='viewUnit')return;
+    const next=nextPendingUnit(unit.unit_id);
+    if(next){openUnit(next.unit_id);return}
+    renderRond();view('viewRond');
+    $('syncStatus').className='status';
+    $('syncStatus').textContent='Inga ej färdigmarkerade enheter kvar. Kontrollera BOM, mätpunkter och teknikutrymmen innan protokollet färdigställs. Synka när du har nät.';
+  }finally{finishingUnit=false;$('footDone').disabled=false;$('footBack').disabled=false}
+}
+$('footDone').onclick=async()=>{
+  const current=document.querySelector('.view.on').id;
+  if(current==='viewStart'){$('start').click();return}
+  if(current==='viewRond'){syncDraft();return}
+  if(current==='viewSpace'){renderRond();view('viewRond');await persist();return}
+  if(current==='viewUnit')await finishCurrentUnit();
+};
 
 /* ---------- server ---------- */
 function updateNetwork(){$('network').textContent=navigator.onLine?'Online':'Offline';$('network').className='net'+(navigator.onLine?'':' off')}

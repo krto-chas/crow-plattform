@@ -64,10 +64,32 @@
     .foot .inner{max-width:680px;margin:auto;display:grid;grid-template-columns:1fr 2fr;gap:10px}
     .hidden{display:none!important}
     @media (prefers-reduced-motion:no-preference){.view.on{animation:in .14s ease-out}@keyframes in{from{opacity:.5;transform:translateY(4px)}to{opacity:1;transform:none}}}
+    /* OVK-R2a: restrained field workspace, shared Nordic palette. */
+    :root{--ink:#151b23;--paper:#f7f8fa;--line:#dfe5ea;--mut:#526475;--accent:#416c89;--ua:#176c38;--anm:#855313;--bom:#a52520}
+    .top{background:var(--panel);color:var(--ink);border-bottom:1px solid var(--line);padding:12px 16px;flex-wrap:wrap}
+    .top strong{letter-spacing:.04em;font-size:16px}.top a{color:var(--accent);padding:10px 0;font-size:14px;font-weight:600}.net{background:#edf2f6;color:var(--ink)}.net.off{color:#fff}
+    .wrap{padding:20px 16px 128px}.card{border-radius:16px;padding:20px;margin-bottom:16px;min-width:0}
+    .eyebrow{letter-spacing:.045em;font-size:12px;line-height:1.5}.section-heading{font-size:19px;line-height:1.25;margin:4px 0 12px;font-weight:700}
+    .btn{background:var(--accent);font-weight:650;min-height:48px}.btn.ghost{color:var(--accent)}.btn:disabled{opacity:.55;cursor:not-allowed}
+    .chip{min-height:44px;font-weight:600;line-height:1.3}.chip.on{background:var(--accent);border-color:var(--accent)}
+    .counts{flex-wrap:wrap;gap:8px 14px;font-weight:600}.rondbar{height:10px}
+    .round-toolbar{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px;margin:16px 0}
+    .round-toolbar label{margin:0 0 5px}.round-toolbar input,.round-toolbar select{min-width:0;min-height:44px}
+    .unitrow{min-height:60px;border-left-width:4px;gap:10px;padding:12px;flex-wrap:wrap}
+    .unitrow .nr{min-width:0;font-size:24px;overflow-wrap:anywhere}.unitrow .sub{flex:1;min-width:0;overflow-wrap:anywhere}.unitrow .spacer{display:none}
+    .unitrow .tag{flex:none}.bignr{font-size:44px;overflow-wrap:anywhere}.keys .chip{font-weight:600;min-height:48px}
+    .room-section-label{font-size:13px;color:var(--mut);margin:14px 0 4px}.room-section-label:empty{display:none}
+    .room-progress{font-size:14px;color:var(--mut);line-height:1.5;margin:8px 0}.mrow{grid-template-columns:minmax(0,1fr) minmax(64px,92px) 44px;gap:8px;padding:12px 0;border-top:1px solid var(--line)}
+    .mrow .lbl{overflow-wrap:anywhere}.mrow .lbl small{font-size:12px;line-height:1.5}.mrow input{min-width:0;min-height:48px;font-size:20px}.mrow .x{min-height:44px}
+    .finding-choice{display:block;width:100%;text-align:left;background:#fff;color:var(--ink);padding:14px;overflow-wrap:anywhere;min-height:48px}.finding-choice.selected{border-color:var(--accent);background:#edf2f6}.finding-choice strong,.finding-choice span{display:block}.finding-choice strong{margin-top:6px}.mrow input[aria-invalid=true]{border-color:var(--bom)}
+    .mrow.nm{opacity:1}.measurement-state{display:block;font-size:12px;font-weight:600;color:var(--mut);margin-top:3px}
+    .foot{background:#f7f8fa;border-top-color:var(--line)}.foot .inner{grid-template-columns:minmax(0,1fr) minmax(0,2fr)}.foot .btn{margin:0;padding:12px 8px;font-size:14px;overflow-wrap:anywhere}
+    button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible,summary:focus-visible{outline:3px solid var(--accent);outline-offset:3px}
+    @media(max-width:380px){.wrap{padding:14px 10px 128px}.card{padding:14px}.round-toolbar,.row{grid-template-columns:1fr}.keys{gap:5px}.keys .chip{padding:10px 3px}.mrow{grid-template-columns:minmax(0,1fr) 72px 44px;gap:6px}}
   </style>
 </head>
 <body>
-<header class="top"><strong>Crow OVK · Fält</strong><span id="network" class="net">Nät…</span><a id="workbenchLink" href="/ovk/besiktning" style="color:#fff">Workbench</a></header>
+<header class="top"><strong>CROW OVK</strong><span id="network" class="net">Nät…</span><a id="workbenchLink" href="/ovk/besiktning">Besiktningsunderlag</a></header>
 <main class="wrap">
 
   <!-- VY: START -->
@@ -91,14 +113,19 @@
   <!-- VY: RONDERING -->
   <section class="view" id="viewRond">
     <div class="card">
-      <div class="eyebrow">Rondering · <span id="rondMeta"></span></div>
-      <div class="rondbar" id="rondbar"></div>
-      <div class="counts"><span><b id="cDone">0</b>/<b id="cTotal">0</b> klara</span><span><b id="cAnm">0</b> anm.</span><span><b id="cBom">0</b> bom</span><span><b id="cMeas">0</b> mätn.</span></div>
+      <div class="eyebrow">Rondering</div>
+      <h1 id="rondMeta" tabindex="-1">Besiktning</h1>
+      <div class="rondbar" id="rondbar" aria-hidden="true"></div>
+      <div class="counts"><span><b id="cDone">0</b>/<b id="cTotal">0</b> besiktigade</span><span><b id="cAnm">0</b> med anm.</span><span><b id="cBom">0</b> BOM</span><span><b id="cMeas">0</b> uppmätta don</span></div>
+      <p id="roundSummary" class="room-progress" role="status" aria-live="polite"></p>
+      <button class="btn" id="continueUnit" hidden>Fortsätt med nästa enhet</button>
+      <div class="round-toolbar"><div><label for="unitSearch">Sök lägenhet eller lokal</label><input id="unitSearch" type="search" placeholder="T.ex. 1201"></div><div><label for="unitFilter">Visa</label><select id="unitFilter"><option value="all">Alla</option><option value="pending">Återstående</option><option value="checked">Besiktigade</option><option value="bom">BOM</option></select></div></div>
       <div id="unitList"></div>
+      <p id="unitEmpty" class="room-progress" hidden></p>
       <button class="btn ghost" id="addUnit">+ Lägg till enhet</button>
     </div>
     <div class="card">
-      <div class="eyebrow">Allmänna delar · <span id="spaceMeta">0 utrymmen</span></div>
+      <div class="eyebrow">Allmänna delar · <span id="spaceMeta">0 utrymmen</span></div><h2 class="section-heading">Teknikutrymmen</h2>
       <div id="spaceList"></div>
       <div class="row"><button class="btn ghost" id="addFlaktrum">+ Fläktrum (aggregat)</button><button class="btn ghost" id="addTakflakt">+ Frånluftsfläkt tak/vind</button></div>
     </div>
@@ -123,7 +150,7 @@
   <section class="view" id="viewUnit">
     <div class="card">
       <div class="eyebrow" id="unitKindLabel">Lägenhet</div>
-      <div class="bignr" id="unitNr">–</div>
+      <h1 class="bignr" id="unitNr" tabindex="-1">–</h1><p id="unitProgress" class="room-progress" role="status" aria-live="polite"></p>
       <div class="keys">
         <button class="chip" id="keyIn">Nyckel<br>mottagen</button>
         <button class="chip master" id="keyMaster">Huvudnyckel<br>använd</button>
@@ -135,11 +162,21 @@
       <button class="btn bom" id="bom">BOM – ingen tillgång (stämplar tid)</button>
     </div>
 
-    <div class="card"><div class="eyebrow">1 · Rum</div>
+    <div class="card"><div class="eyebrow">1 · Rum</div><h2 class="section-heading">Välj rum</h2>
       <div class="chips" id="roomChips"></div>
+      <p class="room-section-label" id="roomPresetLabel"></p><div class="chips" id="roomPresetChips"></div>
     </div>
 
-    <div class="card"><div class="eyebrow">2 · Visuell runda · <span id="visRoom">välj rum</span></div>
+    <div class="card"><div class="eyebrow">2 · Mätning · <span id="measRoom">välj rum</span> · l/s</div><h2 class="section-heading">Luftflöden</h2>
+      <div class="chips">
+        <button class="chip" data-point="franluftsdon">+ Frånluft</button>
+        <button class="chip hidden" id="addSupply" data-point="tilluftsdon">+ Tilluft</button>
+        <button class="chip" data-point="overluftsdon">+ Överluft</button>
+      </div>
+      <div id="mrows"></div>
+    </div>
+
+    <div class="card"><div class="eyebrow">3 · Visuell kontroll · <span id="visRoom">välj rum</span></div><h2 class="section-heading">Kontrollera och notera</h2>
       <div class="chips">
         <button class="chip quick" data-defect="missing_terminal">Don saknas</button>
         <button class="chip quick" data-defect="kitchen_fan_central_system">Köksfläkt mot centralsystem</button>
@@ -151,21 +188,12 @@
       </div>
     </div>
 
-    <div class="card"><div class="eyebrow">3 · Mätning · <span id="measRoom">välj rum</span> · l/s</div>
-      <div class="chips">
-        <button class="chip" data-point="franluftsdon">+ Frånluft</button>
-        <button class="chip hidden" id="addSupply" data-point="tilluftsdon">+ Tilluft</button>
-        <button class="chip" data-point="overluftsdon">+ Överluft</button>
-      </div>
-      <div id="mrows"></div>
-    </div>
-
-    <div class="card"><div class="eyebrow">4 · Anteckning &amp; foto</div>
-      <div class="row" id="classRow" style="margin-bottom:6px"><span class="sub">Klass för senaste anm.:</span><button class="chip" data-class="0">0 · upplysning</button><button class="chip" data-class="1">1 · åtgärdas</button><button class="chip" data-class="2">2 · EG</button></div>
-      <textarea id="note" placeholder="Valfri kommentar till senaste anmärkning…"></textarea>
-      <input id="photo" type="file" accept="image/*" capture="environment">
-      <div id="photoStatus" class="status">Foto binds automatiskt till senaste anmärkning.</div>
+    <div class="card"><div class="eyebrow">4 · Anteckning &amp; foto</div><h2 class="section-heading">Anmärkningar och bildbevis</h2>
       <div id="unitFindings"></div>
+      <div class="row" id="classRow" style="margin-bottom:6px"><span class="sub">Klass för vald anm.:</span><button class="chip" data-class="0">0 · upplysning</button><button class="chip" data-class="1">1 · åtgärdas</button><button class="chip" data-class="2">2 · EG</button></div>
+      <label for="note">Kommentar till vald anmärkning</label><textarea id="note" placeholder="Valfri kommentar…"></textarea>
+      <label for="photo">Foto till vald anmärkning</label><input id="photo" type="file" accept="image/*" capture="environment">
+      <div id="photoStatus" class="status">Välj eller registrera en anmärkning innan du tar foto.</div>
     </div>
   </section>
 
@@ -173,7 +201,7 @@
     <div class="eyebrow">Synk</div>
     <button class="btn ghost" id="validate">Validera mot Crow</button>
     <button class="btn" id="sync">Synka data + bilder</button>
-    <div id="syncStatus" class="status">Ingen serversynk genomförd.</div>
+    <div id="syncStatus" class="status" role="status" aria-live="polite">Ingen serversynk genomförd.</div>
   </div>
 </main>
 

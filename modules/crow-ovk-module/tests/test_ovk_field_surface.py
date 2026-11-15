@@ -778,3 +778,40 @@ def test_scoped_media_isolated_and_revision_bound(tmp_path: Path) -> None:
         client.get(f"{first}/media/photo-1").json()["evidence_id"]
         != client.get(f"{second}/media/photo-1").json()["evidence_id"]
     )
+
+
+def test_r2a_round_workspace_controls(tmp_path: Path) -> None:
+    client = _client(tmp_path)
+    page = client.get("/ovk/falt").text
+    script = client.get("/ovk/falt/app.js").text
+
+    for element_id in (
+        "roundSummary",
+        "continueUnit",
+        "unitSearch",
+        "unitFilter",
+        "unitEmpty",
+        "unitProgress",
+        "roomPresetChips",
+        "unitFindings",
+    ):
+        assert f'id="{element_id}"' in page
+    assert page.count('id="unitFindings"') == 1
+    assert 'value="pending"' in page
+    assert 'value="checked"' in page
+    assert 'value="bom"' in page
+    assert "function nextPendingUnit(afterId=null)" in script
+    assert "function roundCounts()" in script
+    assert "function visibleRoundUnits(" in script
+    assert "state.measurements.filter(measuredPoint).length" in script
+    assert "function finishCurrentUnit()" in script
+    assert "if(finishingUnit)return" in script
+    assert "Object.assign(unit,previous)" in script
+    assert "input.value=item.measured_value??''" in script
+    assert "input.setAttribute('aria-invalid',String(invalid))" in script
+    assert "state.activeFindingId=item.finding_id" in script
+    assert "clearFindingSelection();renderUnit()" in script
+    assert "button.setAttribute('aria-pressed',String(selected))" in script
+    assert "Mätpunkterna blir kvar som ofullständiga." in script
+    assert "Ronderingen är komplett" not in script
+    assert "v13" in client.get("/ovk/falt/sw.js").text
