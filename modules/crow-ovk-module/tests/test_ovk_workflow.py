@@ -434,3 +434,100 @@ def test_recurring_reference_is_scoped_and_preserved(
     payload["planning"] = {**planning, "previous_inspection_id": "ovk-003"}
     assert client.put(root + "/inspections/ovk-003", json=payload).status_code == 422
     assert client.get(url).json()["planning"] == planning
+
+
+def test_property_first_api_chain_from_empty_project_list(
+    tmp_path: Path, monkeypatch: MonkeyPatch
+) -> None:
+    client = _client(tmp_path, monkeypatch)
+    assert client.get("/api/projects").json() == []
+    page = client.get("/ovk/besiktning?new=1")
+    script = client.get("/ovk/besiktning/app.js")
+    assert page.status_code == script.status_code == 200
+    assert 'id="propertySearchForm"' in page.text
+    assert 'id="newPropertyForm" hidden' in page.text
+    assert 'id="draftForm" hidden' in page.text
+    assert "normalizeDesignation" in script.text
+    assert "OVK" in page.text
+
+    project_id = "project-new"
+    project_payload = {"name": "Eken 12:3", "project_id": project_id}
+    project = client.post("/api/projects", json=project_payload)
+    assert project.status_code == 201
+    assert project.json()["project_name"] == "Eken 12:3"
+    assert client.post("/api/projects", json=project_payload).status_code == 409
+    assert len(client.get("/api/projects").json()) == 1
+
+    root = f"/api/ovk/projects/{project_id}"
+    property_url = root + "/fastighet/property-new"
+    missing = client.get(property_url)
+    assert missing.status_code == 404
+    assert missing.json()["detail"]["code"] == "FASTIGHET_NOT_FOUND"
+    saved = client.put(
+        property_url,
+        json={
+            "fastighetsbeteckning": "Eken 12:3",
+            "byggnadens_adress": {"gata": "Testvägen 1", "ort": "Östersund"},
+            "fastighetstyp": "flerbostadshus",
+            "byggnader": [{"byggnad_id": "building-new", "internt_namn": "Hus A"}],
+        },
+    )
+    assert saved.status_code == 200
+    property_record = client.get(property_url).json()
+    assert client.get(root + "/fastighet").json()["fastigheter"] == [property_record]
+
+    assert (
+        client.put(
+            "/api/ovk/registry/besiktningsman/person-1",
+            json={
+                "namn": "Test Kontrollant",
+                "behorighet": "K",
+                "certifieringsorgan": "Test",
+                "certnummer": "123",
+            },
+        ).status_code
+        == 200
+    )
+    structure_url = property_url + "/byggnad/building-new/struktur"
+    assert client.get(structure_url).json() == {
+        "units": [],
+        "systems": [],
+        "technical_spaces": [],
+    }
+    payload = {
+        "inspection": {
+            "object": {
+                "object_id": "property-new",
+                "project_id": project_id,
+                "building_id": "building-new",
+                "name": "Eken 12:3 · Hus A",
+                "address": "Testvägen 1, Östersund",
+            },
+            "systems": [{"system_id": "LB01", "system_type": "FTX", "label": "LB01"}],
+            "checkpoints": [],
+            "measurements": [],
+            "findings": [],
+            "actions": [],
+        },
+        "review": [],
+        "planning": {
+            "inspector_id": "person-1",
+            "planned_date": "2027-01-15",
+            "inspection_type": "aterkommande",
+            "previous_inspection_id": None,
+        },
+    }
+    first_url = root + "/inspections/ovk-first"
+    assert client.put(first_url, json=payload).status_code == 200
+    first = client.get(first_url).json()
+    assert first["inspection"]["conclusion"] == "pending"
+    assert first["protocol_ready"] is False
+
+    # Ett återbesök använder samma projekt och fastighet, men ett nytt OVK-ID.
+    second_url = root + "/inspections/ovk-second"
+    assert client.put(second_url, json=payload).status_code == 200
+    assert client.get(first_url).json() == first
+    assert client.get(second_url).json()["inspection"]["object"] == first["inspection"]["object"]
+    assert len(client.get(root + "/inspections").json()["inspections"]) == 2
+    assert len(client.get("/api/projects").json()) == 1
+    assert client.get(property_url).json() == property_record
