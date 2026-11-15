@@ -67,12 +67,13 @@ def require_current_protocol_source(
     try:
         stored = json.loads(path.read_bytes())
         current = _source(data_root, project_id, inspection_id, record)
+        flow: dict[str, Any] = current["flow_protocol"]
         if stored == current:
-            return current["flow_protocol"]
+            return flow
         # Older source records bind the same snapshot but lack the projection.
         legacy = {key: value for key, value in current.items() if key != "flow_protocol"}
         if stored == legacy:
-            return current["flow_protocol"]
+            return flow
     except (OSError, ValueError, KeyError, TypeError):
         pass
     raise HTTPException(status_code=409, detail={"code": "OVK_PROTOCOL_SOURCE_STALE"})
