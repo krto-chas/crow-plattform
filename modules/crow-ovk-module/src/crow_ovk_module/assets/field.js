@@ -51,9 +51,12 @@ function isFtx(){const sys=unitSystem(activeUnit());return sys==='FT'||sys==='FT
 function parseSeries(text){const numbers=[];for(const part of text.split(',').map(item=>item.trim()).filter(Boolean)){const range=part.match(/^(\d{1,6})\s*-\s*(\d{1,6})$/);if(range){const start=parseInt(range[1],10),end=parseInt(range[2],10);if(end<start||end-start>500)throw new Error('Ogiltigt intervall: '+part);for(let value=start;value<=end;value++)numbers.push(String(value).padStart(range[1].length,'0'))}else if(/^\d{1,6}$/.test(part)){numbers.push(part)}else{throw new Error('Ogiltigt nummer: '+part)}}return [...new Set(numbers)]}
 function generateUnits(){const text=$('unitSeries').value.trim();if(!text){$('draftStatus').textContent='Ange en nummerserie först.';return}let numbers;try{numbers=parseSeries(text)}catch(error){$('draftStatus').className='status warn';$('draftStatus').textContent=String(error.message||error);return}const existing=new Set(state.units.map(item=>item.number));let added=0;for(const number of numbers){if(existing.has(number))continue;state.units.push({unit_id:uid('unit'),inspection_id:state.inspection_id||$('inspection').value.trim(),number,kind:'apartment',label:'',status:'ej_paborjad',checked_at:null,bom_at:null,bom_note:'',key:null,system_type:null});added+=1}$('draftStatus').className='status pass';$('draftStatus').textContent=added+' enheter tillagda · totalt '+state.units.length}
 
-function measuredPoint(point){
-  return point.measurable!==false&&point.measured_value!=null&&String(point.measured_value).trim()!==''&&Number.isFinite(Number(point.measured_value));
+function validFlowValue(value){
+  if(value==null)return false;
+  const text=String(value).trim().replace(',','.');
+  return /^[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?$/.test(text)&&Number.isFinite(Number(text));
 }
+function measuredPoint(point){return point.measurable!==false&&validFlowValue(point.measured_value)}
 function pendingPoint(point){return point.measurable!==false&&!measuredPoint(point)}
 function checkedUnit(unit){return unit.status==='ua'||unit.status==='anmarkning'}
 function roundCounts(){
@@ -97,7 +100,7 @@ function renderRond(){
   $('cAnm').textContent=state.units.filter(u=>u.status==='anmarkning').length;
   $('cBom').textContent=counts.bom;$('cMeas').textContent=counts.measured;
   $('rondbar').replaceChildren(...state.units.map(unit=>{const segment=document.createElement('i');segment.className=unit.status;return segment}));
-  if($('roundSummary'))$('roundSummary').textContent=counts.pending+' ej färdiga · '+counts.bom+' BOM · '+counts.pendingMeasurements+' mätpunkter utan värde';
+  if($('roundSummary'))$('roundSummary').textContent=counts.pending+' ej färdiga · '+counts.bom+' BOM · '+counts.pendingMeasurements+' mätpunkter utan giltigt värde';
   if($('continueUnit')){
     const next=nextPendingUnit();
     $('continueUnit').hidden=!next;
@@ -132,7 +135,7 @@ function updateUnitProgress(){
   const points=state.measurements.filter(item=>item.unit_id===unit.unit_id);
   const pending=points.filter(pendingPoint).length;
   const position=state.units.findIndex(item=>item.unit_id===unit.unit_id)+1;
-  target.textContent='Enhet '+position+' av '+state.units.length+' · '+unitRooms().length+' registrerade rum · '+pending+' mätpunkter utan värde';
+  target.textContent='Enhet '+position+' av '+state.units.length+' · '+unitRooms().length+' registrerade rum · '+pending+' mätpunkter utan giltigt värde';
 }
 function renderRooms(){
   const registered=unitRooms();
@@ -140,7 +143,7 @@ function renderRooms(){
   $('roomChips').replaceChildren();
   const presets=$('roomPresetChips')||$('roomChips');
   if(presets!==$('roomChips'))presets.replaceChildren();
-  if($('roomPresetLabel'))$('roomPresetLabel').textContent=entries.some(entry=>!entry.id)?'Lägg till rum':'';
+  if($('roomPresetLabel'))$('roomPresetLabel').textContent='Lägg till rum';
   for(const entry of entries){
     const button=document.createElement('button');button.type='button';button.className='chip'+(entry.id&&entry.id===state.activeRoomId?' on':'');
     const stats=entry.id?roomStats(entry.id):null;
@@ -150,15 +153,15 @@ function renderRooms(){
     button.onclick=async()=>{
       let name=entry.name;
       if(!entry.id&&isCommercial()){const nr=(prompt('Rumsnr för '+name+' (valfritt):')||'').trim();if(nr)name+=' '+nr}
-      state.activeRoomId=entry.id||ensureRoom(name).room_id;renderUnit();await persist();
+      state.activeRoomId=entry.id||ensureRoom(name).room_id;clearFindingSelection();renderUnit();await persist();
     };
     (entry.id?$('roomChips'):presets).append(button);
   }
   const add=document.createElement('button');add.type='button';add.className='chip';add.textContent='+ Rum/rumsnr';
-  add.onclick=async()=>{const name=(prompt('Rumsnamn eller rumsnr:')||'').trim();if(!name)return;state.activeRoomId=ensureRoom(name).room_id;renderUnit();await persist()};
+  add.onclick=async()=>{const name=(prompt('Rumsnamn eller rumsnr:')||'').trim();if(!name)return;state.activeRoomId=ensureRoom(name).room_id;clearFindingSelection();renderUnit();await persist()};
   presets.append(add);
   if(isCommercial()&&activeRoom()){const done=document.createElement('button');done.type='button';done.id='roomDone';done.className='chip quick';done.textContent='Rum klart → nästa';$('roomChips').append(done)}
-  const roomDone=document.getElementById('roomDone');if(roomDone)roomDone.onclick=async()=>{const closed=activeRoom();state.activeRoomId=null;$('photoStatus').className='status pass';$('photoStatus').textContent=(closed?closed.name+' klart. ':'')+'Välj nästa rum.';renderUnit();await persist()}}
+  const roomDone=document.getElementById('roomDone');if(roomDone)roomDone.onclick=async()=>{const closed=activeRoom();state.activeRoomId=null;clearFindingSelection();$('photoStatus').className='status pass';$('photoStatus').textContent=(closed?closed.name+' klart. ':'')+'Välj nästa rum.';renderUnit();await persist()}}
 function keyStamp(){const unit=activeUnit();unit.key=unit.key||{received:false,received_at:null,returned:false,returned_at:null,master_key_used:false,master_key_note:''};return unit.key}
 function renderKeys(){const key=activeUnit().key;$('keyIn').classList.toggle('set',Boolean(key&&key.received));$('keyOut').classList.toggle('set',Boolean(key&&key.returned));$('keyMaster').classList.toggle('set',Boolean(key&&key.master_key_used));const parts=[];if(key&&key.received)parts.push('Mottagen '+key.received_at.slice(11,16));if(key&&key.master_key_used)parts.push('Huvudnyckel: '+key.master_key_note);if(key&&key.returned)parts.push('Återlämnad '+key.returned_at.slice(11,16));$('keyInfo').textContent=parts.join(' · ')}
 function historicalMeasurementText(item){
@@ -201,16 +204,40 @@ function renderMeasurements(){
     const info=document.createElement('div');info.className='lbl';info.textContent=label;
     const detail=document.createElement('small');detail.textContent=[item.point_label,item.system_id,item.designed_value!=null?'Projekterat '+item.designed_value+' l/s':'Projekterat värde saknas'].filter(Boolean).join(' · ');
     const status=document.createElement('span');status.className='measurement-state';
-    const renderStatus=()=>{status.textContent=item.measurable?(measuredPoint(item)?'Uppmätt':'Ej mätt'):'Ej mätbar: '+item.not_measurable_reason};
-    renderStatus();info.append(detail,status);
     const input=document.createElement('input');input.inputMode='decimal';input.placeholder='l/s';input.value=item.measured_value??'';input.dataset.meas=item.measurement_id;input.disabled=!item.measurable;input.setAttribute('aria-label',item.point_label+' – uppmätt luftflöde i liter per sekund');
+    const renderStatus=()=>{
+      const invalid=item.measurable!==false&&item.measured_value!=null&&String(item.measured_value).trim()!==''&&!validFlowValue(item.measured_value);
+      status.textContent=item.measurable?(invalid?'Ogiltigt mätvärde':measuredPoint(item)?'Uppmätt':'Ej mätt'):'Ej mätbar: '+item.not_measurable_reason;
+      input.setAttribute('aria-invalid',String(invalid));
+    };
+    renderStatus();info.append(detail,status);
     input.onchange=async()=>{item.measured_value=input.value.trim().replace(',','.')||null;renderStatus();updateUnitProgress();renderMeasurementHistory();await persist()};
     const button=document.createElement('button');button.type='button';button.className='x';button.dataset.nm=item.measurement_id;button.textContent='×';button.title='Ej mätbar';button.setAttribute('aria-label','Markera '+item.point_label+' som ej mätbar');button.onclick=()=>markNotMeasurable(item.measurement_id);
     row.append(info,input,button);container.append(row);
   }
   renderMeasurementHistory();
 }
-function renderFindings(){const items=state.findings.filter(item=>item.unit_id===state.activeUnitId);$('unitFindings').innerHTML=items.map(item=>'<div class="item"><span class="pill">'+esc(item.room_name||'utan rum')+'</span><span class="pill">'+(item.classification!==null&&item.classification!==undefined?'Klass '+item.classification:esc(item.severity))+'</span><span class="pill">📷 '+state.photos.filter(photo=>photo.finding_id===item.finding_id).length+'</span>'+esc(item.description)+'</div>').join('')}
+function clearFindingSelection(){
+  state.activeFindingId=null;
+  $('photoStatus').className='status';$('photoStatus').textContent='Välj eller registrera en anmärkning innan du tar foto.';
+}
+function renderFindings(){
+  const items=state.findings.filter(item=>item.unit_id===state.activeUnitId);
+  const container=$('unitFindings');container.replaceChildren();
+  if(!items.length){const empty=document.createElement('p');empty.className='room-progress';empty.textContent='Inga anmärkningar registrerade.';container.append(empty)}
+  for(const item of items){
+    const selected=item.finding_id===state.activeFindingId;
+    const button=document.createElement('button');button.type='button';button.className='item finding-choice'+(selected?' selected':'');button.setAttribute('aria-pressed',String(selected));
+    const meta=document.createElement('span');meta.className='sub';meta.textContent=[item.room_name||'Utan rum',item.classification!=null?'Klass '+item.classification:item.severity,state.photos.filter(photo=>photo.finding_id===item.finding_id).length+' bilder'].join(' · ');
+    const description=document.createElement('strong');description.textContent=item.description;
+    button.append(meta,description);button.onclick=()=>{
+      state.activeFindingId=item.finding_id;
+      state.activeRoomId=unitRooms().some(room=>room.room_id===item.room_id)?item.room_id:null;
+      $('photoStatus').className='status';$('photoStatus').textContent='Vald anmärkning · foto och kommentar binds hit: '+item.description;
+      renderUnit();
+    };container.append(button);
+  }
+}
 function historyDisclosure(panel,key,count,photoCount=0){
   const wasOpen=panel.dataset.historyKey===key&&Boolean(panel.querySelector('details')?.open);
   panel.dataset.historyKey=key;panel.replaceChildren();
@@ -400,7 +427,12 @@ let finishingUnit=false;
 async function finishCurrentUnit(){
   if(finishingUnit)return;
   const unit=activeUnit();if(!unit)return;
-  const pending=state.measurements.filter(p=>p.unit_id===unit.unit_id&&pendingPoint(p)).length;
+  const points=state.measurements.filter(p=>p.unit_id===unit.unit_id);
+  if(points.some(p=>pendingPoint(p)&&p.measured_value!=null&&String(p.measured_value).trim()!=='')){
+    if($('unitProgress'))$('unitProgress').textContent='Rätta ogiltiga mätvärden innan enheten markeras som besiktigad.';
+    return;
+  }
+  const pending=points.filter(pendingPoint).length;
   if(pending&&!confirm(pending+' mätpunkter saknar värde. Markera enheten som besiktigad ändå? Mätpunkterna blir kvar som ofullständiga.'))return;
   const context=[state.project_id,state.inspection_id,unit.unit_id];
   const previous={status:unit.status,checked_at:unit.checked_at,bom_at:unit.bom_at,bom_note:unit.bom_note};
@@ -408,7 +440,7 @@ async function finishCurrentUnit(){
   try{
     const remarks=unitRemarks(unit.unit_id).length;
     unit.status=remarks?'anmarkning':'ua';unit.checked_at=now();unit.bom_at=null;unit.bom_note='';
-    try{await persist()}catch(error){Object.assign(unit,previous);$('unitProgress').textContent='Kunde inte spara enhetens status. Försök igen: '+crowErrorText(error);return}
+    try{await persist()}catch(error){Object.assign(unit,previous);if($('unitProgress'))$('unitProgress').textContent='Kunde inte spara enhetens status. Försök igen: '+crowErrorText(error);return}
     if(state.project_id!==context[0]||state.inspection_id!==context[1]||state.activeUnitId!==context[2]||document.querySelector('.view.on').id!=='viewUnit')return;
     const next=nextPendingUnit(unit.unit_id);
     if(next){openUnit(next.unit_id);return}
