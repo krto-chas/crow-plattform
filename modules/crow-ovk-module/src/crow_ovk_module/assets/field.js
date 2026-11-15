@@ -13,7 +13,7 @@ const ROOMS = ['Kök', 'Badrum', 'WC', 'Klädkammare', 'Sovrum', 'Vardagsrum', '
 const ROOMS_COMMERCIAL = ['Kontor', 'Vilorum', 'HWC', 'WC', 'Kök', 'Korridor'];
 function roomPresets(){return (state.object_type==='kontorsbyggnad'||state.object_type==='industrifastighet')?ROOMS_COMMERCIAL:ROOMS}
 function isCommercial(){return state.object_type==='kontorsbyggnad'||state.object_type==='industrifastighet'}
-const DEFAULT_STATE = () => ({project_id: 'adhoc', inspection_id: '', inspector: '', system_type: 'F', object_type: 'flerbostadshus',
+const DEFAULT_STATE = () => ({project_id: 'adhoc', inspection_id: '', inspector: '', system_type: 'F', object_type: 'flerbostadshus', assignment_name: '',
   previous_inspection_id: null, historical_findings: [], historical_measurements: [], historical_checkpoints: [], historical_space_photos: [], history_unavailable:false, units: [], rooms: [], findings: [], finding_followups: [], photos: [],
   measurements: [], window_vents: [], technical_spaces: [], checkpoints: [], dirty: false, last_sync: null,
   activeUnitId: null, activeRoomId: null, activeFindingId: null, activeSpaceId: null, defects: [], checklists: {}});
@@ -34,7 +34,7 @@ function payload(){return {inspection_id:state.inspection_id,object_type:state.o
   window_vents:state.window_vents,
   technical_spaces:state.technical_spaces,
   checkpoints:state.checkpoints}}
-async function writeDraft(dirty){if(!state.inspection_id||!state.project_id)return;state.dirty=dirty;await dbPut(DRAFT_STORE,{...payload(),project_id:state.project_id,inspector:state.inspector,system_type:state.system_type,previous_inspection_id:state.previous_inspection_id,historical_findings:state.historical_findings,historical_measurements:state.historical_measurements,history_unavailable:state.history_unavailable||false,historical_checkpoints:state.historical_checkpoints,historical_space_photos:state.historical_space_photos,findings:state.findings,dirty:state.dirty,last_sync:state.last_sync,updated_at:now()})}
+async function writeDraft(dirty){if(!state.inspection_id||!state.project_id)return;state.dirty=dirty;await dbPut(DRAFT_STORE,{...payload(),project_id:state.project_id,inspector:state.inspector,system_type:state.system_type,assignment_name:state.assignment_name,previous_inspection_id:state.previous_inspection_id,historical_findings:state.historical_findings,historical_measurements:state.historical_measurements,history_unavailable:state.history_unavailable||false,historical_checkpoints:state.historical_checkpoints,historical_space_photos:state.historical_space_photos,findings:state.findings,dirty:state.dirty,last_sync:state.last_sync,updated_at:now()})}
 async function persist(){await writeDraft(true);$('draftStatus').textContent='Lokalt sparad · '+new Date().toLocaleTimeString()}
 
 function ensureProject(id){if(!id)return;if(![...$('project').options].some(o=>o.value===id)){const option=document.createElement('option');option.value=id;option.textContent=id;$('project').appendChild(option)}}
@@ -51,7 +51,7 @@ function isFtx(){const sys=unitSystem(activeUnit());return sys==='FT'||sys==='FT
 function parseSeries(text){const numbers=[];for(const part of text.split(',').map(item=>item.trim()).filter(Boolean)){const range=part.match(/^(\d{1,6})\s*-\s*(\d{1,6})$/);if(range){const start=parseInt(range[1],10),end=parseInt(range[2],10);if(end<start||end-start>500)throw new Error('Ogiltigt intervall: '+part);for(let value=start;value<=end;value++)numbers.push(String(value).padStart(range[1].length,'0'))}else if(/^\d{1,6}$/.test(part)){numbers.push(part)}else{throw new Error('Ogiltigt nummer: '+part)}}return [...new Set(numbers)]}
 function generateUnits(){const text=$('unitSeries').value.trim();if(!text){$('draftStatus').textContent='Ange en nummerserie först.';return}let numbers;try{numbers=parseSeries(text)}catch(error){$('draftStatus').className='status warn';$('draftStatus').textContent=String(error.message||error);return}const existing=new Set(state.units.map(item=>item.number));let added=0;for(const number of numbers){if(existing.has(number))continue;state.units.push({unit_id:uid('unit'),inspection_id:state.inspection_id||$('inspection').value.trim(),number,kind:'apartment',label:'',status:'ej_paborjad',checked_at:null,bom_at:null,bom_note:'',key:null,system_type:null});added+=1}$('draftStatus').className='status pass';$('draftStatus').textContent=added+' enheter tillagda · totalt '+state.units.length}
 
-function renderRond(){const total=state.units.length;const done=state.units.filter(item=>item.status!=='ej_paborjad').length;$('rondMeta').textContent=state.inspection_id+' · '+state.system_type;$('cDone').textContent=done;$('cTotal').textContent=total;$('cAnm').textContent=state.units.filter(item=>item.status==='anmarkning').length;$('cBom').textContent=state.units.filter(item=>item.status==='bom').length;$('cMeas').textContent=state.measurements.length;
+function renderRond(){const total=state.units.length;const done=state.units.filter(item=>item.status!=='ej_paborjad').length;$('rondMeta').textContent=(state.assignment_name||state.inspection_id)+' · '+state.system_type;$('cDone').textContent=done;$('cTotal').textContent=total;$('cAnm').textContent=state.units.filter(item=>item.status==='anmarkning').length;$('cBom').textContent=state.units.filter(item=>item.status==='bom').length;$('cMeas').textContent=state.measurements.length;
   $('rondbar').innerHTML=state.units.map(item=>'<i class="'+item.status+'"></i>').join('');
   $('unitList').innerHTML=state.units.map(item=>{const remarks=unitRemarks(item.unit_id).length;const meas=state.measurements.filter(m=>m.unit_id===item.unit_id).length;const tags={ej_paborjad:'',ua:'UA',anmarkning:remarks+' anm.',bom:'BOM'};const key=item.key&&item.key.received&&!item.key.returned?' · 🔑 ute':'';return '<button class="unitrow '+item.status+'" data-unit="'+item.unit_id+'"><span class="nr">'+esc(item.number)+'</span><span class="sub">'+(item.kind==='premises'?'Lokal':'Lgh')+(meas?' · '+meas+' mätn.':'')+key+'</span><span class="spacer"></span>'+(tags[item.status]?'<span class="tag '+item.status+'">'+tags[item.status]+'</span>':'<span class="tag">öppna</span>')+'</button>'}).join('');
   for(const button of $('unitList').querySelectorAll('[data-unit]'))button.onclick=()=>openUnit(button.dataset.unit);renderSpaces()}
@@ -288,7 +288,7 @@ $('spacePhoto').onchange=async()=>{const file=$('spacePhoto').files[0];const pro
 $('addUnit').onclick=async()=>{const number=(prompt('Lägenhets-/lokalnummer:')||'').trim();if(!number)return;const kind=confirm('Är detta en lokal? (Avbryt = lägenhet)')?'premises':'apartment';state.units.push({unit_id:uid('unit'),inspection_id:state.inspection_id,number,kind,label:'',status:'ej_paborjad',checked_at:null,bom_at:null,bom_note:'',key:null,system_type:null});renderRond();await persist()};
 $('start').onclick=async()=>{const newId=$('inspection').value.trim();const inspector=$('inspector').value.trim();if(!newId||!inspector||!$('systemType').value){$('draftStatus').className='status warn';$('draftStatus').textContent='Ange besiktnings-ID, besiktningsman och systemtyp.';return}const projectId=$('project').value;if(!projectId)return;const switching=state.inspection_id&&(newId!==state.inspection_id||projectId!==state.project_id);if(switching&&await dbGet(DRAFT_STORE,draftKey(projectId,newId))){await restoreLatest({project_id:projectId,inspection_id:newId});return}if(switching){if(!confirm('Starta ny tom besiktning '+newId+'? Pågående session '+state.inspection_id+' ligger kvar sparad lokalt.'))return;Object.assign(state,DEFAULT_STATE(),{defects:state.defects,checklists:state.checklists})}state.project_id=$('project').value;state.inspection_id=newId;state.inspector=inspector;state.system_type=$('systemType').value;state.object_type=$('objectType').value;for(const unit of state.units)unit.inspection_id=state.inspection_id;
   if(state.object_type==='flerbostadshus'&&!state.units.length&&$('unitSeries').value.trim()){generateUnits()}
-  if(state.object_type!=='flerbostadshus'&&!state.units.length){const unit={unit_id:uid('unit'),inspection_id:state.inspection_id,number:'Objekt 1',kind:'premises',label:'',status:'ej_paborjad',checked_at:null,bom_at:null,bom_note:'',key:null,system_type:null};state.units.push(unit);renderRond();openUnit(unit.unit_id);await persist();return}
+  if(state.object_type!=='flerbostadshus'&&!state.units.length&&!state.assignment_name){const unit={unit_id:uid('unit'),inspection_id:state.inspection_id,number:'Objekt 1',kind:'premises',label:'',status:'ej_paborjad',checked_at:null,bom_at:null,bom_note:'',key:null,system_type:null};state.units.push(unit);renderRond();openUnit(unit.unit_id);await persist();return}
   renderRond();view('viewRond');await persist()};
 $('keyIn').onclick=async()=>{const key=keyStamp();key.received=!key.received;key.received_at=key.received?now():null;if(!key.received){key.returned=false;key.returned_at=null}renderKeys();await persist()};
 $('keyOut').onclick=async()=>{const key=keyStamp();if(!key.received&&!key.master_key_used){$('keyInfo').textContent='Markera först nyckel mottagen eller huvudnyckel.';return}if(!key.received){key.received=true;key.received_at=key.received_at||now()}key.returned=!key.returned;key.returned_at=key.returned?now():null;renderKeys();await persist()};
@@ -314,10 +314,10 @@ try{const me=await fetch('/api/auth/me');if(me.ok){const info=await me.json();co
 try{const response=await fetch('/api/ovk/registry/besiktningsman');if(response.ok){const data=await response.json();const persons=data.besiktningsman||[];await dbPut('meta',{key:'inspectors',value:persons});fillInspectors(persons)}else{throw new Error('offline')}}catch(_){const meta=await dbGetAll('meta');const cached=meta.find(item=>item.key==='inspectors');if(cached)fillInspectors(cached.value)}
 try{const response=await fetch('/api/projects');if(response.ok){for(const item of await response.json()){ensureProject(item.project_id);const option=[...$('project').options].find(o=>o.value===item.project_id);if(option)option.textContent=item.project_name||item.name||item.project_id}}}catch(_){/* draft project id is enough offline */}await loadHistory()}
 function fillInspectors(persons){if(!persons||!persons.length)return;$('inspectorSelect').classList.remove('hidden');$('inspectorSelect').innerHTML='<option value="">— Välj ur registret —</option>'+persons.map(item=>'<option value="'+esc(item.namn)+'">'+esc(item.namn)+' ('+esc(item.behorighet)+')</option>').join('');$('inspectorSelect').onchange=()=>{if($('inspectorSelect').value)$('inspector').value=$('inspectorSelect').value}}
-async function prefillObjectType(){if(state.units.length)return;const projectId=$('project').value;if(!projectId||!navigator.onLine)return;try{const response=await fetch('/api/ovk/projects/'+encodeURIComponent(projectId)+'/fastighet');if(!response.ok)return;const data=await response.json();const first=(data.fastigheter||[])[0];if(first&&first.fastighetstyp){$('objectType').value=first.fastighetstyp;state.object_type=first.fastighetstyp}}catch(_){/* offline */}}
+async function prefillObjectType(){if(state.inspection_id||state.units.length)return;const projectId=$('project').value;if(!projectId||!navigator.onLine)return;try{const response=await fetch('/api/ovk/projects/'+encodeURIComponent(projectId)+'/fastighet');if(!response.ok)return;const data=await response.json();const first=(data.fastigheter||[])[0];if(first&&first.fastighetstyp){$('objectType').value=first.fastighetstyp;state.object_type=first.fastighetstyp}}catch(_){/* offline */}}
 async function loadHistory(){$('history').innerHTML='<option value="">Välj via uppdragsplaneringen</option>';$('history').disabled=true;$('restore').disabled=true;$('historyStatus').textContent='Tidigare besiktning väljs i uppdragsplaneringen. Historik hämtas automatiskt för planerade uppdrag.'}
 async function restoreFromServer(){$('historyStatus').textContent='Öppna ett planerat uppdrag för att återställa projektbundet underlag.'}
-async function restoreLatest(requested=null){const drafts=await dbGetAll(DRAFT_STORE);if(!drafts.length)return false;drafts.sort((a,b)=>String(b.updated_at).localeCompare(String(a.updated_at)));const draft=requested?drafts.find(item=>item.inspection_id===requested.inspection_id&&item.project_id===requested.project_id):drafts[0];if(!draft)return false;Object.assign(state,DEFAULT_STATE(),{project_id:draft.project_id||'adhoc',inspection_id:draft.inspection_id||'',inspector:draft.inspector||'',system_type:draft.system_type||'F',object_type:draft.object_type||'flerbostadshus',previous_inspection_id:draft.previous_inspection_id||null,historical_findings:draft.historical_findings||[],historical_measurements:draft.historical_measurements||[],history_unavailable:Boolean(draft.history_unavailable),historical_checkpoints:draft.historical_checkpoints||[],historical_space_photos:draft.historical_space_photos||[],units:draft.units||[],rooms:draft.rooms||[],findings:draft.findings||[],finding_followups:draft.finding_followups||[],photos:draft.photos||[],measurements:draft.measurements||[],window_vents:draft.window_vents||[],technical_spaces:draft.technical_spaces||[],checkpoints:draft.checkpoints||[],dirty:Boolean(draft.dirty),last_sync:draft.last_sync||null,defects:state.defects,checklists:state.checklists});$('inspection').value=state.inspection_id;$('inspector').value=state.inspector;$('systemType').value=state.system_type;$('objectType').value=state.object_type;ensureProject(state.project_id);$('project').value=state.project_id;$('draftStatus').textContent='Återställd lokal session · '+state.inspection_id;if(state.units.length||state.technical_spaces.length){renderRond();view('viewRond')}return true}
+async function restoreLatest(requested=null){const drafts=await dbGetAll(DRAFT_STORE);if(!drafts.length)return false;drafts.sort((a,b)=>String(b.updated_at).localeCompare(String(a.updated_at)));const draft=requested?drafts.find(item=>item.inspection_id===requested.inspection_id&&item.project_id===requested.project_id):drafts[0];if(!draft)return false;Object.assign(state,DEFAULT_STATE(),{project_id:draft.project_id||'adhoc',inspection_id:draft.inspection_id||'',inspector:draft.inspector||'',system_type:draft.system_type||'F',object_type:draft.object_type||'flerbostadshus',assignment_name:draft.assignment_name||'',previous_inspection_id:draft.previous_inspection_id||null,historical_findings:draft.historical_findings||[],historical_measurements:draft.historical_measurements||[],history_unavailable:Boolean(draft.history_unavailable),historical_checkpoints:draft.historical_checkpoints||[],historical_space_photos:draft.historical_space_photos||[],units:draft.units||[],rooms:draft.rooms||[],findings:draft.findings||[],finding_followups:draft.finding_followups||[],photos:draft.photos||[],measurements:draft.measurements||[],window_vents:draft.window_vents||[],technical_spaces:draft.technical_spaces||[],checkpoints:draft.checkpoints||[],dirty:Boolean(draft.dirty),last_sync:draft.last_sync||null,defects:state.defects,checklists:state.checklists});$('inspection').value=state.inspection_id;$('inspector').value=state.inspector;$('systemType').value=state.system_type;$('objectType').value=state.object_type;ensureProject(state.project_id);$('project').value=state.project_id;$('draftStatus').textContent='Återställd lokal session · '+(state.assignment_name||state.inspection_id);if(state.assignment_name||state.units.length||state.technical_spaces.length){renderRond();view('viewRond')}return true}
 async function syncContext(){const response=await fetch(fieldEndpoint('context',state.project_id,state.inspection_id),{method:'PUT',headers:{'content-type':'application/json'},body:JSON.stringify({project_id:state.project_id,inspector:state.inspector,previous_inspection_id:state.previous_inspection_id,system_type:state.system_type})});const data=await response.json();if(!response.ok)throw new Error(JSON.stringify(data));return data}
 async function syncSnapshot(){const response=await fetch(fieldEndpoint('sync',state.project_id,state.inspection_id),{method:'PUT',headers:{'content-type':'application/json','X-OVK-Base-Revision':state.last_sync||'new'},body:JSON.stringify(payload())});const data=await response.json();if(!response.ok)throw new Error(JSON.stringify(data));state.last_sync=data.snapshot_sha256;return data}
 async function syncPendingMedia(){let uploaded=0;for(const photo of state.photos.filter(item=>item.sync_status!=='synced')){const media=await dbGet(MEDIA_STORE,mediaKey(state.project_id,state.inspection_id,photo.photo_id));if(!media||!media.blob||media.sha256!==photo.sha256)throw new Error('Saknar matchande lokal mediablob för '+photo.photo_id);const response=await fetch(fieldEndpoint('media',state.project_id,state.inspection_id)+'/'+encodeURIComponent(photo.photo_id),{method:'PUT',headers:{'content-type':photo.mime_type,'X-OVK-Base-Revision':state.last_sync},body:media.blob});const receipt=await response.json();if(!response.ok)throw new Error(JSON.stringify(receipt));photo.sync_status='synced';state.last_sync=receipt.snapshot_sha256;media.media_id=receipt.media_id;media.evidence_id=receipt.evidence_id;media.synced_at=now();await dbPut(MEDIA_STORE,media);uploaded+=1}return uploaded}
@@ -359,7 +359,7 @@ async function resumeServerInspection(projectId,inspectionId,snapshot,workbench,
   if(!history.ok)throw new Error('Kunde inte läsa fältkontext.');
   const context=await history.json();
   if(context.project_id!==projectId||context.inspection_id!==inspectionId||!types.includes(context.system_type))throw new Error('Fältkontexten stämmer inte med uppdraget.');
-  const draft={...data,project_id:projectId,inspector:person.namn,system_type:context.system_type,object_type:property.fastighetstyp,...await plannedHistory(record,projectId,inspectionId),photos:data.photos.map(p=>({...p,sync_status:'synced'})),dirty:false,last_sync:snapshot.snapshot_sha256,updated_at:now()};
+  const draft={...data,project_id:projectId,inspector:person.namn,system_type:context.system_type,object_type:property.fastighetstyp,assignment_name:record.inspection.object.name,...await plannedHistory(record,projectId,inspectionId),photos:data.photos.map(p=>({...p,sync_status:'synced'})),dirty:false,last_sync:snapshot.snapshot_sha256,updated_at:now()};
   // The server snapshot omits display-only labels; reconstruct from stable IDs.
   draft.findings=data.findings.map(f=>({...f,unit_number:data.units.find(u=>u.unit_id===f.unit_id)?.number||'',room_name:data.rooms.find(r=>r.room_id===f.room_id)?.name||null}));
   if(await dbGet(DRAFT_STORE,draftKey(projectId,inspectionId)))throw new Error('Ett lokalt utkast finns redan. Ladda om för att öppna det.');
@@ -370,9 +370,9 @@ async function resumeServerInspection(projectId,inspectionId,snapshot,workbench,
   $('draftStatus').textContent='Återställd serverbesiktning · '+inspectionId;
 }
 async function prefillPlannedUnits(record,projectId,inspectionId,person,property,systemType){
-  const structure=record.building_structure;
-  if(!structure||!Array.isArray(structure.units))return false;
-  const draft={...DEFAULT_STATE(),...await plannedHistory(record,projectId,inspectionId),project_id:projectId,inspection_id:inspectionId,inspector:person.namn,object_type:property.fastighetstyp,system_type:systemType,dirty:true,updated_at:now()};
+  const structure=record.building_structure??{units:[],systems:[],technical_spaces:[]};
+  if(!Array.isArray(structure.units)||!Array.isArray(structure.systems)||!Array.isArray(structure.technical_spaces))throw new Error('Ogiltig byggnadsstruktur i uppdraget.');
+  const draft={...DEFAULT_STATE(),...await plannedHistory(record,projectId,inspectionId),project_id:projectId,inspection_id:inspectionId,inspector:person.namn,object_type:property.fastighetstyp,assignment_name:record.inspection.object.name,system_type:systemType,dirty:true,updated_at:now()};
   const ids=new Set(),roomIds=new Set(),pointIds=new Set();
   const selectedSystems=new Set(record.inspection.systems.map(s=>s.system_id));
   for(const unit of structure.units){
@@ -406,13 +406,13 @@ async function prefillPlannedUnits(record,projectId,inspectionId,person,property
     for(const item of checklist)draft.checkpoints.push({checkpoint_id:uid('cp'),inspection_id:inspectionId,space_id:space.space_id,label:item.label,status:'not_checked',note:''});
   }
   if(skipped.length)throw new Error('Installationer kan inte förberedas: '+skipped.join('; ')+'. Kontrollera uppdragets system och klassificering.');
-  if(!draft.units.length&&!draft.technical_spaces.length)return false;
+  // Även ett tomt uppdrag behöver ett lokalt utkast med rätt historik och kontext.
   const db=await openDb();
   try{
     await new Promise((resolve,reject)=>{const tx=db.transaction(DRAFT_STORE,'readwrite');tx.objectStore(DRAFT_STORE).add(draft);tx.oncomplete=()=>resolve();tx.onabort=()=>reject(tx.error);tx.onerror=()=>reject(tx.error)});
   }finally{db.close()}
   await restoreLatest({project_id:projectId,inspection_id:inspectionId});
-  $('draftStatus').textContent=draft.units.length+' enheter och '+draft.rooms.length+' rum och '+draft.technical_spaces.length+' installationer förberedda från uppdraget.';
+  $('draftStatus').textContent=draft.units.length||draft.technical_spaces.length?draft.units.length+' enheter och '+draft.rooms.length+' rum och '+draft.technical_spaces.length+' installationer förberedda från uppdraget.':'Uppdraget är öppnat. Lägg till enheter eller installationer i fält. Tidigare underlag är referens, inte nya kontrollresultat.';
   return true;
 }
 async function openRequestedInspection(projectId,inspectionId){
@@ -434,10 +434,14 @@ async function openRequestedInspection(projectId,inspectionId){
     if(inspection.inspection_id!==inspectionId||object.project_id!==projectId)throw new Error('Besiktningsidentiteten stämmer inte.');
     if(!record.planning)throw new Error('Uppdraget saknar planeringsuppgifter.');
     const property=await get(base+'/fastighet/'+encodeURIComponent(object.object_id));
-    if(!property.byggnader.some(b=>b.byggnad_id===object.building_id))throw new Error('Byggnaden saknas i fastighetsregistret.');
+    if(property.project_id!==projectId||property.fastighet_id!==object.object_id||!property.byggnader.some(b=>b.byggnad_id===object.building_id))throw new Error('Byggnaden saknas i fastighetsregistret.');
     const person=await get('/api/ovk/registry/besiktningsman/'+encodeURIComponent(record.planning.inspector_id));
+    if(person.besiktningsman_id!==record.planning.inspector_id)throw new Error('Besiktningsmannens identitet stämmer inte.');
     const snapshot=await fetch(fieldEndpoint('sync',projectId,inspectionId),{cache:'no-store'});
-    if(snapshot.status!==404&&!snapshot.ok)throw new Error('Serverunderlag kunde inte verifieras. Nytt tomt underlag skapas inte.');
+    if(!snapshot.ok){
+      const missing=await snapshot.json();
+      if(snapshot.status!==404||missing.detail?.code!=='OVK_FIELD_SNAPSHOT_NOT_FOUND')throw new Error('Serverunderlag kunde inte verifieras. Nytt tomt underlag skapas inte.');
+    }
 
     ensureProject(projectId);
     $('project').value=projectId;
@@ -459,7 +463,7 @@ async function openRequestedInspection(projectId,inspectionId){
       $('start').disabled=false;$('generate').disabled=false;return;
     }
     $('systemType').value=types.length===1?types[0]:'';
-    if(types.length>1&&(record.building_structure?.units?.length||record.building_structure?.technical_spaces?.length)){
+    if(types.length>1){
       $('systemType').onchange=async()=>{
         const selected=$('systemType').value;
         if(!types.includes(selected))return;
@@ -468,11 +472,10 @@ async function openRequestedInspection(projectId,inspectionId){
         catch(error){$('draftStatus').textContent=crowErrorText(error)}
         finally{$('systemType').disabled=false}
       };
-      $('draftStatus').textContent='Välj systemtyp för ronderingen och förbered uppdragets enheter och installationer.';
+      $('draftStatus').textContent='Välj systemtyp för ronderingen. Därefter öppnas uppdraget.';
       return;
     }
-    $('draftStatus').textContent=object.name+' · '+record.planning.planned_date+' · '+inspection.systems.map(s=>s.system_id+' ('+s.system_type+')').join(', ')+(types.length>1?' · Välj systemtyp för ronderingen.':'');
-    $('start').disabled=false;$('generate').disabled=false;
+    throw new Error('Uppdraget kunde inte förberedas.');
   }catch(error){
     $('draftStatus').className='status warn';
     $('draftStatus').textContent='Kunde inte öppna uppdrag: '+crowErrorText(error);

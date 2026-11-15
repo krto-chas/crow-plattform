@@ -528,8 +528,39 @@ def test_planned_technical_prefill_uses_system_identity(tmp_path: Path) -> None:
     assert "space_id:space.space_id,inspection_id:inspectionId" in app
     assert "system_id:space.system_id" in app
     assert "const checklist=state.checklists[space.kind]" in app
-    assert "if(!draft.units.length&&!draft.technical_spaces.length)return false" in app
+    assert "if(!draft.units.length&&!draft.technical_spaces.length)return false" not in app
     assert "label:item.label,status:'not_checked',note:''" in app
+
+
+def test_empty_planned_assignment_keeps_context_and_history(tmp_path: Path) -> None:
+    app = _client(tmp_path).get("/ovk/falt/app.js").text
+    prefill = app.split("async function prefillPlannedUnits", 1)[1].split(
+        "async function openRequestedInspection", 1
+    )[0]
+    assert "await plannedHistory(record,projectId,inspectionId)" in prefill
+    assert "assignment_name:record.inspection.object.name" in prefill
+    assert "tx.objectStore(DRAFT_STORE).add(draft)" in prefill
+    assert "return false" not in prefill
+    assert "assignment_name:state.assignment_name" in app
+    assert "assignment_name:draft.assignment_name||''" in app
+    assert "if(state.assignment_name||state.units.length||state.technical_spaces.length)" in app
+    assert "if(types.length>1){" in app
+    assert "if(state.inspection_id||state.units.length)return;" in app
+
+    payload = app.split("function payload()", 1)[1].split("async function writeDraft", 1)[0]
+    assert "assignment_name" not in payload
+    assert "historical_findings" not in payload
+
+
+def test_planned_assignment_rejects_wrong_identity_or_ambiguous_missing_snapshot(
+    tmp_path: Path,
+) -> None:
+    app = _client(tmp_path).get("/ovk/falt/app.js").text
+    assert "property.project_id!==projectId" in app
+    assert "property.fastighet_id!==object.object_id" in app
+    assert "person.besiktningsman_id!==record.planning.inspector_id" in app
+    assert "missing.detail?.code!=='OVK_FIELD_SNAPSHOT_NOT_FOUND'" in app
+    assert "!state.units.length&&!state.assignment_name" in app
 
 
 def test_planned_history_is_separate_from_current_results(tmp_path: Path) -> None:
