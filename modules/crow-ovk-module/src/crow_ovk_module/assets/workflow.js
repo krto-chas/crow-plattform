@@ -318,28 +318,199 @@ async function createDraft(event) {
   $('draftStatus').textContent = 'Sparar utkast…';
   try {
     await api('/api/ovk/projects/'+enc(project)+'/inspections/'+enc(draftId),{method:'PUT',headers:{'content-type':'application/json'},body:JSON.stringify(payload)});
-    location.assign('/ovk/besiktning?'+contextUrl(project,draftId));
+    location.assign((matchMedia('(max-width:900px)').matches?'/ovk/falt?':'/ovk/besiktning?')+contextUrl(project,draftId));
   } catch(error) {
     $('draftStatus').textContent = 'Kunde inte spara utkast: '+error.message;
     $('draftFields').disabled = false;
   }
 }
+// Sök endast i projekt som den befintliga projekt-API:n returnerar för sessionen.
+let propertyProjects = [];
+let propertySearchRevision = 0;
+let searchedDesignation = '';
+let searchMatches = [];
+let pendingProperty = null;
+
+function normalizeDesignation(value) {
+  return value.normalize('NFKC').trim().replace(/\s+/g, ' ').replace(/\s*:\s*/g, ':').toLocaleLowerCase('sv');
+}
+function randomId(prefix) {
+  return prefix + Array.from(crypto.getRandomValues(new Uint8Array(16)), byte => byte.toString(16).padStart(2, '0')).join('');
+}
+function projectLabel(project) {
+  return project.project_name || project.name || project.project_id;
+}
+function resetPropertySearch() {
+  ++propertySearchRevision;
+  searchedDesignation = '';
+  searchMatches = [];
+  $('propertyMatches').replaceChildren();
+  $('propertyNew').hidden = true;
+  $('newPropertyForm').hidden = true;
+  $('propertySearchStatus').textContent = '';
+}
+function chooseProperty(project, property) {
+  // En bekräftad befintlig fastighet behåller sitt projekt och sin historik.
+  ++propertySearchRevision;
+  $('propertySearchFields').disabled = true;
+  $('propertyMatches').replaceChildren();
+  $('propertyNew').hidden = true;
+  $('newPropertyForm').hidden = true;
+  $('draftForm').hidden = false;
+  $('propertySearchStatus').textContent = '';
+  $('selectedPropertyTitle').textContent = property.fastighetsbeteckning;
+  const address = property.byggnadens_adress || {};
+  $('selectedPropertyContext').textContent = [address.gata, address.ort].filter(Boolean).join(' · ');
+  draftOptions($('draftProject'), [project], p=>p.project_id, projectLabel, 'Projekt');
+  $('draftProject').value = project.project_id;
+  draftProperties = [property];
+  draftOptions($('draftProperty'), draftProperties, p=>p.fastighet_id, p=>p.fastighetsbeteckning, 'Fastighet');
+  $('draftProperty').value = property.fastighet_id;
+  draftBuildingOptions();
+  if (property.byggnader?.length === 1) {
+    $('draftBuilding').value = property.byggnader[0].byggnad_id;
+    void loadDraftStructure();
+  }
+  $('draftStatus').textContent = property.byggnader?.length ? 'Komplettera besiktningsuppgifterna.' : 'Fastigheten saknar byggnad. Komplettera fastigheten innan besiktning.';
+  $('draftBuilding').focus();
+}
+async function searchProperties(event) {
+  event.preventDefault();
+  resetPropertySearch();
+  const designation = $('propertyDesignation').value.trim();
+  if (!designation) return;
+  const revision = propertySearchRevision;
+  searchedDesignation = designation;
+  $('propertySearchStatus').textContent = 'Söker fastighet…';
+  const rows = [];
+  let failures = 0;
+  for (let i=0; i<propertyProjects.length; i+=5) {
+    const batch = propertyProjects.slice(i, i+5);
+    const results = await Promise.allSettled(batch.map(async project => {
+      const data = await api('/api/ovk/projects/'+enc(project.project_id)+'/fastighet', {cache:'no-store'});
+      if (!Array.isArray(data.fastigheter) || data.fastigheter.some(p=>p.project_id!==project.project_id || typeof p.fastighetsbeteckning!=='string' || !p.fastighet_id)) throw new Error('Ogiltigt fastighetsregister.');
+      return data.fastigheter.filter(p=>normalizeDesignation(p.fastighetsbeteckning)===normalizeDesignation(designation)).map(property=>({project,property}));
+    }));
+    if (revision !== propertySearchRevision) return;
+    for (const result of results) {
+      if (result.status === 'fulfilled') rows.push(...result.value);
+      else failures++;
+    }
+  }
+  if (revision !== propertySearchRevision) return;
+  searchMatches = rows;
+  for (const {project,property} of rows) {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'result-card';
+    const title = document.createElement('strong');
+    title.textContent = property.fastighetsbeteckning;
+    const meta = document.createElement('span');
+    const address = property.byggnadens_adress || {};
+    meta.textContent = [address.gata, address.ort, projectLabel(project)].filter(Boolean).join(' · ');
+    const action = document.createElement('span');
+    action.textContent = 'Ny besiktning på denna fastighet';
+    button.append(title, meta, action);
+    button.onclick = ()=>chooseProperty(project,property);
+    $('propertyMatches').append(button);
+  }
+  if (failures) {
+    $('propertySearchStatus').textContent = 'Sökningen är ofullständig. Välj en verifierad träff eller sök igen. Ny fastighet kan inte registreras innan alla register har lästs.';
+    return;
+  }
+  $('propertySearchStatus').textContent = rows.length ? 'Vi hittade tidigare registrerad fastighet. Bekräfta rätt fastighet eller registrera en annan.' : 'Ingen registrerad fastighet med den beteckningen hittades.';
+  $('propertyNew').textContent = rows.length ? 'Registrera annan fastighet' : 'Registrera ny fastighet';
+  $('propertyNew').hidden = false;
+}
+function showNewProperty() {
+  if (!searchedDesignation) return;
+  $('newPropertyNote').textContent = searchMatches.length ? 'Kontrollera att det verkligen är en annan fastighet. Befintliga fastigheter ska återanvändas.' : searchedDesignation;
+  $('newPropertyForm').hidden = false;
+  $('newPropertyOrt').focus();
+}
+async function getOrCreateProject(request) {
+  if (request.existingProject) return request.existingProject;
+  const id = request.projectId;
+  try {
+    const created = await api('/api/projects', {method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({name:request.designation,project_id:id})});
+    if (created.project_id!==id || projectLabel(created)!==request.designation) throw new Error('Projektidentiteten stämmer inte.');
+    return created;
+  } catch (error) {
+    // Samma slumpade ID vid omförsök. Bekräfta att en eventuell tidigare
+    // lyckad skrivning verkligen avser vårt projekt, annars stoppa.
+    const data = await api('/api/projects/'+enc(id), {cache:'no-store'});
+    const summary = data.summary;
+    if (!summary || summary.project_id!==id || projectLabel(summary)!==request.designation) throw error;
+    return summary;
+  }
+}
+async function saveNewProperty(event) {
+  event.preventDefault();
+  if (!pendingProperty) {
+    const designation = searchedDesignation;
+    const ort = $('newPropertyOrt').value.trim();
+    const gata = $('newPropertyAddress').value.trim();
+    const type = $('newPropertyType').value;
+    const buildingName = $('newPropertyBuilding').value.trim();
+    const existingProject = propertyProjects.find(p=>p.project_id===$('newPropertyProject').value);
+    if (!designation || !ort || !buildingName || !type) return;
+    if (searchMatches.length && !confirm('Registrera en annan fastighet med samma beteckning? Kontrollera tidigare träffar och ort.')) return;
+    pendingProperty = {designation,ort,gata,type,buildingName,existingProject,projectId:existingProject?.project_id||randomId('project-'),propertyId:randomId('property-'),buildingId:randomId('building-')};
+  }
+  const request = pendingProperty;
+  $('propertySearchFields').disabled = true;
+  $('newPropertyFields').disabled = true;
+  $('newPropertySave').disabled = true;
+  $('propertyNew').hidden = true;
+  $('propertyMatches').replaceChildren();
+  $('propertySearchStatus').textContent = 'Sparar fastighet…';
+  try {
+    const project = await getOrCreateProject(request);
+    const url = '/api/ovk/projects/'+enc(project.project_id)+'/fastighet/'+enc(request.propertyId);
+    const response = await fetch(url,{cache:'no-store'});
+    let property;
+    if (response.ok) {
+      property = await response.json();
+    } else if (response.status === 404) {
+      const missing = await response.json();
+      if (missing.detail?.code !== 'FASTIGHET_NOT_FOUND') throw new Error('Fastigheten kunde inte verifieras.');
+      const result = await api(url,{method:'PUT',headers:{'content-type':'application/json'},body:JSON.stringify({fastighetsbeteckning:request.designation,byggnadens_adress:{gata:request.gata,ort:request.ort},fastighetstyp:request.type,byggnader:[{byggnad_id:request.buildingId,internt_namn:request.buildingName}]})});
+      property = result.fastighet;
+    } else {
+      throw new Error('Fastighetsregistret kunde inte läsas.');
+    }
+    if (!property || property.project_id!==project.project_id || property.fastighet_id!==request.propertyId || property.fastighetsbeteckning!==request.designation || !property.byggnader?.some(b=>b.byggnad_id===request.buildingId)) throw new Error('Fastighetsidentiteten stämmer inte.');
+    if (!propertyProjects.some(p=>p.project_id===project.project_id)) propertyProjects.push(project);
+    pendingProperty = null;
+    chooseProperty(project,property);
+  } catch(error) {
+    $('propertySearchStatus').textContent = 'Kunde inte slutföra registreringen. Försök igen med samma uppgifter. Ett projekt kan redan ha skapats. '+error.message;
+  } finally {
+    $('newPropertySave').disabled = false;
+  }
+}
 async function initDraft(projects, requestedProject) {
   $('guidedDraft').hidden = false;
   document.querySelectorAll('[data-workflow-editor]').forEach(node=>node.hidden=true);
-  draftOptions($('draftProject'),projects,p=>p.project_id,p=>p.project_name||p.name||p.project_id,'Välj projekt');
-  if(projects.some(p=>p.project_id===requestedProject)) $('draftProject').value=requestedProject;
-  $('draftProject').onchange=draftLoadProperties;
-  $('draftProperty').onchange=draftBuildingOptions;
+  propertyProjects = projects;
+  draftOptions($('newPropertyProject'),projects,p=>p.project_id,projectLabel,'Skapa automatiskt');
+  if(projects.some(p=>p.project_id===requestedProject)) $('newPropertyProject').value=requestedProject;
+  $('propertySearchForm').onsubmit=searchProperties;
+  $('propertyDesignation').oninput=resetPropertySearch;
+  $('propertyNew').onclick=showNewProperty;
+  $('newPropertyForm').onsubmit=saveNewProperty;
   $('draftBuilding').onchange=loadDraftStructure;
   $('draftType').onchange=loadDraftHistory;
   $('draftDate').onchange=loadDraftHistory;
   $('draftAddSystem').onclick=draftAddSystem;
   $('draftForm').onsubmit=createDraft;
+  const today=new Date();
+  $('draftDate').value=[today.getFullYear(),String(today.getMonth()+1).padStart(2,'0'),String(today.getDate()).padStart(2,'0')].join('-');
   const registry = await api('/api/ovk/registry/besiktningsman');
   draftOptions($('draftInspector'),registry.besiktningsman||[],p=>p.besiktningsman_id,p=>p.namn+' · '+p.behorighet+' · '+p.certnummer,'Välj besiktningsman');
   $('draftFields').disabled=false;
-  await draftLoadProperties();
+  $('propertySearchFields').disabled=false;
+  $('draftStatus').textContent = registry.besiktningsman?.length ? 'Sök fastigheten för att börja.' : 'Ingen besiktningsman registrerad. Registrera en besiktningsman innan besiktningen kan sparas.';
 }
 async function init() {
   try {
@@ -356,6 +527,7 @@ async function init() {
   } catch (error) {
     $('status').className = 'status warn';
     $('status').textContent = 'OVK-besiktning kunde inte starta: ' + error.message;
+    $('draftStatus').textContent = 'Kunde inte starta ny besiktning: ' + error.message;
   }
 }
 init();
