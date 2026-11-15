@@ -57,6 +57,12 @@ def plan_inventory_promotion(
     for row in field_units:
         number = normalized(row["number"])
         numbers[number] = numbers.get(number, 0) + 1
+    for point in field_points:
+        if not any(
+            room["room_id"] == point.get("room_id") and room["unit_id"] == point["unit_id"]
+            for room in field_rooms
+        ):
+            conflicts.append(f"Don {point['point_label']}: säker rumskoppling saknas.")
     for source in field_units:
         unit_id = source["unit_id"]
         number = source["number"].strip()
@@ -148,7 +154,8 @@ def plan_inventory_promotion(
                     continue
                 room.setdefault("measurement_points", []).append(candidate)
                 points[point_id] = (room_id, candidate)
-                add("point", point_id, f"{full_label} / {system}")
+                flow = f"{design} l/s" if design is not None else "projekterat värde saknas"
+                add("point", point_id, f"{full_label} / {system} / {flow}")
     return {
         "structure": result,
         "additions": additions,
