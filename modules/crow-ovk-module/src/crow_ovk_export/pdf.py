@@ -9,7 +9,7 @@ varje sida och saknar verifieringsuppgifter.
 from __future__ import annotations
 
 from importlib.resources import as_file, files
-from typing import Literal
+from typing import Any, Literal
 
 import segno
 from fpdf import FPDF
@@ -145,7 +145,71 @@ def _result_banner(pdf: FPDF, label: str, *, positive: bool) -> None:
     pdf.set_text_color(24, 33, 43)
 
 
-def protocol_pdf(record: OvkWorkflowRecord) -> bytes:
+def _flow_section(pdf: FPDF, flow: dict[str, Any]) -> None:
+    directions = {
+        "tilluftsdon": "Tilluft",
+        "franluftsdon": "Frånluft",
+        "overluftsdon": "Överluft",
+    }
+    statuses = {
+        "pending": "Ej mätt",
+        "measured": "Uppmätt",
+        "not_measurable": "Ej mätbar",
+    }
+
+    def value(item: Any) -> str:
+        return "—" if item is None else str(item).replace(".", ",")
+
+    def line(text: str) -> None:
+        pdf.set_font(_FONT_FAMILY, size=10)
+        pdf.multi_cell(0, 6, text, new_x="LMARGIN", new_y="NEXT")
+
+    def summary(row: dict[str, Any]) -> None:
+        system = row["system_id"] or "System ej angivet"
+        direction = directions.get(row["direction"], row["direction"])
+        unit = row["unit_of_measure"]
+        completeness = "Komplett" if row["comparison_complete"] else "Ofullständig"
+        line(f"{system} · {direction} · {completeness}")
+        line(
+            f"Projekterat: {value(row['designed_sum'])} {unit} · "
+            f"Uppmätt: {value(row['measured_sum'])} {unit}"
+        )
+        line(
+            f"Mätta don: {row['measured_count']}/{row['point_count']} · "
+            f"Avvikelse (%): {value(row['deviation_percent'])}"
+        )
+
+    _heading(pdf, "Flödesprotokoll")
+    line("Delsummor är inte fullständiga systemflöden.")
+    if not flow["groups"]:
+        line("Inga registrerade mätpunkter.")
+        return
+    _heading(pdf, "Systemsummering")
+    for row in flow["system_totals"]:
+        summary(row)
+    _heading(pdf, "Mätpunkter per lägenhet eller utrymme")
+    for group in flow["groups"]:
+        line(f"Utrymme: {group['unit_number']}")
+        summary(group)
+        unit = group["unit_of_measure"]
+        for point in group["points"]:
+            room = point["room_name"] or point["room_id"] or "—"
+            status = statuses.get(point["status"], point["status"])
+            line(f"{room} · {point['point_label']} · {status}")
+            line(
+                f"Proj.: {value(point['designed_value'])} {unit} · "
+                f"Uppm.: {value(point['measured_value'])} {unit} · "
+                f"Avvikelse: {value(point['deviation'])} {unit}"
+            )
+            if point["reason"]:
+                line(f"Orsak: {point['reason']}")
+            if point["finding_id"]:
+                line(f"Anmärkning: {point['finding_id']}")
+
+
+def protocol_pdf(
+    record: OvkWorkflowRecord, *, flow_protocol: dict[str, Any] | None = None
+) -> bytes:
     inspection = record.inspection
     pdf = _CrowPdf(f"OVK-protokoll · Besiktnings-ID {inspection.inspection_id} · Crow-plattformen")
     pdf.add_page()
@@ -189,6 +253,9 @@ def protocol_pdf(record: OvkWorkflowRecord) -> bytes:
     else:
         pdf.set_font(_FONT_FAMILY, size=10)
         pdf.cell(0, 7, "Inga anmärkningar.", new_x="LMARGIN", new_y="NEXT")
+
+    if flow_protocol is not None:
+        _flow_section(pdf, flow_protocol)
 
     _heading(pdf, "Besiktningstäckning - fläktar/aggregat")
     if record.coverage is not None and record.coverage.aggregat:
