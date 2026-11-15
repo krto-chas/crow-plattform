@@ -140,7 +140,9 @@ def plan_inventory_promotion(
                 known_point = points.get(point_id)
                 if known_point is not None:
                     if known_point != (room_id, candidate):
-                        conflicts.append(f"{full_label}: befintligt don avviker, lämnas oförändrat.")
+                        conflicts.append(
+                            f"{full_label}: befintligt don avviker, lämnas oförändrat."
+                        )
                     continue
                 if any(
                     normalized(p["label"]) == normalized(point_label)
