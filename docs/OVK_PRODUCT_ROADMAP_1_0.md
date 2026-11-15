@@ -32,6 +32,8 @@ Marknadsbilden baseras på publicerad information, inte praktiska konkurrenttest
 
 ## 3. Användarytor och målbild
 
+[Property-first UX och Nordic Design](design/OVK_PROPERTY_FIRST.md) konkretiserar R1: mobil startsida med förberedda/pågående besiktningar, direktstart utan projektval och återanvändning av fastighet. Kontorsförberedelse är valfri. Följ den leveransordningen inom R1 utan att ändra övriga releasegrindar.
+
 ### Desktop — OVK:s egen arbetsplats
 
 Skrivbordsvarianten är i första hand en desktop-anpassad produktvy på befintlig webbplattform; eventuell paketerad/native klient är ett separat beslut efter behovsvalidering. Användaren ska inte behöva förstå Workbench eller Backbone för att utföra OVK.
