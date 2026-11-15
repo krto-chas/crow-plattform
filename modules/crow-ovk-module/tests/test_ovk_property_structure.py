@@ -172,3 +172,24 @@ def test_apartment_template_generator_is_served(tmp_path: Path) -> None:
     assert "point_id:inventoryId('point')" in script
     assert "room_id:inventoryId('room')" in script
     assert "unit_id:inventoryId('unit')" in script
+
+
+def test_apartment_template_completion_requires_preview_and_confirmation(tmp_path: Path) -> None:
+    app = FastAPI()
+    app.include_router(ovk_fastighet_router(tmp_path))
+    client = TestClient(app)
+    page = client.get("/ovk/fastighet").text
+    script = client.get("/ovk/fastighet/app.js").text
+
+    assert 'id="templateFillEmpty"' in page
+    assert 'id="templateConfirmSystems"' in page
+    assert 'id="templateApply" disabled' in page
+    assert "!$('templateConfirmSystems').checked" in script
+    assert "$('templateConfirmSystems').checked=false" in script
+    assert "clearBulkPreview();clearTemplatePreview();" in script
+    assert "Dubbla enhetsnummer i byggnaden" in script
+    assert "for(const item of completions)item.target.rooms=item.rooms" in script
+    assert "item.unit_id===u.unit_id" in script
+    assert "target.kind==='apartment'&&!target.rooms.length" in script
+    assert "measurement_points:r.measurement_points.map" in script
+    assert "return {revision:inventoryRevision,additions,completions,skipped}" in script
