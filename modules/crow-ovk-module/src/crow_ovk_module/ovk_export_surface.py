@@ -18,6 +18,8 @@ from fastapi.responses import Response
 from crow_ovk_intyg import OvkIntygRepository, intyg_verification_code, intyg_verify_url
 from crow_ovk_workflow import OvkWorkflowRepository
 
+from .ovk_protocol_source import require_current_protocol_source
+
 _SIGNING_KEY_ENV = "CROW_EXPORT_SIGNING_KEY"
 _DEFAULT_TTL_SECONDS = 3600
 _MAX_TTL_SECONDS = 86400
@@ -39,7 +41,7 @@ def ovk_export_router(data_root: Path) -> APIRouter:
         secret = _signing_secret()
         _validate_kind(kind)
         _ensure_document_exists(
-            workflow_repository, intyg_repository, project_id, kind, document_id
+            data_root, workflow_repository, intyg_repository, project_id, kind, document_id
         )
         ttl = _DEFAULT_TTL_SECONDS
         body = await request.body()
@@ -88,7 +90,9 @@ def ovk_export_router(data_root: Path) -> APIRouter:
                 status_code=403,
                 detail={"code": "OVK_EXPORT_SIGNATURE_REJECTED", "message": str(exc)},
             ) from exc
-        content = _render(workflow_repository, intyg_repository, project_id, kind, document_id)
+        content = _render(
+            data_root, workflow_repository, intyg_repository, project_id, kind, document_id
+        )
         return Response(
             content=content,
             media_type="application/pdf",
@@ -126,16 +130,18 @@ def _export_path(project_id: str, kind: str, document_id: str) -> str:
 
 
 def _ensure_document_exists(
+    data_root: Path,
     workflow_repository: OvkWorkflowRepository,
     intyg_repository: OvkIntygRepository,
     project_id: str,
     kind: str,
     document_id: str,
 ) -> None:
-    _render(workflow_repository, intyg_repository, project_id, kind, document_id)
+    _render(data_root, workflow_repository, intyg_repository, project_id, kind, document_id)
 
 
 def _render(
+    data_root: Path,
     workflow_repository: OvkWorkflowRepository,
     intyg_repository: OvkIntygRepository,
     project_id: str,
@@ -153,7 +159,8 @@ def _render(
                         "unresolved_review_count": record.unresolved_review_count,
                     },
                 )
-            return protocol_pdf(record)
+            flow = require_current_protocol_source(data_root, project_id, document_id, record)
+            return protocol_pdf(record, flow_protocol=flow)
         intyg = intyg_repository.load(project_id, document_id)
         return intyg_pdf(
             intyg,

@@ -9,6 +9,9 @@ from typing import Any
 from fastapi import HTTPException
 
 from crow_ovk_workflow import OvkWorkflowRecord, record_to_payload
+from crow_ovk_workflow.flow_protocol import build_flow_protocol
+
+from .ovk_field_surface import _field_data_from_payload
 
 
 def _source(
@@ -24,10 +27,13 @@ def _source(
     derived["planning"] = payload["planning"]
     derived["building_structure_sha256"] = payload["building_structure_sha256"]
     canonical = json.dumps(derived, sort_keys=True, ensure_ascii=False, separators=(",", ":"))
+    snapshot = (root / "snapshot.json").read_bytes()
+    flow = build_flow_protocol(_field_data_from_payload(json.loads(snapshot)))
     return {
+        "flow_protocol": flow,
         "project_id": project_id,
         "inspection_id": inspection_id,
-        "snapshot_sha256": sha256((root / "snapshot.json").read_bytes()).hexdigest(),
+        "snapshot_sha256": sha256(snapshot).hexdigest(),
         "context_sha256": sha256((root / "context.json").read_bytes()).hexdigest(),
         "derived_sha256": sha256(canonical.encode("utf-8")).hexdigest(),
     }
@@ -53,15 +59,21 @@ def save_protocol_source(
 
 def require_current_protocol_source(
     data_root: Path, project_id: str, inspection_id: str, record: OvkWorkflowRecord
-) -> None:
+) -> dict[str, Any] | None:
     root = data_root / "projects" / project_id / "ovk-field" / inspection_id
     path = root / "protocol-source.json"
     if not path.exists() and not (root / "snapshot.json").exists():
-        return
+        return None
     try:
         stored = json.loads(path.read_bytes())
-        if stored == _source(data_root, project_id, inspection_id, record):
-            return
-    except (OSError, ValueError):
+        current = _source(data_root, project_id, inspection_id, record)
+        flow: dict[str, Any] = current["flow_protocol"]
+        if stored == current:
+            return flow
+        # Older source records bind the same snapshot but lack the projection.
+        legacy = {key: value for key, value in current.items() if key != "flow_protocol"}
+        if stored == legacy:
+            return flow
+    except (OSError, ValueError, KeyError, TypeError):
         pass
     raise HTTPException(status_code=409, detail={"code": "OVK_PROTOCOL_SOURCE_STALE"})
