@@ -295,3 +295,73 @@ def test_surface_validates_kind_ttl_and_missing_document(
     missing = client.post("/api/ovk/projects/p1/export/intyg/saknas/sign")
     assert missing.status_code == 404
     assert missing.json()["detail"]["code"] == "OVK_EXPORT_DOCUMENT_NOT_FOUND"
+
+
+def test_flow_pdf_renders_incomplete_projection() -> None:
+    summary = {
+        "system_id": "FTX01",
+        "direction": "franluftsdon",
+        "unit_of_measure": "l/s",
+        "designed_sum": "20",
+        "measured_sum": "8.5",
+        "measured_count": 1,
+        "point_count": 2,
+        "comparison_complete": False,
+        "deviation_percent": None,
+    }
+    group = {
+        **summary,
+        "unit_number": "1201",
+        "points": [
+            {
+                "room_name": "Kök",
+                "room_id": "room-1",
+                "point_label": "FD1",
+                "status": "measured",
+                "designed_value": "10",
+                "measured_value": "8.5",
+                "deviation": "-1.5",
+                "reason": None,
+                "finding_id": "f1",
+            },
+            {
+                "room_name": "Bad",
+                "room_id": "room-2",
+                "point_label": "FD2",
+                "status": "not_measurable",
+                "designed_value": "10",
+                "measured_value": None,
+                "deviation": None,
+                "reason": "Blockerat don",
+                "finding_id": None,
+            },
+        ],
+    }
+    flow = {"system_totals": [summary], "groups": [group]}
+    text = _pdf_text(protocol_pdf(_record(), flow_protocol=flow))
+    for marker in (
+        "Flödesprotokoll",
+        "Ofullständig",
+        "8,5 l/s",
+        "1201",
+        "Ej mätbar",
+        "Blockerat don",
+        "Anmärkning: f1",
+    ):
+        assert marker in text
+
+
+def test_protocol_export_rejects_missing_field_source(
+    tmp_path: Path, monkeypatch: MonkeyPatch
+) -> None:
+    OvkWorkflowRepository(tmp_path).save(_record())
+    client = _client(tmp_path, monkeypatch)
+    sign_url = "/api/ovk/projects/p1/export/protokoll/ovk-001/sign"
+    signed = client.post(sign_url)
+    assert signed.status_code == 200
+    root = tmp_path / "projects" / "p1" / "ovk-field" / "ovk-001"
+    root.mkdir(parents=True)
+    (root / "snapshot.json").write_text("{}", encoding="utf-8")
+    for response in (client.post(sign_url), client.get(signed.json()["url"])):
+        assert response.status_code == 409
+        assert response.json()["detail"]["code"] == "OVK_PROTOCOL_SOURCE_STALE"
