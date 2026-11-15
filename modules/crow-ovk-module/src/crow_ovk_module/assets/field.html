@@ -86,6 +86,7 @@
     .foot{background:#f7f8fa;border-top-color:var(--line)}.foot .inner{grid-template-columns:minmax(0,1fr) minmax(0,2fr)}.foot .btn{margin:0;padding:12px 8px;font-size:14px;overflow-wrap:anywhere}
     button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible,summary:focus-visible{outline:3px solid var(--accent);outline-offset:3px}
     @media(max-width:380px){.wrap{padding:14px 10px 128px}.card{padding:14px}.round-toolbar,.row{grid-template-columns:1fr}.keys{gap:5px}.keys .chip{padding:10px 3px}.mrow{grid-template-columns:minmax(0,1fr) 72px 44px;gap:6px}}
+    .field-template{border:1px solid var(--line);border-radius:12px;background:#f7f8fa;padding:14px;margin:10px 0 18px;overflow-wrap:anywhere}.field-template h3{font-size:17px;margin:0 0 8px}.field-template select{width:100%;min-height:44px}.template-preview{margin:14px 0;max-height:340px;overflow:auto}.template-room{background:#fff;border:1px solid var(--line);border-radius:10px;padding:10px;margin:8px 0}.template-check{display:flex;align-items:flex-start;gap:10px;font-size:14px;line-height:1.45;padding:8px 0;margin:0;color:var(--ink);cursor:pointer}.template-check input[type=checkbox]{width:20px;height:20px;flex:none;min-height:0;margin:0;accent-color:var(--accent)}.template-point{padding-left:12px;font-weight:400}.template-point span{min-width:0}.template-preview .template-point small{display:block;color:var(--mut);font-size:12px}.template-check:has(input:disabled){opacity:.6}.template-summary{font-size:13px;color:var(--mut);margin:10px 0}.field-template .btn{width:100%}#fieldTemplateStatus:empty{display:none}
   </style>
 </head>
 <body>
@@ -163,6 +164,16 @@
     </div>
 
     <div class="card"><div class="eyebrow">1 · Rum</div><h2 class="section-heading">Välj rum</h2>
+      <div id="fieldTemplatePanel" class="field-template hidden">
+        <h3 class="section-heading">Återanvänd lägenhetstyp</h3>
+        <p class="room-progress">Samma nummersuffix kan betyda samma planlösning. Kontrollera alltid lägenhetens verkliga rum, don och system.</p>
+        <label for="fieldTemplateSource">Referenslägenhet</label>
+        <select id="fieldTemplateSource"></select>
+        <div id="fieldTemplatePreview" class="template-preview"></div>
+        <label class="template-check"><input type="checkbox" id="fieldTemplateConfirm"> Jag har kontrollerat att valda rum, don, systemkopplingar och projekterade värden gäller här.</label>
+        <button type="button" class="btn" id="fieldTemplateApply" disabled>Återanvänd vald struktur</button>
+      </div>
+      <p id="fieldTemplateStatus" class="room-progress" role="status" aria-live="polite"></p>
       <div class="chips" id="roomChips"></div>
       <p class="room-section-label" id="roomPresetLabel"></p><div class="chips" id="roomPresetChips"></div>
     </div>
