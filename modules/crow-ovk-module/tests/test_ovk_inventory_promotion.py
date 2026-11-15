@@ -1,3 +1,4 @@
+from copy import deepcopy
 from pathlib import Path
 from typing import Any
 
@@ -7,6 +8,7 @@ from fastapi.testclient import TestClient
 from crow_ovk import OvkObject, VentilationSystemRef
 from crow_ovk_module.ovk_fastighet_surface import ovk_fastighet_router
 from crow_ovk_module.ovk_field_surface import ovk_field_router
+from crow_ovk_module.ovk_inventory_promotion import plan_inventory_promotion
 from crow_ovk_workflow import OvkWorkflowRepository, build_record
 
 
@@ -89,15 +91,11 @@ def test_promotion_is_additive_revision_bound_and_preserves_inspection(tmp_path:
     assert client.post(wrong_building, json={}).status_code == 409
     preview = client.post(promotion + "/preview", json={})
     assert preview.status_code == 200, preview.text
-    assert preview.json()["unresolved"] == [
-        {"point_id": "m1", "label": "1201 / Badrum / FL01"}
-    ]
+    assert preview.json()["unresolved"] == [{"point_id": "m1", "label": "1201 / Badrum / FL01"}]
     assert len(preview.json()["conflicts"]) == 2
     assert client.get(url).json() == structure
     assert (
-        client.post(
-            promotion + "/preview", json={"assignments": {"m1": "unknown"}}
-        ).status_code
+        client.post(promotion + "/preview", json={"assignments": {"m1": "unknown"}}).status_code
         == 422
     )
     assignments = {"m1": "LB01"}
@@ -183,3 +181,71 @@ def test_promotion_editor_is_served(tmp_path: Path) -> None:
     assert "preview_token:plan.preview_token,confirmed:true" in script
     assert "X-OVK-Inventory-Revision" in script
     assert "inventoryBusy||inventoryDirty" in script
+
+
+def test_promotion_leaves_existing_design_and_conflicting_rooms_unchanged() -> None:
+    inventory = {
+        "systems": [{"system_id": "LB01", "label": "LB01", "system_type": "FTX"}],
+        "units": [
+            {
+                "unit_id": "u1",
+                "number": "1101",
+                "kind": "apartment",
+                "rooms": [
+                    {
+                        "room_id": "r1",
+                        "name": "Kök",
+                        "measurement_points": [
+                            {
+                                "point_id": "m1",
+                                "label": "FL01",
+                                "point_type": "franluftsdon",
+                                "system_id": "LB01",
+                                "designed_value": "15",
+                                "unit_of_measure": "l/s",
+                            }
+                        ],
+                    }
+                ],
+            }
+        ],
+        "technical_spaces": [],
+    }
+    snapshot = {
+        "units": [
+            {"unit_id": "u1", "number": "1101", "kind": "apartment"},
+            {"unit_id": "u2", "number": "1201", "kind": "apartment", "status": "bom"},
+        ],
+        "rooms": [
+            {"room_id": "r1", "unit_id": "u1", "name": "Kök"},
+            {"room_id": "r2", "unit_id": "u1", "name": "Kök"},
+            {"room_id": "r3", "unit_id": "u2", "name": "Hall"},
+        ],
+        "measurements": [
+            {
+                "measurement_id": "m1",
+                "unit_id": "u1",
+                "room_id": "r1",
+                "point_type": "franluftsdon",
+                "point_label": "FL01",
+                "system_id": "LB01",
+                "designed_value": "20",
+                "measured_value": "18",
+                "unit_of_measure": "l/s",
+            }
+        ],
+    }
+    before = deepcopy(inventory)
+    source_before = deepcopy(snapshot)
+    plan = plan_inventory_promotion(inventory, snapshot, {})
+    assert inventory == before
+    assert snapshot == source_before
+    assert plan["structure"]["units"][0] == inventory["units"][0]
+    assert plan["structure"]["units"][1] == {
+        "unit_id": "u2",
+        "number": "1201",
+        "kind": "apartment",
+        "rooms": [],
+    }
+    assert plan["additions"] == [{"kind": "unit", "id": "u2", "label": "1201"}]
+    assert len(plan["conflicts"]) == 3
