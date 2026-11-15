@@ -45,11 +45,43 @@
         <div id="pbResult" role="status" style="margin-top:8px;font-size:13px"></div>
       </div></details>
       <script>
+      function renderFlowReview(flow){
+        const section=document.createElement('section');
+        const heading=document.createElement('h3');heading.textContent='Flödesprotokoll – granskningsunderlag';section.append(heading);
+        const note=document.createElement('p');note.textContent='Ändra mätvärden i fältbesiktningen och synkronisera innan nytt utkast byggs. Delsummor är inte fullständiga systemflöden.';section.append(note);
+        const directions={tilluftsdon:'Tilluft',franluftsdon:'Frånluft',overluftsdon:'Överluft'};
+        const statuses={pending:'Ej mätt',measured:'Uppmätt',not_measurable:'Ej mätbar'};
+        const value=v=>v==null?'—':String(v).replace('.',',');
+        const percent=v=>v==null?'—':value(v)+' %';
+        function table(headers,rows){
+          const wrap=document.createElement('div');wrap.style.overflowX='auto';
+          const table=document.createElement('table');table.style.width='100%';
+          const head=table.createTHead().insertRow();
+          for(const label of headers){const th=document.createElement('th');th.scope='col';th.textContent=label;head.append(th)}
+          const body=table.createTBody();
+          for(const row of rows){const tr=body.insertRow();for(const cell of row){const td=tr.insertCell();td.textContent=String(cell??'—');td.style.padding='6px';td.style.textAlign='left'}}
+          wrap.append(table);return wrap;
+        }
+        const summary=row=>[row.system_id??'System ej angivet',directions[row.direction]??row.direction,row.unit_of_measure,value(row.designed_sum),value(row.measured_sum),row.measured_count+'/'+row.point_count,row.comparison_complete?'Komplett':'Ofullständig',percent(row.deviation_percent)];
+        const headers=['System','Flödestyp','Enhet','Proj. summa','Uppm. summa','Mätta don','Jämförelse','Avvikelse'];
+        if(!flow.groups.length){const empty=document.createElement('p');empty.textContent='Inga registrerade mätpunkter.';section.append(empty);return section}
+        section.append(table(headers,flow.system_totals.map(summary)));
+        for(const group of flow.groups){
+          const details=document.createElement('details');details.style.marginTop='12px';
+          const title=document.createElement('summary');title.textContent=group.unit_number+' · '+(group.system_id??'System ej angivet')+' · '+(directions[group.direction]??group.direction)+' · '+group.measured_count+'/'+group.point_count+' mätta';details.append(title);
+          details.append(table(headers,[summary(group)]));
+          details.append(table(['Rum','Don','Proj.','Uppm.','Avvikelse (absolut)','Status','Orsak','Anmärkning'],group.points.map(point=>[point.room_name??point.room_id,point.point_label,value(point.designed_value),value(point.measured_value),value(point.deviation),statuses[point.status]??point.status,point.reason,point.finding_id])));
+          section.append(details);
+        }
+        return section;
+      }
+      let pbRequest=0;
+      for(const id of ['pbProject','pbInspection'])document.getElementById(id).addEventListener('input',()=>{pbRequest++;document.getElementById('pbResult').replaceChildren()});
       document.getElementById('pbBuild').onclick=async()=>{
         const project=document.getElementById('pbProject').value.trim();
         const inspection=document.getElementById('pbInspection').value.trim().toLowerCase();
         const out=document.getElementById('pbResult');
-        const revision=loadRevision;
+        const revision=loadRevision, requestId=++pbRequest;
         if(!project||!inspection){out.textContent='Ange projekt-id och besiktnings-id.';return}
         out.textContent='Bygger…';
         try{
@@ -58,15 +90,16 @@
           if(!snapshot.ok)throw new Error('Projektbundet fältunderlag saknas.');
           const field=await snapshot.json();
           if(field.project_id!==project||field.inspection_id!==inspection||!field.snapshot_sha256)throw new Error('Fältidentiteten stämmer inte.');
-          if(revision!==loadRevision)return;
+          if(revision!==loadRevision||requestId!==pbRequest)return;
           const response=await fetch(base+'/protokoll-utkast',{method:'POST',headers:{'content-type':'application/json','X-OVK-Base-Revision':field.snapshot_sha256},body:'{}'});
           const data=await response.json();
-          if(revision!==loadRevision)return;
+          if(revision!==loadRevision||requestId!==pbRequest)return;
           if(!response.ok){out.textContent=(data.detail&&(data.detail.code+' · '+(data.detail.message||'')))||'Fel';return}
           const utkast=data.utkast;
           const rows=[...utkast.anmarkningar,...utkast.upplysningar];
           out.innerHTML='<strong>Resultat: '+esc(utkast.besiktningsresultat.replaceAll('_',' '))+'</strong><br>'+
             (rows.length?rows.map(row=>'<span style="display:inline-block;background:#eef2f5;border-radius:4px;padding:1px 6px;margin:2px 4px 2px 0;font-size:11px">' +esc(row.pos||'–')+' · klass '+esc(row.classification)+'</span>'+esc(row.text)).join('<br>'):'Inga anmärkningar.');
+          if(data.flow_protocol)out.append(renderFlowReview(data.flow_protocol));
           if(data.followup_review?.length){
             const section=document.createElement('section');const heading=document.createElement('h3');heading.textContent='Återkontroller – granskningsunderlag';section.append(heading);
             const labels={resolved:'Åtgärdad',remaining:'Kvarstår',changed:'Förändrad',not_applicable:'Ej tillämplig',not_checked:'Ej återkontrollerad'};
@@ -79,7 +112,7 @@
             }
             out.append(section);
           }
-        }catch(error){if(revision===loadRevision)out.textContent='Fel: '+error}
+        }catch(error){if(revision===loadRevision&&requestId===pbRequest)out.textContent='Fel: '+error}
       };
       </script>
     </section>
