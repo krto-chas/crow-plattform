@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from datetime import date
 from pathlib import Path
 
@@ -222,6 +223,8 @@ def test_protokoll_utkast_endpoint_builds_record_from_snapshot(
     preview_url = "/api/ovk/projects/p1/inspections/ovk-brygga/intyg/preview"
     source = tmp_path / "projects" / "p1" / "ovk-field" / "ovk-brygga" / "protocol-source.json"
     assert source.is_file()
+    stored = json.loads(source.read_text(encoding="utf-8"))
+    assert stored["flow_protocol"] == body["flow_protocol"]
     snapshot["findings"] = []
     changed = client.put(f"{base}/sync", json=snapshot, headers={"X-OVK-Base-Revision": revision})
     assert changed.status_code == 200, changed.text
