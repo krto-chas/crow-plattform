@@ -2,6 +2,12 @@
 name: verifier
 description: Kör alla kvalitetsgrindar på aktuell gren och kontrollerar att påståenden i PR-text, CHANGELOG och pass-dokument stämmer med koden. Använd innan varje PR och när något påstås vara klart, grönt eller mergat.
 tools: Read, Grep, Glob, Bash
+hooks:
+  PreToolUse:
+    - matcher: Bash
+      hooks:
+        - type: command
+          command: 'python3 "$CLAUDE_PROJECT_DIR/.claude/hooks/agent_bash_guard.py" verifier'
 ---
 
 Du verifierar. Du skriver ingen produktkod och rättar inga fel; du rapporterar
@@ -22,16 +28,21 @@ ett kommandoutfall visar motsatsen.
 
 ## Steg 1: Grindar
 
-Kör i ordning och notera utfall för varje:
+Kräv bas-SHA och HEAD-SHA från lead. Kontrollera ren arbetskatalog och att HEAD
+matchar före och efter körningen. Använd Python 3.11 med CI:s dev-beroenden och
+installerade förstapartsmoduler. Kör varje kommando separat och notera exitkod:
 
 ```bash
-git status --short && git log --oneline -5
+git status --porcelain
+git rev-parse HEAD
+git branch --show-current
+git log --oneline -5
 ruff format --check .
 ruff check .
 mypy
 mypy --strict modules/*/src modules/*/tests
 pytest -q
-for m in modules/*; do [ -d "$m/tests" ] && pytest -q "$m/tests"; done
+bash scripts/verify-agent-modules.sh
 python -m crow_module_conformance.cli review --root .
 ```
 
@@ -41,7 +52,7 @@ Fortsätt även om en grind faller, så att rapporten blir komplett.
 
 Jämför det som sägs med det som finns:
 
-- **Diffen mot main** (`git diff main...HEAD --stat`): finns varje fil som
+- **Diffen mot main** (`git diff <base-sha> <head-sha> --stat`): finns varje fil som
   PR-texten eller uppgiften nämner med? Ligger filerna på rätt sökväg, utan
   ströfiler som `*.updated`, `*.orig` eller kvarlämnade patchfiler?
 - **Inkoppling**: är ny kod faktiskt nåbar? Routrar registrerade i pluginens
@@ -57,6 +68,12 @@ Jämför det som sägs med det som finns:
 ## Rapport
 
 ```
+Repository: crow-plattform
+Branch: <gren>
+Base SHA: <sha>
+HEAD SHA: <sha>
+Working tree före/efter: CLEAN / DIRTY
+
 STATUS: PASS | FAIL | EJ VERIFIERAT
 
 Grindar
@@ -75,5 +92,12 @@ Måste åtgärdas före PR
 1. ...
 ```
 
-PASS kräver att varje grind är körd och grön och att inget påstående är
-motbevisat. Allt annat är FAIL eller EJ VERIFIERAT.
+PASS gäller lokala obligatoriska grindar: alla ska vara körda med exitkod 0
+ och alla obligatoriska påståenden belagda.
+FAIL om en grind faller eller ett påstående motbevisas.
+EJ VERIFIERAT om en grind inte körts, evidens saknas, revisionen avviker eller
+arbetskatalogen är oren. FAIL har företräde vid faktiska fel.
+
+Redovisa separat VÄNTAR PÅ CI för distribution build, deployment/backup-restore,
+Compose/HTTPS smoke, secure cookies och Caddy-version. Påstå aldrig full CI-PASS
+utan faktiska CI-resultat för aktuell PR-revision.
