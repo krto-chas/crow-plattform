@@ -196,3 +196,62 @@ def test_apartment_template_completion_requires_preview_and_confirmation(tmp_pat
     assert "target.kind==='apartment'&&!target.rooms.length" in script
     assert "measurement_points:r.measurement_points.map" in script
     assert "return {revision:inventoryRevision,additions,completions,skipped}" in script
+
+
+def test_completed_inventory_roundtrip_keeps_existing_unit_identity(tmp_path: Path) -> None:
+    app = FastAPI()
+    app.include_router(ovk_fastighet_router(tmp_path))
+    client = TestClient(app)
+    property_url = "/api/ovk/projects/p1/fastighet/f1"
+    url = property_url + "/byggnad/hus-a/struktur"
+    assert (
+        client.put(
+            property_url,
+            json={
+                "fastighetsbeteckning": "Test 1:1",
+                "byggnader": [{"byggnad_id": "hus-a", "internt_namn": "Hus A"}],
+            },
+        ).status_code
+        == 200
+    )
+    source_point = {
+        "point_id": "p1",
+        "label": "FL01",
+        "point_type": "franluftsdon",
+        "system_id": "LB01",
+        "designed_value": "15.5",
+        "unit_of_measure": "l/s",
+    }
+    source_room = {"room_id": "r1", "name": "Kök", "measurement_points": [source_point]}
+    source = {
+        "unit_id": "u1",
+        "number": "1101",
+        "kind": "apartment",
+        "rooms": [source_room],
+    }
+    empty = {"unit_id": "u2", "number": "1201", "kind": "apartment", "rooms": []}
+    individual = {
+        "unit_id": "u3",
+        "number": "1301",
+        "kind": "apartment",
+        "rooms": [{"room_id": "r3", "name": "Individuell planlösning"}],
+    }
+    inventory = {
+        "units": [source, empty, individual],
+        "systems": [{"system_id": "LB01", "system_type": "FTX", "label": "LB01"}],
+        "technical_spaces": [],
+    }
+    assert client.put(url, json=inventory).status_code == 200
+    completed = {
+        **empty,
+        "rooms": [
+            {
+                "room_id": "r2",
+                "name": "Kök",
+                "measurement_points": [{**source_point, "point_id": "p2"}],
+            }
+        ],
+    }
+    result = client.put(url, json={**inventory, "units": [source, completed, individual]})
+    assert result.status_code == 200
+    assert client.get(url).json()["units"] == [source, completed, individual]
