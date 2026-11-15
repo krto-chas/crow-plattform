@@ -167,7 +167,10 @@ def test_apartment_template_generator_is_served(tmp_path: Path) -> None:
     assert 'id="templateApply" disabled' in page
     assert "function templatePlan()" in script
     assert "suffixes.has(rule.suffix)" in script
-    assert "if(existing.has(number)){skipped.push(number);continue}" in script
+    assert "if(existing.has(number)){" in script
+    assert "if(fillEmpty&&target.kind==='apartment'&&!target.rooms.length)" in script
+    assert "completions.push({unit_id:target.unit_id" in script
+    assert "else skipped.push(number)" in script
     assert "JSON.stringify(plan)!==JSON.stringify(templatePreview)" in script
     assert "point_id:inventoryId('point')" in script
     assert "room_id:inventoryId('room')" in script
