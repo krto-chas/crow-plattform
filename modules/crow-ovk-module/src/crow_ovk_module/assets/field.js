@@ -140,6 +140,9 @@ function fieldTemplatePlan(sourceId,targetId){
   const source=state.units.find(u=>u.unit_id===sourceId);
   const target=state.units.find(u=>u.unit_id===targetId);
   if(!fieldTemplateEligible(target)||!source||source===target||source.status==='bom'||apartmentSuffix(source)!==apartmentSuffix(target)||unitSystem(source)!==unitSystem(target))throw new Error('Lägenheterna är inte lämpliga för denna mall.');
+  for(const unit of [source,target]){
+    if(state.units.filter(u=>String(u.number).trim()===String(unit.number).trim()).length!==1)throw new Error('Lägenhetsnumret är inte entydigt.');
+  }
   const sourceRooms=state.rooms.filter(r=>r.unit_id===sourceId);
   const sourcePoints=state.measurements.filter(p=>p.unit_id===sourceId);
   const roomIds=new Set(),pointIds=new Set();
@@ -188,6 +191,7 @@ function renderFieldTemplate(){
   apply.onclick=null;source.onchange=null;confirmation.onchange=null;
   if(!candidates.length)return;
   for(const candidate of candidates)source.add(new Option(candidate.number+' · '+unitSystem(candidate),candidate.unit_id));
+  source.value=candidates[0].unit_id;
   function renderPreview(){
     confirmation.checked=false;apply.disabled=true;preview.replaceChildren();
     const plan=fieldTemplatePlan(source.value,target.unit_id);
