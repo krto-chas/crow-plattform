@@ -545,7 +545,7 @@ def test_empty_planned_assignment_keeps_context_and_history(tmp_path: Path) -> N
     assert "assignment_name:draft.assignment_name||''" in app
     assert "if(state.assignment_name||state.units.length||state.technical_spaces.length)" in app
     assert "if(types.length>1){" in app
-    assert "&&state.units.length===0" not in prefill
+    assert "if(state.inspection_id||state.units.length)return;" in app
 
     payload = app.split("function payload()", 1)[1].split("async function writeDraft", 1)[0]
     assert "assignment_name" not in payload
