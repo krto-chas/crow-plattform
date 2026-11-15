@@ -268,26 +268,6 @@ function draftBuildingOptions() {
   void loadDraftHistory();
   $('draftOwner').textContent = property ? [property.byggnadsagare_namn, property.byggnadens_adress?.gata].filter(Boolean).join(' · ') : '';
 }
-async function draftLoadProperties() {
-  const revision = ++draftRevision;
-  draftProperties = [];
-  draftBuildingOptions();
-  draftOptions($('draftProperty'), [], p => p.fastighet_id, p => p.fastighetsbeteckning, 'Välj fastighet');
-  $('draftCreate').disabled = true;
-  const project = $('draftProject').value;
-  if (!project) { $('draftStatus').textContent = 'Välj projekt.'; return; }
-  $('draftStatus').textContent = 'Laddar fastigheter…';
-  try {
-    const data = await api('/api/ovk/projects/' + enc(project) + '/fastighet');
-    if (revision !== draftRevision) return;
-    draftProperties = data.fastigheter || [];
-    draftOptions($('draftProperty'), draftProperties, p => p.fastighet_id, p => p.fastighetsbeteckning, 'Välj fastighet');
-    $('draftStatus').textContent = draftProperties.length ? 'Välj fastighet och byggnad.' : 'Inga fastigheter. Registrera en fastighet först.';
-    $('draftCreate').disabled = true;
-  } catch (error) {
-    if (revision === draftRevision) $('draftStatus').textContent = 'Kunde inte läsa fastigheter: ' + error.message;
-  }
-}
 function draftAddSystem() {
   const row = document.createElement('div');
   row.className = 'draft-system';
@@ -371,7 +351,7 @@ function chooseProperty(project, property) {
     $('draftBuilding').value = property.byggnader[0].byggnad_id;
     void loadDraftStructure();
   }
-  $('draftStatus').textContent = property.byggnader?.length ? 'Komplettera besiktningsuppgifterna.' : 'Fastigheten saknar byggnad. Komplettera fastigheten innan besiktning.';
+  $('draftStatus').textContent = !$('draftInspector').options[1] ? 'Ingen besiktningsman registrerad. Registrera en besiktningsman innan besiktningen kan sparas.' : property.byggnader?.length ? 'Komplettera besiktningsuppgifterna.' : 'Fastigheten saknar byggnad. Komplettera fastigheten innan besiktning.';
   $('draftBuilding').focus();
 }
 async function searchProperties(event) {
@@ -436,7 +416,7 @@ async function getOrCreateProject(request) {
     if (created.project_id!==id || projectLabel(created)!==request.designation) throw new Error('Projektidentiteten stämmer inte.');
     return created;
   } catch (error) {
-    // Samma slumpade ID vid omförsök. Bekräfta att en eventuell tidigare
+    // Samma slumpade ID vid omförsök i samma sidflöde. Bekräfta att en eventuell tidigare
     // lyckad skrivning verkligen avser vårt projekt, annars stoppa.
     const data = await api('/api/projects/'+enc(id), {cache:'no-store'});
     const summary = data.summary;
