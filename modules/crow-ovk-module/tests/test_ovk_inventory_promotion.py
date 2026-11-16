@@ -184,7 +184,7 @@ def test_promotion_editor_is_served(tmp_path: Path) -> None:
 
 
 def test_promotion_leaves_existing_design_and_conflicting_rooms_unchanged() -> None:
-    inventory = {
+    inventory: dict[str, Any] = {
         "systems": [{"system_id": "LB01", "label": "LB01", "system_type": "FTX"}],
         "units": [
             {
