@@ -1,7 +1,10 @@
 from __future__ import annotations
 
 import json
+from copy import deepcopy
+from hashlib import sha256
 from pathlib import Path
+from typing import Any
 
 from fastapi.testclient import TestClient
 from pytest import MonkeyPatch
@@ -531,3 +534,279 @@ def test_property_first_api_chain_from_empty_project_list(
     assert len(client.get(root + "/inspections").json()["inspections"]) == 2
     assert len(client.get("/api/projects").json()) == 1
     assert client.get(property_url).json() == property_record
+
+
+def test_property_first_field_inventory_promotion_and_recurring_inspection(
+    tmp_path: Path, monkeypatch: MonkeyPatch
+) -> None:
+    """Exercise the real HTTP surfaces across two inspections of a new property."""
+    client = _client(tmp_path, monkeypatch)
+    assert client.get("/api/projects").json() == []
+    project = "property-lifecycle"
+    root = f"/api/ovk/projects/{project}"
+    property_url = root + "/fastighet/eken"
+    structure_url = property_url + "/byggnad/hus-a/struktur"
+    assert (
+        client.post("/api/projects", json={"name": "Eken 12:3", "project_id": project}).status_code
+        == 201
+    )
+    assert (
+        client.put(
+            property_url,
+            json={
+                "fastighetsbeteckning": "Eken 12:3",
+                "fastighetstyp": "flerbostadshus",
+                "byggnader": [{"byggnad_id": "hus-a", "internt_namn": "Hus A"}],
+            },
+        ).status_code
+        == 200
+    )
+    assert (
+        client.put(
+            "/api/ovk/registry/besiktningsman/inspector-1",
+            json={
+                "namn": "Test Kontrollant",
+                "behorighet": "K",
+                "certifieringsorgan": "Test",
+                "certnummer": "123",
+                "giltig_till": "2035-12-31",
+            },
+        ).status_code
+        == 200
+    )
+    empty_structure = {"units": [], "systems": [], "technical_spaces": []}
+    assert client.get(structure_url).json() == empty_structure
+    first_workflow = root + "/inspections/ovk-first"
+    first_field = root + "/field/ovk-first"
+    second_workflow = root + "/inspections/ovk-second"
+    second_field = root + "/field/ovk-second"
+    system = {"system_id": "LB01", "system_type": "FTX", "label": "LB01"}
+    draft: dict[str, Any] = {
+        "inspection": {
+            "object": {
+                "object_id": "eken",
+                "project_id": project,
+                "building_id": "hus-a",
+                "name": "Eken 12:3 · Hus A",
+            },
+            "systems": [system],
+            "checkpoints": [],
+            "measurements": [],
+            "findings": [],
+            "actions": [],
+        },
+        "review": [],
+        "planning": {
+            "inspector_id": "inspector-1",
+            "planned_date": "2027-01-15",
+            "inspection_type": "aterkommande",
+        },
+    }
+    created = client.put(first_workflow, json=draft)
+    assert created.status_code == 200, created.text
+    assert created.json()["building_structure"] == empty_structure
+    assert created.json()["protocol_ready"] is False
+    assert client.put(first_field + "/context", json={"system_type": "FTX"}).status_code == 200
+
+    # Simulate the structural result of field inventory and template copying,
+    # without pretending that an HTTP test executes the mobile UI.
+    photo_bytes = b"test-photo-evidence"
+    field: dict[str, Any] = {
+        "inspection_id": "ovk-first",
+        "units": [
+            {"unit_id": "u1", "number": "1101", "kind": "apartment", "status": "anmarkning"},
+            {"unit_id": "u2", "number": "1201", "kind": "apartment", "status": "ua"},
+        ],
+        "rooms": [
+            {"room_id": "r1", "unit_id": "u1", "name": "Badrum"},
+            {"room_id": "r2", "unit_id": "u2", "name": "Badrum"},
+        ],
+        "measurements": [
+            {
+                "measurement_id": "m1",
+                "unit_id": "u1",
+                "room_id": "r1",
+                "point_type": "franluftsdon",
+                "point_label": "FL01",
+                "system_id": "LB01",
+                "designed_value": "15",
+                "measured_value": "12",
+                "measurable": True,
+                "unit_of_measure": "l/s",
+            },
+            {
+                "measurement_id": "m2",
+                "unit_id": "u2",
+                "room_id": "r2",
+                "point_type": "franluftsdon",
+                "point_label": "FL01",
+                "designed_value": "15",
+                "measured_value": "15",
+                "measurable": True,
+                "unit_of_measure": "l/s",
+            },
+        ],
+        "findings": [
+            {
+                "finding_id": "f1",
+                "unit_id": "u1",
+                "room_id": "r1",
+                "defect_type": "contaminated_extract_terminal",
+                "description": "Smutsigt don",
+                "severity": "minor",
+                "system_id": "LB01",
+                "classification": 1,
+            }
+        ],
+        "photos": [
+            {
+                "photo_id": "photo-1",
+                "unit_id": "u1",
+                "unit_number": "1101",
+                "room_id": "r1",
+                "finding_id": "f1",
+                "defect_type": "contaminated_extract_terminal",
+                "captured_at": "2027-01-15T10:00:00+01:00",
+                "captured_by": "Test Kontrollant",
+                "local_uri": "indexeddb:photo-1",
+                "sha256": sha256(photo_bytes).hexdigest(),
+                "mime_type": "image/jpeg",
+                "sync_status": "local",
+            }
+        ],
+    }
+    synced = client.put(first_field + "/sync", json=field)
+    assert synced.status_code == 200, synced.text
+    uploaded = client.put(
+        first_field + "/media/photo-1",
+        content=photo_bytes,
+        headers={
+            "Content-Type": "image/jpeg",
+            "X-OVK-Base-Revision": synced.json()["snapshot_sha256"],
+        },
+    )
+    assert uploaded.status_code == 200, uploaded.text
+    original_snapshot = client.get(first_field + "/sync").json()
+    original_record = client.get(first_workflow).json()
+
+    # The current office workflow requires registering the real system first.
+    register = client.put(structure_url, json={**empty_structure, "systems": [system]})
+    assert register.status_code == 200, register.text
+    promotion = structure_url + "/aterforing/ovk-first"
+    preview = client.post(promotion + "/preview", json={})
+    assert preview.status_code == 200, preview.text
+    assert preview.json()["unresolved"] == [{"point_id": "m2", "label": "1201 / Badrum / FL01"}]
+    assignments = {"m2": "LB01"}
+    reviewed = client.post(promotion + "/preview", json={"assignments": assignments})
+    assert reviewed.status_code == 200, reviewed.text
+    assert len(reviewed.json()["additions"]) == 6
+    applied = client.post(
+        promotion + "/apply",
+        json={
+            "assignments": assignments,
+            "preview_token": reviewed.json()["preview_token"],
+            "confirmed": True,
+        },
+    )
+    assert applied.status_code == 200, applied.text
+    inventory = client.get(structure_url).json()
+    assert inventory == applied.json()["structure"]
+    assert [unit["unit_id"] for unit in inventory["units"]] == ["u1", "u2"]
+    for index, unit in enumerate(inventory["units"], start=1):
+        room = unit["rooms"][0]
+        point = room["measurement_points"][0]
+        assert room["room_id"] == f"r{index}"
+        assert point == {
+            "point_id": f"m{index}",
+            "label": "FL01",
+            "point_type": "franluftsdon",
+            "system_id": "LB01",
+            "designed_value": "15",
+            "unit_of_measure": "l/s",
+        }
+    assert client.get(first_workflow).json() == original_record
+    assert client.get(first_field + "/sync").json() == original_snapshot
+
+    # An unfinished workflow must not become a historical predecessor.
+    recurring = deepcopy(draft)
+    recurring["planning"]["planned_date"] = "2030-01-15"
+    recurring["planning"]["previous_inspection_id"] = "ovk-first"
+    assert client.put(second_workflow, json=recurring).status_code == 422
+
+    # Explicit workflow review, not a conclusion inferred from field results.
+    completed = deepcopy(draft)
+    completed["inspection"]["checkpoints"] = [
+        {
+            "checkpoint_id": "cp1",
+            "label": "Drift och funktion",
+            "status": "pass",
+            "system_id": "LB01",
+        }
+    ]
+    completed["coverage"] = {
+        "inspection_id": "ovk-first",
+        "aggregat": [{"aggregat_id": "agg-1", "label": "LB01", "status": "besiktigad"}],
+        "system_list_confirmation": {
+            "confirmed_by": "Test Kontrollant",
+            "role": "besiktningsman",
+        },
+    }
+    finalized = client.put(first_workflow, json=completed)
+    assert finalized.status_code == 200, finalized.text
+    assert finalized.json()["protocol_ready"] is True
+    assert finalized.json()["building_structure"] == empty_structure
+    original_record = client.get(first_workflow).json()
+
+    created = client.put(second_workflow, json=recurring)
+    assert created.status_code == 200, created.text
+    next_record = created.json()
+    assert next_record["building_structure"] == inventory
+    assert next_record["inspection"]["inspection_id"] == "ovk-second"
+    assert next_record["inspection"]["object"] == original_record["inspection"]["object"]
+    assert next_record["inspection"]["measurements"] == []
+    assert next_record["inspection"]["findings"] == []
+    assert next_record["inspection"]["conclusion"] == "pending"
+    assert next_record["protocol_ready"] is False
+    assert client.get(second_field + "/sync").status_code == 404
+
+    history = client.get(second_field + "/history")
+    assert history.status_code == 200, history.text
+    previous = history.json()
+    assert previous["source_inspection_id"] == "ovk-first"
+    assert previous["snapshot_sha256"] == original_snapshot["snapshot_sha256"]
+    historical_points = previous["historical_measurements"]
+    assert [point["measurement_id"] for point in historical_points] == ["m1", "m2"]
+    assert historical_points[0]["measured_value"] == "12"
+    assert historical_points[0]["system_id"] == "LB01"
+    # The original point lacking a system is not silently rewritten by promotion.
+    assert historical_points[1].get("system_id") is None
+    finding = previous["historical_findings"][0]
+    assert finding["finding_id"] == "f1"
+    assert finding["unit_id"] == "u1"
+    photo = finding["photos"][0]
+    assert photo["historical"] is True
+    assert photo["verified"] is True
+    assert client.get(photo["content_url"]).content == photo_bytes
+
+    # Starting the second round uses the same structural IDs but fresh results.
+    assert client.put(second_field + "/context", json={"system_type": "FTX"}).status_code == 200
+    current_field = {
+        "inspection_id": "ovk-second",
+        "units": [{**unit, "status": "ej_paborjad"} for unit in field["units"]],
+        "rooms": field["rooms"],
+        "measurements": [
+            {**point, "system_id": "LB01", "measured_value": None}
+            for point in field["measurements"]
+        ],
+        "findings": [],
+        "photos": [],
+    }
+    second_sync = client.put(second_field + "/sync", json=current_field)
+    assert second_sync.status_code == 200, second_sync.text
+    current = client.get(second_field + "/sync").json()["payload"]
+    assert all(point["measured_value"] is None for point in current["measurements"])
+    assert current["findings"] == current["photos"] == []
+    assert client.get(first_workflow).json() == original_record
+    assert client.get(first_field + "/sync").json() == original_snapshot
+    assert len(client.get("/api/projects").json()) == 1
+    assert len(client.get(root + "/inspections").json()["inspections"]) == 2
