@@ -190,11 +190,11 @@ def ovk_fastighet_router(data_root: Path) -> APIRouter:
         except ValueError as exc:
             raise HTTPException(status_code=422, detail={"code": "INVALID_IDENTIFIER"}) from exc
         obj = record.inspection.ovk_object
-        if (
-            (obj.project_id, obj.object_id, obj.building_id)
-            != (project_id, fastighet_id, building_id)
-            or record.inspection.inspection_id != inspection_id
-        ):
+        if (obj.project_id, obj.object_id, obj.building_id) != (
+            project_id,
+            fastighet_id,
+            building_id,
+        ) or record.inspection.inspection_id != inspection_id:
             raise HTTPException(status_code=409, detail={"code": "OVK_INVENTORY_SOURCE_MISMATCH"})
         try:
             snapshot, snapshot_revision = _FieldSyncRepository(
@@ -373,9 +373,7 @@ def _structure_lock(path: Path) -> Iterator[None]:
 
 
 def _write_structure(path: Path, structure: dict[str, Any]) -> None:
-    with NamedTemporaryFile(
-        mode="w", encoding="utf-8", dir=path.parent, delete=False
-    ) as temporary:
+    with NamedTemporaryFile(mode="w", encoding="utf-8", dir=path.parent, delete=False) as temporary:
         temp_path = Path(temporary.name)
         json.dump(structure, temporary, ensure_ascii=False, indent=2)
     try:
