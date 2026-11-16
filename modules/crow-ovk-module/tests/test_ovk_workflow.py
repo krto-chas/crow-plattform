@@ -614,8 +614,20 @@ def test_property_first_field_inventory_promotion_and_recurring_inspection(
     field: dict[str, Any] = {
         "inspection_id": "ovk-first",
         "units": [
-            {"unit_id": "u1", "number": "1101", "kind": "apartment", "status": "anmarkning"},
-            {"unit_id": "u2", "number": "1201", "kind": "apartment", "status": "ua"},
+            {
+                "unit_id": "u1",
+                "number": "1101",
+                "kind": "apartment",
+                "status": "anmarkning",
+                "checked_at": "2027-01-15T10:05:00+01:00",
+            },
+            {
+                "unit_id": "u2",
+                "number": "1201",
+                "kind": "apartment",
+                "status": "ua",
+                "checked_at": "2027-01-15T10:15:00+01:00",
+            },
         ],
         "rooms": [
             {"room_id": "r1", "unit_id": "u1", "name": "Badrum"},
@@ -792,7 +804,9 @@ def test_property_first_field_inventory_promotion_and_recurring_inspection(
     assert client.put(second_field + "/context", json={"system_type": "FTX"}).status_code == 200
     current_field = {
         "inspection_id": "ovk-second",
-        "units": [{**unit, "status": "ej_paborjad"} for unit in field["units"]],
+        "units": [
+            {**unit, "status": "ej_paborjad", "checked_at": None} for unit in field["units"]
+        ],
         "rooms": field["rooms"],
         "measurements": [
             {**point, "system_id": "LB01", "measured_value": None}
