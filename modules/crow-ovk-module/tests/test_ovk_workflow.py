@@ -805,12 +805,35 @@ def test_property_first_field_inventory_promotion_and_recurring_inspection(
     current_field = {
         "inspection_id": "ovk-second",
         "units": [
-            {**unit, "status": "ej_paborjad", "checked_at": None} for unit in field["units"]
+            {
+                "unit_id": unit["unit_id"],
+                "number": unit["number"],
+                "kind": unit["kind"],
+                "status": "ej_paborjad",
+            }
+            for unit in next_record["building_structure"]["units"]
         ],
-        "rooms": field["rooms"],
+        "rooms": [
+            {"room_id": room["room_id"], "unit_id": unit["unit_id"], "name": room["name"]}
+            for unit in next_record["building_structure"]["units"]
+            for room in unit["rooms"]
+        ],
         "measurements": [
-            {**point, "system_id": "LB01", "measured_value": None}
-            for point in field["measurements"]
+            {
+                "measurement_id": point["point_id"],
+                "unit_id": unit["unit_id"],
+                "room_id": room["room_id"],
+                "point_type": point["point_type"],
+                "point_label": point["label"],
+                "system_id": point["system_id"],
+                "designed_value": point["designed_value"],
+                "unit_of_measure": point["unit_of_measure"],
+                "measurable": True,
+                "measured_value": None,
+            }
+            for unit in next_record["building_structure"]["units"]
+            for room in unit["rooms"]
+            for point in room.get("measurement_points", [])
         ],
         "findings": [],
         "photos": [],
@@ -818,7 +841,10 @@ def test_property_first_field_inventory_promotion_and_recurring_inspection(
     second_sync = client.put(second_field + "/sync", json=current_field)
     assert second_sync.status_code == 200, second_sync.text
     current = client.get(second_field + "/sync").json()["payload"]
+    assert [point["measurement_id"] for point in current["measurements"]] == ["m1", "m2"]
     assert all(point["measured_value"] is None for point in current["measurements"])
+    assert all(unit["checked_at"] is None for unit in current["units"])
+    assert all(unit["status"] == "ej_paborjad" for unit in current["units"])
     assert current["findings"] == current["photos"] == []
     assert client.get(first_workflow).json() == original_record
     assert client.get(first_field + "/sync").json() == original_snapshot
