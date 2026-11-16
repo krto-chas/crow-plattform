@@ -7,6 +7,7 @@
   <style>
     :root{font-family:Inter,system-ui,sans-serif;color:#18212b;background:#f4f6f8}*{box-sizing:border-box}body{margin:0}.shell{display:grid;grid-template-columns:230px 1fr;min-height:100vh}aside{background:#17202a;color:#fff;padding:24px}aside h1{font-size:20px;margin:0 0 28px}nav a{display:block;color:#dce5ed;text-decoration:none;padding:10px 0}nav a.active{font-weight:700;color:#fff}main{padding:32px;max-width:1300px}.eyebrow{font-size:12px;letter-spacing:.12em;color:#687684}.panel{background:#fff;border:1px solid #dfe5ea;border-radius:10px;padding:20px;margin-top:18px}label{display:block;font-size:13px;font-weight:600;margin:10px 0 4px}input,select{width:100%;padding:9px;border:1px solid #cbd4dc;border-radius:6px}.row{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px}.button{display:inline-block;border:0;border-radius:6px;background:#17202a;color:#fff;padding:9px 12px;cursor:pointer;margin-top:12px}.secondary{background:#e8edf1;color:#25313d}.muted{color:#607080}.status{padding:12px;border-radius:6px;background:#eef2f5;margin-top:12px}.warn{background:#fff4cf}.item{border-top:1px solid #e6eaee;padding:10px 0;cursor:pointer}.item:first-child{border-top:0}.pill{display:inline-block;padding:3px 7px;border-radius:999px;background:#eef2f5;font-size:11px;margin-left:6px}.bygg{border:1px dashed #cbd4dc;border-radius:8px;padding:12px;margin-top:10px}.split{display:grid;grid-template-columns:1fr 1fr;gap:18px}@media(max-width:1000px){.shell{grid-template-columns:1fr}aside{display:none}.split{grid-template-columns:1fr}}
     .template-check{display:flex;align-items:flex-start;gap:10px;line-height:1.5;padding:8px 0}.template-check input{width:20px;height:20px;flex:none;margin:0}.template-check input:focus-visible,.button:focus-visible,summary:focus-visible{outline:3px solid #416c89;outline-offset:3px}#templatePanel .button{min-height:44px;border-radius:10px}#templatePanel .button:not(.secondary){background:#416c89}#templatePanel .button:disabled{opacity:.55}#templateResult p{border-bottom:1px solid #e6eaee;padding:8px 0;overflow-wrap:anywhere}
+    #promotionPanel .button{min-height:44px;border-radius:10px}#promotionPanel .button:not(.secondary){background:#416c89}#promotionPanel .button:disabled{opacity:.55}.promotion-results{max-height:440px;overflow:auto;overflow-wrap:anywhere}.promotion-results p{margin:8px 0;border-bottom:1px solid #e6eaee;padding:6px 0}.promotion-results h4{margin:16px 0 8px}.promotion-results select{min-height:44px}
   </style>
 </head>
 <body>
@@ -35,6 +36,17 @@
         <h3>Ventilationssystem</h3>
         <div id="inventorySystems"></div>
         <button type="button" class="button secondary" id="inventoryAddSystem">+ System</button>
+        <details class="bygg" id="promotionPanel">
+          <summary>Återför inventering från besiktning</summary>
+          <p class="muted">Välj en synkroniserad besiktning av denna byggnad. Endast ny struktur föreslås. Befintlig inventering, besiktningsresultat, anmärkningar och bilder ändras inte.</p>
+          <label for="promotionSource">Besiktning</label>
+          <select id="promotionSource"><option value="">Välj besiktning…</option></select>
+          <button type="button" class="button secondary" id="promotionPreview">Förhandsgranska</button>
+          <div id="promotionStatus" class="status" role="status" aria-live="polite">Välj en besiktning.</div>
+          <div id="promotionResult" class="promotion-results"></div>
+          <label class="template-check"><input type="checkbox" id="promotionConfirm" disabled> Jag har kontrollerat att föreslagen struktur och systemkopplingar gäller för byggnaden.</label>
+          <button type="button" class="button" id="promotionApply" disabled>Spara föreslagen inventering</button>
+        </details>
         <h3>Lägenheter och lokaler</h3>
         <details class="bygg" id="bulkPanel">
           <summary>Massregistrera lägenheter</summary>
