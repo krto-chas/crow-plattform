@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" role="img" aria-label="CROW OVK">
+<rect width="512" height="512" rx="108" fill="#151b23"/>
+<path d="M96 256c44-69 98-104 160-104s116 35 160 104c-44 69-98 104-160 104S140 325 96 256Z" fill="none" stroke="#e8f0f5" stroke-width="22" stroke-linejoin="round"/>
+<circle cx="256" cy="256" r="61" fill="#416c89"/>
+<circle cx="256" cy="256" r="28" fill="#e8f0f5"/>
+</svg>
