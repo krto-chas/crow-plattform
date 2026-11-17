@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from importlib import resources
 
 from fastapi import APIRouter
@@ -88,6 +89,38 @@ def ovk_field_context_page_router() -> APIRouter:
     @router.get("/ovk/falt/auth.js", response_class=Response)
     def field_auth_app() -> Response:
         return _script_response(_asset_text("field-auth.js"))
+
+    @router.get("/ovk/falt/manifest.webmanifest", response_class=Response)
+    def field_manifest() -> Response:
+        manifest = {
+            "id": "/ovk/falt",
+            "name": "CROW OVK",
+            "short_name": "CROW OVK",
+            "description": "OVK-besiktning i fält",
+            "start_url": "/ovk/falt",
+            "scope": "/ovk/",
+            "display": "standalone",
+            "background_color": "#f7f8fa",
+            "theme_color": "#f7f8fa",
+            "lang": "sv",
+            "icons": [
+                {
+                    "src": "/ovk/falt/icon.svg",
+                    "sizes": "any",
+                    "type": "image/svg+xml",
+                    "purpose": "any maskable",
+                }
+            ],
+        }
+        return Response(
+            json.dumps(manifest), media_type="application/manifest+json", headers=_NO_CACHE
+        )
+
+    @router.get("/ovk/falt/icon.svg", response_class=Response)
+    def field_icon() -> Response:
+        return Response(
+            _asset_text("field-icon.svg"), media_type="image/svg+xml", headers=_NO_CACHE
+        )
 
     return router
 

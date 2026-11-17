@@ -3,11 +3,17 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-  <title>Crow OVK Fält</title>
+  <title>CROW OVK</title>
+  <meta name="theme-color" content="#f7f8fa">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="CROW OVK">
+  <link rel="manifest" href="/ovk/falt/manifest.webmanifest">
+  <link rel="icon" type="image/svg+xml" href="/ovk/falt/icon.svg">
   <style>
     :root{--ink:#101820;--paper:#f2f0eb;--panel:#fff;--line:#c9cfd4;--mut:#5c6870;--ua:#1e7a3c;--ua-bg:#e2f2e7;--anm:#b7791f;--anm-bg:#faf0da;--bom:#b3261e;--bom-bg:#f9e4e2;font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;color:var(--ink);background:var(--paper)}
-    *{box-sizing:border-box}body{margin:0;-webkit-tap-highlight-color:transparent}
-    .top{position:sticky;top:0;z-index:6;background:var(--ink);color:#fff;padding:10px 14px;display:flex;justify-content:space-between;align-items:center;gap:10px}
+    *{box-sizing:border-box}body{margin:0;-webkit-tap-highlight-color:transparent;min-height:100dvh}
+    .top{position:sticky;top:0;z-index:6;background:var(--ink);color:#fff;padding:calc(10px + env(safe-area-inset-top)) 14px 10px;display:flex;justify-content:space-between;align-items:center;gap:10px}
     .top strong{font-weight:800;letter-spacing:.02em}.net{font-size:12px;padding:4px 9px;border-radius:999px;background:#33414d}.net.off{background:var(--bom)}
     .wrap{max-width:680px;margin:auto;padding:12px 12px 120px}
     .view{display:none}.view.on{display:block}
@@ -66,7 +72,7 @@
     @media (prefers-reduced-motion:no-preference){.view.on{animation:in .14s ease-out}@keyframes in{from{opacity:.5;transform:translateY(4px)}to{opacity:1;transform:none}}}
     /* OVK-R2a: restrained field workspace, shared Nordic palette. */
     :root{--ink:#151b23;--paper:#f7f8fa;--line:#dfe5ea;--mut:#526475;--accent:#416c89;--ua:#176c38;--anm:#855313;--bom:#a52520}
-    .top{background:var(--panel);color:var(--ink);border-bottom:1px solid var(--line);padding:12px 16px;flex-wrap:wrap}
+    .top{background:var(--panel);color:var(--ink);border-bottom:1px solid var(--line);padding:calc(12px + env(safe-area-inset-top)) 16px 12px;flex-wrap:wrap}
     .top strong{letter-spacing:.04em;font-size:16px}.top a{color:var(--accent);padding:10px 0;font-size:14px;font-weight:600}.net{background:#edf2f6;color:var(--ink)}.net.off{color:#fff}
     .wrap{padding:20px 16px 128px}.card{border-radius:16px;padding:20px;margin-bottom:16px;min-width:0}
     .eyebrow{letter-spacing:.045em;font-size:12px;line-height:1.5}.section-heading{font-size:19px;line-height:1.25;margin:4px 0 12px;font-weight:700}
