@@ -11,8 +11,8 @@ const uid = prefix => prefix + '-' + crypto.randomUUID();
 const now = () => new Date().toISOString();
 const ROOMS = ['Kök', 'Badrum', 'WC', 'Klädkammare', 'Sovrum', 'Vardagsrum', 'Hall'];
 const ROOMS_COMMERCIAL = ['Kontor', 'Vilorum', 'HWC', 'WC', 'Kök', 'Korridor'];
-function roomPresets(){return (state.object_type==='kontorsbyggnad'||state.object_type==='industrifastighet')?ROOMS_COMMERCIAL:ROOMS}
-function isCommercial(){return state.object_type==='kontorsbyggnad'||state.object_type==='industrifastighet'}
+function isCommercial(){const unit=activeUnit();return unit ? unit.kind==='premises' : (state.object_type==='kontorsbyggnad'||state.object_type==='industrifastighet')}
+function roomPresets(){return isCommercial()?ROOMS_COMMERCIAL:ROOMS}
 const DEFAULT_STATE = () => ({project_id: 'adhoc', inspection_id: '', inspector: '', system_type: 'F', object_type: 'flerbostadshus', assignment_name: '',
   previous_inspection_id: null, historical_findings: [], historical_measurements: [], historical_checkpoints: [], historical_space_photos: [], history_unavailable:false, units: [], rooms: [], findings: [], finding_followups: [], photos: [],
   measurements: [], window_vents: [], technical_spaces: [], checkpoints: [], dirty: false, last_sync: null,
