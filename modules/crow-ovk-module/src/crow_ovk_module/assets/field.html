@@ -94,6 +94,24 @@
     button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible,summary:focus-visible{outline:3px solid var(--accent);outline-offset:3px}
     @media(max-width:380px){.wrap{padding:14px 10px 128px}.card{padding:14px}.round-toolbar,.row{grid-template-columns:1fr}.keys{gap:5px}.keys .chip{padding:10px 3px}.mrow{grid-template-columns:minmax(0,1fr) 72px 44px;gap:6px}}
     .field-template{border:1px solid var(--line);border-radius:12px;background:#f7f8fa;padding:14px;margin:10px 0 18px;overflow-wrap:anywhere}.field-template h3{font-size:17px;margin:0 0 8px}.field-template select{width:100%;min-height:44px}.template-preview{margin:14px 0;max-height:340px;overflow:auto}.template-room{background:#fff;border:1px solid var(--line);border-radius:10px;padding:10px;margin:8px 0}.template-check{display:flex;align-items:flex-start;gap:10px;font-size:14px;line-height:1.45;padding:8px 0;margin:0;color:var(--ink);cursor:pointer}.template-check input[type=checkbox]{width:20px;height:20px;flex:none;min-height:0;margin:0;accent-color:var(--accent)}.template-point{padding-left:12px;font-weight:400}.template-point span{min-width:0}.template-preview .template-point small{display:block;color:var(--mut);font-size:12px}.template-check:has(input:disabled){opacity:.6}.template-summary{font-size:13px;color:var(--mut);margin:10px 0}.field-template .btn{width:100%}#fieldTemplateStatus:empty{display:none}
+
+    /* Field stepper: one task per viewport, with an accessible overflow fallback. */
+    body.ovk-unit-stepper{height:100dvh;overflow:hidden;display:flex;flex-direction:column}
+    body.ovk-unit-stepper .top{flex:0 0 auto;position:relative}
+    body.ovk-unit-stepper .wrap{flex:1 1 auto;min-height:0;width:100%;padding:10px 12px 6px;overflow:hidden;display:flex;flex-direction:column}
+    body.ovk-unit-stepper #viewUnit{min-height:0;flex:1;display:flex;flex-direction:column;overflow:hidden}
+    body.ovk-unit-stepper #viewUnit>.card{display:none;margin:0;min-height:0;overflow-y:auto;overscroll-behavior:contain;scrollbar-width:thin}
+    body.ovk-unit-stepper #viewUnit>.card.ovk-step-active{display:block;flex:1}
+    body.ovk-unit-stepper #syncCard{display:none!important}
+    body.ovk-unit-stepper .foot{position:relative;flex:0 0 auto;padding:8px 12px calc(8px + env(safe-area-inset-bottom))}
+    body.ovk-unit-stepper .foot .btn{margin-top:0}
+    .ovk-step-head{display:none}
+    body.ovk-unit-stepper .ovk-step-head{display:block;flex:0 0 auto;padding:6px 4px 12px}
+    .ovk-step-head strong{font-size:15px}
+    .ovk-step-head .ovk-step-meta{display:flex;justify-content:space-between;gap:8px;color:var(--mut);font-size:12px;margin-bottom:8px}
+    .ovk-step-track{height:5px;border-radius:99px;background:var(--line);overflow:hidden}
+    .ovk-step-fill{height:100%;background:var(--accent);transition:width .15s ease}
+    @media(max-height:640px){body.ovk-unit-stepper .top{padding-top:calc(6px + env(safe-area-inset-top));padding-bottom:6px}body.ovk-unit-stepper .ovk-step-head{padding:3px 4px 7px}body.ovk-unit-stepper #viewUnit>.card{padding:10px}}
   </style>
 </head>
 <body>
@@ -156,6 +174,7 @@
 
   <!-- VY: ENHET -->
   <section class="view" id="viewUnit">
+    <div class="ovk-step-head" aria-live="polite"><div class="ovk-step-meta"><strong id="ovkStepTitle">Lägenhet</strong><span id="ovkStepCount">1 av 5</span></div><div class="ovk-step-track" aria-hidden="true"><div class="ovk-step-fill" id="ovkStepFill" style="width:20%"></div></div></div>
     <div class="card">
       <div class="eyebrow" id="unitKindLabel">Lägenhet</div>
       <h1 class="bignr" id="unitNr" tabindex="-1">–</h1><p id="unitProgress" class="room-progress" role="status" aria-live="polite"></p>
@@ -230,5 +249,65 @@
 
 <script src="/ovk/falt/app.js"></script>
 <script src="/ovk/falt/time.js"></script>
+
+<script>
+/* OVK unit stepper: presentation-only. Existing data and save functions remain authoritative. */
+(() => {
+  const labels = ['Lägenhet och nycklar', 'Välj rum', 'Luftflöden', 'Visuell kontroll', 'Anmärkning och foto'];
+  let step = 0;
+  const unitView = document.getElementById('viewUnit');
+  const cards = [...unitView.querySelectorAll(':scope > .card')];
+  const originalView = view;
+  const originalOpenUnit = openUnit;
+  const originalUpdateFooter = updateFooter;
+  function applyStep() {
+    const visible = unitView.classList.contains('on');
+    document.body.classList.toggle('ovk-unit-stepper', visible);
+    if (!visible) return;
+    step = Math.max(0, Math.min(step, cards.length - 1));
+    cards.forEach((card, index) => {
+      const active = index === step;
+      card.classList.toggle('ovk-step-active', active);
+      card.setAttribute('aria-hidden', String(!active));
+      if ('inert' in card) card.inert = !active;
+      if (active) card.scrollTop = 0;
+    });
+    document.getElementById('ovkStepTitle').textContent = labels[step];
+    document.getElementById('ovkStepCount').textContent = (step + 1) + ' av ' + cards.length;
+    document.getElementById('ovkStepFill').style.width = ((step + 1) / cards.length * 100) + '%';
+    document.getElementById('footBack').textContent = step ? 'Tillbaka' : 'Till listan';
+    const done = document.getElementById('footDone');
+    done.textContent = step === cards.length - 1 ? 'Slutför lägenhet' : 'Nästa';
+    done.className = 'btn' + (step === cards.length - 1 ? ' ua' : '');
+  }
+  view = function (name) {
+    originalView(name);
+    applyStep();
+  };
+  openUnit = function (id) {
+    step = 0;
+    originalOpenUnit(id);
+    applyStep();
+  };
+  updateFooter = function (name) {
+    originalUpdateFooter(name);
+    if (name === 'viewUnit') applyStep();
+  };
+  document.getElementById('footBack').addEventListener('click', event => {
+    if (!unitView.classList.contains('on') || !step) return;
+    event.stopImmediatePropagation();
+    step -= 1;
+    applyStep();
+  }, true);
+  document.getElementById('footDone').addEventListener('click', event => {
+    if (!unitView.classList.contains('on') || step === cards.length - 1) return;
+    event.stopImmediatePropagation();
+    step += 1;
+    applyStep();
+  }, true);
+  // Native browser navigation should not trap the inspector in a hidden step.
+  window.addEventListener('resize', () => { if (unitView.classList.contains('on')) applyStep(); });
+})();
+</script>
 </body>
 </html>
