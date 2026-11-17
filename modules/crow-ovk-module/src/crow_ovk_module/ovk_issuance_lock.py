@@ -38,7 +38,13 @@ def inspection_mutation_guard(data_root: Path) -> Callable[[Request], AsyncItera
         for value in (project_id, inspection_id):
             if not _SAFE_ID.fullmatch(value) or value in {".", ".."}:
                 raise HTTPException(status_code=422, detail={"code": "INVALID_OVK_IDENTIFIER"})
-        root = data_root / "projects" / project_id / "ovk-issuance-lock"
+        project_root = data_root / "projects" / project_id
+        if not project_root.is_dir():
+            # Okänt projekt har inget att låsa eller skydda: skapa inga kataloger
+            # eller låsfiler åt ett id som bara förekommer i en URL.
+            yield
+            return
+        root = project_root / "ovk-issuance-lock"
         root.mkdir(parents=True, exist_ok=True)
         connection = sqlite3.connect(
             root / f"{inspection_id}.sqlite3", timeout=30, check_same_thread=False
@@ -46,7 +52,7 @@ def inspection_mutation_guard(data_root: Path) -> Callable[[Request], AsyncItera
         try:
             await run_in_threadpool(connection.execute, "BEGIN IMMEDIATE")
             # Issuance checks duplicate certificate IDs first, then inspection identity.
-            if not request.url.path.endswith("/intyg"):
+            if not request.url.path.endswith(("/intyg", "/intyg/recover")):
                 require_unissued(data_root, project_id, inspection_id)
             yield
         finally:

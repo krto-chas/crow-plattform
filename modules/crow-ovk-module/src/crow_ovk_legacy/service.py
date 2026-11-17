@@ -43,12 +43,20 @@ def preview_legacy_file(project_id: str, filename: str, content: bytes) -> Legac
     suffix = Path(filename).suffix.lower()
     if suffix == ".pdf":
         kind = LegacySourceKind.PDF
-        records = _pdf_records(content)
+        reader = _pdf_records
     elif suffix == ".xlsx":
         kind = LegacySourceKind.XLSX
-        records = _xlsx_records(content)
+        reader = _xlsx_records
     else:
         raise ValueError(f"Unsupported legacy OVK file type: {suffix or '<none>'}")
+    try:
+        records = reader(content)
+    except ValueError:
+        raise
+    except Exception as exc:
+        # Tolkarna höjer egna feltyper för trasiga filer; gränsen ska ge ett
+        # kontrollerat avslag, aldrig ett internt serverfel.
+        raise ValueError(f"Unreadable legacy OVK file: {suffix}") from exc
 
     source_digest = sha256(content).hexdigest()
     facts: list[LegacyFact] = []
