@@ -8,13 +8,16 @@ och att låsvakten inte skapar kataloger åt okända projekt.
 from __future__ import annotations
 
 import json
+from io import BytesIO
 from pathlib import Path
 from typing import Any
+from zipfile import ZipFile
 
 import pytest
 from crow_ovk_legacy import preview_legacy_file
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
+from openpyxl import Workbook
 from pytest import MonkeyPatch
 from test_ovk_intyg_integrity import _BASE, _INTYG_BODY, _ready_client
 from test_ovk_workflow import _workflow_payload
@@ -127,6 +130,23 @@ def test_annual_report_csv_route_is_reachable(tmp_path: Path) -> None:
 def test_unreadable_legacy_file_is_rejected_as_value_error(filename: str) -> None:
     with pytest.raises(ValueError, match="Unreadable legacy OVK file"):
         preview_legacy_file("p1", filename, b"%PDF-1.4 avbruten")
+
+
+def test_xlsx_with_truncated_inner_xml_is_rejected_as_value_error() -> None:
+    workbook = Workbook()
+    workbook.active.append(["Besiktning 2024-05-17", "System FTX01"])
+    original = BytesIO()
+    workbook.save(original)
+    workbook.close()
+    damaged = BytesIO()
+    with ZipFile(original) as source, ZipFile(damaged, "w") as target:
+        for item in source.infolist():
+            data = source.read(item.filename)
+            if item.filename.endswith("sheet1.xml"):
+                data = data[: len(data) // 2]
+            target.writestr(item, data)
+    with pytest.raises(ValueError, match="Unreadable legacy OVK file"):
+        preview_legacy_file("p1", "trasig.xlsx", damaged.getvalue())
 
 
 def test_legacy_upload_rejects_broken_and_oversized_files(

@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 from dataclasses import replace
 from datetime import UTC, date, datetime
 from hashlib import sha256
@@ -512,6 +513,7 @@ def ovk_intyg_router(data_root: Path) -> APIRouter:
             or manifest.get("inspection_id") != inspection_id
             or not isinstance(manifest.get("intyg_id"), str)
             or not isinstance(manifest.get("intyg_sha256"), str)
+            or not re.fullmatch(r"[0-9a-f]{64}", manifest["intyg_sha256"])
             or not isinstance(manifest.get("prepared_at"), str)
         ):
             raise invalid
@@ -569,7 +571,7 @@ def ovk_intyg_router(data_root: Path) -> APIRouter:
                 stored = intyg_repository.load(project_id, intyg.intyg_id)
                 if intyg_to_payload(stored) != intyg_to_payload(intyg):
                     raise invalid from None
-        except ValueError as exc:
+        except (ValueError, TypeError) as exc:
             raise invalid from exc
         return {
             **intyg_to_payload(intyg),
