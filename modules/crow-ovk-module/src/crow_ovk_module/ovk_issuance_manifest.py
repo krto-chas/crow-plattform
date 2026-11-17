@@ -108,3 +108,30 @@ def publish_manifest(
         if temporary is not None:
             temporary.unlink(missing_ok=True)
     return target
+
+
+def verify_manifest_photos(
+    data_root: Path, project_id: str, inspection_id: str, manifest: dict[str, Any]
+) -> None:
+    """Kontrollerar att fotoevidensen som manifestet pekar ut finns kvar oförändrad.
+
+    Används när ett avbrutet utfärdande slutförs: bildbytes, kvitto och storlek
+    måste stämma mot det som granskades, annars höjs ``ValueError``.
+    """
+    photos = manifest.get("photos")
+    if not isinstance(photos, list):
+        raise ValueError("Issuance manifest photos are invalid")
+    media = _FieldMediaRepository(data_root, project_id=project_id)
+    for entry in photos:
+        if not isinstance(entry, dict) or not isinstance(entry.get("photo_id"), str):
+            raise ValueError("Issuance manifest photo entry is invalid")
+        try:
+            content, receipt = media.load_media(inspection_id, entry["photo_id"])
+        except (OSError, ValueError, HTTPException) as exc:
+            raise ValueError("Issuance photo is missing or unverified") from exc
+        if (
+            sha256(content).hexdigest() != entry.get("sha256")
+            or _digest(receipt) != entry.get("receipt_sha256")
+            or len(content) != entry.get("size_bytes")
+        ):
+            raise ValueError("Issuance photo differs from reviewed evidence")

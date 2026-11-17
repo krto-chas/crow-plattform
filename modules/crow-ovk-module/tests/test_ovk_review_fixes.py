@@ -8,6 +8,7 @@ och att låsvakten inte skapar kataloger åt okända projekt.
 from __future__ import annotations
 
 import json
+from hashlib import sha256
 from io import BytesIO
 from pathlib import Path
 from typing import Any
@@ -24,6 +25,8 @@ from test_ovk_workflow import _workflow_payload
 
 from crow_ovk_intyg import OvkIntyg, OvkIntygRepository
 from crow_ovk_module import ovk_legacy_surface
+from crow_ovk_module.ovk_field_media import _FieldMediaRepository
+from crow_ovk_module.ovk_issuance_manifest import verify_manifest_photos
 from crow_ovk_module.ovk_legacy_surface import ovk_legacy_router
 from crow_ovk_module.ovk_reporting_surface import ovk_reporting_router
 from crow_ovk_module.ovk_workflow_surface import ovk_workflow_router
@@ -253,3 +256,84 @@ def test_profile_identifier_cannot_shadow_csv_route(tmp_path: Path) -> None:
     client = TestClient(app)
     response = client.put("/api/ovk/reporting/certification/prof1.csv", json=_PROFILE)
     assert response.status_code == 422
+
+
+def _manifest_with_photo(tmp_path: Path) -> tuple[dict[str, Any], Path]:
+    """Lagrar ett synkat foto projektbundet och bygger manifestets fotopost."""
+    content = b"\xff\xd8\xff fotoevidens"
+    digest = sha256(content).hexdigest()
+    snapshot = {
+        "inspection_id": "ovk-001",
+        "photos": [{"photo_id": "photo-1", "sha256": digest, "sync_status": "synced"}],
+    }
+    field_root = tmp_path / "projects" / "p1" / "ovk-field" / "ovk-001"
+    field_root.mkdir(parents=True)
+    (field_root / "snapshot.json").write_text(json.dumps(snapshot), encoding="utf-8")
+    media = _FieldMediaRepository(tmp_path, project_id="p1")
+    receipt = media.save_media(
+        inspection_id="ovk-001",
+        photo_id="photo-1",
+        mime_type="image/jpeg",
+        digest=digest,
+        content=content,
+    )
+    receipt_digest = sha256(
+        json.dumps(receipt, sort_keys=True, ensure_ascii=False, separators=(",", ":")).encode(
+            "utf-8"
+        )
+    ).hexdigest()
+    manifest: dict[str, Any] = {
+        "photos": [
+            {
+                "photo_id": "photo-1",
+                "sha256": digest,
+                "receipt_sha256": receipt_digest,
+                "size_bytes": len(content),
+            }
+        ]
+    }
+    return manifest, field_root / "media" / "photo-1" / digest / "photo-1.bin"
+
+
+def test_manifest_photos_verify_when_evidence_is_intact(tmp_path: Path) -> None:
+    manifest, _blob = _manifest_with_photo(tmp_path)
+    verify_manifest_photos(tmp_path, "p1", "ovk-001", manifest)
+
+
+def test_manifest_photos_reject_missing_altered_or_malformed_evidence(tmp_path: Path) -> None:
+    manifest, blob = _manifest_with_photo(tmp_path)
+
+    wrong_size = {"photos": [{**manifest["photos"][0], "size_bytes": 1}]}
+    with pytest.raises(ValueError, match="differs from reviewed evidence"):
+        verify_manifest_photos(tmp_path, "p1", "ovk-001", wrong_size)
+    wrong_receipt = {"photos": [{**manifest["photos"][0], "receipt_sha256": "0" * 64}]}
+    with pytest.raises(ValueError, match="differs from reviewed evidence"):
+        verify_manifest_photos(tmp_path, "p1", "ovk-001", wrong_receipt)
+    with pytest.raises(ValueError, match="photos are invalid"):
+        verify_manifest_photos(tmp_path, "p1", "ovk-001", {})
+
+    blob.chmod(0o600)
+    blob.write_bytes(b"manipulerad bild")
+    with pytest.raises(ValueError, match="missing or unverified"):
+        verify_manifest_photos(tmp_path, "p1", "ovk-001", manifest)
+    blob.unlink()
+    with pytest.raises(ValueError, match="missing or unverified"):
+        verify_manifest_photos(tmp_path, "p1", "ovk-001", manifest)
+
+
+def test_recovery_refuses_when_reviewed_photo_is_missing(
+    tmp_path: Path, monkeypatch: MonkeyPatch
+) -> None:
+    client = _ready_client(tmp_path, monkeypatch)
+    _interrupt_issuance(client, monkeypatch)
+    path = tmp_path / _MANIFEST
+    manifest = json.loads(path.read_text(encoding="utf-8"))
+    manifest["photos"] = [
+        {"photo_id": "photo-1", "sha256": "0" * 64, "receipt_sha256": "0" * 64, "size_bytes": 1}
+    ]
+    path.chmod(0o600)
+    path.write_text(json.dumps(manifest), encoding="utf-8")
+    response = client.post(_BASE + "/intyg/recover", json=_INTYG_BODY)
+    assert response.status_code == 409
+    assert response.json()["detail"]["code"] == "OVK_ISSUANCE_RECOVERY_INVALID"
+    assert client.get("/api/ovk/projects/p1/intyg").json()["intyg"] == []

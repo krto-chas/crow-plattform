@@ -42,7 +42,7 @@ from crow_ovk_pricing import BuildingCategory, InspectionType
 from crow_ovk_workflow import OvkWorkflowRecord, OvkWorkflowRepository, record_to_payload
 
 from .ovk_issuance_lock import inspection_mutation_guard, require_unissued
-from .ovk_issuance_manifest import manifest_path, publish_manifest
+from .ovk_issuance_manifest import manifest_path, publish_manifest, verify_manifest_photos
 from .ovk_protocol_source import require_current_protocol_source
 
 
@@ -559,6 +559,9 @@ def ovk_intyg_router(data_root: Path) -> APIRouter:
         if intyg is None:
             raise invalid
         try:
+            # Samma fotokontroll som vid vanligt utfärdande: evidensen som
+            # granskades måste finnas kvar oförändrad innan intyget sparas.
+            verify_manifest_photos(data_root, project_id, inspection_id, manifest)
             if any(
                 item.inspection_id == inspection_id and item.intyg_id != intyg.intyg_id
                 for item in intyg_repository.list(project_id)
