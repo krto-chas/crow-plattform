@@ -53,6 +53,22 @@ def validate_field_data(data: FieldInspectionData) -> None:
         defect_type_by_id(photo.defect_type)
         _validate_rule_refs(photo.rule_refs)
 
+    visual_ids: set[str] = set()
+    visual_rooms: set[str] = set()
+    rooms_by_id = {room.room_id: room for room in data.rooms}
+    for check in data.visual_checks:
+        if check.check_id in visual_ids or check.room_id in visual_rooms:
+            raise ValueError("duplicate room visual check")
+        visual_ids.add(check.check_id)
+        visual_rooms.add(check.room_id)
+        checked_room = rooms_by_id.get(check.room_id)
+        if checked_room is None or checked_room.unit_id != check.unit_id:
+            raise ValueError("visual check references unknown or mismatched room")
+        if check.don != "yes" and check.clean:
+            raise ValueError("cleanliness requires a confirmed terminal")
+        if check.transfer != "no" and check.fresh:
+            raise ValueError("wet-room fresh air requires missing door transfer")
+
     _validate_measurements(data)
     _validate_window_vents(data)
     _validate_technical_spaces(data)
