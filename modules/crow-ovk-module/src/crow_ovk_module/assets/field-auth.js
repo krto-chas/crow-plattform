@@ -129,7 +129,9 @@ syncDraft = async function () {
     crowSyncLabel('Offline · sparad lokalt', 'warn');
     return;
   }
-  const identity = state.project_id + '/' + state.inspection_id;
+  const projectId = state.project_id;
+  const inspectionId = state.inspection_id;
+  const identity = projectId + '/' + inspectionId;
   if (crowSyncIdentity && crowSyncIdentity !== identity) crowSyncBlocked = false;
   crowSyncIdentity = identity;
   const version = crowEditVersion;
@@ -146,17 +148,24 @@ syncDraft = async function () {
       } else if (current.status !== 404 || state.last_sync) {
         throw new Error('Serverrevisionen kunde inte verifieras. Synk stoppad.');
       }
+      if (state.project_id !== projectId || state.inspection_id !== inspectionId) {
+        throw new Error('Aktiv besiktning ändrades under synk.');
+      }
       await syncContext();
       const summary = await syncSnapshot();
       const uploaded = await syncPendingMedia();
       if (uploaded) await syncSnapshot();
-      if (state.project_id !== identity.split('/')[0] || state.inspection_id !== identity.split('/')[1]) {
+      if (state.project_id !== projectId || state.inspection_id !== inspectionId) {
         throw new Error('Aktiv besiktning ändrades under synk. Kontrollera uppdraget.');
       }
       // A newer local edit must remain dirty and be uploaded by a subsequent sync.
       const unchanged = crowEditVersion === version;
       await writeDraft(!unchanged);
-      if (unchanged) {
+      if (crowEditVersion !== version) {
+        // A write may have raced with the final local commit: preserve newer edits.
+        await writeDraft(true);
+        crowSyncLabel('Nya ändringar sparade lokalt · synkar igen');
+      } else if (unchanged) {
         crowSyncLabel('Synkad · ' + state.last_sync.slice(0, 12) + '… · ' + uploaded +
           ' bilder · täckning ' + (summary.coverage_complete ? 'komplett' : 'ofullständig'), 'pass');
       } else {
