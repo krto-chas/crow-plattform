@@ -81,9 +81,9 @@ function renderRoundUnits(){
     const remarks=unitRemarks(unit.unit_id).length;
     const points=state.measurements.filter(m=>m.unit_id===unit.unit_id);
     const button=document.createElement('button');button.type='button';button.className='unitrow '+unit.status;button.dataset.unit=unit.unit_id;
-    const number=document.createElement('span');number.className='nr';number.textContent=unit.number;
+    const number=document.createElement('span');number.className='nr';number.textContent=unit.kind==='premises'&&unit.label?unit.label:unit.number;
     const meta=document.createElement('span');meta.className='sub';
-    meta.textContent=(unit.kind==='premises'?'Lokal':'Lgh')+(points.length?' · '+points.filter(measuredPoint).length+'/'+points.length+' uppmätta':'')+(unit.key?.received&&!unit.key.returned?' · Nyckel ute':'');
+    meta.textContent=(unit.kind==='premises'?'Lokal · '+unit.number:'Lgh')+(points.length?' · '+points.filter(measuredPoint).length+'/'+points.length+' uppmätta':'')+(unit.key?.received&&!unit.key.returned?' · Nyckel ute':'');
     const status=document.createElement('span');status.className='tag '+unit.status;
     status.textContent={ej_paborjad:'Ej klar',ua:'UA',anmarkning:remarks+' anm.',bom:'BOM'}[unit.status]||'Okänd status';
     button.append(number,meta,status);button.onclick=()=>openUnit(unit.unit_id);list.append(button);
@@ -104,7 +104,7 @@ function renderRond(){
   if($('continueUnit')){
     const next=nextPendingUnit();
     $('continueUnit').hidden=!next;
-    $('continueUnit').textContent=next?'Fortsätt med '+(next.kind==='premises'?'lokal ':'lgh ')+next.number:'Fortsätt med nästa enhet';
+    $('continueUnit').textContent=next?'Fortsätt med '+(next.kind==='premises'?'lokal ':'lgh ')+(next.kind==='premises'&&next.label?next.label:next.number):'Fortsätt med nästa enhet';
     $('continueUnit').onclick=()=>{const target=nextPendingUnit();if(target)openUnit(target.unit_id)};
   }
   renderRoundUnits();renderSpaces();
@@ -120,7 +120,7 @@ function openUnit(unitId){
   const rooms=unitRooms();
   const pending=rooms.find(room=>state.measurements.some(point=>point.unit_id===unitId&&point.room_id===room.room_id&&pendingPoint(point)));
   state.activeRoomId=(pending||rooms[0])?.room_id||null;
-  $('unitNr').textContent=unit.number;$('unitKindLabel').textContent=unit.kind==='premises'?'Lokal':'Lägenhet';
+  $('unitNr').textContent=unit.kind==='premises'&&unit.label?unit.label:unit.number;$('unitKindLabel').textContent=unit.kind==='premises'?'Lokal':'Lägenhet';
   $('photoStatus').className='status';$('photoStatus').textContent='Välj eller registrera en anmärkning innan du tar foto.';
   renderUnit();view('viewUnit');window.scrollTo(0,0);$('unitNr').focus({preventScroll:true});
 }
