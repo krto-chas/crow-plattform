@@ -15,7 +15,8 @@ def test_unit_stepper_shell() -> None:
     assert 'id="ovkStepCount"' in page
     assert 'id="ovkStepFill"' in page
     assert "Lägenhet och nycklar" in page
-    assert "Anmärkning och foto" in page
+    for step in ("Välj anmärkning", "Kommentar", "Foto", "Slutkontroll"):
+        assert step in page
     assert "body.ovk-unit-stepper{height:100dvh;overflow:hidden" in page
     assert "event.stopImmediatePropagation();" in page
     assert "originalOpenUnit(id);" in page
