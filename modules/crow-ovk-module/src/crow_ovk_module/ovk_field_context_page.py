@@ -103,13 +103,24 @@ def ovk_field_context_page_router() -> APIRouter:
             "background_color": "#f7f8fa",
             "theme_color": "#f7f8fa",
             "lang": "sv",
-            "icons": [{"src": "/ovk/falt/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable"}],
+            "icons": [
+                {
+                    "src": "/ovk/falt/icon.svg",
+                    "sizes": "any",
+                    "type": "image/svg+xml",
+                    "purpose": "any maskable",
+                }
+            ],
         }
-        return Response(json.dumps(manifest), media_type="application/manifest+json", headers=_NO_CACHE)
+        return Response(
+            json.dumps(manifest), media_type="application/manifest+json", headers=_NO_CACHE
+        )
 
     @router.get("/ovk/falt/icon.svg", response_class=Response)
     def field_icon() -> Response:
-        return Response(_asset_text("field-icon.svg"), media_type="image/svg+xml", headers=_NO_CACHE)
+        return Response(
+            _asset_text("field-icon.svg"), media_type="image/svg+xml", headers=_NO_CACHE
+        )
 
     return router
 
