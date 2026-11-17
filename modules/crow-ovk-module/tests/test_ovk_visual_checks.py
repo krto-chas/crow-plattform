@@ -87,5 +87,5 @@ def test_two_pass_ui_persists_visual_answers() -> None:
     assert "visual_checks:draft.visual_checks||[]" in script.text
     assert "field_progress:draft.field_progress||{}" in script.text
     assert "state.field_progress[state.activeUnitId]" in page.text
-    assert "ovkVisualAddRoom" in page.text
+    assert "ovkRoomSave" in page.text
     assert "ovkVisualFinding" in page.text

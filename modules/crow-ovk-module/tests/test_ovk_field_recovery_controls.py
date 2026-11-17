@@ -29,6 +29,6 @@ def test_existing_inspection_opens_room_flow_without_reset() -> None:
     app.include_router(ovk_field_context_page_router())
     page = TestClient(app).get("/ovk/falt").text
     assert "const progress=(state.field_progress||{})[id];" in page
-    assert "phase:'rooms';" in page
+    assert "progress.phase==='rooms'?'visual'" in page
     assert "state.activeRoomId=progress.room_id;" in page
     assert "state.field_progress[state.activeUnitId]" in page
