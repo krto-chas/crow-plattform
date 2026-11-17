@@ -87,7 +87,7 @@ def _severity_for(classification: int) -> FindingSeverity:
 def build_protokoll_utkast(data: FieldInspectionData) -> FaltProtokollUtkast:
     from crow_ovk_field.defects import defect_type_by_id
 
-    unit_numbers = {unit.unit_id: unit.number for unit in data.units}
+    unit_numbers = {unit.unit_id: unit.display_number for unit in data.units}
     room_names = {room.room_id: room.name for room in data.rooms}
 
     grouped: dict[tuple[str, str, int], list[str]] = {}

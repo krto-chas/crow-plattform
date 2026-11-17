@@ -97,6 +97,17 @@ class FieldUnit:
         if self.status is UnitStatus.BOM and not (self.bom_at or "").strip():
             raise ValueError("bom status requires bom_at timestamp")
 
+    @property
+    def display_number(self) -> str:
+        """Beteckning i protokoll och listor.
+
+        Namngivna lokaler har ett internt löpnummer som inte säger läsaren
+        något; där visas lokalens namn. Lägenheter visas alltid med nummer.
+        """
+        if self.kind is UnitKind.PREMISES and self.label.strip():
+            return self.label.strip()
+        return self.number
+
 
 @dataclass(frozen=True, slots=True)
 class FieldRoom:
