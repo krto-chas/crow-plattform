@@ -574,7 +574,7 @@ def test_property_first_field_inventory_promotion_and_recurring_inspection(
         ).status_code
         == 200
     )
-    empty_structure = {"units": [], "systems": [], "technical_spaces": []}
+    empty_structure: dict[str, list[Any]] = {"units": [], "systems": [], "technical_spaces": []}
     assert client.get(structure_url).json() == empty_structure
     first_workflow = root + "/inspections/ovk-first"
     first_field = root + "/field/ovk-first"
