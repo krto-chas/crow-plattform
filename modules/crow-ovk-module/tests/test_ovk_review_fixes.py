@@ -154,7 +154,9 @@ def test_legacy_upload_rejects_broken_and_oversized_files(
     assert oversized.json()["detail"]["code"] == "LEGACY_OVK_FILE_TOO_LARGE"
 
 
-def test_mutation_guard_creates_nothing_for_unknown_project(tmp_path: Path) -> None:
+def test_mutation_guard_never_creates_project_directory_for_unknown_project(
+    tmp_path: Path,
+) -> None:
     app = FastAPI()
     app.include_router(ovk_workflow_router(tmp_path))
     client = TestClient(app)
@@ -162,4 +164,72 @@ def test_mutation_guard_creates_nothing_for_unknown_project(tmp_path: Path) -> N
         "/api/ovk/projects/okant-projekt/inspections/ovk-001", json={"inspection": "ogiltig"}
     )
     assert response.status_code == 422
-    assert json.dumps(sorted(str(path) for path in tmp_path.rglob("*"))) == "[]"
+    assert not (tmp_path / "projects").exists()
+    # Låset tas alltid, även för första begäran, men utanför projektkatalogen.
+    assert (tmp_path / "ovk-issuance-lock" / "okant-projekt" / "ovk-001.sqlite3").is_file()
+
+
+def test_inspection_named_intyg_cannot_bypass_issued_lock(
+    tmp_path: Path, monkeypatch: MonkeyPatch
+) -> None:
+    client = _ready_client(tmp_path, monkeypatch)
+    base = "/api/ovk/projects/p1/inspections/intyg"
+    assert client.put(base, json=_workflow_payload()).status_code == 200
+    body: dict[str, Any] = {**_INTYG_BODY, "intyg_id": "intyg-009"}
+    preview = client.post(base + "/intyg/preview", json=body)
+    assert preview.status_code == 200, preview.text
+    revision = preview.headers["X-OVK-Review-Revision"]
+    review = client.post(
+        base + "/intyg/review", json=body, headers={"X-OVK-Review-Revision": revision}
+    )
+    assert review.status_code == 200, review.text
+    assert client.post(base + "/intyg", json=body).status_code == 200
+    blocked = client.put(base, json=_workflow_payload())
+    assert blocked.status_code == 409
+    assert blocked.json()["detail"]["code"] == "OVK_INSPECTION_ISSUED"
+
+
+def test_recovery_rejects_invalid_body_and_foreign_certificate(
+    tmp_path: Path, monkeypatch: MonkeyPatch
+) -> None:
+    client = _ready_client(tmp_path, monkeypatch)
+    _interrupt_issuance(client, monkeypatch)
+    broken = client.post(
+        _BASE + "/intyg/recover",
+        content=b"{inte json",
+        headers={"content-type": "application/json"},
+    )
+    assert broken.status_code == 422
+
+    # Ett annat intyg för samma besiktning får aldrig samexistera med återställningen.
+    directory = tmp_path / "projects" / "p1" / "ovk-intyg"
+    assert client.post(_BASE + "/intyg/recover", json=_INTYG_BODY).status_code == 200
+    stored = json.loads((directory / "intyg-001.json").read_text(encoding="utf-8"))
+    (directory / "intyg-001.json").unlink()
+    stored["intyg_id"] = "intyg-annat"
+    (directory / "intyg-annat.json").write_text(json.dumps(stored), encoding="utf-8")
+    response = client.post(_BASE + "/intyg/recover", json=_INTYG_BODY)
+    assert response.status_code == 409
+    assert response.json()["detail"]["code"] == "OVK_ISSUANCE_RECOVERY_INVALID"
+    assert not (directory / "intyg-001.json").exists()
+
+
+def test_recovery_refuses_changed_workflow_basis(tmp_path: Path, monkeypatch: MonkeyPatch) -> None:
+    client = _ready_client(tmp_path, monkeypatch)
+    _interrupt_issuance(client, monkeypatch)
+    path = tmp_path / "projects" / "p1" / "ovk" / "ovk-001.json"
+    record = json.loads(path.read_text(encoding="utf-8"))
+    record["inspection"]["checkpoints"][0]["note"] = "ändrad efter granskning"
+    path.write_text(json.dumps(record), encoding="utf-8")
+    response = client.post(_BASE + "/intyg/recover", json=_INTYG_BODY)
+    assert response.status_code == 409
+    assert response.json()["detail"]["code"] == "OVK_ISSUANCE_RECOVERY_INVALID"
+    assert client.get("/api/ovk/projects/p1/intyg").json()["intyg"] == []
+
+
+def test_profile_identifier_cannot_shadow_csv_route(tmp_path: Path) -> None:
+    app = FastAPI()
+    app.include_router(ovk_reporting_router(tmp_path))
+    client = TestClient(app)
+    response = client.put("/api/ovk/reporting/certification/prof1.csv", json=_PROFILE)
+    assert response.status_code == 422

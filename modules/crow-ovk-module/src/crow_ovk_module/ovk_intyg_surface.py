@@ -515,45 +515,62 @@ def ovk_intyg_router(data_root: Path) -> APIRouter:
             or not isinstance(manifest.get("prepared_at"), str)
         ):
             raise invalid
-        payload: Any = await request.json()
+        try:
+            payload: Any = await request.json()
+        except ValueError as exc:
+            raise HTTPException(status_code=422, detail={"code": "INVALID_OVK_INTYG"}) from exc
         if not isinstance(payload, dict):
             raise HTTPException(status_code=422, detail={"code": "INVALID_OVK_INTYG"})
         # Saknas utfärdandedatum i underlaget sattes det av servern den dag
-        # manifestet förbereddes; pröva då även det datumet. Ett felaktigt datum
-        # kan aldrig godkännas eftersom checksumman måste stämma exakt.
-        candidates: list[dict[str, Any]] = [dict(payload)]
+        # manifestet förbereddes. Det datumet prövas först, så att en senare
+        # återställning inte faller på dagens datum. Ett felaktigt datum kan
+        # aldrig godkännas eftersom checksumma och granskad revision måste
+        # stämma exakt mot manifestet.
+        candidates: list[dict[str, Any]] = []
         if payload.get("issued_date") in (None, ""):
             try:
                 prepared = datetime.fromisoformat(manifest["prepared_at"])
-            except ValueError as exc:
-                raise invalid from exc
-            candidates.append({**payload, "issued_date": prepared.astimezone().date().isoformat()})
+                candidates.append(
+                    {**payload, "issued_date": prepared.astimezone().date().isoformat()}
+                )
+            except ValueError:
+                pass
+        candidates.append(dict(payload))
         intyg: OvkIntyg | None = None
         for candidate in candidates:
-            built, _revision = await _build_from_payload(project_id, inspection_id, candidate)
+            try:
+                built, revision = await _build_from_payload(project_id, inspection_id, candidate)
+            except HTTPException:
+                continue
             canonical = json.dumps(
                 intyg_to_payload(built), sort_keys=True, ensure_ascii=False, separators=(",", ":")
             )
-            if built.intyg_id == manifest["intyg_id"] and compare_digest(
-                sha256(canonical.encode("utf-8")).hexdigest(), manifest["intyg_sha256"]
+            if (
+                built.intyg_id == manifest["intyg_id"]
+                and revision == manifest.get("review_revision")
+                and compare_digest(
+                    sha256(canonical.encode("utf-8")).hexdigest(), manifest["intyg_sha256"]
+                )
             ):
                 intyg = built
                 break
         if intyg is None:
             raise invalid
-        if any(
-            item.inspection_id == inspection_id and item.intyg_id != intyg.intyg_id
-            for item in intyg_repository.list(project_id)
-        ):
-            raise invalid
         try:
-            intyg_repository.save(intyg)
-        except FileExistsError:
-            # Idempotent: redan återställt. Det lagrade intyget måste vara detsamma.
-            if intyg_to_payload(intyg_repository.load(project_id, intyg.intyg_id)) != (
-                intyg_to_payload(intyg)
+            if any(
+                item.inspection_id == inspection_id and item.intyg_id != intyg.intyg_id
+                for item in intyg_repository.list(project_id)
             ):
-                raise invalid from None
+                raise invalid
+            try:
+                intyg_repository.save(intyg)
+            except FileExistsError:
+                # Idempotent: redan återställt. Det lagrade intyget måste vara detsamma.
+                stored = intyg_repository.load(project_id, intyg.intyg_id)
+                if intyg_to_payload(stored) != intyg_to_payload(intyg):
+                    raise invalid from None
+        except ValueError as exc:
+            raise invalid from exc
         return {
             **intyg_to_payload(intyg),
             "verification_code": intyg_verification_code(intyg),

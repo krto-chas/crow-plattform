@@ -5,9 +5,12 @@ from collections.abc import Iterable
 from hashlib import sha256
 from io import BytesIO
 from pathlib import Path
+from zipfile import BadZipFile
 
 from openpyxl import load_workbook
+from openpyxl.utils.exceptions import InvalidFileException
 from pypdf import PdfReader
+from pypdf.errors import PyPdfError
 
 from .models import (
     LegacyFact,
@@ -53,9 +56,10 @@ def preview_legacy_file(project_id: str, filename: str, content: bytes) -> Legac
         records = reader(content)
     except ValueError:
         raise
-    except Exception as exc:
+    except (PyPdfError, InvalidFileException, BadZipFile, KeyError, OSError) as exc:
         # Tolkarna höjer egna feltyper för trasiga filer; gränsen ska ge ett
-        # kontrollerat avslag, aldrig ett internt serverfel.
+        # kontrollerat avslag, aldrig ett internt serverfel. Programfel och
+        # resursbrist fångas medvetet inte här.
         raise ValueError(f"Unreadable legacy OVK file: {suffix}") from exc
 
     source_digest = sha256(content).hexdigest()

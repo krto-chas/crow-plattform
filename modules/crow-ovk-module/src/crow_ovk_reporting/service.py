@@ -121,6 +121,8 @@ class ReportingRepository:
 
     def save_profile(self, profile: CertificationProfile) -> None:
         _validate_id(profile.profile_id)
+        if profile.profile_id.lower().endswith(".csv"):
+            raise ValueError("profile identifier must not end with .csv")
         self._profile_root.mkdir(parents=True, exist_ok=True)
         _atomic_write(
             self._profile_root / f"{profile.profile_id}.json",
