@@ -60,6 +60,15 @@ def test_review_compiles_checks_measurements_findings_and_photos() -> None:
     assert "Varningarna hindrar inte att enheten slutförs." in page
 
 
+def test_review_names_the_unit_and_leads_to_the_next_one() -> None:
+    page = _page()
+    assert 'id="ovkReviewHeading"' in page
+    assert "const next=unit?nextPendingUnit(unit.unit_id):null;" in page
+    assert "'Klar – nästa '" in page
+    assert "'Klar – till listan'" in page
+    assert "summary.textContent='Visa mätvärden'" in page
+
+
 def test_photo_field_follows_the_active_step() -> None:
     page = _page()
     assert 'id="ovkMeasurePhotoSlot" hidden' in page

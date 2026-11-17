@@ -20,4 +20,4 @@ def test_guided_findings_and_final_review() -> None:
     assert "const pending=state.measurements.filter" in html
     assert "pendingPoint(point)" in html
     assert "phase==='review'" in html
-    assert "Slutför lägenhet" in html
+    assert "Klar – nästa " in html

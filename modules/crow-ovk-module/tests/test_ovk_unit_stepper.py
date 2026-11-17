@@ -21,5 +21,6 @@ def test_unit_stepper_shell() -> None:
     assert "event.stopImmediatePropagation();" in page
     assert "originalOpenUnit(id);" in page
     assert "originalUpdateFooter(name);" in page
-    assert "Slutför lägenhet" in page
+    assert "Klar – nästa " in page
+    assert "Klar – till listan" in page
     assert "state.field_progress[state.activeUnitId]" in page

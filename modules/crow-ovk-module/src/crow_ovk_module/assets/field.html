@@ -126,6 +126,7 @@
     .ovk-review-room{border-top:1px solid var(--line);padding:8px 0}
     .ovk-review-room h4{margin:0 0 4px;font-size:14px}
     .ovk-review-room p{margin:2px 0;font-size:13px}
+    .ovk-review-room summary{font-size:13px;color:var(--mut);cursor:pointer;padding:4px 0}
     #ovkReviewWarnings ul{margin:6px 0 0;padding-left:18px}
   </style>
 </head>
@@ -275,10 +276,10 @@
       <button class="btn ghost ovk-room-next" type="button" id="ovkNextRoom">Nästa rum</button>
     </div>
 
-    <div class="card"><div class="eyebrow">Slutkontroll</div><h2 class="section-heading">Kontrollera innan du slutför</h2>
+    <div class="card"><div class="eyebrow">Slutkontroll</div><h2 class="section-heading" id="ovkReviewHeading">Överblick</h2>
       <div id="ovkUnitReview" class="status" role="status" aria-live="polite"></div>
       <div id="ovkReviewWarnings" class="status warn" role="status" hidden></div>
-      <p class="room-progress">Varningarna hindrar inte att enheten slutförs. Ingen uppgift ändras automatiskt.</p>
+      <p class="room-progress">Varningarna hindrar inte att enheten slutförs. Knappen längst ned markerar enheten som klar och öppnar nästa.</p>
       <div id="ovkReviewRooms"></div>
       <h3 class="section-heading">Anmärkningar och bildbevis</h3>
       <div id="unitFindings"></div>
@@ -506,12 +507,19 @@
       const answers=check?['don','clean','transfer','fresh'].map(key=>CHECK_LABELS[key][check[key]]).filter(Boolean):[];
       const vent=state.window_vents.find(item=>item.unit_id===room.unit_id&&item.room_id===room.room_id);
       if(vent)answers.push(vent.present?'Fönsterventil finns':'Fönsterventil saknas');
-      const visual=document.createElement('p');visual.textContent=answers.length?answers.join(' · '):'Visuell kontroll ej besvarad';block.append(visual);
       const points=roomPoints(room);
-      if(!points.length){const none=document.createElement('p');none.textContent='Inga mätpunkter';block.append(none)}
-      for(const point of points){const row=document.createElement('p');row.textContent=pointText(point);block.append(row)}
+      const done=points.filter(point=>!pendingPoint(point)).length;
       const marks=findings.filter(item=>item.room_id===room.room_id).length;
-      if(marks){const row=document.createElement('p');row.textContent=marks+' anmärkning'+(marks===1?'':'ar')+' – se listan nedan';block.append(row)}
+      // En rad per rum ger snabb överblick; mätvärdena finns ett tryck bort.
+      const line=document.createElement('p');
+      line.textContent=[answers.length?answers.join(', '):'Visuell kontroll ej besvarad',points.length?done+'/'+points.length+' don klara':'Inga don',marks+' anm.'].join(' · ');
+      block.append(line);
+      if(points.length){
+        const details=document.createElement('details');
+        const summary=document.createElement('summary');summary.textContent='Visa mätvärden';details.append(summary);
+        for(const point of points){const row=document.createElement('p');row.textContent=pointText(point);details.append(row)}
+        block.append(details);
+      }
       target.append(block);
     }
   }
@@ -529,11 +537,15 @@
     const step=STEP[phase];
     cards.forEach((card,index)=>{const active=index===step;card.classList.toggle('ovk-step-active',active);card.setAttribute('aria-hidden',String(!active));if('inert' in card)card.inert=!active});
     const title=phase==='measure'?'Varv 2 · Flödesmätning':phase==='visual'?'Varv 1 · Visuell kontroll':phase==='review'?'Slutkontroll':(premises?'Lokal och nycklar':'Lägenhet och nycklar');
-    $id('ovkStepTitle').textContent=title;
+    const unitName=!unit?'':premises?(unit.label||unit.number):'Lgh '+unit.number;
+    $id('ovkStepTitle').textContent=(unitName?unitName+' · ':'')+title;
+    $id('ovkReviewHeading').textContent='Överblick'+(unitName?' · '+unitName:'');
+    const next=unit?nextPendingUnit(unit.unit_id):null;
+    const nextLabel=!next?'Klar – till listan':'Klar – nästa '+(next.kind==='premises'?'lokal':'lägenhet')+' ('+(next.kind==='premises'&&next.label?next.label:next.number)+')';
     $id('ovkStepCount').textContent=phase==='review'?'Klart för granskning':phase==='setup'?'Förberedelse':!rooms.length?'Inga rum':room?'Rum '+(roomIndex+1)+' av '+rooms.length:rooms.length+' rum · välj nästa';
     $id('ovkStepFill').style.width=(phase==='review'?100:phase==='measure'?50+50*(roomIndex+1)/Math.max(1,rooms.length):phase==='visual'?50*(roomIndex+1)/Math.max(1,rooms.length):0)+'%';
     $id('footBack').textContent=phase==='setup'?'Till listan':'Tillbaka';
-    $id('footDone').textContent=phase==='review'?(premises?'Slutför lokal':'Slutför lägenhet'):phase==='setup'?'Starta visuell kontroll':phase==='visual'?(lastRoom?'Starta mätvarv':'Nästa rum'):(lastRoom?'Till slutkontroll':'Nästa rum');
+    $id('footDone').textContent=phase==='review'?nextLabel:phase==='setup'?'Starta visuell kontroll':phase==='visual'?(lastRoom?'Starta mätvarv':'Nästa rum'):(lastRoom?'Till slutkontroll':'Nästa rum');
     $id('ovkNextRoomHeading').textContent=rooms.length?'Nästa rum i gångordning':'Lägg till första rummet';
     $id('ovkRoomFlowStatus').textContent=rooms.length
       ? 'Lägg till nästa rum när du går in i det. Rummen återkommer i samma ordning i mätvarvet.'
