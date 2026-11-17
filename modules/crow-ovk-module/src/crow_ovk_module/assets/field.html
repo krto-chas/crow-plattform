@@ -184,7 +184,7 @@
 
   <!-- VY: ENHET -->
   <section class="view" id="viewUnit">
-    <div class="ovk-step-head" aria-live="polite"><div class="ovk-step-meta"><strong id="ovkStepTitle">Lägenhet</strong><span id="ovkStepCount">1 av 5</span></div><div class="ovk-step-track" aria-hidden="true"><div class="ovk-step-fill" id="ovkStepFill" style="width:20%"></div></div></div>
+    <div class="ovk-step-head" aria-live="polite"><div class="ovk-step-meta"><strong id="ovkStepTitle">Lägenhet</strong><span id="ovkStepCount">1 av 8</span></div><div class="ovk-step-track" aria-hidden="true"><div class="ovk-step-fill" id="ovkStepFill" style="width:12.5%"></div></div></div>
     <div class="card">
       <div class="eyebrow" id="unitKindLabel">Lägenhet</div>
       <h1 class="bignr" id="unitNr" tabindex="-1">–</h1><p id="unitProgress" class="room-progress" role="status" aria-live="polite"></p>
@@ -232,6 +232,7 @@
         <button class="chip quick hidden" id="wvMissing" data-defect="window_vent_missing">Fönsterventil saknas</button>
         <button class="chip quick" data-defect="general_damage_observation">Skada / annat (foto)</button>
       </div>
+      <p class="room-progress">Om inget fel observeras går du vidare utan att skapa en anmärkning. UA fastställs först när lägenheten slutförs.</p>
       <div class="chips hidden" id="wvRow">
         <button class="chip" id="wvPresent">Fönsterventil finns ✓</button>
       </div>
@@ -240,9 +241,18 @@
     <div class="card"><div class="eyebrow">4 · Anteckning &amp; foto</div><h2 class="section-heading">Anmärkningar och bildbevis</h2>
       <div id="unitFindings"></div>
       <div class="row" id="classRow" style="margin-bottom:6px"><span class="sub">Klass för vald anm.:</span><button class="chip" data-class="0">0 · upplysning</button><button class="chip" data-class="1">1 · åtgärdas</button><button class="chip" data-class="2">2 · EG</button></div>
+    </div>
+    <div class="card"><div class="eyebrow">5 · Kommentar</div><h2 class="section-heading">Beskriv anmärkningen</h2>
+      <p class="room-progress">Välj en anmärkning i föregående steg. Kommentar är frivillig.</p>
       <label for="note">Kommentar till vald anmärkning</label><textarea id="note" placeholder="Valfri kommentar…"></textarea>
+    </div>
+    <div class="card"><div class="eyebrow">6 · Bildbevis</div><h2 class="section-heading">Dokumentera med foto</h2>
       <label for="photo">Foto till vald anmärkning</label><input id="photo" type="file" accept="image/*" capture="environment">
       <div id="photoStatus" class="status">Välj eller registrera en anmärkning innan du tar foto.</div>
+    </div>
+    <div class="card"><div class="eyebrow">7 · Slutkontroll</div><h2 class="section-heading">Kontrollera innan du slutför</h2>
+      <div id="ovkUnitReview" class="status" role="status" aria-live="polite"></div>
+      <p class="room-progress">Saknade mätvärden hanteras av befintlig kontroll vid slutförande. Ingen uppgift ändras automatiskt.</p>
     </div>
   </section>
 
@@ -265,7 +275,7 @@
 <script>
 /* OVK unit stepper: presentation-only. Existing data and save functions remain authoritative. */
 (() => {
-  const labels = ['Lägenhet och nycklar', 'Välj rum', 'Luftflöden', 'Visuell kontroll', 'Anmärkning och foto'];
+  const labels = ['Lägenhet och nycklar', 'Välj rum', 'Luftflöden', 'Visuell kontroll', 'Välj anmärkning', 'Kommentar', 'Foto', 'Slutkontroll'];
   let step = 0;
   let measurementIndex = 0;
   let measurementRoomId = null;
@@ -294,11 +304,39 @@
     nextRoom.hidden = roomIndex < 0 || roomIndex >= rooms.length - 1;
     if (!nextRoom.hidden) nextRoom.textContent = 'Nästa rum: ' + rooms[roomIndex + 1].name;
   }
+  function updateReview() {
+    const unit = activeUnit();
+    if (!unit) return;
+    const points = state.measurements.filter(point => point.unit_id === unit.unit_id);
+    const pending = points.filter(pendingPoint);
+    const invalid = pending.filter(point => point.measured_value != null && String(point.measured_value).trim() !== '');
+    const findings = state.findings.filter(finding => finding.unit_id === unit.unit_id);
+    const photos = state.photos.filter(photo => findings.some(finding => finding.finding_id === photo.finding_id));
+    const rooms = unitRooms();
+    const review = document.getElementById('ovkUnitReview');
+    review.replaceChildren();
+    const lines = [
+      'Lägenhet: ' + unit.number,
+      'Rum: ' + rooms.length,
+      'Mätpunkter: ' + (points.length - pending.length) + ' av ' + points.length + ' klara',
+      'Återstående mätpunkter: ' + pending.length,
+      'Ogiltiga inmatningar: ' + invalid.length,
+      'Anmärkningar: ' + findings.length,
+      'Bildbevis: ' + photos.length
+    ];
+    for (const line of lines) {
+      const paragraph = document.createElement('p');
+      paragraph.textContent = line;
+      review.append(paragraph);
+    }
+    review.className = 'status' + (pending.length ? ' warn' : ' pass');
+  }
   function applyStep() {
     const visible = unitView.classList.contains('on');
     document.body.classList.toggle('ovk-unit-stepper', visible);
     if (!visible) return;
     updateMeasurements();
+    updateReview();
     step = Math.max(0, Math.min(step, cards.length - 1));
     cards.forEach((card, index) => {
       const active = index === step;
