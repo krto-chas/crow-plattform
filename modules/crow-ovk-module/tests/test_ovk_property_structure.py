@@ -263,10 +263,16 @@ def test_premises_name_is_separate_from_permanent_number(tmp_path: Path) -> None
     client = TestClient(app)
     property_url = "/api/ovk/projects/p1/fastighet/f1"
     url = property_url + "/byggnad/hus-a/struktur"
-    assert client.put(property_url, json={
-        "fastighetsbeteckning": "Test 1:1",
-        "byggnader": [{"byggnad_id": "hus-a", "internt_namn": "Hus A"}],
-    }).status_code == 200
+    assert (
+        client.put(
+            property_url,
+            json={
+                "fastighetsbeteckning": "Test 1:1",
+                "byggnader": [{"byggnad_id": "hus-a", "internt_namn": "Hus A"}],
+            },
+        ).status_code
+        == 200
+    )
     unit = {
         "unit_id": "stable-u1",
         "number": "A101",
