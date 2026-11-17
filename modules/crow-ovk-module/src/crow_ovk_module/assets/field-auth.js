@@ -84,56 +84,125 @@ syncPendingMedia = async function () {
   return uploaded;
 };
 
+// A single in-flight sync per tab. Never clear dirty if edits arrived mid-flight.
+const crowPersistOriginal = persist;
+let crowEditVersion = 0;
+let crowSyncInFlight = null;
+let crowAutoTimer = null;
+let crowSyncBlocked = false;
+let crowSyncIdentity = null;
+const CROW_AUTO_DELAY_MS = 8000;
+const CROW_AUTO_INTERVAL_MS = 60000;
+
+function crowSyncLabel(message, kind = '') {
+  const status = $('syncStatus');
+  status.className = 'status' + (kind ? ' ' + kind : '');
+  status.textContent = message;
+  const indicator = $('fieldSyncIndicator');
+  if (indicator) {
+    indicator.textContent = message;
+    indicator.className = 'field-sync-indicator' + (kind ? ' ' + kind : '');
+  }
+}
+function crowQueueAutoSync(delay = CROW_AUTO_DELAY_MS) {
+  clearTimeout(crowAutoTimer);
+  if (!state.dirty || !state.inspection_id || !state.project_id || crowSyncBlocked || !navigator.onLine) return;
+  crowAutoTimer = setTimeout(() => { void syncDraft(); }, delay);
+}
+persist = async function () {
+  // Increment before awaiting IndexedDB so an in-flight sync cannot clear new edits.
+  crowEditVersion += 1;
+  crowSyncBlocked = false;
+  clearTimeout(crowAutoTimer);
+  await crowPersistOriginal();
+  crowSyncLabel('Sparad lokalt · väntar på synk');
+  crowQueueAutoSync();
+};
+
 syncDraft = async function () {
-  if (!state.inspection_id) {
-    $('syncStatus').textContent = 'Starta en rondering först.';
+  if (crowSyncInFlight) return crowSyncInFlight;
+  if (!state.inspection_id || !state.project_id) {
+    crowSyncLabel('Starta en rondering först.');
     return;
   }
   if (!navigator.onLine) {
-    $('syncStatus').textContent = 'Offline · allt ligger kvar säkert lokalt.';
+    crowSyncLabel('Offline · sparad lokalt', 'warn');
     return;
   }
-  try {
-    $('syncStatus').className = 'status';
-    $('syncStatus').textContent = 'Kontrollerar session…';
-    await crowRequireSession();
-    const current = await crowAuthenticatedFetch(fieldEndpoint('sync', state.project_id, state.inspection_id));
-    if (current.ok) {
-      const remote = await current.json();
-      if (remote.snapshot_sha256 !== state.last_sync) throw new Error('Serverunderlaget har ändrats på en annan enhet. Lokalt arbete bevaras; synk stoppad.');
-    } else if (current.status !== 404 || state.last_sync) {
-      throw new Error('Serverrevisionen kunde inte verifieras. Synk stoppad.');
+  const identity = state.project_id + '/' + state.inspection_id;
+  if (crowSyncIdentity && crowSyncIdentity !== identity) crowSyncBlocked = false;
+  crowSyncIdentity = identity;
+  const version = crowEditVersion;
+  const sync = async () => {
+    try {
+      crowSyncLabel('Synkroniserar…');
+      await crowRequireSession();
+      const current = await crowAuthenticatedFetch(fieldEndpoint('sync', state.project_id, state.inspection_id));
+      if (current.ok) {
+        const remote = await current.json();
+        if (remote.snapshot_sha256 !== state.last_sync) {
+          throw new Error('Serverunderlaget har ändrats på en annan enhet. Lokalt arbete bevaras; synk stoppad.');
+        }
+      } else if (current.status !== 404 || state.last_sync) {
+        throw new Error('Serverrevisionen kunde inte verifieras. Synk stoppad.');
+      }
+      await syncContext();
+      const summary = await syncSnapshot();
+      const uploaded = await syncPendingMedia();
+      if (uploaded) await syncSnapshot();
+      if (state.project_id !== identity.split('/')[0] || state.inspection_id !== identity.split('/')[1]) {
+        throw new Error('Aktiv besiktning ändrades under synk. Kontrollera uppdraget.');
+      }
+      // A newer local edit must remain dirty and be uploaded by a subsequent sync.
+      const unchanged = crowEditVersion === version;
+      await writeDraft(!unchanged);
+      if (unchanged) {
+        crowSyncLabel('Synkad · ' + state.last_sync.slice(0, 12) + '… · ' + uploaded +
+          ' bilder · täckning ' + (summary.coverage_complete ? 'komplett' : 'ofullständig'), 'pass');
+      } else {
+        crowSyncLabel('Nya ändringar sparade lokalt · synkar igen');
+      }
+      crowSyncBlocked = false;
+    } catch (error) {
+      state.dirty = true;
+      try { await writeDraft(true); } catch (_) { /* Do not hide the original sync error. */ }
+      crowSyncBlocked = true; // No repeated requests on conflict or expired session.
+      if (error instanceof CrowAuthenticationRequired) {
+        crowSyncLabel('Sessionen har gått ut · sparad lokalt. Logga in och synka igen.', 'warn');
+      } else {
+        crowSyncLabel('Synk stoppad · sparad lokalt: ' + crowErrorText(error), 'warn');
+      }
     }
-    $('syncStatus').textContent = 'Synkar kontext…';
-    await syncContext();
-    $('syncStatus').textContent = 'Synkar snapshot…';
-    const summary = await syncSnapshot();
-    const uploaded = await syncPendingMedia();
-    if (uploaded) {
-      $('syncStatus').textContent = 'Media verifierad · uppdaterar snapshot…';
-      await syncSnapshot();
-    }
-    state.dirty = false;
-    await writeDraft(false);
-    $('syncStatus').className = 'status pass';
-    $('syncStatus').textContent = 'Synkad · ' + state.last_sync.slice(0, 12) + '… · ' + uploaded +
-      ' bilder · täckning ' + (summary.coverage_complete ? 'komplett' : 'ofullständig');
-  } catch (error) {
-    state.dirty = true;
-    await writeDraft(true);
-    $('syncStatus').className = 'status warn';
-    if (error instanceof CrowAuthenticationRequired) {
-      $('syncStatus').textContent =
-        'Sessionen saknas eller har gått ut. Ronderingen är kvar lokalt. Logga in igen och återgå till Fältläge för att synka.';
-      return;
-    }
-    const text = crowErrorText(error);
-    if (error instanceof CrowAuthenticationRequired || /authentication/i.test(text)) {
-      $('syncStatus').innerHTML = 'Sessionen har gått ut – <a href="/login">logga in</a> och synka igen. Ingen fältdata går förlorad.';
-    } else {
-      $('syncStatus').textContent = 'Synkfel: ' + text;
-    }
-  }
+  };
+  crowSyncInFlight = sync().finally(() => {
+    crowSyncInFlight = null;
+    if (!crowSyncBlocked && state.dirty) crowQueueAutoSync(1000);
+  });
+  return crowSyncInFlight;
 };
+
+window.addEventListener('online', () => {
+  if (state.dirty) {
+    crowSyncBlocked = false;
+    crowQueueAutoSync(1000);
+  }
+});
+window.addEventListener('offline', () => {
+  clearTimeout(crowAutoTimer);
+  if (state.dirty) crowSyncLabel('Offline · sparad lokalt', 'warn');
+});
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden && state.dirty && navigator.onLine && !crowSyncBlocked) crowQueueAutoSync(1000);
+});
+setInterval(() => {
+  if (state.dirty && !crowSyncBlocked) crowQueueAutoSync(1000);
+}, CROW_AUTO_INTERVAL_MS);
+// Restored drafts are loaded asynchronously during startup.
+setTimeout(() => {
+  if (state.dirty) {
+    crowSyncLabel('Lokala ändringar väntar på synk');
+    crowQueueAutoSync();
+  }
+}, 12000);
 
 $('sync').onclick = syncDraft;
