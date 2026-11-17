@@ -35,6 +35,12 @@ jobs:
             modules/crow-pressure-test-module/tests \
             modules/crow-ovk-module/src \
             modules/crow-ovk-module/tests
+      - name: Syntax-check module JavaScript assets
+        run: |
+          set -euo pipefail
+          for script in modules/*/src/*/assets/*.js; do
+            node --check "$script"
+          done
       - run: pytest -q
       - name: Test first-party modules
         run: |
