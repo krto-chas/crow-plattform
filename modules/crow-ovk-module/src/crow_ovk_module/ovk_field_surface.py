@@ -35,7 +35,7 @@ from crow_ovk_field import (
     parse_flow_value,
     validate_field_data,
 )
-from crow_ovk_field.models import FindingFollowup
+from crow_ovk_field.models import FindingFollowup, RoomVisualCheck
 from crow_ovk_workflow.repository import OvkWorkflowRepository
 
 from .ovk_field_workbench import _FieldWorkbenchRepository
@@ -412,6 +412,18 @@ def _field_data_from_payload(payload: dict[str, Any]) -> FieldInspectionData:
         )
         for item in _dict_items(payload.get("window_vents", []), "window_vents")
     )
+    visual_checks = tuple(
+        RoomVisualCheck(
+            check_id=str(item["check_id"]),
+            unit_id=str(item["unit_id"]),
+            room_id=str(item["room_id"]),
+            don=str(item.get("don", "")),
+            clean=str(item.get("clean", "")),
+            transfer=str(item.get("transfer", "")),
+            fresh=str(item.get("fresh", "")),
+        )
+        for item in _dict_items(payload.get("visual_checks", []), "visual_checks")
+    )
     technical_spaces = tuple(
         TechnicalSpace(
             space_id=str(item["space_id"]),
@@ -454,6 +466,7 @@ def _field_data_from_payload(payload: dict[str, Any]) -> FieldInspectionData:
         photos=photos,
         measurements=measurements,
         window_vents=window_vents,
+        visual_checks=visual_checks,
         technical_spaces=technical_spaces,
         checkpoints=checkpoints,
         finding_followups=followups,
@@ -593,6 +606,18 @@ def _field_data_to_payload(data: FieldInspectionData) -> dict[str, Any]:
                 **({"system_id": item.system_id} if item.system_id is not None else {}),
             }
             for item in data.measurements
+        ],
+        "visual_checks": [
+            {
+                "check_id": item.check_id,
+                "unit_id": item.unit_id,
+                "room_id": item.room_id,
+                "don": item.don,
+                "clean": item.clean,
+                "transfer": item.transfer,
+                "fresh": item.fresh,
+            }
+            for item in data.visual_checks
         ],
         "window_vents": [
             {
