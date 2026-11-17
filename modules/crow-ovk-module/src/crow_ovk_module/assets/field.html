@@ -395,9 +395,34 @@
     step -= 1;
     applyStep();
   }, true);
-  document.getElementById('footDone').addEventListener('click', event => {
+  document.getElementById('footDone').addEventListener('click', async event => {
     if (!unitView.classList.contains('on') || step === cards.length - 1) return;
     event.stopImmediatePropagation();
+    // After visual inspection, skip finding/photo steps only if the current
+    // room has no recorded findings. Do not mark the room UA automatically.
+    if (step === 3 && activeRoom()) {
+      const room = activeRoom();
+      const hasFindings = state.findings.some(finding =>
+        finding.unit_id === state.activeUnitId && finding.room_id === room.room_id
+      );
+      if (!hasFindings) {
+        const rooms = unitRooms();
+        const index = rooms.findIndex(item => item.room_id === room.room_id);
+        if (index >= 0 && index < rooms.length - 1) {
+          state.activeRoomId = rooms[index + 1].room_id;
+          clearFindingSelection();
+          measurementIndex = 0;
+          measurementRoomId = null;
+          renderUnit();
+          step = 2;
+        } else {
+          step = cards.length - 1;
+        }
+        applyStep();
+        await persist();
+        return;
+      }
+    }
     step += 1;
     applyStep();
   }, true);
