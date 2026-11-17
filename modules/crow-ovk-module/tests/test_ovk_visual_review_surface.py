@@ -12,11 +12,12 @@ def test_guided_findings_and_final_review() -> None:
     response = TestClient(app).get("/ovk/falt")
     assert response.status_code == 200
     html = response.text
-    assert "Välj anmärkning', 'Kommentar', 'Foto', 'Slutkontroll" in html
+    assert 'id="ovkVisualFinding"' in html
+    assert 'id="ovkVisualPhotoSlot"' in html
     assert 'id="ovkUnitReview"' in html
     assert 'id="note"' in html
     assert 'id="photo"' in html
-    assert "function updateReview()" in html
-    assert "points.filter(pendingPoint)" in html
-    assert "updateReview();" in html
+    assert "const pending=state.measurements.filter" in html
+    assert "pendingPoint(point)" in html
+    assert "phase==='review'" in html
     assert "Slutför lägenhet" in html

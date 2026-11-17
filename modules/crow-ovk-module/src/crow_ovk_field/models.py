@@ -222,6 +222,34 @@ def parse_flow_value(value: object) -> Decimal | None:
 
 
 @dataclass(frozen=True, slots=True)
+class RoomVisualCheck:
+    """Persisted visual inspection observations for one room.
+
+    Empty values mean not checked, never an implicit approval.
+    """
+
+    check_id: str
+    unit_id: str
+    room_id: str
+    don: str = ""
+    clean: str = ""
+    transfer: str = ""
+    fresh: str = ""
+
+    def __post_init__(self) -> None:
+        if not all((self.check_id.strip(), self.unit_id.strip(), self.room_id.strip())):
+            raise ValueError("visual check requires identifiers")
+        for field_name, value, allowed in (
+            ("don", self.don, {"", "yes", "no"}),
+            ("clean", self.clean, {"", "clean", "dirty"}),
+            ("transfer", self.transfer, {"", "yes", "no"}),
+            ("fresh", self.fresh, {"", "yes", "no"}),
+        ):
+            if value not in allowed:
+                raise ValueError(f"invalid visual check {field_name}")
+
+
+@dataclass(frozen=True, slots=True)
 class WindowVentCheck:
     """Fönsterventil kontrolleras endast finns/finns ej, aldrig med mätning.
 
@@ -363,6 +391,7 @@ class FieldInspectionData:
     photos: tuple[OvkPhotoEvidence, ...] = ()
     measurements: tuple[FieldMeasurement, ...] = field(default=())
     window_vents: tuple[WindowVentCheck, ...] = field(default=())
+    visual_checks: tuple[RoomVisualCheck, ...] = field(default=())
     technical_spaces: tuple[TechnicalSpace, ...] = field(default=())
     checkpoints: tuple[FieldCheckpoint, ...] = field(default=())
     finding_followups: tuple[FindingFollowup, ...] = field(default=())
