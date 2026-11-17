@@ -278,9 +278,17 @@ function updateUnitProgress(){
   const position=state.units.findIndex(item=>item.unit_id===unit.unit_id)+1;
   target.textContent='Enhet '+position+' av '+state.units.length+' · '+unitRooms().length+' registrerade rum · '+pending+' mätpunkter utan giltigt värde';
 }
+const REPEATABLE_ROOMS = new Set(['Sovrum', 'Badrum', 'WC']);
+function nextPresetRoomName(base, rooms){
+  const names=new Set(rooms.map(room=>room.name));
+  if(!names.has(base))return base;
+  let index=2;
+  while(names.has(base+' '+index))index++;
+  return base+' '+index;
+}
 function renderRooms(){
   const registered=unitRooms();
-  const entries=[...registered.map(room=>({name:room.name,id:room.room_id})),...roomPresets().filter(name=>!registered.some(room=>room.name===name)).map(name=>({name,id:''}))];
+  const entries=[...registered.map(room=>({name:room.name,id:room.room_id})),...roomPresets().filter(name=>REPEATABLE_ROOMS.has(name)||!registered.some(room=>room.name===name)).map(name=>({name,id:''}))];
   $('roomChips').replaceChildren();
   const presets=$('roomPresetChips')||$('roomChips');
   if(presets!==$('roomChips'))presets.replaceChildren();
@@ -292,7 +300,7 @@ function renderRooms(){
     if(entry.id)button.setAttribute('aria-pressed',String(entry.id===state.activeRoomId));
     else button.textContent='+ '+entry.name;
     button.onclick=async()=>{
-      let name=entry.name;
+      let name=entry.id?entry.name:(REPEATABLE_ROOMS.has(entry.name)?nextPresetRoomName(entry.name,unitRooms()):entry.name);
       if(!entry.id&&isCommercial()){const nr=(prompt('Rumsnr för '+name+' (valfritt):')||'').trim();if(nr)name+=' '+nr}
       state.activeRoomId=entry.id||ensureRoom(name).room_id;clearFindingSelection();renderUnit();await persist();
     };
