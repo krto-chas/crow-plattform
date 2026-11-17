@@ -287,8 +287,18 @@ async function createDraft(event) {
     const id = row.querySelector('.draft-system-id').value.trim();
     return {system_id:id, system_type:row.querySelector('.draft-system-type').value, label:row.querySelector('.draft-system-name').value.trim() || id, source_ref:null};
   });
-  if (!systems.length || systems.some(s => !s.system_id || !s.system_type || /[|\\r\\n]/.test(s.system_id+s.label)) || new Set(systems.map(s=>s.system_id.toLowerCase())).size !== systems.length) {
-    $('draftStatus').textContent = 'Ange unika systembeteckningar och systemtyper utan lodstreck.'; return;
+  if (!systems.length) { $('draftStatus').textContent = 'Välj minst ett ventilationssystem.'; return; }
+  const seenSystemIds = new Set();
+  for (const [index, system] of systems.entries()) {
+    const identifier = String(system.system_id || '').trim();
+    const systemType = String(system.system_type || '').trim();
+    const label = String(system.label || '');
+    const systemName = identifier || 'System ' + (index + 1);
+    if (!identifier) { $('draftStatus').textContent = 'System ' + (index + 1) + ' saknar systembeteckning.'; return; }
+    if (!systemType) { $('draftStatus').textContent = systemName + ': välj systemtyp.'; return; }
+    if (/[|\r\n]/.test(identifier + label)) { $('draftStatus').textContent = systemName + ': beteckning och benämning får inte innehålla lodstreck eller radbrytningar.'; return; }
+    if (seenSystemIds.has(identifier.toLowerCase())) { $('draftStatus').textContent = systemName + ': systembeteckningen används redan.'; return; }
+    seenSystemIds.add(identifier.toLowerCase());
   }
   // Keep the same identifier for retries; never reuse a date-based draft ID.
   draftId ||= 'ovk-' + Array.from(crypto.getRandomValues(new Uint8Array(16)), byte => byte.toString(16).padStart(2,'0')).join('');
@@ -438,9 +448,9 @@ async function saveNewProperty(event) {
     const type = $('newPropertyType').value;
     const buildingName = $('newPropertyBuilding').value.trim();
     const existingProject = propertyProjects.find(p=>p.project_id===$('newPropertyProject').value);
-    if (!designation || !ort || !buildingName || !type) return;
+    if (!designation || !ort || !type) return;
     if (searchMatches.length && !confirm('Registrera en annan fastighet med samma beteckning? Kontrollera tidigare träffar och ort.')) return;
-    pendingProperty = {designation,ort,gata,type,buildingName,existingProject,projectId:existingProject?.project_id||randomId('project-'),propertyId:randomId('property-'),buildingId:randomId('building-')};
+    pendingProperty = {designation,ort,gata,type,buildingName:buildingName || 'Byggnad',existingProject,projectId:existingProject?.project_id||randomId('project-'),propertyId:randomId('property-'),buildingId:randomId('building-')};
   }
   const request = pendingProperty;
   $('propertySearchFields').disabled = true;
