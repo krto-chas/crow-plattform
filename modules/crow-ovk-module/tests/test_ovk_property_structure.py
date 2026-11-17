@@ -255,3 +255,62 @@ def test_completed_inventory_roundtrip_keeps_existing_unit_identity(tmp_path: Pa
     result = client.put(url, json={**inventory, "units": [source, completed, individual]})
     assert result.status_code == 200
     assert client.get(url).json()["units"] == [source, completed, individual]
+
+
+def test_premises_name_is_separate_from_permanent_number(tmp_path: Path) -> None:
+    app = FastAPI()
+    app.include_router(ovk_fastighet_router(tmp_path))
+    client = TestClient(app)
+    property_url = "/api/ovk/projects/p1/fastighet/f1"
+    url = property_url + "/byggnad/hus-a/struktur"
+    assert (
+        client.put(
+            property_url,
+            json={
+                "fastighetsbeteckning": "Test 1:1",
+                "byggnader": [{"byggnad_id": "hus-a", "internt_namn": "Hus A"}],
+            },
+        ).status_code
+        == 200
+    )
+    unit = {
+        "unit_id": "stable-u1",
+        "number": "A101",
+        "kind": "premises",
+        "label": "Restaurang Hov",
+        "display_mode": "name",
+        "rooms": [],
+    }
+    saved = client.put(url, json={"units": [unit]})
+    assert saved.status_code == 200
+    assert saved.json()["units"][0] == unit
+    unit["label"] = "Butik A"
+    renamed = client.put(url, json={"units": [unit]})
+    assert renamed.status_code == 200
+    assert renamed.json()["units"][0]["unit_id"] == "stable-u1"
+    assert renamed.json()["units"][0]["number"] == "A101"
+    assert renamed.json()["units"][0]["label"] == "Butik A"
+    assert client.get(url).json()["units"][0] == unit
+
+    for invalid in (
+        {**unit, "number": ""},
+        {**unit, "label": ""},
+        {**unit, "display_mode": "unknown"},
+    ):
+        assert client.put(url, json={"units": [invalid]}).status_code == 422
+
+    legacy = {"unit_id": "old-u1", "number": "1001", "kind": "premises", "rooms": []}
+    response = client.put(url, json={"units": [legacy]})
+    assert response.status_code == 200
+    assert response.json()["units"][0]["number"] == "1001"
+    assert response.json()["units"][0]["display_mode"] == "number"
+
+
+def test_premises_editor_exposes_separate_name_and_number(tmp_path: Path) -> None:
+    app = FastAPI()
+    app.include_router(ovk_fastighet_router(tmp_path))
+    script = TestClient(app).get("/ovk/fastighet/app.js")
+    assert script.status_code == 200
+    assert "Permanent lokalnummer" in script.text
+    assert "Lokalnamn (fritext)" in script.text
+    assert "unit.display_mode" in script.text

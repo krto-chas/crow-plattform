@@ -459,9 +459,20 @@ def _validate_structure(payload: dict[str, Any]) -> dict[str, Any]:
             if points:
                 entry["measurement_points"] = points
             rooms.append(entry)
-        units.append(
-            {"unit_id": unit_id, "number": required(row, "number"), "kind": kind, "rooms": rooms}
-        )
+        number = required(row, "number")
+        unit = {"unit_id": unit_id, "number": number, "kind": kind, "rooms": rooms}
+        if kind == "premises":
+            label = row.get("label", "")
+            if not isinstance(label, str):
+                raise ValueError("premises label must be a string")
+            mode = row.get("display_mode", "name" if label.strip() else "number")
+            if mode not in {"number", "name"}:
+                raise ValueError("invalid premises display_mode")
+            if mode == "name" and not label.strip():
+                raise ValueError("premises name is required when display_mode is name")
+            unit["label"] = label.strip()
+            unit["display_mode"] = mode
+        units.append(unit)
 
     space_ids: set[str] = set()
     spaces: list[dict[str, str]] = []
