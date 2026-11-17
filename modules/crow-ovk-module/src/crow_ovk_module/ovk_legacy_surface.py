@@ -13,6 +13,8 @@ from crow_ovk_legacy import (
 from fastapi import APIRouter, File, Form, HTTPException, UploadFile
 from fastapi.responses import HTMLResponse, Response
 
+_MAX_LEGACY_BYTES = 25 * 1024 * 1024
+
 
 def ovk_legacy_router(data_root: Path) -> APIRouter:
     router = APIRouter()
@@ -32,7 +34,9 @@ def ovk_legacy_router(data_root: Path) -> APIRouter:
         file: UploadFile = File(...),
     ) -> dict[str, Any]:
         filename = file.filename or "legacy-ovk"
-        content = await file.read()
+        content = await file.read(_MAX_LEGACY_BYTES + 1)
+        if len(content) > _MAX_LEGACY_BYTES:
+            raise HTTPException(status_code=413, detail={"code": "LEGACY_OVK_FILE_TOO_LARGE"})
         if not content:
             raise HTTPException(status_code=422, detail={"code": "EMPTY_LEGACY_OVK_FILE"})
         try:

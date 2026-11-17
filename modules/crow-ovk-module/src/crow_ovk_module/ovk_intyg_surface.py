@@ -3,9 +3,11 @@ from __future__ import annotations
 
 import json
 import os
+import re
 from dataclasses import replace
 from datetime import UTC, date, datetime
 from hashlib import sha256
+from hmac import compare_digest
 from html import escape
 from pathlib import Path
 from tempfile import NamedTemporaryFile
@@ -40,7 +42,7 @@ from crow_ovk_pricing import BuildingCategory, InspectionType
 from crow_ovk_workflow import OvkWorkflowRecord, OvkWorkflowRepository, record_to_payload
 
 from .ovk_issuance_lock import inspection_mutation_guard, require_unissued
-from .ovk_issuance_manifest import manifest_path, publish_manifest
+from .ovk_issuance_manifest import manifest_path, publish_manifest, verify_manifest_photos
 from .ovk_protocol_source import require_current_protocol_source
 
 
@@ -237,6 +239,11 @@ def ovk_intyg_router(data_root: Path) -> APIRouter:
         payload: Any = await request.json()
         if not isinstance(payload, dict):
             raise HTTPException(status_code=422, detail={"code": "INVALID_OVK_INTYG"})
+        return await _build_from_payload(project_id, inspection_id, payload)
+
+    async def _build_from_payload(
+        project_id: str, inspection_id: str, payload: dict[str, Any]
+    ) -> tuple[OvkIntyg, str]:
         try:
             record = workflow_repository.load(project_id, inspection_id)
         except FileNotFoundError as exc:
@@ -466,6 +473,114 @@ def ovk_intyg_router(data_root: Path) -> APIRouter:
             **intyg_to_payload(intyg),
             "verification_code": intyg_verification_code(intyg),
             "verify_url": intyg_verify_url(intyg),
+        }
+
+    @router.post(
+        "/api/ovk/projects/{project_id}/inspections/{inspection_id}/intyg/recover",
+        response_model=None,
+    )
+    async def recover_intyg(
+        project_id: str,
+        inspection_id: str,
+        request: Request,
+    ) -> dict[str, Any]:
+        """Slutför ett avbrutet utfärdande: manifestet finns men intyget saknas.
+
+        Intyget byggs om ur samma underlag och sparas endast om det är identiskt
+        med det granskade intyg som manifestet redan pekar ut. Inget nytt eller
+        ändrat intyg kan utfärdas den här vägen.
+        """
+        invalid = HTTPException(status_code=409, detail={"code": "OVK_ISSUANCE_RECOVERY_INVALID"})
+        try:
+            workflow_repository.load(project_id, inspection_id)
+        except FileNotFoundError as exc:
+            raise HTTPException(
+                status_code=404, detail={"code": "OVK_INSPECTION_NOT_FOUND"}
+            ) from exc
+        except ValueError as exc:
+            raise HTTPException(status_code=422, detail={"code": "INVALID_OVK_IDENTIFIER"}) from exc
+        try:
+            manifest = json.loads(manifest_path(data_root, project_id, inspection_id).read_bytes())
+        except FileNotFoundError as exc:
+            raise HTTPException(
+                status_code=409, detail={"code": "OVK_ISSUANCE_NOTHING_TO_RECOVER"}
+            ) from exc
+        except (OSError, ValueError) as exc:
+            raise invalid from exc
+        if (
+            not isinstance(manifest, dict)
+            or manifest.get("project_id") != project_id
+            or manifest.get("inspection_id") != inspection_id
+            or not isinstance(manifest.get("intyg_id"), str)
+            or not isinstance(manifest.get("intyg_sha256"), str)
+            or not re.fullmatch(r"[0-9a-f]{64}", manifest["intyg_sha256"])
+            or not isinstance(manifest.get("prepared_at"), str)
+        ):
+            raise invalid
+        try:
+            payload: Any = await request.json()
+        except ValueError as exc:
+            raise HTTPException(status_code=422, detail={"code": "INVALID_OVK_INTYG"}) from exc
+        if not isinstance(payload, dict):
+            raise HTTPException(status_code=422, detail={"code": "INVALID_OVK_INTYG"})
+        # Saknas utfärdandedatum i underlaget sattes det av servern den dag
+        # manifestet förbereddes. Det datumet prövas först, så att en senare
+        # återställning inte faller på dagens datum. Ett felaktigt datum kan
+        # aldrig godkännas eftersom checksumma och granskad revision måste
+        # stämma exakt mot manifestet.
+        candidates: list[dict[str, Any]] = []
+        if payload.get("issued_date") in (None, ""):
+            try:
+                prepared = datetime.fromisoformat(manifest["prepared_at"])
+                candidates.append(
+                    {**payload, "issued_date": prepared.astimezone().date().isoformat()}
+                )
+            except (ValueError, OverflowError):
+                pass
+        candidates.append(dict(payload))
+        intyg: OvkIntyg | None = None
+        for candidate in candidates:
+            try:
+                built, revision = await _build_from_payload(project_id, inspection_id, candidate)
+            except HTTPException:
+                continue
+            canonical = json.dumps(
+                intyg_to_payload(built), sort_keys=True, ensure_ascii=False, separators=(",", ":")
+            )
+            if (
+                built.intyg_id == manifest["intyg_id"]
+                and revision == manifest.get("review_revision")
+                and compare_digest(
+                    sha256(canonical.encode("utf-8")).hexdigest(), manifest["intyg_sha256"]
+                )
+            ):
+                intyg = built
+                break
+        if intyg is None:
+            raise invalid
+        try:
+            # Samma fotokontroll som vid vanligt utfärdande: evidensen som
+            # granskades måste finnas kvar oförändrad innan intyget sparas.
+            verify_manifest_photos(data_root, project_id, inspection_id, manifest)
+            if any(
+                item.inspection_id == inspection_id and item.intyg_id != intyg.intyg_id
+                for item in intyg_repository.list(project_id)
+            ):
+                raise invalid
+            try:
+                intyg_repository.save(intyg)
+            except FileExistsError:
+                # Idempotent: redan återställt. Det lagrade intyget måste vara detsamma.
+                stored = intyg_repository.load(project_id, intyg.intyg_id)
+                if intyg_to_payload(stored) != intyg_to_payload(intyg):
+                    raise invalid from None
+        except (ValueError, TypeError) as exc:
+            raise invalid from exc
+        return {
+            **intyg_to_payload(intyg),
+            "verification_code": intyg_verification_code(intyg),
+            "verify_url": intyg_verify_url(intyg),
+            "recovered": True,
         }
 
     @router.post("/api/ovk/projects/{project_id}/intyg/{intyg_id}/correction")
@@ -1013,7 +1128,7 @@ _INTYG_HTML = r"""<!doctype html>
 const $=id=>document.getElementById(id);let reviewedPreview=null;function esc(value){return String(value??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]))}function ensureProject(id){if(!id)return;if(![...$('project').options].some(o=>o.value===id)){const option=document.createElement('option');option.value=id;option.textContent=id;$('project').appendChild(option)}}
 async function init(){const modules=await fetch('/api/me/modules');if(!modules.ok)return;const data=await modules.json();if(!(data.modules||[]).some(m=>m.id==='ovk')){$('message').textContent='OVK ingår inte i licensen.';$('create').disabled=true;return}const projects=await fetch('/api/projects');if(projects.ok){for(const p of await projects.json()){ensureProject(p.project_id);const o=[...$('project').options].find(x=>x.value===p.project_id);if(o)o.textContent=p.project_name||p.name||p.project_id}}$('date').value=new Date().toISOString().slice(0,10)}
 function build(){return{intyg_id:$('intyg').value,fastighetsbeteckning:$('fastighet').value,byggnadsagare_name:$('agare').value,inspection_type:$('type').value,building_category:$('category').value,inspection_date:$('date').value,school_or_care:$('school').value==='true',kontrollant_name:$('kname').value,kontrollant_behorighet:$('kbeh').value,kontrollant_certification_body:$('korgan').value,kontrollant_certificate_number:$('kcert').value}}
-$('create').onclick=async()=>{const p=$('project').value,i=$('inspection').value;const r=await fetch('/api/ovk/projects/'+encodeURIComponent(p)+'/inspections/'+encodeURIComponent(i)+'/intyg',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(build())});const d=await r.json();if(!r.ok){$('message').className='status warning';$('message').textContent='Fel: '+JSON.stringify(d);return}$('result').textContent=JSON.stringify(d,null,2);$('message').className='status pass';$('message').textContent='Intyg '+d.intyg_id+' utfärdat ('+d.result+') · verifieringskod '+(d.verification_code||'–')+'.'};
+$('create').onclick=async()=>{const p=$('project').value,i=$('inspection').value;const r=await fetch('/api/ovk/projects/'+encodeURIComponent(p)+'/inspections/'+encodeURIComponent(i)+'/intyg',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(build())});let d=await r.json();let ok=r.ok;if(!ok&&d.detail&&d.detail.code==='OVK_ISSUANCE_RECOVERY_REQUIRED'){const rr=await fetch('/api/ovk/projects/'+encodeURIComponent(p)+'/inspections/'+encodeURIComponent(i)+'/intyg/recover',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(build())});d=await rr.json();ok=rr.ok}if(!ok){$('message').className='status warning';$('message').textContent='Fel: '+JSON.stringify(d);return}$('result').textContent=JSON.stringify(d,null,2);$('message').className='status pass';$('message').textContent='Intyg '+d.intyg_id+' utfärdat ('+d.result+') · verifieringskod '+(d.verification_code||'–')+'.'};
 $('preview').onclick=async()=>{const p=$('project').value,i=$('inspection').value;const r=await fetch('/api/ovk/projects/'+encodeURIComponent(p)+'/inspections/'+encodeURIComponent(i)+'/intyg/preview',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(build())});if(!r.ok){const d=await r.json();$('message').className='status warning';$('message').textContent='Fel: '+JSON.stringify(d);return}reviewedPreview={revision:r.headers.get('X-OVK-Review-Revision'),project:p,inspection:i,body:JSON.stringify(build())};$('approve').disabled=!reviewedPreview.revision;const blob=await r.blob();window.open(URL.createObjectURL(blob),'_blank');$('message').className='status';$('message').textContent='Utkast öppnat – vattenstämplat, ej giltigt.'};
 $('approve').onclick=async()=>{const v=reviewedPreview;if(!v||v.project!==$('project').value||v.inspection!==$('inspection').value||v.body!==JSON.stringify(build())){$('message').textContent='Underlaget har ändrats. Förhandsgranska igen.';return}if(!confirm('Jag har granskat protokoll och intyg och godkänner underlaget för utfärdande. Detta innebär inte att OVK-resultatet är godkänt.'))return;const r=await fetch('/api/ovk/projects/'+encodeURIComponent(v.project)+'/inspections/'+encodeURIComponent(v.inspection)+'/intyg/review',{method:'POST',headers:{'content-type':'application/json','X-OVK-Review-Revision':v.revision},body:v.body});const d=await r.json();$('message').textContent=r.ok?'Underlaget granskat. Intyg kan nu utfärdas.':'Fel: '+JSON.stringify(d);};
 $('list').onclick=async()=>{const p=$('project').value;const r=await fetch('/api/ovk/projects/'+encodeURIComponent(p)+'/intyg');const d=await r.json();if(!r.ok){$('message').textContent='Fel: '+JSON.stringify(d);return}$('items').innerHTML='<table><tr><th>Intyg</th><th>Besiktning</th><th>Resultat</th><th>Nästa frist</th></tr>'+d.intyg.map(x=>'<tr><td>'+esc(x.intyg_id)+'</td><td>'+esc(x.inspection_id)+'</td><td>'+esc(x.result)+'</td><td>'+esc(x.next_inspection_due||'—')+'</td></tr>').join('')+'</table>'};

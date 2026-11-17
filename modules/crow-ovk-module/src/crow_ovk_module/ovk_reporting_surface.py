@@ -92,6 +92,23 @@ def ovk_reporting_router(data_root: Path) -> APIRouter:
             ) from exc
         return {"profile_id": profile.profile_id, "saved": True}
 
+    # CSV-rutten registreras först: annars fångar JSON-rutten även ``<id>.csv``.
+    @router.get("/api/ovk/reporting/annual/{profile_id}.csv", response_class=Response)
+    def annual_report_csv(profile_id: str) -> Response:
+        try:
+            profile = repository.load_profile(profile_id)
+        except (FileNotFoundError, ValueError) as exc:
+            raise HTTPException(
+                status_code=404,
+                detail={"code": "CERTIFICATION_PROFILE_NOT_FOUND"},
+            ) from exc
+        rows = build_report_rows(profile, repository.list_ledgers())
+        return Response(
+            content=report_to_csv(profile, rows),
+            media_type="text/csv; charset=utf-8",
+            headers={"Content-Disposition": f'attachment; filename="ovk-annual-{profile_id}.csv"'},
+        )
+
     @router.get("/api/ovk/reporting/annual/{profile_id}", response_model=None)
     def annual_report(profile_id: str) -> dict[str, Any]:
         try:
@@ -121,21 +138,5 @@ def ovk_reporting_router(data_root: Path) -> APIRouter:
                 for item in rows
             ],
         }
-
-    @router.get("/api/ovk/reporting/annual/{profile_id}.csv", response_class=Response)
-    def annual_report_csv(profile_id: str) -> Response:
-        try:
-            profile = repository.load_profile(profile_id)
-        except (FileNotFoundError, ValueError) as exc:
-            raise HTTPException(
-                status_code=404,
-                detail={"code": "CERTIFICATION_PROFILE_NOT_FOUND"},
-            ) from exc
-        rows = build_report_rows(profile, repository.list_ledgers())
-        return Response(
-            content=report_to_csv(profile, rows),
-            media_type="text/csv; charset=utf-8",
-            headers={"Content-Disposition": f'attachment; filename="ovk-annual-{profile_id}.csv"'},
-        )
 
     return router
