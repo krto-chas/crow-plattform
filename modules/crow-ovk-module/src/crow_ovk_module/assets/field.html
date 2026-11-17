@@ -112,6 +112,15 @@
     .ovk-step-track{height:5px;border-radius:99px;background:var(--line);overflow:hidden}
     .ovk-step-fill{height:100%;background:var(--accent);transition:width .15s ease}
     @media(max-height:640px){body.ovk-unit-stepper .top{padding-top:calc(6px + env(safe-area-inset-top));padding-bottom:6px}body.ovk-unit-stepper .ovk-step-head{padding:3px 4px 7px}body.ovk-unit-stepper #viewUnit>.card{padding:10px}}
+
+    .ovk-measure-nav{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:10px 0}
+    .ovk-measure-nav .btn{width:auto;min-height:44px}
+    .ovk-measure-counter{font-size:13px;color:var(--mut);text-align:center}
+    .ovk-measure-empty{font-size:13px;color:var(--mut)}
+    .ovk-room-next{width:100%;margin-top:10px;min-height:44px}
+    body.ovk-unit-stepper .mrow.ovk-measure-hidden{display:none}
+    body.ovk-unit-stepper .mrow:not(.ovk-measure-hidden){padding:14px 8px;display:grid;grid-template-columns:minmax(0,1fr) 90px 40px;align-items:center;gap:8px}
+    body.ovk-unit-stepper .mrow input{font-size:20px;min-height:48px}
   </style>
 </head>
 <body>
@@ -211,6 +220,8 @@
         <button class="chip" data-point="overluftsdon">+ Överluft</button>
       </div>
       <div id="mrows"></div>
+      <div class="ovk-measure-nav" id="ovkMeasureNav" hidden><button class="btn ghost" type="button" id="ovkMeasurePrev">Föregående don</button><span class="ovk-measure-counter" id="ovkMeasureCount" aria-live="polite"></span><button class="btn ghost" type="button" id="ovkMeasureNext">Nästa don</button></div>
+      <button class="btn ghost ovk-room-next" type="button" id="ovkNextRoom">Nästa rum</button>
     </div>
 
     <div class="card"><div class="eyebrow">3 · Visuell kontroll · <span id="visRoom">välj rum</span></div><h2 class="section-heading">Kontrollera och notera</h2>
@@ -255,15 +266,38 @@
 (() => {
   const labels = ['Lägenhet och nycklar', 'Välj rum', 'Luftflöden', 'Visuell kontroll', 'Anmärkning och foto'];
   let step = 0;
+  let measurementIndex = 0;
+  let measurementRoomId = null;
   const unitView = document.getElementById('viewUnit');
   const cards = [...unitView.querySelectorAll(':scope > .card')];
   const originalView = view;
   const originalOpenUnit = openUnit;
   const originalUpdateFooter = updateFooter;
+  function updateMeasurements() {
+    const roomId = state.activeRoomId;
+    if (measurementRoomId !== roomId) {
+      measurementRoomId = roomId;
+      measurementIndex = 0;
+    }
+    const rows = [...document.querySelectorAll('#mrows .mrow')];
+    measurementIndex = Math.max(0, Math.min(measurementIndex, Math.max(0, rows.length - 1)));
+    rows.forEach((row, index) => row.classList.toggle('ovk-measure-hidden', index !== measurementIndex));
+    const nav = document.getElementById('ovkMeasureNav');
+    nav.hidden = rows.length <= 1;
+    document.getElementById('ovkMeasureCount').textContent = rows.length ? (measurementIndex + 1) + ' / ' + rows.length : '';
+    document.getElementById('ovkMeasurePrev').disabled = measurementIndex === 0;
+    document.getElementById('ovkMeasureNext').disabled = measurementIndex >= rows.length - 1;
+    const rooms = unitRooms();
+    const roomIndex = rooms.findIndex(room => room.room_id === state.activeRoomId);
+    const nextRoom = document.getElementById('ovkNextRoom');
+    nextRoom.hidden = roomIndex < 0 || roomIndex >= rooms.length - 1;
+    if (!nextRoom.hidden) nextRoom.textContent = 'Nästa rum: ' + rooms[roomIndex + 1].name;
+  }
   function applyStep() {
     const visible = unitView.classList.contains('on');
     document.body.classList.toggle('ovk-unit-stepper', visible);
     if (!visible) return;
+    updateMeasurements();
     step = Math.max(0, Math.min(step, cards.length - 1));
     cards.forEach((card, index) => {
       const active = index === step;
@@ -286,6 +320,8 @@
   };
   openUnit = function (id) {
     step = 0;
+    measurementIndex = 0;
+    measurementRoomId = null;
     originalOpenUnit(id);
     applyStep();
   };
@@ -293,6 +329,27 @@
     originalUpdateFooter(name);
     if (name === 'viewUnit') applyStep();
   };
+  document.getElementById('ovkMeasurePrev').addEventListener('click', () => {
+    measurementIndex = Math.max(0, measurementIndex - 1);
+    updateMeasurements();
+  });
+  document.getElementById('ovkMeasureNext').addEventListener('click', () => {
+    measurementIndex += 1;
+    updateMeasurements();
+  });
+  document.getElementById('ovkNextRoom').addEventListener('click', async () => {
+    const rooms = unitRooms();
+    const index = rooms.findIndex(room => room.room_id === state.activeRoomId);
+    if (index < 0 || index >= rooms.length - 1) return;
+    state.activeRoomId = rooms[index + 1].room_id;
+    clearFindingSelection();
+    measurementIndex = 0;
+    measurementRoomId = null;
+    renderUnit();
+    step = 2;
+    applyStep();
+    await persist();
+  });
   document.getElementById('footBack').addEventListener('click', event => {
     if (!unitView.classList.contains('on') || !step) return;
     event.stopImmediatePropagation();
