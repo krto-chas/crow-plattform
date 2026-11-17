@@ -21,7 +21,7 @@ function renderUnitPreview() {
   }
   preview.className = 'status pass';
   const apartments = state.units.filter(item => item.kind === 'apartment').map(item => item.number);
-  const premises = state.units.filter(item => item.kind === 'premises').map(item => item.number);
+  const premises = state.units.filter(item => item.kind === 'premises').map(item => item.label || item.number);
   const parts = [];
   if (apartments.length) parts.push('Lägenheter: ' + apartments.join(', '));
   if (premises.length) parts.push('Lokaler: ' + premises.join(', '));
@@ -48,6 +48,43 @@ function unitAddStatus(message, warning = false) {
   }
   target.className = 'status' + (warning ? ' warn' : ' pass');
   target.textContent = message;
+}
+
+function nextPremisesNumber() {
+  // Random numeric identifier avoids allocating the same sequential number in offline drafts.
+  // The UUID remains the authoritative identity; the number is retained across name changes.
+  const existing = new Set(state.units.map(item => item.number));
+  let number;
+  do {
+    const bytes = new Uint32Array(2);
+    crypto.getRandomValues(bytes);
+    number = String((BigInt(bytes[0]) << 21n) | BigInt(bytes[1] & 0x1fffff)).padStart(16, '0');
+  } while (existing.has(number));
+  return number;
+}
+
+async function addNamedPremises() {
+  const name = (prompt('Hyresgästens namn / lokalnamn:') || '').trim();
+  if (!name) return;
+  const number = nextPremisesNumber();
+  const unit = {
+    unit_id: uid('unit'),
+    inspection_id: state.inspection_id || document.getElementById('inspection').value.trim(),
+    number,
+    kind: 'premises',
+    label: name,
+    status: 'ej_paborjad',
+    checked_at: null,
+    bom_at: null,
+    bom_note: '',
+    key: null,
+    system_type: null
+  };
+  state.units.push(unit);
+  await persist();
+  renderRond();
+  unitAddStatus('Lokal tillagd: ' + name + ' · internt nr ' + number);
+  openUnit(unit.unit_id);
 }
 
 async function addFieldUnit(kind) {
@@ -98,7 +135,7 @@ if (!document.getElementById('addPremises')) {
   addPremisesButton.className = 'btn ghost';
   addPremisesButton.id = 'addPremises';
   addPremisesButton.textContent = '+ Lägg till lokal';
-  addPremisesButton.onclick = () => addFieldUnit('premises');
+  addPremisesButton.onclick = addNamedPremises;
   addApartmentButton.insertAdjacentElement('afterend', addPremisesButton);
 }
 
