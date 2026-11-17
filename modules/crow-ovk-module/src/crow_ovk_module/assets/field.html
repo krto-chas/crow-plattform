@@ -195,6 +195,7 @@
       </div>
       <div class="sub" id="keyInfo" style="margin-top:6px"></div>
       <button class="chip" id="unitSystemBtn" style="margin-top:8px">System: –</button>
+      <div id="ovkPremisesNameRow" hidden><label for="ovkPremisesName">Lokalens namn</label><input id="ovkPremisesName" type="text" placeholder="T.ex. Butik, Kontor eller Restaurang" maxlength="120"><button type="button" class="chip" id="ovkPremisesSave">Spara lokalnamn</button></div>
       <div id="prevFindings" class="status warn hidden" style="margin-top:8px"></div>
       <button class="btn bom" id="bom">BOM – ingen tillgång (stämplar tid)</button>
     </div>
@@ -211,6 +212,7 @@
       </div>
       <p id="fieldTemplateStatus" class="room-progress" role="status" aria-live="polite"></p>
       <div class="chips" id="roomChips"></div>
+      <div class="row" id="ovkAddRoomRow"><label for="ovkRoomName">Nytt rum</label><input id="ovkRoomName" type="text" placeholder="T.ex. Kök, WC eller Rum 101" maxlength="120"><button type="button" class="chip" id="ovkRoomSave">+ Lägg till rum</button></div>
       <p class="room-section-label" id="roomPresetLabel"></p><div class="chips" id="roomPresetChips"></div>
     </div>
 
@@ -354,13 +356,12 @@
       if(button)button.click();
     });
   }
-  $id('ovkVisualAddRoom').addEventListener('click',async()=>{
-    if(phase!=='visual')return;
-    const name=(prompt('Nästa rum (t.ex. Sovrum, WC, Kök):')||'').trim();
-    if(!name)return;
-    const existing=new Set(unitRooms().map(item=>item.name));
+  async function addNamedRoom(raw){
+    const name=String(raw||'').trim();
+    if(!name||!state.activeUnitId)return false;
+    const existing=new Set(unitRooms().map(item=>item.name.toLocaleLowerCase('sv')));
     let unique=name,number=2;
-    while(existing.has(unique)){unique=name+' '+number;number++}
+    while(existing.has(unique.toLocaleLowerCase('sv'))){unique=name+' '+number;number++}
     const room={room_id:uid('room'),unit_id:state.activeUnitId,name:unique};
     state.rooms.push(room);
     state.activeRoomId=room.room_id;
@@ -368,6 +369,29 @@
     renderUnit();
     render();
     await persist();
+    return true;
+  }
+  $id('ovkRoomSave').addEventListener('click',async()=>{
+    if(await addNamedRoom($id('ovkRoomName').value))$id('ovkRoomName').value='';
+  });
+  $id('ovkRoomName').addEventListener('keydown',event=>{
+    if(event.key==='Enter'){event.preventDefault();$id('ovkRoomSave').click()}
+  });
+  $id('ovkPremisesSave').addEventListener('click',async()=>{
+    const unit=activeUnit();
+    if(!unit||unit.kind!=='premises')return;
+    const name=$id('ovkPremisesName').value.trim();
+    if(!name)return;
+    unit.label=name;
+    $id('unitNr').textContent=name;
+    renderRond();
+    await persist();
+  });
+  $id('ovkVisualAddRoom').addEventListener('click',async()=>{
+    if(phase!=='visual')return;
+    const name=(prompt('Nästa rum (t.ex. Sovrum, WC, Kök):')||'').trim();
+    if(!name)return;
+    await addNamedRoom(name);
   });
   $id('ovkVisualFinding').addEventListener('click',async()=>{
     if(!activeRoom())return;
@@ -389,6 +413,9 @@
     if(!unitView.classList.contains('on'))return;
     document.body.classList.add('ovk-unit-stepper');
     const rooms=unitRooms();
+    const unit=activeUnit();
+    $id('ovkPremisesNameRow').hidden=!unit||unit.kind!=='premises';
+    if(unit&&unit.kind==='premises'&&document.activeElement!==$id('ovkPremisesName'))$id('ovkPremisesName').value=unit.label||'';
     const room=activeRoom();
     roomIndex=Math.max(0,rooms.findIndex(item=>room&&item.room_id===room.room_id));
     step=phase==='review'?7:phase==='measure'?2:phase==='setup'?0:phase==='rooms'?1:3;
@@ -416,7 +443,7 @@
   view=function(name){originalView(name);if(name!=='viewUnit')document.body.classList.remove('ovk-unit-stepper');render()};
   openUnit=function(id){
     const progress=(state.field_progress||{})[id];
-    phase=progress&&['setup','rooms','visual','measure','review'].includes(progress.phase)?progress.phase:'setup';
+    phase=progress&&['setup','rooms','visual','measure','review'].includes(progress.phase)?progress.phase:'rooms';
     roomIndex=0;
     originalOpenUnit(id);
     if(progress&&unitRooms().some(room=>room.room_id===progress.room_id)){
