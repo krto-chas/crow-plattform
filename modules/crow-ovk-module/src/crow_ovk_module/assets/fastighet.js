@@ -113,8 +113,22 @@ function renderInventory(){
   }
   for(const unit of inventory.units){
     const card=inventoryCard($('inventoryUnits'));
-    inventoryInput(card,'Lägenhets- / lokalnummer',unit.number,v=>unit.number=v);
-    inventoryInput(card,'Typ',unit.kind,v=>unit.kind=v,[['apartment','Lägenhet'],['premises','Lokal']]);
+    const kindInput=inventoryInput(card,'Typ',unit.kind,v=>{
+      unit.kind=v;
+      if(v==='premises'){unit.label=unit.label||'';unit.display_mode=unit.display_mode||'number'}
+      renderInventory();
+    },[['apartment','Lägenhet'],['premises','Lokal']]);
+    kindInput.setAttribute('aria-label','Enhetstyp');
+    inventoryInput(card,unit.kind==='premises'?'Permanent lokalnummer':'Lägenhetsnummer',unit.number,v=>unit.number=v);
+    if(unit.kind==='premises'){
+      inventoryInput(card,'Visa lokalen som',unit.display_mode||((unit.label||'').trim()?'name':'number'),v=>{
+        unit.display_mode=v;renderInventory();
+      },[['number','Lokalnummer'],['name','Lokalnamn (fritext)']]);
+      inventoryInput(card,'Lokalnamn (kan ändras vid byte av hyresgäst)',unit.label||'',v=>unit.label=v);
+      const hint=document.createElement('p');hint.className='muted';
+      hint.textContent='Lokalnumret är obligatoriskt och följer lokalen över tid. Lokalnamnet kan ändras utan att identiteten ändras.';
+      card.append(hint);
+    }
     for(const room of unit.rooms){
       const row=inventoryCard(card);inventoryInput(row,'Rum',room.name,v=>room.name=v);
       for(const point of (room.measurement_points||[])){
@@ -157,7 +171,7 @@ $('inventoryBuilding').onchange=async()=>{
   catch(error){if(revision===inventoryRevision)inventoryMessage(errText(error),true)}
 };
 $('inventoryAddSystem').onclick=()=>{inventory.systems.push({system_id:inventoryId('system'),system_type:'F',label:''});inventoryChanged();renderInventory()};
-$('inventoryAddUnit').onclick=()=>{inventory.units.push({unit_id:inventoryId('unit'),number:'',kind:'apartment',rooms:[]});inventoryChanged();renderInventory()};
+$('inventoryAddUnit').onclick=()=>{inventory.units.push({unit_id:inventoryId('unit'),number:'',kind:'apartment',label:'',display_mode:'number',rooms:[]});inventoryChanged();renderInventory()};
 $('inventoryAddSpace').onclick=()=>{if(!inventory.systems.length){inventoryMessage('Lägg till ett ventilationssystem först.',true);return}inventory.technical_spaces.push({space_id:inventoryId('space'),label:'',kind:'unclassified',location:'',system_id:inventory.systems[0].system_id});inventoryChanged();renderInventory()};
 $('inventorySave').onclick=async()=>{
   if(!inventory||inventoryBusy||!inventoryServerRevision)return;
