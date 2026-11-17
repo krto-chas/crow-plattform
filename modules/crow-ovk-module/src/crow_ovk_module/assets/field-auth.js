@@ -55,6 +55,8 @@ syncSnapshot = async function () {
   if (response.status === 409 && data.detail?.code === 'OVK_FIELD_REVISION_CONFLICT') throw new Error('Serverunderlaget har ändrats. Lokalt arbete bevaras; synk stoppad.');
   if (!response.ok) throw new Error(JSON.stringify(data));
   state.last_sync = data.snapshot_sha256;
+  // Spara revisionen direkt: en avbruten synk får inte lämna utkastet på en gammal bas.
+  await writeDraft(state.dirty);
   return data;
 };
 
@@ -79,6 +81,7 @@ syncPendingMedia = async function () {
     media.evidence_id = receipt.evidence_id;
     media.synced_at = now();
     await dbPut(MEDIA_STORE, media);
+    await writeDraft(state.dirty);
     uploaded += 1;
   }
   return uploaded;

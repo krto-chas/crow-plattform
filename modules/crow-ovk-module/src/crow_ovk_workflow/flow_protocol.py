@@ -88,7 +88,7 @@ def build_flow_protocol(data: FieldInspectionData) -> dict[str, Any]:
             {
                 "system_id": system_id,
                 "unit_id": unit_id,
-                "unit_number": units[unit_id].number,
+                "unit_number": units[unit_id].display_number,
                 "unit_kind": units[unit_id].kind.value,
                 "direction": direction,
                 "unit_of_measure": unit,

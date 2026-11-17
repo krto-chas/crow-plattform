@@ -99,7 +99,7 @@ def ovk_protokoll_router(data_root: Path) -> APIRouter:
             ):
                 raise HTTPException(status_code=422, detail="Unverified field photo")
         utkast = build_protokoll_utkast(data)
-        units = {unit.unit_id: unit.number for unit in data.units}
+        units = {unit.unit_id: unit.display_number for unit in data.units}
         photos = {photo["photo_id"]: photo for photo in snapshot.get("photos", [])}
         followup_review = [
             {
