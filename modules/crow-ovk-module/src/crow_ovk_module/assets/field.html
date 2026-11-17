@@ -14,6 +14,7 @@
     :root{--ink:#101820;--paper:#f2f0eb;--panel:#fff;--line:#c9cfd4;--mut:#5c6870;--ua:#1e7a3c;--ua-bg:#e2f2e7;--anm:#b7791f;--anm-bg:#faf0da;--bom:#b3261e;--bom-bg:#f9e4e2;font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;color:var(--ink);background:var(--paper)}
     *{box-sizing:border-box}body{margin:0;-webkit-tap-highlight-color:transparent;min-height:100dvh}
     .top{position:sticky;top:0;z-index:6;background:var(--ink);color:#fff;padding:calc(10px + env(safe-area-inset-top)) 14px 10px;display:flex;justify-content:space-between;align-items:center;gap:10px}
+    .field-sync-indicator{font-size:12px;color:var(--mut);padding:4px 8px;border-radius:8px;background:#e9ecee;max-width:100%;overflow-wrap:anywhere}.field-sync-indicator.pass{background:var(--ua-bg);color:var(--ua)}.field-sync-indicator.warn{background:var(--anm-bg);color:var(--anm)}
     .top strong{font-weight:800;letter-spacing:.02em}.net{font-size:12px;padding:4px 9px;border-radius:999px;background:#33414d}.net.off{background:var(--bom)}
     .wrap{max-width:680px;margin:auto;padding:12px 12px 120px}
     .view{display:none}.view.on{display:block}
@@ -96,7 +97,7 @@
   </style>
 </head>
 <body>
-<header class="top"><strong>CROW OVK</strong><span id="network" class="net">Nät…</span><a id="workbenchLink" href="/ovk/besiktning">Besiktningsunderlag</a></header>
+<header class="top"><strong>CROW OVK</strong><span id="network" class="net">Nät…</span><span id="fieldSyncIndicator" class="field-sync-indicator" role="status" aria-live="polite">Ingen synk ännu</span><a id="workbenchLink" href="/ovk/besiktning">Besiktningsunderlag</a></header>
 <main class="wrap">
 
   <!-- VY: START -->
