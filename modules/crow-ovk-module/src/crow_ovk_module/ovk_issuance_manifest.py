@@ -52,29 +52,7 @@ def publish_manifest(
         for name in ("snapshot.json", "context.json", "protocol-source.json")
         if (root / name).is_file()
     }
-    photos: list[dict[str, Any]] = []
-    if "snapshot.json" in field_digests:
-        snapshot = json.loads((root / "snapshot.json").read_bytes())
-        if snapshot.get("inspection_id") != inspection_id:
-            raise ValueError("Field snapshot identity mismatch")
-        media = _FieldMediaRepository(data_root, project_id=project_id)
-        for photo in snapshot.get("photos", []):
-            photo_id = photo["photo_id"]
-            try:
-                content, receipt = media.load_media(inspection_id, photo_id)
-            except (FileNotFoundError, ValueError, HTTPException) as exc:
-                raise ValueError("Unverified issuance photo") from exc
-            digest = sha256(content).hexdigest()
-            if digest != photo.get("sha256"):
-                raise ValueError("Issuance photo checksum mismatch")
-            photos.append(
-                {
-                    "photo_id": photo_id,
-                    "sha256": digest,
-                    "receipt_sha256": _digest(receipt),
-                    "size_bytes": len(content),
-                }
-            )
+    photos = _snapshot_photo_entries(data_root, project_id, inspection_id)
     workflow = record_to_payload(record)
     certificate = intyg_to_payload(intyg)
     if _digest([workflow, certificate, field_digests]) != revision:
@@ -110,28 +88,55 @@ def publish_manifest(
     return target
 
 
+def _snapshot_photo_entries(
+    data_root: Path, project_id: str, inspection_id: str
+) -> list[dict[str, Any]]:
+    """Bygger manifestets fotoposter ur fältsnapshoten och verifierad media.
+
+    Gemensam för utfärdande och återställning, så att de två vägarna inte kan
+    glida isär. Saknad eller overifierad media höjer ``ValueError``.
+    """
+    path = data_root / "projects" / project_id / "ovk-field" / inspection_id / "snapshot.json"
+    if not path.is_file():
+        return []
+    snapshot = json.loads(path.read_bytes())
+    if not isinstance(snapshot, dict) or snapshot.get("inspection_id") != inspection_id:
+        raise ValueError("Field snapshot identity mismatch")
+    media = _FieldMediaRepository(data_root, project_id=project_id)
+    photos: list[dict[str, Any]] = []
+    for photo in snapshot.get("photos", []):
+        photo_id = photo["photo_id"]
+        try:
+            content, receipt = media.load_media(inspection_id, photo_id)
+        except (OSError, ValueError, HTTPException) as exc:
+            raise ValueError("Unverified issuance photo") from exc
+        digest = sha256(content).hexdigest()
+        if digest != photo.get("sha256"):
+            raise ValueError("Issuance photo checksum mismatch")
+        photos.append(
+            {
+                "photo_id": photo_id,
+                "sha256": digest,
+                "receipt_sha256": _digest(receipt),
+                "size_bytes": len(content),
+            }
+        )
+    return photos
+
+
 def verify_manifest_photos(
     data_root: Path, project_id: str, inspection_id: str, manifest: dict[str, Any]
 ) -> None:
-    """Kontrollerar att fotoevidensen som manifestet pekar ut finns kvar oförändrad.
+    """Kontrollerar att fotoevidensen är exakt den som manifestet redovisar.
 
-    Används när ett avbrutet utfärdande slutförs: bildbytes, kvitto och storlek
-    måste stämma mot det som granskades, annars höjs ``ValueError``.
+    Används när ett avbrutet utfärdande slutförs. Fotoposterna byggs om ur
+    fältsnapshoten på samma sätt som vid utfärdandet och måste vara identiska
+    med manifestets: ett saknat, ändrat, tillagt eller utelämnat foto höjer
+    ``ValueError``.
     """
-    photos = manifest.get("photos")
-    if not isinstance(photos, list):
-        raise ValueError("Issuance manifest photos are invalid")
-    media = _FieldMediaRepository(data_root, project_id=project_id)
-    for entry in photos:
-        if not isinstance(entry, dict) or not isinstance(entry.get("photo_id"), str):
-            raise ValueError("Issuance manifest photo entry is invalid")
-        try:
-            content, receipt = media.load_media(inspection_id, entry["photo_id"])
-        except (OSError, ValueError, HTTPException) as exc:
-            raise ValueError("Issuance photo is missing or unverified") from exc
-        if (
-            sha256(content).hexdigest() != entry.get("sha256")
-            or _digest(receipt) != entry.get("receipt_sha256")
-            or len(content) != entry.get("size_bytes")
-        ):
-            raise ValueError("Issuance photo differs from reviewed evidence")
+    try:
+        current = _snapshot_photo_entries(data_root, project_id, inspection_id)
+    except (KeyError, TypeError) as exc:
+        raise ValueError("Field snapshot photos are invalid") from exc
+    if manifest.get("photos") != current:
+        raise ValueError("Issuance photos differ from reviewed evidence")

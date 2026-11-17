@@ -535,7 +535,7 @@ def ovk_intyg_router(data_root: Path) -> APIRouter:
                 candidates.append(
                     {**payload, "issued_date": prepared.astimezone().date().isoformat()}
                 )
-            except ValueError:
+            except (ValueError, OverflowError):
                 pass
         candidates.append(dict(payload))
         intyg: OvkIntyg | None = None

@@ -300,25 +300,33 @@ def test_manifest_photos_verify_when_evidence_is_intact(tmp_path: Path) -> None:
     verify_manifest_photos(tmp_path, "p1", "ovk-001", manifest)
 
 
-def test_manifest_photos_reject_missing_altered_or_malformed_evidence(tmp_path: Path) -> None:
+def test_manifest_photos_must_match_snapshot_exactly(tmp_path: Path) -> None:
     manifest, blob = _manifest_with_photo(tmp_path)
+    entry = manifest["photos"][0]
 
-    wrong_size = {"photos": [{**manifest["photos"][0], "size_bytes": 1}]}
-    with pytest.raises(ValueError, match="differs from reviewed evidence"):
-        verify_manifest_photos(tmp_path, "p1", "ovk-001", wrong_size)
-    wrong_receipt = {"photos": [{**manifest["photos"][0], "receipt_sha256": "0" * 64}]}
-    with pytest.raises(ValueError, match="differs from reviewed evidence"):
-        verify_manifest_photos(tmp_path, "p1", "ovk-001", wrong_receipt)
-    with pytest.raises(ValueError, match="photos are invalid"):
-        verify_manifest_photos(tmp_path, "p1", "ovk-001", {})
+    for photos in (
+        [],  # utelämnat foto
+        [entry, entry],  # dubblerad post
+        [{**entry, "size_bytes": 1}],
+        [{**entry, "receipt_sha256": "0" * 64}],
+        None,
+    ):
+        with pytest.raises(ValueError, match="differ from reviewed evidence"):
+            verify_manifest_photos(tmp_path, "p1", "ovk-001", {"photos": photos})
 
     blob.chmod(0o600)
     blob.write_bytes(b"manipulerad bild")
-    with pytest.raises(ValueError, match="missing or unverified"):
+    with pytest.raises(ValueError, match="Unverified issuance photo"):
         verify_manifest_photos(tmp_path, "p1", "ovk-001", manifest)
     blob.unlink()
-    with pytest.raises(ValueError, match="missing or unverified"):
+    with pytest.raises(ValueError, match="Unverified issuance photo"):
         verify_manifest_photos(tmp_path, "p1", "ovk-001", manifest)
+
+
+def test_manifest_without_snapshot_requires_empty_photo_list(tmp_path: Path) -> None:
+    verify_manifest_photos(tmp_path, "p1", "ovk-001", {"photos": []})
+    with pytest.raises(ValueError, match="differ from reviewed evidence"):
+        verify_manifest_photos(tmp_path, "p1", "ovk-001", {"photos": [{"photo_id": "x"}]})
 
 
 def test_recovery_refuses_when_reviewed_photo_is_missing(
