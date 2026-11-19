@@ -713,3 +713,76 @@ def test_measurement_round_takes_one_terminal_at_a_time(field_url: str, browser:
     assert heading().startswith("Kök · Don 4 av 4")
     assert flow.errors == []
     context.close()
+
+
+def test_equipment_checkpoints_are_answered_with_buttons(field_url: str, browser: Any) -> None:
+    context = browser.new_context(
+        viewport={"width": 390, "height": 844}, is_mobile=True, has_touch=True
+    )
+    page = context.new_page()
+    errors: list[str] = []
+    result_prompts: list[str] = []
+    page.on("pageerror", lambda error: errors.append(str(error)))
+
+    def on_dialog(dialog: Any) -> None:
+        # Benämning och placering frågas fortfarande med dialog; kontrollresultat får inte göra det.
+        if "Kontrollresultat" in dialog.message or "Motivering" in dialog.message:
+            result_prompts.append(dialog.message)
+        dialog.accept("Fläktrum plan 10" if "Benämning" in dialog.message else "Vind")
+
+    page.on("dialog", on_dialog)
+    page.goto(field_url)
+    page.wait_for_function("typeof state === 'object' && typeof payload === 'function'")
+    page.fill("#inspection", "aggregattest")
+    page.fill("#inspector", "Test Testsson")
+    page.fill("#unitSeries", "1001")
+    page.click("#start")
+    page.wait_for_function("state.units.length === 1")
+    page.click("#addFlaktrum")
+    page.wait_for_function("state.checkpoints.length > 2")
+    items = page.locator("#cplist .cp-item")
+    assert items.count() == page.evaluate("() => state.checkpoints.length")
+
+    def status(index: int) -> Any:
+        return page.evaluate(
+            "index => [state.checkpoints[index].status, state.checkpoints[index].note]", index
+        )
+
+    # UA sätts med ett tryck, utan dialog.
+    items.nth(0).locator("button:text-is('UA')").click()
+    page.wait_for_function("state.checkpoints[0].status === 'pass'")
+    assert items.nth(0).locator("button:text-is('UA')").get_attribute("aria-pressed") == "true"
+
+    # Anmärkning kräver motivering i fältet under knapparna.
+    items.nth(1).locator("button:text-is('Anmärkning')").click()
+    assert status(1) == ["not_checked", ""]
+    items.nth(1).locator("button:text-is('Spara')").click()
+    assert "Skriv en motivering" in (items.nth(1).text_content() or "")
+    assert status(1) == ["not_checked", ""]
+    items.nth(1).locator("textarea").fill("Filter igensatt")
+    items.nth(1).locator("button:text-is('Spara')").click()
+    page.wait_for_function("state.checkpoints[1].status === 'fail'")
+    assert status(1) == ["fail", "Filter igensatt"]
+    assert "Filter igensatt" in (items.nth(1).text_content() or "")
+
+    # Ej tillämplig kräver också motivering, och Avbryt ändrar ingenting.
+    items.nth(2).locator("button:text-is('Ej tillämplig')").click()
+    items.nth(2).locator("button:text-is('Avbryt')").click()
+    assert status(2) == ["not_checked", ""]
+    items.nth(2).locator("button:text-is('Ej tillämplig')").click()
+    items.nth(2).locator("textarea").fill("Aggregatet saknar värmeåtervinning")
+    items.nth(2).locator("button:text-is('Spara')").click()
+    page.wait_for_function("state.checkpoints[2].status === 'not_applicable'")
+
+    # Ett nytt tryck på valt resultat nollställer punkten till ej kontrollerad.
+    items.nth(0).locator("button:text-is('UA')").click()
+    page.wait_for_function("state.checkpoints[0].status === 'not_checked'")
+    # Från anmärkning till UA rensas motiveringen.
+    items.nth(1).locator("button:text-is('UA')").click()
+    page.wait_for_function("state.checkpoints[1].status === 'pass'")
+    assert status(1) == ["pass", ""]
+
+    assert result_prompts == []
+    assert errors == []
+    _validated_payload(page.evaluate("() => payload()"))
+    context.close()
