@@ -1537,6 +1537,26 @@ def test_rooms_can_be_opened_in_any_order_and_finished_rooms_ask_first(
     flow.expect_step("roomList")
     assert rows() == {"Kontor 101": "Klart", "Kontor 102": "1 don omätta", "Förråd": "Pågående"}
 
+    # En obesvarad överluftsfråga gör att rummet inte räknas som klart, och rummet
+    # öppnas på den frågan utan mellanfråga.
+    page.evaluate(
+        """() => { const check = state.visual_checks.find(
+            item => item.room_id === state.rooms[0].room_id);
+          check.transfer = ''; renderUnit(); }"""
+    )
+    assert rows()["Kontor 101"] == "Pågående"
+    page.click("#ovkWizard .ovk-wz-roomrow >> text=Kontor 101")
+    flow.expect_step("transfer")
+    assert page.locator("#ovkSheet").count() == 0
+    flow.answer("Ja", "point")
+    advance("done")
+    page.evaluate("() => document.getElementById('footDone').click()")
+    page.wait_for_function("state.activeRoomId === state.rooms[1].room_id")
+    advance("done")
+    page.click("#ovkWzAllRooms")
+    flow.expect_step("roomList")
+    assert rows()["Kontor 101"] == "Klart"
+
     # Ett klart rum öppnas inte direkt.
     page.click("#ovkWizard .ovk-wz-roomrow >> text=Kontor 101")
     page.wait_for_selector("#ovkSheet")

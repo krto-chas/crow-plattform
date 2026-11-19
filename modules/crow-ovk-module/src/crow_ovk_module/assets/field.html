@@ -824,8 +824,18 @@
     render();await persist();
   }
   // Ett rum är klart när kontrollfrågorna är besvarade och, i lokal, donen är mätta.
+  // Första obesvarade kontrollfråga bland dem som gäller för rummet, annars 'done'.
+  // Överluft och friskluft räknas med, på samma sätt som slutkontrollens varningar.
+  function pendingStep(room){
+    const first=firstOpenStep(room);
+    if(first!=='done')return first;
+    const check=roomCheck(room);
+    if(needsTransfer(room)&&!(check&&check.transfer))return 'transfer';
+    if(needsFresh(room)&&!(roomVent(room)||(check&&check.fresh)))return 'fresh';
+    return 'done';
+  }
   function roomState(room){
-    const open=firstOpenStep(room)!=='done';
+    const open=pendingStep(room)!=='done';
     const unmeasured=singlePass()?roomPoints(room).filter(pendingPoint).length:0;
     if(open)return {done:false,label:'Pågående'};
     if(unmeasured)return {done:false,label:unmeasured+' don omätta'};
@@ -842,7 +852,7 @@
     }
     selectRoom(index);
     // Utan val öppnas rummet på första obesvarade fråga.
-    await wizardGo(step||firstOpenStep(room));
+    await wizardGo(step||pendingStep(room));
   }
   // Rumstypen är namnets första ord: "Kontor 101" och "Kontor VD" är båda kontor.
   const roomType=room=>room.name.trim().split(/\s+/)[0].toLocaleLowerCase('sv');
