@@ -127,7 +127,7 @@ class _Flow:
         self.page.click("#continueUnit")
         self.expect_step("room")
 
-    def expect_step(self, step: str) -> None:
+    def expect_step(self, step: str, controls: int = 1) -> None:
         self.page.wait_for_function(
             "step => document.getElementById('ovkWizard').dataset.step === step", arg=step
         )
@@ -137,7 +137,7 @@ class _Flow:
         assert view["cardOverflow"] <= 0, f"{step}: kortet scrollar {view['cardOverflow']} px"
         assert view["wizardOverflow"] <= 0, f"{step}: vyn scrollar {view['wizardOverflow']} px"
         assert view["pageOverflow"] <= 0, f"{step}: sidan scrollar {view['pageOverflow']} px"
-        assert view["controls"] >= 1
+        assert view["controls"] >= controls
 
     def answer(self, label: str, then: str) -> None:
         self.page.click(f"#ovkWizard button:text-is('{label}')")
@@ -574,6 +574,35 @@ def test_measurement_round_takes_one_terminal_at_a_time(field_url: str, browser:
 
     def hint() -> str:
         return flow.page.text_content("#ovkWzDeviation") or ""
+
+    # Utan tidigare besiktning visas ingen historik.
+    assert flow.page.locator("#ovkWzHistory").count() == 0
+
+    # Med tidigare mätvärden visas förra värdet för samma don och rummets historik.
+    flow.page.evaluate(
+        """() => {
+          const [first, second] = state.measurements;
+          state.previous_inspection_id = 'ovk-2023';
+          state.historical_measurements = [
+            {...first, measured_value: '14', measurable: true},
+            {...second, measurement_id: 'okand-punkt', measured_value: '9', measurable: true},
+          ];
+        }"""
+    )
+    # Ett steg bort och tillbaka ritar om mätvyn med historiken.
+    flow.answer("+ Don i rummet", "addPoint")
+    flow.page.click("#footBack")
+    flow.expect_step("point")
+    assert "Förra besiktningen: " in (flow.page.text_content("#ovkWizard") or "")
+    assert "14" in (flow.page.text_content("#ovkWizard") or "")
+    # Historikvyn är ren läsning: den har inga egna kontroller utöver sidfoten.
+    assert (flow.page.text_content("#ovkWzHistory") or "").endswith("Tidigare mätvärden (2)")
+    flow.page.click("#ovkWzHistory")
+    flow.expect_step("history", controls=0)
+    history = flow.page.text_content("#ovkWizard") or ""
+    assert "ovk-2023" in history
+    assert history.count("ingen säker donmatchning") == 1
+    flow.next("point")
 
     # Don 1: mätvärde med decimalkomma och projekterat värde ger avvikelse.
     assert heading() == "Badrum · Don 1 av 3 | Frånluft · Badrum 1"

@@ -152,6 +152,7 @@
     .ovk-wz-count span{font-size:14px;color:var(--mut)}
     .ovk-wz-flow{min-height:72px;font-size:34px;font-weight:650;text-align:center;margin:0;width:100%;border-radius:14px}
     .ovk-wz-grid input{min-height:50px;font-size:16px;margin:0;width:100%;text-align:center}
+    .ovk-wz-link{min-height:36px;padding:4px 0;border:0;background:none;color:var(--accent);font:inherit;font-size:14px;font-weight:600;text-align:left;text-decoration:underline;overflow-wrap:anywhere}
     .ovk-wz-mini{display:flex;flex-direction:column;gap:2px;margin:0}
     .ovk-wz-mini span{font-size:12px;font-weight:650;color:var(--mut);letter-spacing:.03em;text-transform:uppercase}
     .ovk-wz-grid .ovk-wz-mini input{min-height:44px}
@@ -160,7 +161,7 @@
     .ovk-wz-summary{margin:0;padding:0;list-style:none;border:1.5px solid var(--line);border-radius:14px;background:#fff}
     .ovk-wz-summary li{padding:10px 14px;border-bottom:1px solid var(--line);font-size:15px}
     .ovk-wz-summary li:last-child{border-bottom:0}
-    @media(max-height:700px){.ovk-wz-title{font-size:19px;margin-bottom:8px}.ovk-wz-body{gap:7px}.ovk-wz-choice{min-height:48px;font-size:16px}.ovk-wz-grid .ovk-wz-choice{min-height:44px}.ovk-wz-step{min-height:48px}.ovk-wz-summary li{padding:7px 12px}}
+    @media(max-height:700px){.ovk-wz-flow{min-height:56px;font-size:28px}.ovk-wz-hint{font-size:13px;line-height:1.3}.ovk-wz-title{font-size:19px;margin-bottom:8px}.ovk-wz-body{gap:7px}.ovk-wz-choice{min-height:48px;font-size:16px}.ovk-wz-grid .ovk-wz-choice{min-height:44px}.ovk-wz-step{min-height:48px}.ovk-wz-summary li{padding:7px 12px}}
     .ovk-step-head{display:none}
     body.ovk-unit-stepper .ovk-step-head{display:block;flex:0 0 auto;padding:6px 4px 12px}
     .ovk-step-head strong{font-size:15px}
@@ -911,7 +912,17 @@
           choice('Anmärkning',false,()=>{wz.type='general_damage_observation';wz.text='';return wizardGo('remarkText')},'ghost'),
           choice('+ Don i rummet',false,()=>wizardGo('addPoint'),'ghost')
         );
-        body.append(flowField,deviation,extras);
+        body.append(flowField,deviation);
+        // Tidigare besiktning: en rad som visar förra värdet för donet och öppnar rummets historik.
+        const earlier=roomHistory(room);
+        if(earlier.length){
+          const previous=previousFor(point);
+          const link=el('button','ovk-wz-link',(previous?'Förra besiktningen: '+historicalMeasurementText(previous)+' · ':'')+'Tidigare mätvärden ('+earlier.length+')');
+          link.type='button';link.id='ovkWzHistory';
+          link.addEventListener('click',()=>wizardGo('history'));
+          body.append(link);
+        }
+        body.append(extras);
       }
       doneLabel=index>=points.length-1?'Till slutkontroll':'Nästa don';
     }else if(wz.step==='reason'&&point){
@@ -922,6 +933,12 @@
       area.addEventListener('input',()=>{wz.text=area.value});
       for(const label of NOT_MEASURABLE_REASONS)grid.append(choice(label,wz.text===label,()=>{wz.text=label;render()}));
       body.append(grid,area,el('p','ovk-wz-hint','Orsaken sparas som anmärkning på donet. Ta gärna ett foto i nästa steg.'));
+    }else if(wz.step==='history'){
+      title.textContent='Tidigare mätvärden i rummet';
+      const list=el('ul','ovk-wz-summary');
+      for(const old of roomHistory(room))list.append(el('li','',historicalMeasurementText(old)+(state.measurements.some(item=>previousFor(item)===old)?'':' · ingen säker donmatchning')));
+      body.append(list,el('p','ovk-wz-hint','Referens: '+(state.previous_inspection_id||'tidigare OVK')+'. Kontrollera att mätpunkterna avser samma don.'));
+      doneLabel='Tillbaka till donet';
     }else if(wz.step==='addPoint'){
       title.textContent='Vilket don vill du lägga till?';
       const add=type=>async()=>{
@@ -1000,7 +1017,13 @@
     return true;
   }
   // ── Varv 2 don för don ───────────────────────────────────────────────
-  const MEASURE_STEPS=['point','reason','addPoint','remarkText','remarkClass','remarkPhoto'];
+  const MEASURE_STEPS=['point','reason','addPoint','history','remarkText','remarkClass','remarkPhoto'];
+  // Tidigare besiktnings mätvärden för rummet, och det som säkert avser samma don.
+  const roomHistory=room=>(state.historical_measurements||[]).filter(item=>item.unit_id===room.unit_id&&item.room_id===room.room_id);
+  function previousFor(point){
+    const same=(state.historical_measurements||[]).filter(old=>old.measurement_id===point.measurement_id&&old.unit_id===point.unit_id&&old.room_id===point.room_id&&old.point_type===point.point_type&&(old.system_id||null)===(point.system_id||null));
+    return same.length===1?same[0]:null;
+  }
   const POINT_LABEL={franluftsdon:'Frånluft',tilluftsdon:'Tilluft',overluftsdon:'Överluft'};
   const NOT_MEASURABLE_REASONS=['Ej åtkomligt','Blockerat av inredning','Mätutrustningen passar inte'];
   const measurePoints=()=>measureRooms().flatMap(room=>roomPoints(room));
@@ -1045,7 +1068,7 @@
       markPointNotMeasurable(point,room,reason);
       await wizardGo('remarkPhoto');return true;
     }
-    if(wz.step==='addPoint'){await wizardGo('point');return true}
+    if(wz.step==='addPoint'||wz.step==='history'){await wizardGo('point');return true}
     if(wz.step==='remarkText'){
       if(!wz.text.trim()){wz.note='Skriv en kort beskrivning eller välj en typ.';render();return true}
       await wizardGo('remarkClass');return true;
