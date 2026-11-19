@@ -974,3 +974,155 @@ def test_remarks_can_be_listed_and_removed_in_both_rounds(field_url: str, browse
     assert dialogs == []
     assert flow.errors == []
     context.close()
+
+
+def test_unit_list_shows_progress_filters_and_guards_finished_units(
+    field_url: str, browser: Any
+) -> None:
+    context = browser.new_context(
+        viewport={"width": 375, "height": 667}, is_mobile=True, has_touch=True
+    )
+    page = context.new_page()
+    errors: list[str] = []
+    dialogs: list[str] = []
+    page.on("pageerror", lambda error: errors.append(str(error)))
+    _record_dialogs(page, dialogs)
+    page.goto(field_url)
+    page.wait_for_function("typeof state === 'object' && typeof payload === 'function'")
+    page.fill("#inspection", "listtest")
+    page.fill("#inspector", "Test Testsson")
+    page.fill("#unitSeries", "1101-1103, 1201")
+    page.click("#start")
+    page.wait_for_function("state.units.length === 4")
+
+    def tags() -> dict[str, str]:
+        result: dict[str, str] = page.evaluate(
+            """() => Object.fromEntries([...document.querySelectorAll('#unitList .unitrow')]
+              .map(row => [row.querySelector('.nr').textContent,
+                           row.querySelector('.tag').textContent]))"""
+        )
+        return result
+
+    def to_list() -> None:
+        page.evaluate("() => { renderRond(); view('viewRond'); }")
+
+    assert set(tags().values()) == {"Ej påbörjad"}
+
+    # Fri ordning: sista lägenheten öppnas först och besiktigas på riktigt en bit.
+    page.click("#unitList [data-unit] >> text=1201")
+    page.wait_for_function("document.getElementById('ovkWizard').dataset.step === 'room'")
+    page.click("#ovkWizard [data-room='Badrum']")
+    page.click("[aria-label='Öka Frånluftsdon']")
+    page.wait_for_function("state.measurements.length === 1")
+    to_list()
+    assert tags()["1201"] == "Pågående"
+
+    # Framdriften följer genomförda moment.
+    page.evaluate(
+        """() => {
+          const unit = state.units.find(item => item.number === '1201');
+          state.field_progress[unit.unit_id] = {phase: 'measure', room_id: state.rooms[0].room_id};
+          renderRond();
+        }"""
+    )
+    assert tags()["1201"] == "Okulär kontroll klar"
+    page.evaluate(
+        """() => {
+          const first = state.measurements[0];
+          state.measurements.push({...first, measurement_id: 'm-extra', point_id: 'p-extra',
+            point_label: 'F2', measured_value: '12'});
+          renderRond();
+        }"""
+    )
+    assert tags()["1201"] == "Mätning återstår"
+    page.evaluate("() => { state.measurements[0].measured_value = '10'; renderRond(); }")
+    assert tags()["1201"] == "Slutkontroll återstår"
+    page.evaluate(
+        """() => {
+          const unit = state.units.find(item => item.number === '1201');
+          unit.status = 'ua'; unit.checked_at = new Date().toISOString();
+          const bom = state.units.find(item => item.number === '1102');
+          bom.status = 'bom'; bom.bom_at = new Date().toISOString();
+          renderRond();
+        }"""
+    )
+    assert tags() == {
+        "1101": "Ej påbörjad",
+        "1102": "Ej tillgänglig · BOM",
+        "1103": "Ej påbörjad",
+        "1201": "Klar · UA",
+    }
+
+    # Filter på status och våning.
+    def shown(status: str = "all", floor: str = "") -> list[str]:
+        page.select_option("#unitFilter", status)
+        page.select_option("#unitFloor", floor)
+        return sorted(tags())
+
+    assert page.is_visible("#unitFloor")
+    assert shown("not_started") == ["1101", "1103"]
+    assert shown("pending") == ["1101", "1103"]
+    assert shown("checked") == ["1201"]
+    assert shown("bom") == ["1102"]
+    assert shown("ongoing") == []
+    assert shown("all", "11") == ["1101", "1102", "1103"]
+    assert shown("all", "12") == ["1201"]
+    assert shown() == ["1101", "1102", "1103", "1201"]
+
+    # Ett valt plan får inte ligga kvar dolt när bara ett plan återstår.
+    page.select_option("#unitFloor", "11")
+    page.evaluate(
+        """() => { const hidden = state.units.find(item => item.number === '1201');
+          hidden.number = 'A1'; renderRond(); }"""
+    )
+    assert not page.is_visible("#unitFloor")
+    assert sorted(tags()) == ["1101", "1102", "1103", "A1"]
+    page.evaluate(
+        """() => { state.units.find(item => item.number === 'A1').number = '1201';
+          renderRond(); }"""
+    )
+
+    # En färdig lägenhet öppnas aldrig direkt.
+    def open_finished() -> None:
+        page.click("#unitList [data-progress='done']")
+        page.wait_for_selector("#ovkSheet")
+
+    open_finished()
+    assert "Lägenhet 1201 är redan färdigbesiktigad." in (page.text_content("#ovkSheet") or "")
+    assert page.locator("#ovkSheet [data-sheet-choice]").count() == 2
+    assert page.text_content("#ovkSheet [data-sheet-cancel]") == "Välj annan lägenhet"
+    page.click("#ovkSheet [data-sheet-cancel]")
+    assert page.evaluate("() => document.querySelector('.view.on').id") == "viewRond"
+
+    before = page.evaluate("() => JSON.stringify(payload())")
+    open_finished()
+    page.click("#ovkSheet [data-sheet-choice='view']")
+    page.wait_for_selector("#ovkUnitSummary")
+    summary = page.text_content("#ovkUnitSummary") or ""
+    assert "Visning – inget ändras här." in summary
+    assert "Badrum" in summary
+    assert "10 l/s" in summary
+    assert "12 l/s" in summary
+    fits = page.evaluate(
+        """() => {
+          const actions = document.querySelector('.ovk-summary-actions').getBoundingClientRect();
+          return actions.bottom <= window.innerHeight + 1 && actions.top > 0;
+        }"""
+    )
+    assert fits is True
+    page.click("#ovkUnitSummary [data-summary-close]")
+    assert page.locator("#ovkUnitSummary").count() == 0
+    assert page.evaluate("() => document.querySelector('.view.on').id") == "viewRond"
+    assert page.evaluate("() => JSON.stringify(payload())") == before
+
+    open_finished()
+    page.click("#ovkSheet [data-sheet-choice='amend']")
+    page.wait_for_function("document.querySelector('.view.on').id === 'viewUnit'")
+    assert page.evaluate("() => activeUnit().number") == "1201"
+    # Kompletteringen skriver inte över resultatet av sig själv.
+    assert page.evaluate("() => activeUnit().status") == "ua"
+
+    assert dialogs == []
+    assert errors == []
+    _validated_payload(page.evaluate("() => payload()"))
+    context.close()

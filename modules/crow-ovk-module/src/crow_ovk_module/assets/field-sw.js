@@ -1,5 +1,5 @@
 const CACHE_PREFIX='crow-ovk-field-shell-';
-const CACHE=CACHE_PREFIX+'v21';
+const CACHE=CACHE_PREFIX+'v22';
 const FIELD_PAGE='/ovk/falt';
 const STATIC_PATHS=new Set([
   '/ovk/falt/app.js',

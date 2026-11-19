@@ -71,15 +71,52 @@ function nextPendingUnit(afterId=null){
   const ordered=index<0?state.units:[...state.units.slice(index+1),...state.units.slice(0,index)];
   return ordered.find(u=>u.status==='ej_paborjad')||null;
 }
-function visibleRoundUnits(search='',filter='all'){
+// Framdrift härleds ur faktiskt genomförda moment och lagras inte: resultat (UA/anmärkning)
+// och tillträde (BOM) ligger kvar i enhetens status.
+const UNIT_PROGRESS_LABEL={not_started:'Ej påbörjad',ongoing:'Pågående',visual_done:'Okulär kontroll klar',measure_left:'Mätning återstår',review_left:'Slutkontroll återstår',done:'Färdigbesiktigad',unavailable:'Ej tillgänglig'};
+function unitProgress(unit){
+  if(unit.status==='bom')return 'unavailable';
+  if(checkedUnit(unit))return 'done';
+  if(!state.rooms.some(room=>room.unit_id===unit.unit_id))return 'not_started';
+  const points=state.measurements.filter(point=>point.unit_id===unit.unit_id);
+  const phase=((state.field_progress||{})[unit.unit_id]||{}).phase;
+  // Utan lokalt varvläge (utkast hämtat på annan enhet) visar ett mätvärde att varv 1 är gjort.
+  const visualDone=phase==='measure'||phase==='review'||(!phase&&points.some(measuredPoint));
+  if(!visualDone)return 'ongoing';
+  if(!points.some(pendingPoint))return 'review_left';
+  return points.some(point=>measuredPoint(point)||point.measurable===false)?'measure_left':'visual_done';
+}
+const UNIT_FILTERS={
+  all:()=>true,
+  pending:progress=>progress!=='done'&&progress!=='unavailable',
+  not_started:progress=>progress==='not_started',
+  ongoing:progress=>['ongoing','visual_done','measure_left','review_left'].includes(progress),
+  measure_left:progress=>progress==='visual_done'||progress==='measure_left',
+  checked:progress=>progress==='done',
+  bom:progress=>progress==='unavailable'
+};
+// Svenska lägenhetsnummer: de två första siffrorna anger våningsplan.
+function unitFloor(unit){const match=unit.kind==='premises'?null:/^(\d{2})\d{2}$/.exec(String(unit.number||'').trim());return match?match[1]:''}
+function visibleRoundUnits(search='',filter='all',floor=''){
   const query=search.trim().toLocaleLowerCase('sv');
+  const accepts=UNIT_FILTERS[filter]||UNIT_FILTERS.all;
   return state.units.filter(unit=>{
-    const match=filter==='all'||(filter==='pending'&&unit.status==='ej_paborjad')||(filter==='checked'&&checkedUnit(unit))||(filter==='bom'&&unit.status==='bom');
+    const match=accepts(unitProgress(unit))&&(!floor||unitFloor(unit)===floor);
     return match&&[unit.number,unit.label,unit.kind==='premises'?'Lokal':'Lägenhet'].some(v=>String(v||'').toLocaleLowerCase('sv').includes(query));
   });
 }
 function renderRoundUnits(){
-  const rows=visibleRoundUnits($('unitSearch')?.value||'',$('unitFilter')?.value||'all');
+  const floorSelect=$('unitFloor');
+  if(floorSelect){
+    const floors=[...new Set(state.units.map(unitFloor).filter(Boolean))].sort();
+    // Ett dolt filter får aldrig fortsätta gälla: med färre än två plan nollställs valet.
+    const chosen=floors.length>1&&floors.includes(floorSelect.value)?floorSelect.value:'';
+    floorSelect.replaceChildren(new Option('Alla våningar',''),...floors.map(floor=>new Option('Plan '+floor+' ('+floor+'xx)',floor)));
+    floorSelect.value=chosen;
+    // Filtret visas först när det finns mer än ett våningsplan att välja mellan.
+    floorSelect.closest('div').hidden=floors.length<2;
+  }
+  const rows=visibleRoundUnits($('unitSearch')?.value||'',$('unitFilter')?.value||'all',floorSelect?.value||'');
   const list=$('unitList');list.replaceChildren();
   for(const unit of rows){
     const remarks=unitRemarks(unit.unit_id).length;
@@ -89,8 +126,10 @@ function renderRoundUnits(){
     const meta=document.createElement('span');meta.className='sub';
     meta.textContent=(unit.kind==='premises'?'Lokal · '+unit.number:'Lgh')+(points.length?' · '+points.filter(measuredPoint).length+'/'+points.length+' uppmätta':'')+(unit.key?.received&&!unit.key.returned?' · Nyckel ute':'');
     const status=document.createElement('span');status.className='tag '+unit.status;
-    status.textContent={ej_paborjad:'Ej klar',ua:'UA',anmarkning:remarks+' anm.',bom:'BOM'}[unit.status]||'Okänd status';
-    button.append(number,meta,status);button.onclick=()=>openUnit(unit.unit_id);list.append(button);
+    const progress=unitProgress(unit);button.dataset.progress=progress;
+    // Färdiga enheter visar resultatet; övriga visar var i arbetet de står.
+    status.textContent=progress==='done'?'Klar · '+(unit.status==='anmarkning'?remarks+' anm.':'UA'):progress==='unavailable'?'Ej tillgänglig · BOM':UNIT_PROGRESS_LABEL[progress];
+    button.append(number,meta,status);button.onclick=()=>(window.ovkEnterUnit||openUnit)(unit.unit_id);list.append(button);
   }
   if($('unitEmpty')){
     $('unitEmpty').hidden=rows.length>0;
@@ -115,6 +154,7 @@ function renderRond(){
 }
 if($('unitSearch'))$('unitSearch').oninput=renderRoundUnits;
 if($('unitFilter'))$('unitFilter').onchange=renderRoundUnits;
+if($('unitFloor'))$('unitFloor').onchange=renderRoundUnits;
 
 /* ---------- enhetsvyn ---------- */
 function openUnit(unitId){
@@ -317,7 +357,7 @@ function renderRooms(){
   const roomDone=document.getElementById('roomDone');if(roomDone)roomDone.onclick=async()=>{const closed=activeRoom();state.activeRoomId=null;clearFindingSelection();$('photoStatus').className='status pass';$('photoStatus').textContent=(closed?closed.name+' klart. ':'')+'Välj nästa rum.';renderUnit();await persist()}}
 // Inmatning i appen i stället för webbläsarens dialogrutor. Returnerar ett objekt
 // med fältvärden (och valt alternativ i `choice`), eller null om användaren avbryter.
-function askSheet({title,note='',fields=[],choices=null,submitLabel='Spara'}){
+function askSheet({title,note='',fields=[],choices=null,submitLabel='Spara',cancelLabel='Avbryt',stack=false}){
   return new Promise(resolve=>{
     const previousFocus=document.activeElement;
     const overlay=document.createElement('div');overlay.className='ovk-sheet'+(fields.length?' typed':'');overlay.id='ovkSheet';
@@ -344,7 +384,7 @@ function askSheet({title,note='',fields=[],choices=null,submitLabel='Spara'}){
       if(choice!==undefined)values.choice=choice;
       close(values);
     };
-    const actions=document.createElement('div');actions.className='ovk-sheet-actions'+(choices&&choices.length>2?' many':'');
+    const actions=document.createElement('div');actions.className='ovk-sheet-actions'+(stack?' stack':choices&&choices.length>2?' many':'');
     if(choices){
       for(const [value,text,selected] of choices){
         const button=document.createElement('button');button.type='button';button.className='ovk-sheet-btn'+(selected?' on':'');button.textContent=text;button.dataset.sheetChoice=String(value);
@@ -354,7 +394,7 @@ function askSheet({title,note='',fields=[],choices=null,submitLabel='Spara'}){
       const save=document.createElement('button');save.type='button';save.className='ovk-sheet-btn on';save.textContent=submitLabel;save.dataset.sheetSubmit='1';
       save.onclick=()=>collect();actions.append(save);
     }
-    const cancel=document.createElement('button');cancel.type='button';cancel.className='ovk-sheet-btn ghost';cancel.textContent='Avbryt';cancel.dataset.sheetCancel='1';
+    const cancel=document.createElement('button');cancel.type='button';cancel.className='ovk-sheet-btn ghost';cancel.textContent=cancelLabel;cancel.dataset.sheetCancel='1';
     cancel.onclick=()=>close(null);
     panel.append(actions,cancel);
     function onKey(event){

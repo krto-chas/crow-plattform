@@ -112,6 +112,14 @@
     .ovk-sheet.typed{align-items:flex-start}
     .ovk-sheet.typed .ovk-sheet-panel{border-radius:0 0 18px 18px;padding:calc(18px + env(safe-area-inset-top)) 16px 16px;box-shadow:0 8px 30px rgba(16,24,32,.2)}
     .ovk-sheet-panel h2{margin:0;font-size:20px;line-height:1.2}
+    /* Läsvy för färdig enhet: en informationsvy med ett enda rullningsområde och fasta knappar. */
+    .ovk-summary{position:fixed;inset:0;z-index:40;display:flex;flex-direction:column;background:var(--paper)}
+    .ovk-summary-body{flex:1;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:calc(16px + env(safe-area-inset-top)) 16px 12px}
+    .ovk-summary-body h2{margin:2px 0 4px;font-size:26px;line-height:1.15;outline:none}
+    .ovk-summary-note{margin:0;font-size:12px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--mut)}
+    .ovk-summary-result{margin:0 0 10px;font-size:15px;font-weight:650}
+    .ovk-summary-mark{color:var(--anm);font-weight:600}
+    .ovk-summary-actions{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.4fr);gap:8px;padding:10px 16px calc(12px + env(safe-area-inset-bottom));border-top:1px solid var(--line);background:var(--panel)}
     .ovk-sheet-note,.ovk-sheet-status{margin:0;font-size:14px;color:var(--mut);line-height:1.4}
     .ovk-sheet-status{color:#8a5a12;font-weight:600}
     .ovk-sheet-status:empty{display:none}
@@ -120,6 +128,7 @@
     .ovk-sheet-field input{min-height:52px;font-size:17px;margin:0;width:100%}
     .ovk-sheet-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
     .ovk-sheet-actions:has(>:only-child){grid-template-columns:minmax(0,1fr)}
+    .ovk-sheet-actions.stack{grid-template-columns:minmax(0,1fr)}
     .ovk-sheet-actions.many{grid-template-columns:repeat(3,minmax(0,1fr))}
     .ovk-sheet-actions.many>:first-child{grid-column:1/-1}
     .ovk-sheet-btn{min-height:52px;padding:10px 8px;border-radius:14px;border:1.5px solid var(--line);background:#fff;color:inherit;font:inherit;font-size:16px;font-weight:650;overflow-wrap:anywhere}
@@ -274,7 +283,7 @@
       <div class="counts"><span><b id="cDone">0</b>/<b id="cTotal">0</b> besiktigade</span><span><b id="cAnm">0</b> med anm.</span><span><b id="cBom">0</b> BOM</span><span><b id="cMeas">0</b> uppmätta don</span></div>
       <p id="roundSummary" class="room-progress" role="status" aria-live="polite"></p>
       <button class="btn" id="continueUnit" hidden>Fortsätt med nästa enhet</button>
-      <div class="round-toolbar"><div><label for="unitSearch">Sök lägenhet eller lokal</label><input id="unitSearch" type="search" placeholder="T.ex. 1201"></div><div><label for="unitFilter">Visa</label><select id="unitFilter"><option value="all">Alla</option><option value="pending">Återstående</option><option value="checked">Besiktigade</option><option value="bom">BOM</option></select></div></div>
+      <div class="round-toolbar"><div><label for="unitSearch">Sök lägenhet eller lokal</label><input id="unitSearch" type="search" placeholder="T.ex. 1201"></div><div><label for="unitFilter">Visa</label><select id="unitFilter"><option value="all">Alla</option><option value="pending">Återstående</option><option value="not_started">Ej påbörjade</option><option value="ongoing">Pågående</option><option value="measure_left">Mätning återstår</option><option value="checked">Färdigbesiktigade</option><option value="bom">Ej tillgängliga (BOM)</option></select></div><div hidden><label for="unitFloor">Våning</label><select id="unitFloor"><option value="">Alla våningar</option></select></div></div>
       <div id="unitList"></div>
       <p id="unitEmpty" class="room-progress" hidden></p>
       <button class="btn ghost" id="addUnit">+ Lägg till enhet</button>
@@ -1272,6 +1281,76 @@
     render();
   };
   updateFooter=function(name){originalUpdateFooter(name);if(name==='viewUnit')render()};
+  // ── Färdigbesiktigad enhet: varna innan den öppnas ───────────────────
+  // Listan får aldrig tyst öppna en färdig enhet för ändring. Visningen är en ren
+  // läsvy byggd ur utkastet; den ändrar ingenting.
+  const unitName=unit=>(unit.kind==='premises'?'Lokal ':'Lägenhet ')+(unit.kind==='premises'&&unit.label?unit.label:unit.number);
+  const CLASS_LABEL={0:'Upplysning',1:'Bör åtgärdas',2:'Väsentlig brist'};
+  function unitResultText(unit){
+    const remarks=unitRemarks(unit.unit_id).length;
+    const when=new Date(unit.checked_at);
+    const stamp=Number.isNaN(when.getTime())?'':' · '+when.toLocaleString('sv-SE',{dateStyle:'short',timeStyle:'short'});
+    return 'Resultat: '+(remarks?remarks+(remarks===1?' anmärkning':' anmärkningar'):'UA – utan anmärkning')+stamp;
+  }
+  function findingText(finding){
+    const label=(REMARK_TYPES.find(item=>item[0]===finding.defect_type)||[])[1]||((state.defects||[]).find(item=>item.id===finding.defect_type)||{}).label||'Anmärkning';
+    const photos=state.photos.filter(photo=>photo.finding_id===finding.finding_id).length;
+    return 'Anm. klass '+finding.classification+' ('+(CLASS_LABEL[finding.classification]||'okänd')+'): '+label+(finding.description?' – '+finding.description:'')+(photos?' · '+photos+' foto':'');
+  }
+  function showUnitSummary(unit){
+    return new Promise(resolve=>{
+      const overlay=el('div','ovk-summary');overlay.id='ovkUnitSummary';
+      overlay.setAttribute('role','dialog');overlay.setAttribute('aria-modal','true');overlay.setAttribute('aria-labelledby','ovkUnitSummaryTitle');
+      const title=el('h2','',unitName(unit));title.id='ovkUnitSummaryTitle';title.tabIndex=-1;
+      const body=el('div','ovk-summary-body');
+      body.append(el('p','ovk-summary-note','Visning – inget ändras här.'),title,el('p','ovk-summary-result',unitResultText(unit)));
+      const findings=state.findings.filter(item=>item.unit_id===unit.unit_id);
+      const rooms=state.rooms.filter(room=>room.unit_id===unit.unit_id);
+      for(const room of rooms){
+        const block=el('div','ovk-review-room');
+        block.append(el('h4','',room.name));
+        const check=roomCheck(room);
+        const answers=check?['don','clean','transfer','fresh'].map(key=>CHECK_LABELS[key][check[key]]).filter(Boolean):[];
+        const vent=state.window_vents.find(item=>item.unit_id===room.unit_id&&item.room_id===room.room_id);
+        if(vent)answers.push(vent.present?'Fönsterventil finns':'Fönsterventil saknas');
+        block.append(el('p','',answers.length?answers.join(', '):'Visuell kontroll ej besvarad'));
+        const points=roomPoints(room);
+        if(!points.length)block.append(el('p','','Inga don'));
+        for(const point of points)block.append(el('p','',pointText(point)));
+        for(const finding of findings.filter(item=>item.room_id===room.room_id))block.append(el('p','ovk-summary-mark',findingText(finding)));
+        body.append(block);
+      }
+      const loose=findings.filter(item=>!rooms.some(room=>room.room_id===item.room_id));
+      if(loose.length){
+        const block=el('div','ovk-review-room');
+        block.append(el('h4','','Övriga anmärkningar'));
+        for(const finding of loose)block.append(el('p','ovk-summary-mark',findingText(finding)));
+        body.append(block);
+      }
+      if(!rooms.length&&!loose.length)body.append(el('p','','Inga rum registrerade.'));
+      const actions=el('div','ovk-summary-actions');
+      const close=result=>{overlay.remove();document.removeEventListener('keydown',onKey,true);resolve(result)};
+      const amend=el('button','ovk-sheet-btn on','Öppna för komplettering');amend.type='button';amend.dataset.summaryAmend='1';amend.addEventListener('click',()=>close(true));
+      const back=el('button','ovk-sheet-btn ghost','Till listan');back.type='button';back.dataset.summaryClose='1';back.addEventListener('click',()=>close(false));
+      actions.append(back,amend);
+      function onKey(event){if(event.key==='Escape'){event.preventDefault();close(false)}}
+      document.addEventListener('keydown',onKey,true);
+      overlay.append(body,actions);document.body.append(overlay);title.focus({preventScroll:true});
+    });
+  }
+  window.ovkEnterUnit=async function(id){
+    const unit=state.units.find(item=>item.unit_id===id);
+    if(!unit||!checkedUnit(unit))return openUnit(id);
+    const answer=await askSheet({
+      title:unitName(unit)+' är redan färdigbesiktigad.',
+      note:unitResultText(unit)+'. Ingenting ändras förrän du själv ändrar något.',
+      choices:[['view','Visa besiktning'],['amend','Öppna för komplettering']],
+      cancelLabel:'Välj annan '+(unit.kind==='premises'?'lokal':'lägenhet'),stack:true
+    });
+    if(!answer)return;
+    if(answer.choice==='view'&&!(await showUnitSummary(unit)))return;
+    openUnit(id);
+  };
   $id('footDone').addEventListener('click',async event=>{
     if(!unitView.classList.contains('on')||phase==='review')return;
     event.stopImmediatePropagation();
