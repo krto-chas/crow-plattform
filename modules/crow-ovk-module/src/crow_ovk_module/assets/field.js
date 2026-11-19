@@ -143,7 +143,8 @@ function renderRond(){
   $('cAnm').textContent=state.units.filter(u=>u.status==='anmarkning').length;
   $('cBom').textContent=counts.bom;$('cMeas').textContent=counts.measured;
   $('rondbar').replaceChildren(...state.units.map(unit=>{const segment=document.createElement('i');segment.className=unit.status;return segment}));
-  if($('roundSummary'))$('roundSummary').textContent=counts.pending+' ej färdiga · '+counts.bom+' BOM · '+counts.pendingMeasurements+' mätpunkter utan giltigt värde';
+  // Antalen står redan på raden ovanför: här visas bara det som kräver åtgärd.
+  if($('roundSummary'))$('roundSummary').textContent=counts.pendingMeasurements?counts.pendingMeasurements+(counts.pendingMeasurements===1?' mätpunkt':' mätpunkter')+' utan giltigt värde':'';
   if($('continueUnit')){
     const next=nextPendingUnit();
     $('continueUnit').hidden=!next;

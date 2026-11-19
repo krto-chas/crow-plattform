@@ -850,3 +850,12 @@ def test_property_first_field_inventory_promotion_and_recurring_inspection(
     assert client.get(first_field + "/sync").json() == original_snapshot
     assert len(client.get("/api/projects").json()) == 1
     assert len(client.get(root + "/inspections").json()["inspections"]) == 2
+
+
+def test_new_property_does_not_inherit_the_dashboard_project() -> None:
+    """Utan aktivt projektval ska fastigheten få ett eget projekt med sitt namn."""
+    from importlib import resources
+
+    script = (resources.files("crow_ovk_module") / "assets" / "workflow.js").read_text("utf-8")
+    assert "$('newPropertyProject').value=requestedProject" not in script
+    assert "projectId:existingProject?.project_id||randomId('project-')" in script

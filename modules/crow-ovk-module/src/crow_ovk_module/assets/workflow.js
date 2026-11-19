@@ -489,7 +489,8 @@ async function initDraft(projects, requestedProject) {
   document.querySelectorAll('[data-workflow-editor]').forEach(node=>node.hidden=true);
   propertyProjects = projects;
   draftOptions($('newPropertyProject'),projects,p=>p.project_id,projectLabel,'Skapa automatiskt');
-  if(projects.some(p=>p.project_id===requestedProject)) $('newPropertyProject').value=requestedProject;
+  // Projektet förväljs inte från översiktens projektväljare: utan aktivt val skapas ett
+  // projekt med fastighetsbeteckningen som namn.
   $('propertySearchForm').onsubmit=searchProperties;
   $('propertyDesignation').oninput=resetPropertySearch;
   $('propertyNew').onclick=showNewProperty;
