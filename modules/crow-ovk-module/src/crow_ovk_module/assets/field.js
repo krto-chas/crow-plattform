@@ -268,9 +268,8 @@ async function applyFieldTemplate(plan,copy){
   }
 }
 
-const PRESET_EXTRACT_ROOMS=['badrum','wc','kök','hwc','vilorum'];
-function addPresetExtract(room){if(!PRESET_EXTRACT_ROOMS.includes(room.name.trim().toLowerCase().split(/\s+/)[0]))return;state.measurements.push({measurement_id:uid('meas'),unit_id:room.unit_id,point_type:'franluftsdon',point_label:room.name+' 1',room_id:room.room_id,measurable:true,measured_value:null,designed_value:null,unit_of_measure:'l/s',not_measurable_reason:'',finding_id:null})}
-function ensureRoom(name){const existing=unitRooms().find(item=>item.name===name);if(existing)return existing;const room={room_id:uid('room'),unit_id:state.activeUnitId,name};state.rooms.push(room);addPresetExtract(room);return room}
+// Rum skapas utan don: besiktningsmannen registrerar själv de don som finns under varv 1.
+function ensureRoom(name){const existing=unitRooms().find(item=>item.name===name);if(existing)return existing;const room={room_id:uid('room'),unit_id:state.activeUnitId,name};state.rooms.push(room);return room}
 function roomStats(roomId){
   const points=state.measurements.filter(item=>item.unit_id===state.activeUnitId&&item.room_id===roomId);
   return {meas:points.length,measured:points.filter(measuredPoint).length,marks:state.findings.filter(item=>item.unit_id===state.activeUnitId&&item.room_id===roomId&&(item.severity==='minor'||item.severity==='major')).length};

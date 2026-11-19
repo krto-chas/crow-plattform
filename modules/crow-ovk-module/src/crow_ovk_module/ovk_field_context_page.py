@@ -100,6 +100,7 @@ def ovk_field_context_page_router() -> APIRouter:
             "start_url": "/ovk/falt",
             "scope": "/ovk/",
             "display": "standalone",
+            "display_override": ["fullscreen", "standalone"],
             "background_color": "#f7f8fa",
             "theme_color": "#f7f8fa",
             "lang": "sv",

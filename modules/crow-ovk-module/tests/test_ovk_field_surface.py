@@ -317,8 +317,8 @@ def test_field_app_presets_and_unit_system_override(tmp_path: Path) -> None:
     client = _client(tmp_path)
     app = client.get("/ovk/falt/app.js")
     assert app.status_code == 200
-    # Badrum/WC/Kök får automatisk frånluftsmätpunkt när rummet skapas.
-    assert "PRESET_EXTRACT_ROOMS=['badrum','wc','kök','hwc','vilorum']" in app.text
+    # Rum skapas utan automatiskt don; don registreras av besiktningsmannen i varv 1.
+    assert "PRESET_EXTRACT_ROOMS" not in app.text
     # Avvikande system per enhet (vinds-/källarlägenhet) med fastigheten som default.
     assert "function unitSystem(unit)" in app.text
     assert "system_type:system_type||null" in app.text
@@ -814,7 +814,7 @@ def test_r2a_round_workspace_controls(tmp_path: Path) -> None:
     assert "button.setAttribute('aria-pressed',String(selected))" in script
     assert "Mätpunkterna blir kvar som ofullständiga." in script
     assert "Ronderingen är komplett" not in script
-    assert "v14" in client.get("/ovk/falt/sw.js").text
+    assert "v15" in client.get("/ovk/falt/sw.js").text
 
 
 def test_field_apartment_template_controls(tmp_path: Path) -> None:
