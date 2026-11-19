@@ -64,8 +64,13 @@ function nextPremisesNumber() {
 }
 
 async function addNamedPremises() {
-  const name = (prompt('Hyresgästens namn / lokalnamn:') || '').trim();
-  if (!name) return;
+  const answer = await askSheet({
+    title: 'Lägg till lokal',
+    fields: [{ id: 'name', label: 'Hyresgästens namn eller lokalnamn', required: true, placeholder: 'T.ex. Frisör Anna' }],
+    submitLabel: 'Lägg till lokal'
+  });
+  if (!answer) return;
+  const name = answer.name;
   const number = nextPremisesNumber();
   const unit = {
     unit_id: uid('unit'),
@@ -89,8 +94,14 @@ async function addNamedPremises() {
 
 async function addFieldUnit(kind) {
   const label = kind === 'premises' ? 'lokal(er)' : 'lägenhet(er)';
-  const text = (prompt('Nummer för ' + label + ' – en eller flera (t.ex. 1101-1104, 1201):') || '').trim();
-  if (!text) return;
+  const answer = await askSheet({
+    title: 'Lägg till ' + label,
+    note: 'En eller flera, t.ex. 1101-1104, 1201.',
+    fields: [{ id: 'numbers', label: 'Nummer', required: true, placeholder: '1101-1104, 1201' }],
+    submitLabel: 'Lägg till'
+  });
+  if (!answer) return;
+  const text = answer.numbers;
   let numbers;
   try { numbers = parseSeries(text); } catch (error) { unitAddStatus(String(error.message || error), true); return; }
   const existing = new Set(state.units.map(item => item.number));
