@@ -88,7 +88,12 @@ def test_flow_protocol_shows_premises_name() -> None:
 def test_visual_round_always_starts_in_first_room() -> None:
     page = _asset("field.html")
     assert "state.activeRoomId=rooms[0].room_id;" in page
-    assert "else if(phase==='visual'){phase='measure';selectRoom(0)}" in page
+    # Mätvarvet börjar i första rummet som har don; saknas don helt går flödet till slutkontrollen.
+    assert "else if(phase==='visual'){phase='measure';selectRoom(0);" in page
+    assert (
+        "const first=measureRooms()[0];if(first)selectMeasureRoom(first);else phase='review'}"
+        in page
+    )
 
 
 def test_rooms_are_created_without_automatic_terminal() -> None:

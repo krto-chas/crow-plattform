@@ -32,11 +32,16 @@ class MeasurePointType(StrEnum):
     OVERLUFTSDON = "overluftsdon"
 
 
+_KEY_RETURN_METHODS = ("", "hand", "mailbox")
+
+
 @dataclass(frozen=True, slots=True)
 class KeyLog:
     """Nyckelspårning per enhet: mottagen/återlämnad med tidsstämplar.
 
     Huvudnyckel kräver alltid en skriven kommentar för spårbarhetens skull.
+    ``returned_method`` anger hur nyckeln lämnades tillbaka: ``hand`` (i handen)
+    eller ``mailbox`` (i brevlådan). Tom sträng betyder att sättet inte angetts.
     """
 
     received: bool = False
@@ -45,8 +50,13 @@ class KeyLog:
     returned_at: str | None = None
     master_key_used: bool = False
     master_key_note: str = ""
+    returned_method: str = ""
 
     def __post_init__(self) -> None:
+        if self.returned_method not in _KEY_RETURN_METHODS:
+            raise ValueError("unsupported key return method")
+        if self.returned_method and not self.returned:
+            raise ValueError("key return method requires a returned key")
         if self.received and not (self.received_at or "").strip():
             raise ValueError("key received requires a timestamp")
         if self.returned and not (self.returned_at or "").strip():
@@ -406,8 +416,12 @@ class FieldInspectionData:
     technical_spaces: tuple[TechnicalSpace, ...] = field(default=())
     checkpoints: tuple[FieldCheckpoint, ...] = field(default=())
     finding_followups: tuple[FindingFollowup, ...] = field(default=())
+    # Huvudnyckeln hör till besiktningen, inte till en enskild enhet.
+    master_key: KeyLog | None = None
 
     def __post_init__(self) -> None:
+        if self.master_key is not None and self.master_key.master_key_used:
+            raise ValueError("inspection master key cannot carry a per-unit master key note")
         seen: set[tuple[str, str]] = set()
         units = {unit.unit_id for unit in self.units}
         findings = {finding.finding_id: finding for finding in self.findings}
