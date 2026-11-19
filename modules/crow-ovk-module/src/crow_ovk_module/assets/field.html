@@ -231,6 +231,11 @@
     .ovk-wz-flow{min-height:72px;font-size:34px;font-weight:650;text-align:center;margin:0;width:100%;border-radius:14px}
     .ovk-wz-grid input{min-height:50px;font-size:16px;margin:0;width:100%;text-align:center}
     .ovk-wz-link{min-height:36px;padding:4px 0;border:0;background:none;color:var(--accent);font:inherit;font-size:14px;font-weight:600;text-align:left;text-decoration:underline;overflow-wrap:anywhere}
+    .ovk-wz-roomrow{display:flex;align-items:center;justify-content:space-between;gap:10px;width:100%;min-height:52px;padding:8px 12px;border:1.5px solid var(--line);border-left-width:4px;border-radius:12px;background:#fff;color:inherit;font:inherit;text-align:left}
+    .ovk-wz-roomrow.done{border-left-color:var(--ua)}
+    .ovk-wz-roomname{font-size:16px;font-weight:650;min-width:0;overflow-wrap:anywhere}
+    .ovk-wz-grid.three{grid-template-columns:repeat(3,minmax(0,1fr))}
+    .ovk-wz-grid.three .ovk-wz-choice{padding-left:4px;padding-right:4px;font-size:14px}
     .ovk-wz-copy{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;align-items:center}
     .ovk-wz-copy .ovk-wz-link{white-space:nowrap}
     .ovk-wz-remarks{display:flex;flex-direction:column;gap:6px;flex:1;min-height:0;overflow:auto}
@@ -736,7 +741,7 @@
     renderFindings();
   }
   // Halvfärdiga anmärknings- och mallsteg återupptas på närmaste hela steg.
-  const RESUME_STEP={remarkText:'remark',remarkClass:'remark',remarkPhoto:'remark',remarkList:'remark',template:'room'};
+  const RESUME_STEP={remarkText:'remark',remarkClass:'remark',remarkPhoto:'remark',remarkList:'remark',template:'room',roomList:'room'};
   const typeCount=(room,type)=>roomPoints(room).filter(point=>point.point_type===type).length;
   const terminalCount=room=>typeCount(room,'franluftsdon')+typeCount(room,'tilluftsdon');
   const roomVent=room=>state.window_vents.find(item=>item.unit_id===room.unit_id&&item.room_id===room.room_id)||null;
@@ -817,6 +822,37 @@
     phase='visual';wz.unitId=state.activeUnitId;wz.roomId=state.activeRoomId;
     wz.step=step;wz.note='';
     render();await persist();
+  }
+  // Ett rum är klart när kontrollfrågorna är besvarade och, i lokal, donen är mätta.
+  // Första obesvarade kontrollfråga bland dem som gäller för rummet, annars 'done'.
+  // Överluft och friskluft räknas med, på samma sätt som slutkontrollens varningar.
+  function pendingStep(room){
+    const first=firstOpenStep(room);
+    if(first!=='done')return first;
+    const check=roomCheck(room);
+    if(needsTransfer(room)&&!(check&&check.transfer))return 'transfer';
+    if(needsFresh(room)&&!(roomVent(room)||(check&&check.fresh)))return 'fresh';
+    return 'done';
+  }
+  function roomState(room){
+    const open=pendingStep(room)!=='done';
+    const unmeasured=singlePass()?roomPoints(room).filter(pendingPoint).length:0;
+    if(open)return {done:false,label:'Pågående'};
+    if(unmeasured)return {done:false,label:unmeasured+' don omätta'};
+    return {done:true,label:'Klart'};
+  }
+  async function openListedRoom(room){
+    const index=unitRooms().indexOf(room);
+    if(index<0)return;
+    let step=null;
+    if(roomState(room).done){
+      const answer=await askSheet({title:room.name+' är redan klart.',note:'Ingenting ändras förrän du själv ändrar något.',choices:[['view','Visa rummet'],['amend','Öppna för komplettering']],cancelLabel:'Välj annat rum',stack:true});
+      if(!answer)return;
+      step=answer.choice==='amend'?'don':'done';
+    }
+    selectRoom(index);
+    // Utan val öppnas rummet på första obesvarade fråga.
+    await wizardGo(step||pendingStep(room));
   }
   // Rumstypen är namnets första ord: "Kontor 101" och "Kontor VD" är båda kontor.
   const roomType=room=>room.name.trim().split(/\s+/)[0].toLocaleLowerCase('sv');
@@ -943,7 +979,8 @@
       wz.step=room?(resumed&&(resumed==='room'||wizardSteps(room).includes(resumed))?resumed:firstOpenStep(room)):'room';wz.note='';
     }
     if(phase==='visual'&&!room)wz.step=wz.step==='template'?'template':'room';
-    if(phase==='visual'&&room&&!['room','template','remarkText','remarkClass','remarkPhoto','remarkList'].includes(wz.step)&&!wizardSteps(room).includes(wz.step))wz.step=firstOpenStep(room);
+    if(wz.step==='roomList'&&!rooms.length)wz.step='room';
+    if(phase==='visual'&&room&&!['room','roomList','template','remarkText','remarkClass','remarkPhoto','remarkList'].includes(wz.step)&&!wizardSteps(room).includes(wz.step))wz.step=firstOpenStep(room);
     if(wz.step!=='template')restoreTemplate();
     wizard.dataset.step=wz.step;
     wizard.replaceChildren();
@@ -974,7 +1011,25 @@
       if(!templatePanel.classList.contains('hidden')&&!rooms.length){
         body.append(choice('Återanvänd lägenhetstyp',false,()=>wizardGo('template'),'ghost'));
       }
-      doneLabel=rooms.length?'Starta mätvarv':'Välj rum';
+      if(rooms.length){
+        const list=el('button','ovk-wz-link','Rum i enheten ('+rooms.length+') · öppna ett tidigare rum');list.type='button';list.id='ovkWzRoomListLink';
+        list.addEventListener('click',()=>wizardGo('roomList'));
+        body.append(list);
+      }
+      doneLabel=!rooms.length?'Välj rum':singlePass()||!measureRooms().length?'Till slutkontroll':'Starta mätvarv';
+    }else if(wz.step==='roomList'){
+      // Fri rumsordning: alla rum med status. Ett klart rum öppnas först efter ett val.
+      title.textContent='Rum i enheten';
+      const list=el('div','ovk-wz-remarks');
+      for(const item of rooms){
+        const state_=roomState(item);
+        const row=el('button','ovk-wz-roomrow'+(state_.done?' done':''));row.type='button';row.dataset.roomId=item.room_id;
+        row.append(el('span','ovk-wz-roomname',item.name),el('span','tag'+(state_.done?' ua':''),state_.label));
+        row.addEventListener('click',()=>openListedRoom(item));
+        list.append(row);
+      }
+      body.append(list);
+      doneLabel='Tillbaka';
     }else if(wz.step==='template'){
       title.textContent='Återanvänd lägenhetstyp';
       wizard.append(templatePanel,templateStatus);
@@ -1193,7 +1248,9 @@
       else if(last)body.append(choice('+ Nästa rum',false,()=>wizardGo('room')));
       const edit=el('div','ovk-wz-grid');
       const rename=choice('Byt namn',false,()=>renameRoom(room),'ghost');rename.id='ovkWzRename';
+      const edit3=rooms.length>1;
       edit.append(choice('Ändra svar',false,()=>wizardGo('don'),'ghost'),rename);
+      if(edit3){const all=choice('Alla rum',false,()=>wizardGo('roomList'),'ghost');all.id='ovkWzAllRooms';edit.append(all);edit.classList.add('three')}
       body.append(edit);
       doneLabel=!last?'Nästa rum':singlePass()?'+ Nästa rum':measureRooms().length?'Starta mätvarv':'Till slutkontroll';
     }
@@ -1212,7 +1269,7 @@
   // det ordinarie bytet av rum eller varv.
   async function wizardNext(){
     const room=activeRoom();
-    if(wz.step==='template'){await wizardGo('room');return true}
+    if(wz.step==='template'||wz.step==='roomList'){await wizardGo('room');return true}
     if(!unitRooms().length){wz.note='Lägg till minst ett rum innan mätvarvet startar.';render();return true}
     if(wz.step==='done'&&singlePass()&&roomIndex>=unitRooms().length-1){await wizardGo('room');return true}
     if(wz.step==='room'||!room||wz.step==='done')return false;
@@ -1229,7 +1286,7 @@
   }
   async function wizardBack(){
     const room=activeRoom();
-    if(wz.step==='template'){await wizardGo('room');return true}
+    if(wz.step==='template'||wz.step==='roomList'){await wizardGo('room');return true}
     if(wz.step==='room'){
       if(!room)return false;
       await wizardGo('done');return true;
