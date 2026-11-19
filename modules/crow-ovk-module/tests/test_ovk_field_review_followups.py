@@ -91,11 +91,14 @@ def test_visual_round_always_starts_in_first_room() -> None:
     assert "else if(phase==='visual'){phase='measure';selectRoom(0)}" in page
 
 
-def test_typed_room_gets_same_preset_terminal_as_room_chip() -> None:
-    assert "state.rooms.push(room);\n    addPresetExtract(room);" in _asset("field.html")
+def test_rooms_are_created_without_automatic_terminal() -> None:
+    # Automatiskt frånluftsdon gav dubbla don när besiktningsmannen lade till sitt eget.
+    page = _asset("field.html")
     script = _asset("field.js")
-    assert "function addPresetExtract(room){" in script
-    assert "state.rooms.push(room);addPresetExtract(room);return room}" in script
+    assert "addPresetExtract" not in page
+    assert "addPresetExtract" not in script
+    assert "PRESET_EXTRACT_ROOMS" not in script
+    assert "state.rooms.push(room);return room}" in script
 
 
 def test_checked_unit_status_follows_remarks_before_every_local_save() -> None:
