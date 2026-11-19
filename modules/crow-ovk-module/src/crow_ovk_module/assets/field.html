@@ -683,6 +683,8 @@
       item.finding_id=null;
       if(item.measurable===false){item.measurable=true;item.not_measurable_reason=''}
     }
+    // En återkontroll som pekade på anmärkningen nollställs, annars avvisas synken.
+    state.finding_followups=state.finding_followups.map(item=>item.current_finding_id===finding.finding_id?{...item,status:'not_checked',note:'',current_finding_id:null,photo_ids:[]}:item);
     if(state.activeFindingId===finding.finding_id)clearFindingSelection();
     renderFindings();
   }
@@ -1139,11 +1141,8 @@
   // anmärkning tas bort för hand.
   function restoreMeasurable(point){
     const finding=state.findings.find(item=>item.finding_id===point.finding_id&&item.defect_type==='terminal_not_measurable');
-    if(finding){
-      state.findings=state.findings.filter(item=>item!==finding);
-      for(const photo of state.photos)if(photo.finding_id===finding.finding_id)photo.finding_id=null;
-      if(state.activeFindingId===finding.finding_id)clearFindingSelection();
-    }
+    // Samma städning som i anmärkningslistan, inklusive kopplade återkontroller.
+    if(finding)removeFinding(finding);
     point.finding_id=null;point.measurable=true;point.not_measurable_reason='';
     renderFindings();
   }

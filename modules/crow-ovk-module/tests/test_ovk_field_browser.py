@@ -927,6 +927,13 @@ def test_remarks_can_be_listed_and_removed_in_both_rounds(field_url: str, browse
     flow.expect_step("remarkList")
     remove = flow.page.locator("#ovkWizard [data-remove]")
     assert remove.count() == 1
+    # En återkontroll från förra besiktningen pekar på anmärkningen.
+    flow.page.evaluate(
+        """() => { state.finding_followups.push({
+          source_inspection_id: 'tidigare', source_finding_id: 'gammal',
+          unit_id: state.findings[0].unit_id, status: 'remaining', note: 'Kvarstår',
+          current_finding_id: state.findings[0].finding_id, photo_ids: [] }); }"""
+    )
     remove.first.click()
     # Första trycket ber om bekräftelse och tar inte bort något.
     assert flow.page.locator("#ovkWizard [data-remove]").first.text_content() == "Bekräfta"
@@ -934,6 +941,9 @@ def test_remarks_can_be_listed_and_removed_in_both_rounds(field_url: str, browse
     flow.page.locator("#ovkWizard [data-remove]").first.click()
     flow.page.wait_for_function("state.findings.length === 0")
     flow.expect_step("remark")
+    assert flow.state("state.finding_followups[0].current_finding_id") is None
+    assert flow.state("state.finding_followups[0].status") == "not_checked"
+    flow.state("(state.finding_followups.length = 0, 0)")
     assert flow.page.locator("#ovkWzRemarkList").count() == 0
     flow.answer("Nej, inget att anmärka", "done")
 
