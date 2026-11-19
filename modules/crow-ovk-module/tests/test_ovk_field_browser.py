@@ -1454,3 +1454,120 @@ def test_premises_rooms_suggest_the_last_verified_room_of_the_same_type(
     assert flow.errors == []
     _validated_payload(page.evaluate("() => payload()"))
     context.close()
+
+
+def test_rooms_can_be_opened_in_any_order_and_finished_rooms_ask_first(
+    field_url: str, browser: Any
+) -> None:
+    context = browser.new_context(
+        viewport={"width": 375, "height": 667}, is_mobile=True, has_touch=True
+    )
+    flow = _Flow(context.new_page())
+    page = flow.page
+    dialogs: list[str] = []
+    _record_dialogs(page, dialogs)
+    page.goto(field_url)
+    page.wait_for_function("typeof state === 'object' && typeof payload === 'function'")
+    page.click("#ovkStartMore > summary")
+    page.fill("#inspection", "rumslistetest")
+    page.fill("#inspector", "Test Testsson")
+    page.select_option("#systemType", "FTX")
+    page.fill("#unitSeries", "1001")
+    page.click("#footDone")
+    page.wait_for_function("state.units.length === 1")
+    page.click("#addPremises")
+    page.fill("#ovkSheet_name", "Kontor AB")
+    page.click("#ovkSheet [data-sheet-submit]")
+    page.wait_for_function("state.activeUnitId && activeUnit().kind === 'premises'")
+
+    def add_room(name: str) -> None:
+        flow.expect_step("room")
+        page.fill("#ovkWzRoomName", name)
+        page.click("#ovkWzRoomSave")
+        flow.expect_step("don")
+
+    def advance(target: str) -> None:
+        for _ in range(10):
+            current = flow.state("document.getElementById('ovkWizard').dataset.step")
+            if current == target:
+                break
+            if current == "clean":
+                page.click("#ovkWizard button:text-is('Rena')")
+            elif current == "transfer":
+                page.click("#ovkWizard button:text-is('Ja')")
+            elif current == "remark":
+                page.click("#ovkWizard button:text-is('Nej, inget att anmärka')")
+            else:
+                page.click("#footDone")
+            page.wait_for_timeout(120)
+        flow.expect_step(target)
+
+    def rows() -> dict[str, str]:
+        result: dict[str, str] = page.evaluate(
+            """() => Object.fromEntries([...document.querySelectorAll('#ovkWizard .ovk-wz-roomrow')]
+              .map(row => [row.querySelector('.ovk-wz-roomname').textContent,
+                           row.querySelector('.tag').textContent]))"""
+        )
+        return result
+
+    # Kontor 101 görs klart, Kontor 102 lämnas halvvägs med ett omätt don.
+    assert page.locator("#ovkWzRoomListLink").count() == 0
+    add_room("Kontor 101")
+    page.click("[aria-label='Öka Frånluftsdon']")
+    page.wait_for_function("state.measurements.length === 1")
+    advance("point")
+    page.fill("#ovkWzFlow", "12")
+    advance("done")
+    assert page.locator("#ovkWzAllRooms").count() == 0
+    flow.next("room")
+    add_room("Kontor 102")
+    page.click("[aria-label='Öka Frånluftsdon']")
+    page.wait_for_function("state.measurements.length === 2")
+    advance("point")
+    flow.next("remark")
+    advance("done")
+    flow.next("room")
+    add_room("Förråd")
+
+    # Rumslistan nås från rumsväljaren och visar status per rum.
+    page.evaluate("() => document.getElementById('footBack').click()")
+    page.wait_for_function("state.activeRoomId === state.rooms[1].room_id")
+    flow.expect_step("done")
+    page.click("#ovkWzAllRooms")
+    flow.expect_step("roomList")
+    assert rows() == {"Kontor 101": "Klart", "Kontor 102": "1 don omätta", "Förråd": "Pågående"}
+
+    # Ett klart rum öppnas inte direkt.
+    page.click("#ovkWizard .ovk-wz-roomrow >> text=Kontor 101")
+    page.wait_for_selector("#ovkSheet")
+    assert "Kontor 101 är redan klart." in (page.text_content("#ovkSheet") or "")
+    assert page.text_content("#ovkSheet [data-sheet-cancel]") == "Välj annat rum"
+    page.click("#ovkSheet [data-sheet-cancel]")
+    flow.expect_step("roomList")
+    assert flow.state("state.activeRoomId === state.rooms[1].room_id") is True
+
+    page.click("#ovkWizard .ovk-wz-roomrow >> text=Kontor 101")
+    page.click("#ovkSheet [data-sheet-choice='view']")
+    flow.expect_step("done")
+    assert (page.text_content("#ovkWizard .ovk-wz-room") or "") == "Kontor 101"
+
+    page.click("#ovkWzAllRooms")
+    flow.expect_step("roomList")
+    page.click("#ovkWizard .ovk-wz-roomrow >> text=Kontor 101")
+    page.click("#ovkSheet [data-sheet-choice='amend']")
+    flow.expect_step("don")
+    assert (page.text_content("#ovkWizard .ovk-wz-room") or "") == "Kontor 101"
+    assert flow.state("state.measurements[0].measured_value") == "12"
+
+    # Ett påbörjat rum öppnas direkt där arbetet står.
+    advance("done")
+    page.click("#ovkWzAllRooms")
+    page.click("#ovkWizard .ovk-wz-roomrow >> text=Förråd")
+    flow.expect_step("don")
+    assert page.locator("#ovkSheet").count() == 0
+    assert (page.text_content("#ovkWizard .ovk-wz-room") or "") == "Förråd"
+
+    assert dialogs == []
+    assert flow.errors == []
+    _validated_payload(page.evaluate("() => payload()"))
+    context.close()
