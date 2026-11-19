@@ -109,7 +109,8 @@ function renderRoundUnits(){
   const floorSelect=$('unitFloor');
   if(floorSelect){
     const floors=[...new Set(state.units.map(unitFloor).filter(Boolean))].sort();
-    const chosen=floors.includes(floorSelect.value)?floorSelect.value:'';
+    // Ett dolt filter får aldrig fortsätta gälla: med färre än två plan nollställs valet.
+    const chosen=floors.length>1&&floors.includes(floorSelect.value)?floorSelect.value:'';
     floorSelect.replaceChildren(new Option('Alla våningar',''),...floors.map(floor=>new Option('Plan '+floor+' ('+floor+'xx)',floor)));
     floorSelect.value=chosen;
     // Filtret visas först när det finns mer än ett våningsplan att välja mellan.

@@ -1069,6 +1069,19 @@ def test_unit_list_shows_progress_filters_and_guards_finished_units(
     assert shown("all", "12") == ["1201"]
     assert shown() == ["1101", "1102", "1103", "1201"]
 
+    # Ett valt plan får inte ligga kvar dolt när bara ett plan återstår.
+    page.select_option("#unitFloor", "11")
+    page.evaluate(
+        """() => { const hidden = state.units.find(item => item.number === '1201');
+          hidden.number = 'A1'; renderRond(); }"""
+    )
+    assert not page.is_visible("#unitFloor")
+    assert sorted(tags()) == ["1101", "1102", "1103", "A1"]
+    page.evaluate(
+        """() => { state.units.find(item => item.number === 'A1').number = '1201';
+          renderRond(); }"""
+    )
+
     # En färdig lägenhet öppnas aldrig direkt.
     def open_finished() -> None:
         page.click("#unitList [data-progress='done']")
