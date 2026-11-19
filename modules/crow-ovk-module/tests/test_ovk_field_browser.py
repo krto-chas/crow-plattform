@@ -694,6 +694,10 @@ def test_measurement_round_takes_one_terminal_at_a_time(field_url: str, browser:
     # Ångra ej mätbar gör donet mätbart igen.
     flow.answer("Ångra – donet går att mäta", "point")
     assert flow.state("state.measurements[1].measurable") is True
+    # Anmärkningen som skapades för det ej mätbara donet följer med bort.
+    assert flow.state("state.measurements[1].finding_id") is None
+    assert flow.state("state.findings.map(f => f.defect_type)") == ["incorrect_airflow"]
+    _validated_payload(flow.state("payload()"))
 
     # Framåt från sista donet leder till slutkontrollen, och Tillbaka därifrån till sista donet.
     for _ in range(2):

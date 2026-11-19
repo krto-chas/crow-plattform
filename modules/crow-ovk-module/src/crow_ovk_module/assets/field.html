@@ -901,7 +901,7 @@
       if(point.measurable===false){
         body.append(
           el('p','ovk-wz-hint warn','Ej mätbar: '+point.not_measurable_reason),
-          choice('Ångra – donet går att mäta',false,async()=>{point.measurable=true;point.not_measurable_reason='';renderUnit();render();await persist()},'ghost')
+          choice('Ångra – donet går att mäta',false,async()=>{restoreMeasurable(point);renderUnit();render();await persist()},'ghost')
         );
       }else{
         const flow=el('input','ovk-wz-flow');flow.id='ovkWzFlow';flow.type='text';flow.inputMode='decimal';flow.autocomplete='off';flow.placeholder='l/s';
@@ -1062,6 +1062,19 @@
     }
     render();
     await persist();
+  }
+  // Ångrar ej mätbar: anmärkningen som skapades för donet tas bort, annars räknas
+  // enheten fortfarande som anmärkt. Foton behålls men kopplas loss, som när en
+  // anmärkning tas bort för hand.
+  function restoreMeasurable(point){
+    const finding=state.findings.find(item=>item.finding_id===point.finding_id&&item.defect_type==='terminal_not_measurable');
+    if(finding){
+      state.findings=state.findings.filter(item=>item!==finding);
+      for(const photo of state.photos)if(photo.finding_id===finding.finding_id)photo.finding_id=null;
+      if(state.activeFindingId===finding.finding_id)clearFindingSelection();
+    }
+    point.finding_id=null;point.measurable=true;point.not_measurable_reason='';
+    renderFindings();
   }
   function markPointNotMeasurable(point,room,reason){
     point.measurable=false;point.measured_value=null;point.not_measurable_reason=reason;
