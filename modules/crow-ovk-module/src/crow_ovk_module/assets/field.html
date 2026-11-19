@@ -113,6 +113,9 @@
     .top{flex-wrap:nowrap;gap:8px;padding:calc(8px + env(safe-area-inset-top)) 12px 8px}
     .top strong{font-size:14px;white-space:nowrap}.top a{padding:6px 0;font-size:13px;white-space:nowrap}
     .top .net{flex:none}
+    .top a.ovk-home{color:inherit;text-decoration:none;padding:6px 0;font-size:inherit}
+    .ovk-start-head{display:flex;align-items:center;justify-content:space-between;gap:10px}
+    .ovk-start-head a{display:inline-flex;align-items:center;min-height:44px;margin:-12px 0;color:var(--accent);font-size:14px;font-weight:650}
     .field-sync-indicator{flex:1 1 auto;min-width:0;font-size:11.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;overflow-wrap:normal;text-align:center}
     .foot .inner.three{grid-template-columns:minmax(0,1fr) minmax(0,1fr) minmax(0,2.2fr);gap:8px}
     #footSync[hidden]{display:none}
@@ -269,12 +272,12 @@
   </style>
 </head>
 <body>
-<header class="top"><strong>CROW OVK</strong><span id="network" class="net">Nät…</span><span id="fieldSyncIndicator" class="field-sync-indicator" role="status" aria-live="polite">Ingen synk ännu</span><a id="workbenchLink" href="/ovk/besiktning">Besiktningsunderlag</a></header>
+<header class="top"><a id="ovkHome" class="ovk-home" href="/ovk" aria-label="Till OVK-översikten"><strong>CROW OVK</strong></a><span id="network" class="net">Nät…</span><span id="fieldSyncIndicator" class="field-sync-indicator" role="status" aria-live="polite">Ingen synk ännu</span><a id="workbenchLink" href="/ovk/besiktning">Besiktningsunderlag</a></header>
 <main class="wrap">
 
   <!-- VY: START -->
   <section class="view on" id="viewStart">
-    <div class="card"><div class="eyebrow">Förrättning</div><h1>Starta rondering</h1>
+    <div class="card"><div class="ovk-start-head"><div class="eyebrow">Förrättning</div><a id="ovkHomeLink" href="/ovk">‹ OVK-översikten</a></div><h1>Starta rondering</h1>
       <div class="row"><div><label>Projekt</label><select id="project"><option value="adhoc">Ad hoc</option></select></div><div><label>Besiktnings-ID</label><input id="inspection" value="ovk-001"></div></div>
       <p id="ovkInstallHint" class="status" hidden>Öppna i helskärm: tryck på Dela i Safari och välj <strong>Lägg till på hemskärmen</strong>. Starta sedan appen från ikonen.</p>
       <div id="authStatus" class="status">Kontrollerar session…</div>
@@ -1340,7 +1343,14 @@
     const next=name==='viewRond'?nextPendingUnit():null;
     footSync.hidden=!next;footInner.classList.toggle('three',Boolean(next));
     if(next){$id('footDone').textContent='Fortsätt · '+roundUnitLabel(next);$id('footBack').textContent='Start'}
+    // På startsidan leder vänsterknappen tillbaka till OVK-modulens översikt.
+    if(name==='viewStart')$id('footBack').textContent='OVK-översikt';
   }
+  const originalFootBack=$id('footBack').onclick;
+  $id('footBack').onclick=function(event){
+    if(document.querySelector('.view.on').id==='viewStart'){location.assign('/ovk');return undefined}
+    return originalFootBack.call(this,event);
+  };
   footSync.addEventListener('click',()=>syncDraft());
   const originalFootDone=$id('footDone').onclick;
   $id('footDone').onclick=function(event){

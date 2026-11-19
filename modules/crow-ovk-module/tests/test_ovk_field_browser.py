@@ -1151,6 +1151,16 @@ def test_start_and_round_views_fit_the_first_screen(
     assert page.evaluate("() => document.documentElement.scrollHeight - window.innerHeight") <= 0
     for selector in ("#inspector", "#systemType", "#unitSeries", "#footDone"):
         assert page.is_visible(selector)
+    # Vägen tillbaka till OVK-modulens startsida finns på startsidan och i sidhuvudet.
+    assert page.is_visible("#ovkHomeLink")
+    assert page.get_attribute("#ovkHomeLink", "href") == "/ovk"
+    assert page.get_attribute("#ovkHome", "href") == "/ovk"
+    assert page.text_content("#footBack") == "OVK-översikt"
+    page.click("#footBack")
+    page.wait_for_url("**/ovk")
+    page.goto(field_url)
+    page.wait_for_function("typeof state === 'object' && typeof payload === 'function'")
+    page.wait_for_function("document.getElementById('footDone').textContent === 'Starta rondering'")
     # Sällan ändrade uppgifter finns kvar, ett tryck bort.
     assert not page.is_visible("#inspection")
     page.click("#ovkStartMore > summary")
