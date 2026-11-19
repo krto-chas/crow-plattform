@@ -231,6 +231,8 @@
     .ovk-wz-flow{min-height:72px;font-size:34px;font-weight:650;text-align:center;margin:0;width:100%;border-radius:14px}
     .ovk-wz-grid input{min-height:50px;font-size:16px;margin:0;width:100%;text-align:center}
     .ovk-wz-link{min-height:36px;padding:4px 0;border:0;background:none;color:var(--accent);font:inherit;font-size:14px;font-weight:600;text-align:left;text-decoration:underline;overflow-wrap:anywhere}
+    .ovk-wz-copy{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;align-items:center}
+    .ovk-wz-copy .ovk-wz-link{white-space:nowrap}
     .ovk-wz-remarks{display:flex;flex-direction:column;gap:6px;flex:1;min-height:0;overflow:auto}
     .ovk-wz-remark{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:8px;border:1.5px solid var(--line);border-radius:12px;padding:8px 10px;background:#fff}
     .ovk-wz-remark strong{display:block;font-size:15px;overflow-wrap:anywhere}
@@ -816,6 +818,35 @@
     wz.step=step;wz.note='';
     render();await persist();
   }
+  // Rumstypen är namnets första ord: "Kontor 101" och "Kontor VD" är båda kontor.
+  const roomType=room=>room.name.trim().split(/\s+/)[0].toLocaleLowerCase('sv');
+  function configText(room){
+    const extract=typeCount(room,'franluftsdon'),supply=typeCount(room,'tilluftsdon');
+    return [supply?supply+' tilluft':'',extract?extract+' frånluft':''].filter(Boolean).join(' · ');
+  }
+  // Senast verifierade rum av samma typ: donfrågan och renhetsfrågan är besvarade.
+  function copySource(room){
+    if(!singlePass()||(state.field_progress||{})._room_copy_off)return null;
+    const rooms=unitRooms();
+    for(let index=rooms.length-1;index>=0;index--){
+      const candidate=rooms[index];
+      if(candidate!==room&&roomType(candidate)===roomType(room)&&terminalCount(candidate)>0&&firstOpenStep(candidate)==='done')return candidate;
+    }
+    return null;
+  }
+  async function copyRoomConfig(source,room){
+    for(const type of ['franluftsdon','tilluftsdon']){
+      for(const original of roomPoints(source).filter(point=>point.point_type===type)){
+        const before=new Set(state.measurements.map(item=>item.measurement_id));
+        await addTerminal(type);
+        // Nya don får egna id:n; bara det projekterade flödet följer med.
+        const created=state.measurements.find(item=>!before.has(item.measurement_id)&&item.room_id===room.room_id);
+        if(created&&validFlowValue(original.designed_value))created.designed_value=original.designed_value;
+      }
+    }
+    wz.note='Don föreslagna från '+source.name+'. Kontrollera och justera vid behov.';
+    render();await persist();
+  }
   async function renameRoom(room){
     const answer=await askSheet({title:'Byt namn på rummet',note:'Don, mätvärden och anmärkningar följer med.',fields:[{id:'name',label:'Rumsnamn',value:room.name,required:true,maxLength:80}],submitLabel:'Spara namn'});
     if(!answer||answer.name===room.name)return;
@@ -945,8 +976,23 @@
       title.textContent=supplyRelevant?'Vilka don finns i rummet?':'Hur många frånluftsdon finns?';
       body.append(counter('Frånluftsdon',typeCount(room,'franluftsdon'),()=>removeTerminal('franluftsdon'),()=>addTerminal('franluftsdon')));
       if(supplyRelevant)body.append(counter('Tilluftsdon',typeCount(room,'tilluftsdon'),()=>removeTerminal('tilluftsdon'),()=>addTerminal('tilluftsdon')));
+      // Lokal: föreslå donen från senast verifierade rum av samma typ. Bara antal, typ och
+      // projekterat flöde följer med – aldrig mätvärden, anmärkningar eller foton.
+      const untouched=!roomPoints(room).length&&!(check&&check.don);
+      const source=untouched?copySource(room):null;
+      if(source){
+        const row=el('div','ovk-wz-copy');
+        const use=choice('Som '+source.name+': '+configText(source),false,()=>copyRoomConfig(source,room));use.id='ovkWzCopyRoom';
+        const off=el('button','ovk-wz-link','Föreslå inte');off.type='button';off.id='ovkWzCopyOff';
+        off.addEventListener('click',async()=>{state.field_progress._room_copy_off=true;render();await persist()});
+        row.append(use,off);body.append(row);
+      }else if(untouched&&singlePass()&&state.field_progress._room_copy_off){
+        const on=el('button','ovk-wz-link','Föreslå don från tidigare rum');on.type='button';on.id='ovkWzCopyOn';
+        on.addEventListener('click',async()=>{delete state.field_progress._room_copy_off;render();await persist()});
+        body.append(on);
+      }
       body.append(
-        el('p','ovk-wz-hint',terminalCount(room)?'Donen mäts i varv 2.':'Inga don? Gå vidare med Nästa, så registreras att don saknas.')
+        el('p','ovk-wz-hint',terminalCount(room)?(singlePass()?'Donen mäts direkt efter kontrollfrågorna.':'Donen mäts i varv 2.'):'Inga don? Gå vidare med Nästa, så registreras att don saknas.')
       );
     }else if(wz.step==='clean'){
       title.textContent='Är don och synlig kanal rena?';

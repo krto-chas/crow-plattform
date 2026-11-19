@@ -1321,3 +1321,120 @@ def test_premises_are_inspected_room_by_room_in_one_pass(field_url: str, browser
     assert flow.errors == []
     _validated_payload(page.evaluate("() => payload()"))
     context.close()
+
+
+def test_premises_rooms_suggest_the_last_verified_room_of_the_same_type(
+    field_url: str, browser: Any
+) -> None:
+    context = browser.new_context(
+        viewport={"width": 375, "height": 667}, is_mobile=True, has_touch=True
+    )
+    flow = _Flow(context.new_page())
+    page = flow.page
+    page.goto(field_url)
+    page.wait_for_function("typeof state === 'object' && typeof payload === 'function'")
+    page.click("#ovkStartMore > summary")
+    page.fill("#inspection", "kopieratest")
+    page.fill("#inspector", "Test Testsson")
+    page.select_option("#systemType", "FTX")
+    page.fill("#unitSeries", "1001")
+    page.click("#footDone")
+    page.wait_for_function("state.units.length === 1")
+    page.click("#addPremises")
+    page.fill("#ovkSheet_name", "Kontor AB")
+    page.click("#ovkSheet [data-sheet-submit]")
+    page.wait_for_function("state.activeUnitId && activeUnit().kind === 'premises'")
+
+    def step() -> str:
+        return str(flow.state("document.getElementById('ovkWizard').dataset.step"))
+
+    def finish_room() -> None:
+        for _ in range(10):
+            if step() == "done":
+                break
+            if step() == "remark":
+                page.click("#ovkWizard button:text-is('Nej, inget att anmärka')")
+            elif step() == "clean":
+                page.click("#ovkWizard button:text-is('Rena')")
+            else:
+                page.click("#footDone")
+            page.wait_for_timeout(120)
+        flow.expect_step("done")
+
+    def add_room(name: str) -> None:
+        flow.expect_step("room")
+        page.fill("#ovkWzRoomName", name)
+        page.click("#ovkWzRoomSave")
+        flow.expect_step("don")
+
+    def room_points(index: int) -> list[dict[str, Any]]:
+        result: list[dict[str, Any]] = flow.state(
+            f"state.measurements.filter(m => m.room_id === state.rooms[{index}].room_id)"
+        )
+        return result
+
+    # Kontor 101: två frånluft och en tilluft, med projekterat flöde och mätvärde.
+    add_room("Kontor 101")
+    assert page.locator("#ovkWzCopyRoom").count() == 0
+    page.click("[aria-label='Öka Frånluftsdon']")
+    page.wait_for_function("state.measurements.length === 1")
+    page.click("[aria-label='Öka Frånluftsdon']")
+    page.wait_for_function("state.measurements.length === 2")
+    page.click("[aria-label='Öka Tilluftsdon']")
+    page.wait_for_function("state.measurements.length === 3")
+    page.evaluate(
+        """() => { state.measurements[0].designed_value = '15';
+          state.measurements[0].measured_value = '14'; }"""
+    )
+    finish_room()
+
+    # Kontor 102 får förslaget, med källan utskriven.
+    flow.next("room")
+    add_room("Kontor 102")
+    assert page.text_content("#ovkWzCopyRoom") == "Som Kontor 101: 1 tilluft · 2 frånluft"
+    page.click("#ovkWzCopyRoom")
+    page.wait_for_function("state.measurements.length === 6")
+    flow.expect_step("don")
+    copied = room_points(1)
+    original_ids = {point["measurement_id"] for point in room_points(0)}
+    assert sorted(point["point_type"] for point in copied) == [
+        "franluftsdon",
+        "franluftsdon",
+        "tilluftsdon",
+    ]
+    # Egna id:n, projekterat flöde följer med, mätvärden gör det aldrig.
+    assert original_ids.isdisjoint(point["measurement_id"] for point in copied)
+    assert [point.get("designed_value") for point in copied].count("15") == 1
+    assert all(point.get("measured_value") in (None, "") for point in copied)
+    assert flow.state("state.findings.length") == 0
+    # Förslaget går att korrigera: ett frånluftsdon tas bort innan rummet verifieras.
+    page.click("[aria-label='Minska Frånluftsdon']")
+    page.wait_for_function("state.measurements.length === 5")
+    finish_room()
+
+    # Annan rumstyp får inget förslag.
+    flow.next("room")
+    add_room("Förråd väst")
+    assert page.locator("#ovkWzCopyRoom").count() == 0
+    finish_room()
+
+    # Kontor 103 föreslår den senast verifierade konfigurationen, från Kontor 102.
+    flow.next("room")
+    add_room("Kontor 103")
+    assert page.text_content("#ovkWzCopyRoom") == "Som Kontor 102: 1 tilluft · 1 frånluft"
+
+    # Funktionen går att stänga av och slå på igen.
+    page.click("#ovkWzCopyOff")
+    page.wait_for_selector("#ovkWzCopyOn")
+    assert page.locator("#ovkWzCopyRoom").count() == 0
+    flow.expect_step("don")
+    page.click("#ovkWzCopyOn")
+    page.wait_for_selector("#ovkWzCopyRoom")
+    # Förslaget kan ignoreras: egna don registreras som vanligt.
+    page.click("[aria-label='Öka Tilluftsdon']")
+    page.wait_for_function("state.measurements.length === 6")
+    assert page.locator("#ovkWzCopyRoom").count() == 0
+
+    assert flow.errors == []
+    _validated_payload(page.evaluate("() => payload()"))
+    context.close()
