@@ -78,6 +78,8 @@ function unitProgress(unit){
   if(unit.status==='bom')return 'unavailable';
   if(checkedUnit(unit))return 'done';
   if(!state.rooms.some(room=>room.unit_id===unit.unit_id))return 'not_started';
+  // Lokaler görs rum för rum i ett svep och har inga varv att skilja på.
+  if(unit.kind==='premises')return 'ongoing';
   const points=state.measurements.filter(point=>point.unit_id===unit.unit_id);
   const phase=((state.field_progress||{})[unit.unit_id]||{}).phase;
   // Utan lokalt varvläge (utkast hämtat på annan enhet) visar ett mätvärde att varv 1 är gjort.

@@ -1203,3 +1203,105 @@ def test_start_and_round_views_fit_the_first_screen(
     assert not page.is_visible("#footSync")
     assert errors == []
     context.close()
+
+
+def test_premises_are_inspected_room_by_room_in_one_pass(field_url: str, browser: Any) -> None:
+    context = browser.new_context(
+        viewport={"width": 375, "height": 667}, is_mobile=True, has_touch=True
+    )
+    flow = _Flow(context.new_page())
+    page = flow.page
+    dialogs: list[str] = []
+    _record_dialogs(page, dialogs)
+    page.goto(field_url)
+    page.wait_for_function("typeof state === 'object' && typeof payload === 'function'")
+    page.click("#ovkStartMore > summary")
+    page.fill("#inspection", "lokaltest")
+    page.fill("#inspector", "Test Testsson")
+    page.select_option("#systemType", "FTX")
+    page.fill("#unitSeries", "1001")
+    page.click("#footDone")
+    page.wait_for_function("state.units.length === 1")
+    page.click("#addPremises")
+    page.fill("#ovkSheet_name", "Kontor AB")
+    page.click("#ovkSheet [data-sheet-submit]")
+    page.wait_for_function("state.activeUnitId && activeUnit().kind === 'premises'")
+
+    def step() -> str:
+        return str(flow.state("document.getElementById('ovkWizard').dataset.step"))
+
+    def advance_to(target: str, never: str = "") -> None:
+        for _ in range(8):
+            if step() == target:
+                break
+            assert not never or step() != never
+            page.click("#footDone")
+            page.wait_for_timeout(120)
+        flow.expect_step(target)
+
+    # Rum 1: inventera, kontrollera, mät, dokumentera – i ett svep.
+    flow.expect_step("room")
+    page.locator("#ovkWizard .ovk-wz-grid button").first.click()
+    page.fill("#ovkSheet_nr", "101")
+    page.click("#ovkSheet [data-sheet-submit]")
+    flow.expect_step("don")
+    page.click("[aria-label='Öka Tilluftsdon']")
+    page.wait_for_function("state.measurements.length === 1")
+    page.click("[aria-label='Öka Frånluftsdon']")
+    page.wait_for_function("state.measurements.length === 2")
+    advance_to("point")
+    assert "Mätning i rummet" in (page.text_content("#ovkStepTitle") or "")
+    assert "Don 1 av 2" in (page.text_content("#ovkWizard .ovk-wz-room") or "")
+    assert page.text_content("#footDone") == "Nästa don"
+    page.fill("#ovkWzFlow", "20")
+    flow.next("point")
+    assert "Don 2 av 2" in (page.text_content("#ovkWizard .ovk-wz-room") or "")
+    assert page.text_content("#footDone") == "Till anmärkningar"
+    page.fill("#ovkWzFlow", "18")
+    flow.next("remark")
+    assert "Rum för rum" in (page.text_content("#ovkStepTitle") or "")
+    # Tillbaka från anmärkningssteget landar på rummets sista don, inte i ett annat varv.
+    page.click("#footBack")
+    flow.expect_step("point")
+    assert "Don 2 av 2" in (page.text_content("#ovkWizard .ovk-wz-room") or "")
+    assert page.input_value("#ovkWzFlow") == "18"
+    flow.next("remark")
+    flow.answer("Nej, inget att anmärka", "done")
+    assert page.text_content("#ovkWizard .ovk-wz-title") == "Rummet är klart"
+    assert "Mätt 2 av 2 don" in (page.text_content("#ovkWizard") or "")
+    assert page.text_content("#footDone") == "+ Nästa rum"
+
+    # Byt namn: kopplingarna till don och mätvärden ligger kvar.
+    room_id = flow.state("state.rooms[0].room_id")
+    page.click("#ovkWzRename")
+    page.fill("#ovkSheet_name", "Mötesrum Alfa")
+    page.click("#ovkSheet [data-sheet-submit]")
+    page.wait_for_function("state.rooms[0].name === 'Mötesrum Alfa'")
+    flow.expect_step("done")
+    assert flow.state("state.rooms[0].room_id") == room_id
+    assert (
+        flow.state("state.measurements.filter(m => m.room_id === state.rooms[0].room_id).length")
+        == 2
+    )
+    assert (page.text_content("#ovkWizard .ovk-wz-room") or "") == "Mötesrum Alfa"
+
+    # Rum 2 utan don: mätmomentet hoppas över.
+    flow.next("room")
+    page.fill("#ovkWzRoomName", "Förråd väst")
+    page.click("#ovkWzRoomSave")
+    flow.expect_step("don")
+    advance_to("done", never="point")
+    assert "Mätt" not in (page.text_content("#ovkWizard") or "")
+
+    # Ingen separat mätrunda: sista rummet leder direkt till slutkontrollen.
+    page.click("#ovkWizard button:text-is('Alla rum klara – till slutkontroll')")
+    page.wait_for_function(
+        "document.getElementById('ovkStepTitle').textContent.includes('Slutkontroll')"
+    )
+    page.click("#footBack")
+    flow.expect_step("done")
+    assert flow.state("state.measurements.map(m => m.measured_value).sort().join()") == "18,20"
+    assert dialogs == []
+    assert flow.errors == []
+    _validated_payload(page.evaluate("() => payload()"))
+    context.close()
