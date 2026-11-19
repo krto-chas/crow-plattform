@@ -150,6 +150,11 @@
     .ovk-wz-count{text-align:center;display:flex;flex-direction:column}
     .ovk-wz-count strong{font-size:30px;line-height:1.1}
     .ovk-wz-count span{font-size:14px;color:var(--mut)}
+    .ovk-wz-flow{min-height:72px;font-size:34px;font-weight:650;text-align:center;margin:0;width:100%;border-radius:14px}
+    .ovk-wz-grid input{min-height:50px;font-size:16px;margin:0;width:100%;text-align:center}
+    .ovk-wz-mini{display:flex;flex-direction:column;gap:2px;margin:0}
+    .ovk-wz-mini span{font-size:12px;font-weight:650;color:var(--mut);letter-spacing:.03em;text-transform:uppercase}
+    .ovk-wz-grid .ovk-wz-mini input{min-height:44px}
     .ovk-wz-hint{margin:0;color:var(--mut);font-size:14px;line-height:1.4}
     .ovk-wz-hint.warn{color:#8a5a12;font-weight:600}
     .ovk-wz-summary{margin:0;padding:0;list-style:none;border:1.5px solid var(--line);border-radius:14px;background:#fff}
@@ -612,6 +617,7 @@
   const REMARK_TYPES=[
     ['contaminated_extract_terminal','Smutsigt frånluftsdon'],
     ['contaminated_supply_terminal','Smutsigt tilluftsdon'],
+    ['incorrect_airflow','Avvikande luftflöde'],
     ['missing_terminal','Don saknas'],
     ['kitchen_fan_central_system','Köksfläkt mot centralsystem'],
     ['window_vent_missing','Friskluftsventil saknas'],
@@ -719,11 +725,39 @@
   }
   $id('fieldTemplateApply').addEventListener('click',()=>setTimeout(()=>{wz.roomId=undefined;render()},0));
   function wizardRender(rooms){
-    const on=phase==='visual';
-    cards[STEP.visual].classList.toggle('ovk-wizard-on',on);
+    const on=phase==='visual'||phase==='measure';
+    cards[STEP.visual].classList.toggle('ovk-wizard-on',phase==='visual');
+    cards[STEP.measure].classList.toggle('ovk-wizard-on',phase==='measure');
     if(!on){restoreTemplate();return}
-    const room=activeRoom();
-    if(state.activeUnitId!==wz.unitId||state.activeRoomId!==wz.roomId){
+    const host=cards[STEP[phase]];
+    if(wizard.parentNode!==host)host.prepend(wizard);
+    let room=activeRoom();
+    let point=null;
+    if(phase==='measure'){
+      restoreTemplate();
+      const points=measurePoints();
+      if(wz.measureUnitId!==state.activeUnitId){
+        // Återuppta på det don som sparades i utkastet.
+        wz.measureUnitId=state.activeUnitId;
+        const saved=(state.field_progress||{})[state.activeUnitId];
+        wz.pointId=saved&&saved.phase==='measure'?saved.point_id||null:null;
+        wz.step='point';
+      }
+      point=points.find(item=>item.measurement_id===wz.pointId)||null;
+      // Ett valt don styr vilket rum som är aktivt. Annars kan en tidig omritning,
+      // innan rummet hunnit återställas ur utkastet, byta till fel don.
+      if(point&&point.room_id!==state.activeRoomId){state.activeRoomId=point.room_id;room=activeRoom()}
+      if(!point){
+        const inRoom=points.filter(item=>item.room_id===state.activeRoomId);
+        point=(wz.fromEnd?inRoom[inRoom.length-1]:inRoom.find(pendingPoint)||inRoom[0])||points[0]||null;
+        wz.step='point';
+      }
+      wz.fromEnd=false;
+      wz.pointId=point?point.measurement_id:null;
+      if(!MEASURE_STEPS.includes(wz.step))wz.step='point';
+      // Stegen delas med varv 1, som annars skulle tro att rummet är oförändrat.
+      wz.roomId=undefined;
+    }else if(state.activeUnitId!==wz.unitId||state.activeRoomId!==wz.roomId){
       wz.unitId=state.activeUnitId;wz.roomId=state.activeRoomId;
       // Återuppta på det steg som sparades i utkastet, så att en omladdning mitt i
       // ett rum fortsätter på nästa obesvarade fråga i stället för på sammanfattningen.
@@ -731,8 +765,8 @@
       const resumed=saved&&saved.phase==='visual'&&saved.room_id===state.activeRoomId?RESUME_STEP[saved.step]||saved.step:null;
       wz.step=room?(resumed&&(resumed==='room'||wizardSteps(room).includes(resumed))?resumed:firstOpenStep(room)):'room';wz.note='';
     }
-    if(!room)wz.step=wz.step==='template'?'template':'room';
-    if(room&&!['room','template','remarkText','remarkClass','remarkPhoto'].includes(wz.step)&&!wizardSteps(room).includes(wz.step))wz.step=firstOpenStep(room);
+    if(phase==='visual'&&!room)wz.step=wz.step==='template'?'template':'room';
+    if(phase==='visual'&&room&&!['room','template','remarkText','remarkClass','remarkPhoto'].includes(wz.step)&&!wizardSteps(room).includes(wz.step))wz.step=firstOpenStep(room);
     if(wz.step!=='template')restoreTemplate();
     wizard.dataset.step=wz.step;
     wizard.replaceChildren();
@@ -820,6 +854,8 @@
       for(const [type,label] of REMARK_TYPES){
         if(type==='kitchen_fan_central_system'&&!kitchen)continue;
         if(type==='window_vent_missing'&&isFtx())continue;
+        if(type==='incorrect_airflow'&&phase!=='measure')continue;
+        if(type==='missing_terminal'&&phase==='measure')continue;
         if(type==='contaminated_extract_terminal'&&!typeCount(room,'franluftsdon'))continue;
         if(type==='contaminated_supply_terminal'&&!typeCount(room,'tilluftsdon'))continue;
         grid.append(choice(label,wz.type===type,()=>{wz.type=type;if(type!=='general_damage_observation')wz.text=label;render()}));
@@ -828,7 +864,7 @@
     }else if(wz.step==='remarkClass'){
       title.textContent='Vilken klass har anmärkningen?';
       const pick=level=>async()=>{
-        const finding=addFinding(wz.type,SEVERITY[level],room.name+': '+wz.text.trim());
+        const finding=addFinding(wz.type,SEVERITY[level],room.name+': '+(phase==='measure'&&point?point.point_label+' – ':'')+wz.text.trim());
         finding.classification=level;
         renderFindings();
         await wizardGo('remarkPhoto');
@@ -842,6 +878,63 @@
         el('p','ovk-wz-hint',taken?taken+' foto kopplat till anmärkningen.':'Fotot kopplas till anmärkningen du just registrerade.')
       );
       doneLabel=taken?'Klar':'Hoppa över';
+    }else if(wz.step==='point'&&point){
+      const points=measurePoints();
+      const index=points.indexOf(point);
+      head.textContent=room.name+' · Don '+(index+1)+' av '+points.length;
+      title.textContent=POINT_LABEL[point.point_type]+' · '+point.point_label;
+      if(point.measurable===false){
+        body.append(
+          el('p','ovk-wz-hint warn','Ej mätbar: '+point.not_measurable_reason),
+          choice('Ångra – donet går att mäta',false,async()=>{point.measurable=true;point.not_measurable_reason='';renderUnit();render();await persist()},'ghost')
+        );
+      }else{
+        const flow=el('input','ovk-wz-flow');flow.id='ovkWzFlow';flow.type='text';flow.inputMode='decimal';flow.autocomplete='off';flow.placeholder='l/s';
+        flow.value=point.measured_value??'';flow.setAttribute('aria-label',point.point_label+' – uppmätt luftflöde i liter per sekund');
+        const designed=el('input');designed.id='ovkWzDesigned';designed.type='text';designed.inputMode='decimal';designed.autocomplete='off';designed.placeholder='Projekterat l/s';
+        designed.value=point.designed_value??'';designed.setAttribute('aria-label',point.point_label+' – projekterat luftflöde i liter per sekund, om känt');
+        const deviation=el('p','ovk-wz-hint');deviation.id='ovkWzDeviation';
+        const showDeviation=()=>{deviation.textContent=deviationText(point)||roomSumText(room,point)};
+        flow.addEventListener('input',()=>{point.measured_value=flow.value.trim().replace(',','.')||null;showDeviation()});
+        designed.addEventListener('input',()=>{point.designed_value=designed.value.trim().replace(',','.')||null;showDeviation()});
+        const saveField=async()=>{updateUnitProgress();renderMeasurementHistory();await persist()};
+        flow.addEventListener('change',saveField);designed.addEventListener('change',saveField);
+        flow.addEventListener('keydown',event=>{if(event.key==='Enter'){event.preventDefault();$id('footDone').click()}});
+        showDeviation();
+        const extras=el('div','ovk-wz-grid');
+        // Synliga etiketter: platshållaren försvinner när ett värde är ifyllt.
+        const designedField=el('label','ovk-wz-mini');designedField.append(el('span','','Projekterat l/s'),designed);
+        const flowField=el('label','ovk-wz-mini');flowField.append(el('span','','Uppmätt l/s'),flow);
+        extras.append(
+          designedField,
+          choice('Ej mätbar',false,()=>{wz.text='';return wizardGo('reason')},'ghost'),
+          choice('Anmärkning',false,()=>{wz.type='general_damage_observation';wz.text='';return wizardGo('remarkText')},'ghost'),
+          choice('+ Don i rummet',false,()=>wizardGo('addPoint'),'ghost')
+        );
+        body.append(flowField,deviation,extras);
+      }
+      doneLabel=index>=points.length-1?'Till slutkontroll':'Nästa don';
+    }else if(wz.step==='reason'&&point){
+      head.textContent=room.name+' · '+point.point_label;
+      title.textContent='Varför går donet inte att mäta?';
+      const grid=el('div','ovk-wz-grid');
+      const area=el('textarea');area.id='ovkWzReasonText';area.rows=2;area.maxLength=300;area.placeholder='Beskriv kort';area.setAttribute('aria-label','Orsak till att donet inte går att mäta');area.value=wz.text;
+      area.addEventListener('input',()=>{wz.text=area.value});
+      for(const label of NOT_MEASURABLE_REASONS)grid.append(choice(label,wz.text===label,()=>{wz.text=label;render()}));
+      body.append(grid,area,el('p','ovk-wz-hint','Orsaken sparas som anmärkning på donet. Ta gärna ett foto i nästa steg.'));
+    }else if(wz.step==='addPoint'){
+      title.textContent='Vilket don vill du lägga till?';
+      const add=type=>async()=>{
+        const before=new Set(state.measurements.map(item=>item.measurement_id));
+        await addTerminal(type);
+        const created=state.measurements.find(item=>!before.has(item.measurement_id));
+        if(created)wz.pointId=created.measurement_id;
+        await wizardGo('point');
+      };
+      body.append(choice('Frånluftsdon',false,add('franluftsdon')));
+      if(isFtx())body.append(choice('Tilluftsdon',false,add('tilluftsdon')));
+      body.append(choice('Överluftsdon',false,add('overluftsdon')),el('p','ovk-wz-hint','Donet läggs till i '+room.name+' och mäts direkt.'));
+      doneLabel='Avbryt';
     }else{
       title.textContent='Rummet är kontrollerat';
       const lines=[];
@@ -862,6 +955,13 @@
     }
     if(wz.note)body.append(el('p','ovk-wz-hint warn',wz.note));
     $id('footDone').textContent=doneLabel;
+    if(phase==='measure'){
+      const points=measurePoints();
+      const done=points.filter(item=>!pendingPoint(item)).length;
+      $id('ovkStepCount').textContent=done+' av '+points.length+' don klara';
+      $id('ovkStepFill').style.width=(50+50*done/Math.max(1,points.length))+'%';
+      return;
+    }
     $id('ovkStepCount').textContent=!rooms.length?'Inga rum':wz.step==='room'?rooms.length+' rum klara':'Rum '+(roomIndex+1)+' av '+rooms.length;
   }
   // Sant betyder att stegvyn tog hand om trycket; falskt lämnar över till
@@ -899,7 +999,81 @@
     await wizardGo(list[index-1]);
     return true;
   }
-  $id('photo').addEventListener('change',()=>setTimeout(()=>{if(phase==='visual')render()},400));
+  // ── Varv 2 don för don ───────────────────────────────────────────────
+  const MEASURE_STEPS=['point','reason','addPoint','remarkText','remarkClass','remarkPhoto'];
+  const POINT_LABEL={franluftsdon:'Frånluft',tilluftsdon:'Tilluft',overluftsdon:'Överluft'};
+  const NOT_MEASURABLE_REASONS=['Ej åtkomligt','Blockerat av inredning','Mätutrustningen passar inte'];
+  const measurePoints=()=>measureRooms().flatMap(room=>roomPoints(room));
+  function deviationText(point){
+    if(!measuredPoint(point)||!validFlowValue(point.designed_value))return '';
+    const measured=Number(point.measured_value),designed=Number(point.designed_value);
+    const diff=Math.round((measured-designed)*10)/10;
+    const share=designed?' ('+(diff>0?'+':'')+Math.round(diff/designed*100)+' %)':'';
+    return 'Avvikelse mot projekterat: '+(diff>0?'+':'')+String(diff).replace('.',',')+' l/s'+share;
+  }
+  function roomSumText(room,point){
+    const same=roomPoints(room).filter(item=>item.point_type===point.point_type);
+    if(same.length<2)return '';
+    const sum=same.filter(measuredPoint).reduce((total,item)=>total+Number(item.measured_value),0);
+    return 'Rummet hittills: '+POINT_LABEL[point.point_type].toLowerCase()+' '+String(Math.round(sum*10)/10).replace('.',',')+' l/s på '+same.filter(measuredPoint).length+' av '+same.length+' don';
+  }
+  async function measureGoto(point){
+    wz.pointId=point.measurement_id;wz.step='point';wz.note='';
+    if(point.room_id!==state.activeRoomId){
+      const room=unitRooms().find(item=>item.room_id===point.room_id);
+      if(room)selectMeasureRoom(room);
+    }
+    render();
+    await persist();
+  }
+  function markPointNotMeasurable(point,room,reason){
+    point.measurable=false;point.measured_value=null;point.not_measurable_reason=reason;
+    const finding=addFinding('terminal_not_measurable','minor',room.name+': '+point.point_label+' ej mätbart – '+reason);
+    point.finding_id=finding.finding_id;
+    renderUnit();
+  }
+  // Sant betyder att stegvyn tog hand om trycket; falskt lämnar över till
+  // bytet mellan varv 2 och slutkontrollen respektive varv 1.
+  async function measureNext(){
+    const points=measurePoints();
+    const point=points.find(item=>item.measurement_id===wz.pointId);
+    const room=activeRoom();
+    if(!point||!room)return false;
+    if(wz.step==='reason'){
+      const reason=wz.text.trim();
+      if(!reason){wz.note='Ange en orsak eller välj en av de vanliga.';render();return true}
+      markPointNotMeasurable(point,room,reason);
+      await wizardGo('remarkPhoto');return true;
+    }
+    if(wz.step==='addPoint'){await wizardGo('point');return true}
+    if(wz.step==='remarkText'){
+      if(!wz.text.trim()){wz.note='Skriv en kort beskrivning eller välj en typ.';render();return true}
+      await wizardGo('remarkClass');return true;
+    }
+    if(wz.step==='remarkClass'){wz.note='Välj en klass för anmärkningen.';render();return true}
+    if(wz.step==='remarkPhoto'){clearFindingSelection();await wizardGo('point');return true}
+    const filled=value=>value!=null&&String(value).trim()!=='';
+    if(point.measurable!==false&&filled(point.measured_value)&&!validFlowValue(point.measured_value)){wz.note='Mätvärdet är inte ett giltigt flöde. Rätta eller töm fältet.';render();return true}
+    if(filled(point.designed_value)&&!validFlowValue(point.designed_value)){wz.note='Projekterat värde är inte ett giltigt flöde. Rätta eller töm fältet.';render();return true}
+    updateUnitProgress();
+    const index=points.indexOf(point);
+    if(index<points.length-1){await measureGoto(points[index+1]);return true}
+    return false;
+  }
+  async function measureBack(){
+    const points=measurePoints();
+    const point=points.find(item=>item.measurement_id===wz.pointId);
+    if(!point)return false;
+    if(wz.step==='remarkClass'){await wizardGo('remarkText');return true}
+    if(wz.step==='remarkPhoto'){clearFindingSelection();await wizardGo('point');return true}
+    if(wz.step!=='point'){await wizardGo('point');return true}
+    const index=points.indexOf(point);
+    if(index<=0)return false;
+    wz.fromEnd=true;
+    await measureGoto(points[index-1]);
+    return true;
+  }
+  $id('photo').addEventListener('change',()=>setTimeout(()=>{if(phase==='visual'||phase==='measure')render()},400));
   function render(){
     if(!unitView.classList.contains('on'))return;
     document.body.classList.add('ovk-unit-stepper');
@@ -933,7 +1107,7 @@
     placePhoto();
     wizardRender(rooms);
     if(phase==='review')renderReview(rooms);
-    if(unit)state.field_progress[state.activeUnitId]=phase==='visual'?{phase,room_id:state.activeRoomId,step:wz.step}:{phase,room_id:state.activeRoomId};
+    if(unit)state.field_progress[state.activeUnitId]=phase==='visual'?{phase,room_id:state.activeRoomId,step:wz.step}:phase==='measure'?{phase,room_id:state.activeRoomId,point_id:wz.pointId}:{phase,room_id:state.activeRoomId};
   }
   // Mätvarvet går bara igenom rum som har don att mäta.
   const measureRooms=()=>unitRooms().filter(room=>roomPoints(room).length>0);
@@ -983,6 +1157,7 @@
     event.stopImmediatePropagation();
     const rooms=unitRooms();
     if(phase==='visual'&&await wizardNext())return;
+    if(phase==='measure'&&await measureNext())return;
     const lastRoom=!activeRoom()||roomIndex>=rooms.length-1;
     if(phase==='setup'){phase='visual';if(!activeRoom())selectRoom(0)}
     else if(!rooms.length){
@@ -991,7 +1166,7 @@
     }
     else if(phase==='measure'){const next=measureNeighbour(1);if(next)selectMeasureRoom(next);else phase='review'}
     else if(!lastRoom)selectRoom(roomIndex+1);
-    else if(phase==='visual'){phase='measure';selectRoom(0);const first=measureRooms()[0];if(first)selectMeasureRoom(first);else phase='review'}
+    else if(phase==='visual'){phase='measure';selectRoom(0);wz.pointId=null;const first=measureRooms()[0];if(first)selectMeasureRoom(first);else phase='review'}
     else phase='review';
     render();
     await persist();
@@ -1000,8 +1175,9 @@
     if(!unitView.classList.contains('on')||phase==='setup')return;
     event.stopImmediatePropagation();
     if(phase==='visual'&&await wizardBack())return;
+    if(phase==='measure'&&await measureBack())return;
     const rooms=unitRooms();
-    if(phase==='review'){const measured=measureRooms();if(measured.length){phase='measure';selectMeasureRoom(measured[measured.length-1])}else{phase='visual';selectRoom(Math.max(0,rooms.length-1))}}
+    if(phase==='review'){const measured=measureRooms();if(measured.length){phase='measure';wz.fromEnd=true;wz.pointId=null;selectMeasureRoom(measured[measured.length-1])}else{phase='visual';selectRoom(Math.max(0,rooms.length-1))}}
     else if(phase==='measure'){const previous=measureNeighbour(-1);if(previous)selectMeasureRoom(previous);else{phase='visual';selectRoom(Math.max(0,rooms.length-1))}}
     else if(activeRoom()&&roomIndex>0)selectRoom(roomIndex-1);
     else phase='setup';
