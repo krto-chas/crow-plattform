@@ -105,6 +105,35 @@
     body.ovk-unit-stepper #syncCard{display:none!important}
     body.ovk-unit-stepper .foot{position:relative;flex:0 0 auto;padding:8px 12px calc(8px + env(safe-area-inset-bottom))}
     body.ovk-unit-stepper .foot .btn{margin-top:0}
+    /* Varv 1 som stegvy: en fråga per vy, inga scrollande formulär. */
+    body.ovk-unit-stepper #viewUnit>.card.ovk-wizard-on{display:flex;flex-direction:column;overflow:hidden}
+    #viewUnit>.card.ovk-wizard-on>*:not(#ovkWizard){display:none!important}
+    .ovk-wizard{display:none}
+    .ovk-wizard-on>.ovk-wizard{display:flex;flex-direction:column;flex:1;min-height:0}
+    .ovk-wz-room{margin:0;color:var(--mut);font-size:13px;font-weight:650;letter-spacing:.04em;text-transform:uppercase}
+    .ovk-wz-title{margin:4px 0 12px;font-size:22px;line-height:1.2}
+    .ovk-wz-body{display:flex;flex-direction:column;gap:10px;flex:1;min-height:0}
+    .ovk-wz-choice{min-height:56px;padding:12px 14px;border-radius:14px;border:1.5px solid var(--line);background:#fff;color:inherit;font:inherit;font-size:17px;font-weight:650;text-align:center;overflow-wrap:anywhere}
+    .ovk-wz-choice.on{background:var(--accent);border-color:var(--accent);color:#fff}
+    .ovk-wz-choice.ghost{border-style:dashed;color:var(--mut);font-weight:600}
+    .ovk-wz-choice.warn{border-color:#8a5a12;color:#8a5a12}
+    .ovk-wz-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+    .ovk-wz-grid .ovk-wz-choice{min-height:50px;font-size:15px;padding:8px}
+    .ovk-wz-own{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px}
+    .ovk-wz-own input,.ovk-wizard textarea{min-height:50px;font-size:16px;margin:0;width:100%}
+    .ovk-wz-own .ovk-wz-choice{min-height:50px;font-size:15px}
+    .ovk-wz-counter{display:grid;grid-template-columns:64px minmax(0,1fr) 64px;align-items:center;gap:10px;border:1.5px solid var(--line);border-radius:14px;padding:8px;background:#fff}
+    .ovk-wz-step{min-height:56px;border-radius:12px;border:1.5px solid var(--line);background:#f7f8fa;color:inherit;font-size:28px;font-weight:600;line-height:1}
+    .ovk-wz-step:disabled{opacity:.35}
+    .ovk-wz-count{text-align:center;display:flex;flex-direction:column}
+    .ovk-wz-count strong{font-size:30px;line-height:1.1}
+    .ovk-wz-count span{font-size:14px;color:var(--mut)}
+    .ovk-wz-hint{margin:0;color:var(--mut);font-size:14px;line-height:1.4}
+    .ovk-wz-hint.warn{color:#8a5a12;font-weight:600}
+    .ovk-wz-summary{margin:0;padding:0;list-style:none;border:1.5px solid var(--line);border-radius:14px;background:#fff}
+    .ovk-wz-summary li{padding:10px 14px;border-bottom:1px solid var(--line);font-size:15px}
+    .ovk-wz-summary li:last-child{border-bottom:0}
+    @media(max-height:700px){.ovk-wz-title{font-size:19px;margin-bottom:8px}.ovk-wz-body{gap:7px}.ovk-wz-choice{min-height:48px;font-size:16px}.ovk-wz-grid .ovk-wz-choice{min-height:44px}.ovk-wz-step{min-height:48px}.ovk-wz-summary li{padding:7px 12px}}
     .ovk-step-head{display:none}
     body.ovk-unit-stepper .ovk-step-head{display:block;flex:0 0 auto;padding:6px 4px 12px}
     .ovk-step-head strong{font-size:15px}
@@ -531,6 +560,290 @@
       target.append(block);
     }
   }
+  // ── Varv 1 som stegvy ────────────────────────────────────────────────
+  // En fråga per vy med stora svarsknappar, så att rummet kan kontrolleras
+  // utan att scrolla. Stegen läser och skriver samma state som tidigare
+  // (visual_checks, measurements, window_vents, findings); bara
+  // presentationen är ny.
+  const wizard=document.createElement('div');
+  wizard.id='ovkWizard';
+  wizard.className='ovk-wizard';
+  cards[STEP.visual].prepend(wizard);
+  const wz={step:'room',roomId:undefined,type:'general_damage_observation',text:'',note:''};
+  const NO_VENT_ROOM=/^(hall|klädkammare|förråd|korridor|trapphus|städ|teknik)/i;
+  const REMARK_TYPES=[
+    ['missing_terminal','Don saknas'],
+    ['kitchen_fan_central_system','Köksfläkt mot centralsystem'],
+    ['window_vent_missing','Friskluftsventil saknas'],
+    ['general_damage_observation','Skada / annat']
+  ];
+  const SEVERITY={0:'info',1:'minor',2:'major'};
+  const typeCount=(room,type)=>roomPoints(room).filter(point=>point.point_type===type).length;
+  const terminalCount=room=>typeCount(room,'franluftsdon')+typeCount(room,'tilluftsdon');
+  const roomVent=room=>state.window_vents.find(item=>item.unit_id===room.unit_id&&item.room_id===room.room_id)||null;
+  function ventCount(room){
+    const vent=roomVent(room);
+    if(!vent||!vent.present)return 0;
+    const match=/^Antal: (\d+)$/.exec(vent.note||'');
+    return match?Number(match[1]):1;
+  }
+  function needsTransfer(room){
+    const supply=typeCount(room,'tilluftsdon')>0,extract=typeCount(room,'franluftsdon')>0;
+    // Våtrum kontrolleras alltid; övriga rum när de bara har till- eller frånluft.
+    return isWet(room.name)||supply!==extract;
+  }
+  function needsFresh(room){
+    if(isFtx())return false;
+    if(isWet(room.name)){const check=roomCheck(room);return Boolean(check&&check.transfer==='no')}
+    return !NO_VENT_ROOM.test(room.name.trim());
+  }
+  function wizardSteps(room){
+    const list=['don'];
+    if(terminalCount(room)>0)list.push('clean');
+    if(needsTransfer(room))list.push('transfer');
+    if(needsFresh(room))list.push('fresh');
+    list.push('remark','done');
+    return list;
+  }
+  function firstOpenStep(room){
+    const check=roomCheck(room);
+    if(!check||!check.don)return 'don';
+    if(check.don==='yes'&&!check.clean)return 'clean';
+    return 'done';
+  }
+  function el(tag,className,text){
+    const node=document.createElement(tag);
+    if(className)node.className=className;
+    if(text!==undefined)node.textContent=text;
+    return node;
+  }
+  function choice(label,selected,onPick,extraClass){
+    const button=el('button','ovk-wz-choice'+(selected?' on':'')+(extraClass?' '+extraClass:''),label);
+    button.type='button';
+    button.setAttribute('aria-pressed',String(Boolean(selected)));
+    button.addEventListener('click',onPick);
+    return button;
+  }
+  function counter(label,value,onMinus,onPlus){
+    const row=el('div','ovk-wz-counter');
+    const minus=el('button','ovk-wz-step','−');minus.type='button';minus.setAttribute('aria-label','Minska '+label);minus.disabled=value<=0;minus.addEventListener('click',onMinus);
+    const plus=el('button','ovk-wz-step','+');plus.type='button';plus.setAttribute('aria-label','Öka '+label);plus.addEventListener('click',onPlus);
+    const text=el('div','ovk-wz-count');
+    text.append(el('strong','',String(value)),el('span','',label));
+    row.append(minus,text,plus);
+    return row;
+  }
+  async function wizardGo(step){wz.step=step;wz.note='';render();await persist()}
+  async function wizardAdvance(){
+    const room=activeRoom();if(!room)return;
+    const list=wizardSteps(room);
+    const index=list.indexOf(wz.step);
+    await wizardGo(list[Math.min(list.length-1,index+1)]||'done');
+  }
+  async function addTerminal(type){
+    const button=document.querySelector('[data-point="'+type+'"]');
+    if(button)await button.onclick();
+    render();
+  }
+  async function removeTerminal(type){
+    const room=activeRoom();if(!room)return;
+    const removable=roomPoints(room).filter(point=>point.point_type===type&&pendingPoint(point)&&!point.finding_id);
+    if(!removable.length){wz.note='Donet har redan mätvärde eller anmärkning och kan inte tas bort här.';render();return}
+    const target=removable[removable.length-1];
+    state.measurements=state.measurements.filter(point=>point!==target);
+    renderUnit();render();
+    await persist();
+  }
+  async function setVentCount(room,count){
+    const vent=setWindowVent(room.room_id,count>0);
+    vent.note=count>0?'Antal: '+count:'';
+    if(isWet(room.name)){const check=checks();check.fresh=count>0?'yes':'no'}
+    render();
+    await persist();
+  }
+  function commitTerminals(){
+    const room=activeRoom(),check=checks();
+    check.don=terminalCount(room)>0?'yes':'no';
+    if(check.don!=='yes')check.clean='';
+  }
+  // Mallpanelen flyttas in i stegvyn medan den används och tillbaka efteråt.
+  const templatePanel=$id('fieldTemplatePanel'),templateStatus=$id('fieldTemplateStatus');
+  const templateHome={parent:templatePanel.parentNode,next:templatePanel.nextSibling};
+  function restoreTemplate(){
+    if(templatePanel.parentNode===wizard){
+      templateHome.parent.insertBefore(templatePanel,templateHome.next);
+      templatePanel.after(templateStatus);
+    }
+  }
+  $id('fieldTemplateApply').addEventListener('click',()=>setTimeout(()=>{wz.roomId=undefined;render()},0));
+  function wizardRender(rooms){
+    const on=phase==='visual';
+    cards[STEP.visual].classList.toggle('ovk-wizard-on',on);
+    if(!on){restoreTemplate();return}
+    const room=activeRoom();
+    if(state.activeUnitId!==wz.unitId||state.activeRoomId!==wz.roomId){
+      wz.unitId=state.activeUnitId;wz.roomId=state.activeRoomId;
+      wz.step=room?firstOpenStep(room):'room';wz.note='';
+    }
+    if(!room)wz.step=wz.step==='template'?'template':'room';
+    if(room&&!['room','template','remarkText','remarkClass','remarkPhoto'].includes(wz.step)&&!wizardSteps(room).includes(wz.step))wz.step=firstOpenStep(room);
+    if(wz.step!=='template')restoreTemplate();
+    wizard.dataset.step=wz.step;
+    wizard.replaceChildren();
+    const head=el('p','ovk-wz-room',room&&wz.step!=='room'&&wz.step!=='template'?room.name:(rooms.length?'Nytt rum':'Första rummet'));
+    const title=el('h2','ovk-wz-title');
+    const body=el('div','ovk-wz-body');
+    wizard.append(head,title,body);
+    const check=room?roomCheck(room):null;
+    let doneLabel='Nästa';
+    if(wz.step==='room'){
+      title.textContent=rooms.length?'Vilket rum går du in i nu?':'Vilket rum börjar du i?';
+      const grid=el('div','ovk-wz-grid');
+      for(const chip of $id('roomPresetChips').children){
+        const label=chip.textContent.replace(/^\+\s*/,'').trim();
+        if(!label)continue;
+        const button=choice(label,false,()=>{chip.click();setTimeout(render,0);setTimeout(render,200)});
+        button.dataset.room=label;
+        grid.append(button);
+      }
+      const own=el('div','ovk-wz-own');
+      const input=el('input');input.type='text';input.id='ovkWzRoomName';input.maxLength=80;input.placeholder='Eget rumsnamn';input.setAttribute('aria-label','Eget rumsnamn');
+      const save=el('button','ovk-wz-choice','Lägg till');save.type='button';save.id='ovkWzRoomSave';
+      const submit=async()=>{if(await addNamedRoom(input.value))input.value=''};
+      save.addEventListener('click',submit);
+      input.addEventListener('keydown',event=>{if(event.key==='Enter'){event.preventDefault();void submit()}});
+      own.append(input,save);
+      body.append(grid,own);
+      if(!templatePanel.classList.contains('hidden')&&!rooms.length){
+        body.append(choice('Återanvänd lägenhetstyp',false,()=>wizardGo('template'),'ghost'));
+      }
+      doneLabel=rooms.length?'Starta mätvarv':'Välj rum';
+    }else if(wz.step==='template'){
+      title.textContent='Återanvänd lägenhetstyp';
+      wizard.append(templatePanel,templateStatus);
+      doneLabel='Välj rum själv';
+    }else if(wz.step==='don'){
+      title.textContent='Vilka don finns i rummet?';
+      body.append(
+        counter('Frånluftsdon',typeCount(room,'franluftsdon'),()=>removeTerminal('franluftsdon'),()=>addTerminal('franluftsdon')),
+        counter('Tilluftsdon',typeCount(room,'tilluftsdon'),()=>removeTerminal('tilluftsdon'),()=>addTerminal('tilluftsdon')),
+        el('p','ovk-wz-hint',terminalCount(room)?'Donen mäts i varv 2.':'Inga don? Gå vidare med Nästa, så registreras att don saknas.')
+      );
+    }else if(wz.step==='clean'){
+      title.textContent='Är don och synlig kanal rena?';
+      const pick=value=>async()=>{checks().clean=value;await wizardAdvance()};
+      body.append(choice('Rena',check&&check.clean==='clean',pick('clean')),choice('Smutsiga',check&&check.clean==='dirty',pick('dirty')));
+    }else if(wz.step==='transfer'){
+      title.textContent='Finns överluftsöppning?';
+      const pick=value=>async()=>{const current=checks();current.transfer=value;if(value!=='no')current.fresh='';await wizardAdvance()};
+      body.append(
+        choice('Ja',check&&check.transfer==='yes',pick('yes')),
+        choice('Nej',check&&check.transfer==='no',pick('no')),
+        choice('Ej kontrollerat',false,pick(''),'ghost'),
+        el('p','ovk-wz-hint','Saknad överluft blir ingen anmärkning automatiskt. Bedöm själv i nästa steg.')
+      );
+    }else if(wz.step==='fresh'){
+      title.textContent='Hur många friskluftsventiler finns?';
+      const count=ventCount(room);
+      body.append(
+        counter('Friskluftsventiler',count,()=>setVentCount(room,Math.max(0,count-1)),()=>setVentCount(room,count+1)),
+        el('p','ovk-wz-hint',roomVent(room)||(check&&check.fresh)?(count?'Registrerat: '+count+' st.':'Registrerat: saknas.'):'Inget registrerat än. Noll och Nästa registrerar att ventil saknas.')
+      );
+    }else if(wz.step==='remark'){
+      const marks=state.findings.filter(item=>item.unit_id===state.activeUnitId&&item.room_id===room.room_id).length;
+      title.textContent=marks?'Fler anmärkningar i rummet?':'Något att anmärka i rummet?';
+      if(marks)body.append(el('p','ovk-wz-hint',marks+' anmärkning'+(marks>1?'ar':'')+' registrerad'+(marks>1?'e':'')+'.'));
+      body.append(
+        choice(marks?'Nej, inga fler':'Nej, inget att anmärka',false,()=>wizardGo('done')),
+        choice('Ja, registrera anmärkning',false,()=>{wz.text='';wz.type='general_damage_observation';return wizardGo('remarkText')},'warn')
+      );
+    }else if(wz.step==='remarkText'){
+      title.textContent='Vad gäller anmärkningen?';
+      const kitchen=/^kök(?:\s|$)/i.test(room.name.trim());
+      const grid=el('div','ovk-wz-grid');
+      const area=el('textarea');area.id='ovkWzRemarkText';area.rows=2;area.maxLength=400;area.placeholder='Beskriv kort';area.setAttribute('aria-label','Beskrivning av anmärkningen');area.value=wz.text;
+      area.addEventListener('input',()=>{wz.text=area.value});
+      for(const [type,label] of REMARK_TYPES){
+        if(type==='kitchen_fan_central_system'&&!kitchen)continue;
+        if(type==='window_vent_missing'&&isFtx())continue;
+        grid.append(choice(label,wz.type===type,()=>{wz.type=type;if(type!=='general_damage_observation')wz.text=label;render()}));
+      }
+      body.append(grid,area);
+    }else if(wz.step==='remarkClass'){
+      title.textContent='Vilken klass har anmärkningen?';
+      const pick=level=>async()=>{
+        const finding=addFinding(wz.type,SEVERITY[level],room.name+': '+wz.text.trim());
+        finding.classification=level;
+        renderFindings();
+        await wizardGo('remarkPhoto');
+      };
+      body.append(choice('0 · Upplysning',false,pick(0)),choice('1 · Bör åtgärdas',false,pick(1)),choice('2 · Väsentlig brist',false,pick(2),'warn'));
+    }else if(wz.step==='remarkPhoto'){
+      title.textContent='Vill du ta ett foto?';
+      const taken=state.photos.filter(photo=>photo.finding_id===state.activeFindingId).length;
+      body.append(
+        choice(taken?'Ta ett foto till':'Ta foto',false,()=>$id('photo').click()),
+        el('p','ovk-wz-hint',taken?taken+' foto kopplat till anmärkningen.':'Fotot kopplas till anmärkningen du just registrerade.')
+      );
+      doneLabel=taken?'Klar':'Hoppa över';
+    }else{
+      title.textContent='Rummet är kontrollerat';
+      const lines=[];
+      const extract=typeCount(room,'franluftsdon'),supply=typeCount(room,'tilluftsdon');
+      lines.push(extract+supply?['Frånluft '+extract,'Tilluft '+supply].join(' · '):'Don saknas');
+      if(check&&check.clean)lines.push(CHECK_LABELS.clean[check.clean]);
+      if(needsTransfer(room))lines.push(check&&check.transfer?CHECK_LABELS.transfer[check.transfer]:'Överluft ej kontrollerad');
+      if(needsFresh(room))lines.push(roomVent(room)||(check&&check.fresh)?'Friskluftsventiler: '+ventCount(room):'Friskluftsventil ej kontrollerad');
+      const marks=state.findings.filter(item=>item.unit_id===state.activeUnitId&&item.room_id===room.room_id).length;
+      lines.push(marks?marks+' anmärkning'+(marks>1?'ar':''):'Inga anmärkningar');
+      const list=el('ul','ovk-wz-summary');
+      for(const line of lines)list.append(el('li','',line));
+      body.append(list);
+      const last=roomIndex>=rooms.length-1;
+      if(last)body.append(choice('+ Nästa rum',false,()=>wizardGo('room')));
+      body.append(choice('Ändra svar',false,()=>wizardGo('don'),'ghost'));
+      doneLabel=last?'Starta mätvarv':'Nästa rum';
+    }
+    if(wz.note)body.append(el('p','ovk-wz-hint warn',wz.note));
+    $id('footDone').textContent=doneLabel;
+    $id('ovkStepCount').textContent=!rooms.length?'Inga rum':wz.step==='room'?rooms.length+' rum klara':'Rum '+(roomIndex+1)+' av '+rooms.length;
+  }
+  // Sant betyder att stegvyn tog hand om trycket; falskt lämnar över till
+  // det ordinarie bytet av rum eller varv.
+  async function wizardNext(){
+    const room=activeRoom();
+    if(wz.step==='template'){await wizardGo('room');return true}
+    if(!unitRooms().length){wz.note='Lägg till minst ett rum innan mätvarvet startar.';render();return true}
+    if(wz.step==='room'||!room||wz.step==='done')return false;
+    if(wz.step==='don')commitTerminals();
+    if(wz.step==='fresh'&&!roomVent(room))await setVentCount(room,0);
+    if(wz.step==='remarkText'){
+      if(!wz.text.trim()){wz.note='Skriv en kort beskrivning eller välj en typ.';render();return true}
+      await wizardGo('remarkClass');return true;
+    }
+    if(wz.step==='remarkClass'){wz.note='Välj en klass för anmärkningen.';render();return true}
+    if(wz.step==='remarkPhoto'){clearFindingSelection();await wizardGo('remark');return true}
+    await wizardAdvance();
+    return true;
+  }
+  async function wizardBack(){
+    const room=activeRoom();
+    if(wz.step==='template'){await wizardGo('room');return true}
+    if(wz.step==='room'){
+      if(!room)return false;
+      await wizardGo('done');return true;
+    }
+    if(!room)return false;
+    if(wz.step==='remarkText'){await wizardGo('remark');return true}
+    if(wz.step==='remarkClass'){await wizardGo('remarkText');return true}
+    if(wz.step==='remarkPhoto'){clearFindingSelection();await wizardGo('remark');return true}
+    const list=wizardSteps(room);
+    const index=list.indexOf(wz.step);
+    if(index<=0)return false;
+    await wizardGo(list[index-1]);
+    return true;
+  }
+  $id('photo').addEventListener('change',()=>setTimeout(()=>{if(phase==='visual')render()},400));
   function render(){
     if(!unitView.classList.contains('on'))return;
     document.body.classList.add('ovk-unit-stepper');
@@ -560,6 +873,7 @@
       : 'Börja med första rummet du går in i. Lägg sedan till ett rum i taget i den ordning du går.';
     showChecks();
     placePhoto();
+    wizardRender(rooms);
     if(phase==='review')renderReview(rooms);
     if(unit)state.field_progress[state.activeUnitId]={phase,room_id:state.activeRoomId};
   }
@@ -595,6 +909,7 @@
     if(!unitView.classList.contains('on')||phase==='review')return;
     event.stopImmediatePropagation();
     const rooms=unitRooms();
+    if(phase==='visual'&&await wizardNext())return;
     const lastRoom=!activeRoom()||roomIndex>=rooms.length-1;
     if(phase==='setup'){phase='visual';if(!activeRoom())selectRoom(0)}
     else if(!rooms.length){
@@ -607,9 +922,10 @@
     render();
     await persist();
   },true);
-  $id('footBack').addEventListener('click',event=>{
+  $id('footBack').addEventListener('click',async event=>{
     if(!unitView.classList.contains('on')||phase==='setup')return;
     event.stopImmediatePropagation();
+    if(phase==='visual'&&await wizardBack())return;
     const rooms=unitRooms();
     if(phase==='review'){phase='measure';selectRoom(Math.max(0,rooms.length-1))}
     else if(activeRoom()&&roomIndex>0)selectRoom(roomIndex-1);

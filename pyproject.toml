@@ -24,6 +24,7 @@ dev = [
   "pre-commit>=3.7",
   "mypy>=1.10",
   "types-fpdf2",
+  "playwright>=1.45",
   "build>=1.2"
 ]
 
