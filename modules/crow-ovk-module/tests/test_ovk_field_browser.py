@@ -120,11 +120,12 @@ class _Flow:
     def start(self, url: str) -> None:
         self.page.goto(url)
         self.page.wait_for_function("typeof state === 'object' && typeof payload === 'function'")
+        self.page.click("#ovkStartMore > summary")
         self.page.fill("#inspection", "webblasartest")
         self.page.fill("#inspector", "Test Testsson")
         self.page.fill("#unitSeries", "1001-1002")
-        self.page.click("#start")
-        self.page.click("#continueUnit")
+        self.page.click("#footDone")
+        self.page.click("#footDone")
         self.expect_step("room")
 
     def expect_step(self, step: str, controls: int = 1) -> None:
@@ -310,7 +311,7 @@ def test_visual_round_resumes_on_the_open_question_after_reload(
     # inte rummets sammanfattning.
     _reload_after_save(flow.page)
     flow.page.wait_for_function("typeof state === 'object' && state.rooms.length === 1")
-    flow.page.click("#continueUnit")
+    flow.page.click("#footDone")
     flow.expect_step("transfer")
     flow.answer("Nej", "fresh")
 
@@ -319,7 +320,7 @@ def test_visual_round_resumes_on_the_open_question_after_reload(
     flow.answer("Ja, registrera anmärkning", "remarkText")
     _reload_after_save(flow.page)
     flow.page.wait_for_function("typeof state === 'object' && state.rooms.length === 1")
-    flow.page.click("#continueUnit")
+    flow.page.click("#footDone")
     flow.expect_step("remark")
     assert flow.errors == []
     context.close()
@@ -355,10 +356,11 @@ def test_key_overview_registers_receipt_and_return_method(field_url: str, browse
     page.on("pageerror", lambda error: errors.append(str(error)))
     page.goto(field_url)
     page.wait_for_function("typeof state === 'object' && typeof payload === 'function'")
+    page.click("#ovkStartMore > summary")
     page.fill("#inspection", "nyckeltest")
     page.fill("#inspector", "Test Testsson")
     page.fill("#unitSeries", "1001-1003")
-    page.click("#start")
+    page.click("#footDone")
     page.wait_for_function("state.units.length === 3")
     assert page.text_content("#ovkKeySummary") == "Inga nycklar mottagna"
 
@@ -527,7 +529,7 @@ def test_measurement_round_skips_room_without_terminals_between_two_others(
     # Omladdning mitt i mätvarvet återupptar på samma mätrum.
     _reload_after_save(flow.page)
     flow.page.wait_for_function("typeof state === 'object' && state.rooms.length === 3")
-    flow.page.click("#continueUnit")
+    flow.page.click("#footDone")
     flow.page.wait_for_function(
         "document.getElementById('ovkStepTitle').textContent.includes('Varv 2')"
     )
@@ -679,7 +681,7 @@ def test_measurement_round_takes_one_terminal_at_a_time(field_url: str, browser:
     # Omladdning återupptar på samma don, och Tillbaka går ett don i taget.
     _reload_after_save(flow.page)
     flow.page.wait_for_function("typeof state === 'object' && state.rooms.length === 2")
-    flow.page.click("#continueUnit")
+    flow.page.click("#footDone")
     flow.expect_step("point")
     assert heading().startswith("Kök · Don 4 av 4")
     assert flow.page.input_value("#ovkWzFlow") == "8"
@@ -736,10 +738,11 @@ def test_equipment_checkpoints_are_answered_with_buttons(field_url: str, browser
     _record_dialogs(page, dialogs)
     page.goto(field_url)
     page.wait_for_function("typeof state === 'object' && typeof payload === 'function'")
+    page.click("#ovkStartMore > summary")
     page.fill("#inspection", "aggregattest")
     page.fill("#inspector", "Test Testsson")
     page.fill("#unitSeries", "1001")
-    page.click("#start")
+    page.click("#footDone")
     page.wait_for_function("state.units.length === 1")
     # Benämning och placering anges i appens inmatningsblad, inte i en dialogruta.
     page.click("#addFlaktrum")
@@ -820,10 +823,11 @@ def test_text_is_entered_in_app_sheets_instead_of_browser_dialogs(
     _record_dialogs(page, dialogs)
     page.goto(field_url)
     page.wait_for_function("typeof state === 'object' && typeof payload === 'function'")
+    page.click("#ovkStartMore > summary")
     page.fill("#inspection", "bladtest")
     page.fill("#inspector", "Test Testsson")
     page.fill("#unitSeries", "1001")
-    page.click("#start")
+    page.click("#footDone")
     page.wait_for_function("state.units.length === 1")
 
     def sheet_fits() -> None:
@@ -989,10 +993,11 @@ def test_unit_list_shows_progress_filters_and_guards_finished_units(
     _record_dialogs(page, dialogs)
     page.goto(field_url)
     page.wait_for_function("typeof state === 'object' && typeof payload === 'function'")
+    page.click("#ovkStartMore > summary")
     page.fill("#inspection", "listtest")
     page.fill("#inspector", "Test Testsson")
     page.fill("#unitSeries", "1101-1103, 1201")
-    page.click("#start")
+    page.click("#footDone")
     page.wait_for_function("state.units.length === 4")
 
     def tags() -> dict[str, str]:
@@ -1125,4 +1130,66 @@ def test_unit_list_shows_progress_filters_and_guards_finished_units(
     assert dialogs == []
     assert errors == []
     _validated_payload(page.evaluate("() => payload()"))
+    context.close()
+
+
+@pytest.mark.parametrize(("width", "height"), [(375, 667), (393, 664)])
+def test_start_and_round_views_fit_the_first_screen(
+    field_url: str, browser: Any, width: int, height: int
+) -> None:
+    context = browser.new_context(
+        viewport={"width": width, "height": height}, is_mobile=True, has_touch=True
+    )
+    page = context.new_page()
+    errors: list[str] = []
+    page.on("pageerror", lambda error: errors.append(str(error)))
+    page.goto(field_url)
+    page.wait_for_function("typeof state === 'object' && typeof payload === 'function'")
+
+    # Startsidan: allt som behövs för att starta syns utan att rulla.
+    page.wait_for_function("document.getElementById('footDone').textContent === 'Starta rondering'")
+    assert page.evaluate("() => document.documentElement.scrollHeight - window.innerHeight") <= 0
+    for selector in ("#inspector", "#systemType", "#unitSeries", "#footDone"):
+        assert page.is_visible(selector)
+    # Sällan ändrade uppgifter finns kvar, ett tryck bort.
+    assert not page.is_visible("#inspection")
+    page.click("#ovkStartMore > summary")
+    for selector in ("#project", "#inspection", "#objectType", "#generate"):
+        assert page.is_visible(selector)
+    page.fill("#inspection", f"forstaskarm-{width}")
+    page.fill("#inspector", "Test Testsson")
+    page.fill("#unitSeries", "1101-1104, 1201")
+    page.click("#footDone")
+    page.wait_for_function("document.querySelector('.view.on').id === 'viewRond'")
+
+    # Ronderingsvyn: sök, filter och de första lägenheterna ligger ovanför sidfoten.
+    foot_top = page.evaluate("() => document.querySelector('.foot').getBoundingClientRect().top")
+    rows = page.evaluate(
+        """() => [...document.querySelectorAll('#unitList .unitrow')]
+          .map(row => row.getBoundingClientRect().bottom)"""
+    )
+    assert sum(1 for bottom in rows if bottom <= foot_top) >= 3
+    assert (
+        page.evaluate("() => document.getElementById('unitSearch').getBoundingClientRect().bottom")
+        < foot_top
+    )
+    assert page.evaluate("() => document.documentElement.scrollWidth - window.innerWidth") <= 0
+
+    # Nästa steg ligger i sidfoten tillsammans med synk.
+    assert page.text_content("#footDone") == "Fortsätt · lgh 1101"
+    assert page.is_visible("#footSync")
+    page.click("#footDone")
+    page.wait_for_function("document.querySelector('.view.on').id === 'viewUnit'")
+    assert page.evaluate("() => activeUnit().number") == "1101"
+    assert not page.is_visible("#footSync")
+
+    # Utan återstående enheter blir huvudknappen Synka igen.
+    page.evaluate(
+        """() => { for (const unit of state.units) {
+            unit.status = 'ua'; unit.checked_at = new Date().toISOString(); }
+          renderRond(); view('viewRond'); }"""
+    )
+    assert page.text_content("#footDone") == "Synka"
+    assert not page.is_visible("#footSync")
+    assert errors == []
     context.close()

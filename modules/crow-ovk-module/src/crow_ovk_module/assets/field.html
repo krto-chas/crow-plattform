@@ -108,6 +108,38 @@
     /* Inmatningsblad som ersätter webbläsarens dialogrutor. */
     .ovk-sheet{position:fixed;inset:0;z-index:40;display:flex;align-items:flex-end;justify-content:center;background:rgba(16,24,32,.45)}
     .ovk-sheet-panel{width:100%;max-width:560px;background:var(--panel);border-radius:18px 18px 0 0;padding:18px 16px calc(16px + env(safe-area-inset-bottom));display:flex;flex-direction:column;gap:10px;box-shadow:0 -8px 30px rgba(16,24,32,.2)}
+    /* Kompakt start- och ronderingsvy: det man behöver ryms på första skärmen och nästa steg
+       ligger i sidfoten, inom tummens räckvidd. Listor nedanför får rulla. */
+    .top{flex-wrap:nowrap;gap:8px;padding:calc(8px + env(safe-area-inset-top)) 12px 8px}
+    .top strong{font-size:14px;white-space:nowrap}.top a{padding:6px 0;font-size:13px;white-space:nowrap}
+    .top .net{flex:none}
+    .field-sync-indicator{flex:1 1 auto;min-width:0;font-size:11.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;overflow-wrap:normal;text-align:center}
+    .foot .inner.three{grid-template-columns:minmax(0,1fr) minmax(0,1fr) minmax(0,2.2fr);gap:8px}
+    #footSync[hidden]{display:none}
+    #viewStart,#viewRond{margin-top:-8px}
+    body:not(.ovk-unit-stepper) .wrap{padding-bottom:calc(92px + env(safe-area-inset-bottom))}
+    #viewStart .card,#viewRond .card{padding:14px;margin-bottom:10px}
+    #viewStart h1{margin:0 0 8px;font-size:22px}
+    #viewStart .status{padding:7px 10px;margin:8px 0 0;font-size:13px}
+    #viewStart .row{gap:10px;grid-template-columns:minmax(0,1fr) minmax(0,1fr)}
+    #viewStart label{margin-top:8px}
+    #viewStart #start{display:none}
+    .ovk-more{margin-top:10px;border-top:1px solid var(--line)}
+    .ovk-more>summary{min-height:44px;display:flex;align-items:center;font-size:14px;font-weight:650;color:var(--accent);cursor:pointer}
+    .ovk-more.card{border-top:1px solid var(--line);margin-top:0;padding-top:4px!important;padding-bottom:4px!important}
+    #viewRond #ovkKeyCard{padding:8px 14px}
+    #viewRond #ovkKeyCard .eyebrow{display:none}
+    #viewRond .ovk-key-summary{margin:0;font-size:15px}
+    #viewRond .ovk-key-head .btn{min-height:40px;padding:6px 12px;font-size:14px}
+    #viewRond h1{margin:0;font-size:20px;line-height:1.2;overflow-wrap:anywhere}
+    #viewRond .rondbar{margin:8px 0 6px}
+    #viewRond .counts{font-size:12.5px;gap:4px 10px}
+    #viewRond #roundSummary{margin:4px 0 0}
+    #viewRond #roundSummary:empty{display:none}
+    #viewRond #continueUnit{display:none}
+    #viewRond .round-toolbar{grid-template-columns:repeat(auto-fit,minmax(0,1fr));gap:8px;margin:10px 0 4px}
+    #viewRond .round-toolbar label{font-size:12px;margin:0 0 2px}
+    #viewRond .round-toolbar input,#viewRond .round-toolbar select{padding-left:8px;padding-right:4px;font-size:15px}
     /* Blad med textfält läggs överst: telefonens tangentbord täcker annars fält och knappar. */
     .ovk-sheet.typed{align-items:flex-start}
     .ovk-sheet.typed .ovk-sheet-panel{border-radius:0 0 18px 18px;padding:calc(18px + env(safe-area-inset-top)) 16px 16px;box-shadow:0 8px 30px rgba(16,24,32,.2)}
@@ -246,8 +278,8 @@
       <div class="row"><div><label>Projekt</label><select id="project"><option value="adhoc">Ad hoc</option></select></div><div><label>Besiktnings-ID</label><input id="inspection" value="ovk-001"></div></div>
       <p id="ovkInstallHint" class="status" hidden>Öppna i helskärm: tryck på Dela i Safari och välj <strong>Lägg till på hemskärmen</strong>. Starta sedan appen från ikonen.</p>
       <div id="authStatus" class="status">Kontrollerar session…</div>
-      <div class="row"><div><label>Besiktningsman</label><select id="inspectorSelect" class="hidden"><option value="">— Välj ur registret —</option></select><input id="inspector" placeholder="Namn"></div><div><label>Objektstyp</label><select id="objectType"><option value="flerbostadshus">Flerbostadshus</option><option value="villa">Villa</option><option value="kontorsbyggnad">Kontorsbyggnad</option><option value="industrifastighet">Industrifastighet</option></select></div><div><label>Systemtyp i fastigheten</label><select id="systemType"><option value="F">F – frånluft</option><option value="S">S – självdrag</option><option value="FX">FX – frånluft återvinning</option><option value="FT">FT – från/tilluft</option><option value="FTX">FTX – från/tilluft återvinning</option></select></div></div>
-      <label>Lägenhetsnummer (Lantmäteriets, t.ex. 1001-1004, 1101-1104, 1201-1204)</label>
+      <div class="row"><div><label>Besiktningsman</label><select id="inspectorSelect" class="hidden"><option value="">— Välj ur registret —</option></select><input id="inspector" placeholder="Namn"></div><div><label>Objektstyp</label><select id="objectType"><option value="flerbostadshus">Flerbostadshus</option><option value="villa">Villa</option><option value="kontorsbyggnad">Kontorsbyggnad</option><option value="industrifastighet">Industrifastighet</option></select></div><div><label for="systemType">Systemtyp</label><select id="systemType"><option value="F">F – frånluft</option><option value="S">S – självdrag</option><option value="FX">FX – frånluft återvinning</option><option value="FT">FT – från/tilluft</option><option value="FTX">FTX – från/tilluft återvinning</option></select></div></div>
+      <label for="unitSeries">Lägenhetsnummer (Lantmäteriets)</label>
       <input id="unitSeries" inputmode="numeric" placeholder="1001-1004, 1101-1104">
       <div class="row"><button class="btn ghost" id="generate">Skapa enhetslista</button><button class="btn" id="start">Starta rondering</button></div>
       <div id="draftStatus" class="status">Ingen lokal session laddad.</div>
@@ -283,7 +315,7 @@
       <div class="counts"><span><b id="cDone">0</b>/<b id="cTotal">0</b> besiktigade</span><span><b id="cAnm">0</b> med anm.</span><span><b id="cBom">0</b> BOM</span><span><b id="cMeas">0</b> uppmätta don</span></div>
       <p id="roundSummary" class="room-progress" role="status" aria-live="polite"></p>
       <button class="btn" id="continueUnit" hidden>Fortsätt med nästa enhet</button>
-      <div class="round-toolbar"><div><label for="unitSearch">Sök lägenhet eller lokal</label><input id="unitSearch" type="search" placeholder="T.ex. 1201"></div><div><label for="unitFilter">Visa</label><select id="unitFilter"><option value="all">Alla</option><option value="pending">Återstående</option><option value="not_started">Ej påbörjade</option><option value="ongoing">Pågående</option><option value="measure_left">Mätning återstår</option><option value="checked">Färdigbesiktigade</option><option value="bom">Ej tillgängliga (BOM)</option></select></div><div hidden><label for="unitFloor">Våning</label><select id="unitFloor"><option value="">Alla våningar</option></select></div></div>
+      <div class="round-toolbar"><div><label for="unitSearch">Sök</label><input id="unitSearch" type="search" placeholder="T.ex. 1201" aria-label="Sök lägenhet eller lokal"></div><div><label for="unitFilter">Visa</label><select id="unitFilter"><option value="all">Alla</option><option value="pending">Återstående</option><option value="not_started">Ej påbörjade</option><option value="ongoing">Pågående</option><option value="measure_left">Mätning återstår</option><option value="checked">Färdigbesiktigade</option><option value="bom">Ej tillgängliga (BOM)</option></select></div><div hidden><label for="unitFloor">Våning</label><select id="unitFloor"><option value="">Alla våningar</option></select></div></div>
       <div id="unitList"></div>
       <p id="unitEmpty" class="room-progress" hidden></p>
       <button class="btn ghost" id="addUnit">+ Lägg till enhet</button>
@@ -426,6 +458,7 @@
 
 <div class="foot"><div class="inner">
   <button class="btn ghost" id="footBack">Tillbaka</button>
+  <button class="btn ghost" id="footSync" hidden>Synka</button>
   <button class="btn ua" id="footDone">Klar – UA</button>
 </div></div>
 
@@ -1280,7 +1313,45 @@
     }
     render();
   };
-  updateFooter=function(name){originalUpdateFooter(name);if(name==='viewUnit')render()};
+  // ── Kompakt start och rondering ──────────────────────────────────────
+  // Sällan ändrade uppgifter fälls ihop; inget tas bort.
+  (function compactStart(){
+    const card=$id('viewStart').querySelector('.card');
+    const more=document.createElement('details');more.id='ovkStartMore';more.className='ovk-more';
+    const summary=document.createElement('summary');summary.textContent='Projekt, besiktnings-ID och objektstyp';
+    more.append(summary,$id('project').closest('.row'));
+    const objectRow=el('div','row');objectRow.append($id('objectType').closest('div'),$id('generate'));
+    more.append(objectRow);
+    $id('draftStatus').after(more);
+    const history=$id('history').closest('.card');
+    const fold=document.createElement('details');fold.id='ovkStartHistory';fold.className='ovk-more';
+    const foldSummary=document.createElement('summary');foldSummary.textContent='Utgå från tidigare besiktning';
+    fold.append(foldSummary,...history.childNodes);
+    history.classList.add('ovk-more');history.append(fold);
+    // Öppna de hopfällda fälten om start stoppas av en uppgift som ligger där.
+    $id('start').addEventListener('click',()=>{if(!$id('inspection').value.trim())more.open=true});
+    const link=$id('workbenchLink');link.setAttribute('aria-label','Besiktningsunderlag');link.textContent='Underlag';
+  })();
+  // Ronderingsvyn: nästa enhet ligger i sidfoten, synk bredvid.
+  const footSync=$id('footSync');
+  const footInner=$id('footDone').parentElement;
+  const roundUnitLabel=unit=>unit.kind==='premises'?(unit.label||'lokal '+unit.number):'lgh '+unit.number;
+  function roundFooter(name){
+    const next=name==='viewRond'?nextPendingUnit():null;
+    footSync.hidden=!next;footInner.classList.toggle('three',Boolean(next));
+    if(next){$id('footDone').textContent='Fortsätt · '+roundUnitLabel(next);$id('footBack').textContent='Start'}
+  }
+  footSync.addEventListener('click',()=>syncDraft());
+  const originalFootDone=$id('footDone').onclick;
+  $id('footDone').onclick=function(event){
+    if(document.querySelector('.view.on').id==='viewRond'){const next=nextPendingUnit();if(next){openUnit(next.unit_id);return undefined}}
+    return originalFootDone.call(this,event);
+  };
+  const originalRenderRond=renderRond;
+  renderRond=function(){originalRenderRond();if(document.querySelector('.view.on').id==='viewRond')roundFooter('viewRond')};
+  updateFooter=function(name){originalUpdateFooter(name);roundFooter(name);if(name==='viewUnit')render()};
+  // Sidfoten ska stämma redan innan första vybytet.
+  updateFooter(document.querySelector('.view.on').id);
   // ── Färdigbesiktigad enhet: varna innan den öppnas ───────────────────
   // Listan får aldrig tyst öppna en färdig enhet för ändring. Visningen är en ren
   // läsvy byggd ur utkastet; den ändrar ingenting.
