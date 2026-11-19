@@ -105,6 +105,20 @@
     body.ovk-unit-stepper #syncCard{display:none!important}
     body.ovk-unit-stepper .foot{position:relative;flex:0 0 auto;padding:8px 12px calc(8px + env(safe-area-inset-bottom))}
     body.ovk-unit-stepper .foot .btn{margin-top:0}
+    /* Kontrollpunkter för fläktrum och aggregat: resultat väljs med knappar. */
+    .cp-item{display:block;padding:12px}
+    .cp-head{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}
+    .cp-label{font-size:15px;font-weight:700;overflow-wrap:anywhere}
+    .cp-choices,.cp-actions{display:grid;gap:6px;margin-top:8px}
+    .cp-choices{grid-template-columns:minmax(0,.75fr) minmax(0,1.15fr) minmax(0,1.15fr)}
+    .cp-actions{grid-template-columns:repeat(2,minmax(0,1fr))}
+    .cp-choice{min-height:46px;padding:6px 2px;border-radius:12px;border:1.5px solid var(--line);background:#fff;color:inherit;font:inherit;font-size:13px;font-weight:650;letter-spacing:-.01em}
+    .cp-choice.on{color:#fff;border-color:transparent}
+    .cp-choice.on.pass{background:var(--ua)}
+    .cp-choice.on.fail{background:var(--anm)}
+    .cp-choice.on.not_applicable{background:var(--accent)}
+    .cp-note{margin:8px 0 0;width:100%;font-size:16px;min-height:60px}
+    .cp-shown-note{margin-top:6px}
     /* Nyckelöversikt i ronderingsvyn. */
     #keyMethodRow[hidden],.ovk-key-bulk[hidden],.ovk-key-tools .btn[hidden]{display:none}
     .ovk-key-head{display:flex;align-items:center;justify-content:space-between;gap:10px}
@@ -255,7 +269,7 @@
       <button class="btn ghost" id="nameplate">📷 Fota märkskylt</button>
       <div id="nameplateStatus" class="status">Märkskylt ej dokumenterad.</div>
     </div>
-    <div class="card"><div class="eyebrow">Kontrollpunkter · utan kommentar = UA</div>
+    <div class="card"><div class="eyebrow">Kontrollpunkter · välj resultat för varje punkt</div>
       <div id="cplist"></div>
       <input id="spacePhoto" type="file" accept="image/*" capture="environment" class="hidden">
     </div>

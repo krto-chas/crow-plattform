@@ -551,9 +551,62 @@ function renderSpaceHistory(space){
   for(const photo of photos){const link=document.createElement('a');link.href=fieldEndpoint('media',state.project_id,state.previous_inspection_id)+'/'+encodeURIComponent(photo.photo_id)+'/content';link.target='_blank';link.rel='noopener noreferrer';link.textContent='Visa historiskt installationsfoto';body.append(link,document.createElement('br'))}
 }
 function renderSpace(){const space=activeSpace();if(!space)return;renderSpaceHistory(space);const plate=spaceHasNameplate(space.space_id);$('nameplateStatus').className='status '+(plate?'pass':'warn');$('nameplateStatus').textContent=plate?'Märkskylt dokumenterad ✓':'Märkskylt ej dokumenterad – fota den.';
-  $('cplist').innerHTML=spaceCheckpoints(space.space_id).map(item=>'<button class="unitrow '+(item.status==='not_checked'?'ej_paborjad':item.status==='fail'?'anmarkning':'ua')+'" data-cp="'+item.checkpoint_id+'" style="padding:11px 14px"><span class="nr" style="font-size:15px;min-width:0;font-weight:700">'+esc(item.label)+'</span><span class="spacer"></span><span class="tag '+(item.status==='not_checked'?'ej_paborjad':item.status==='fail'?'anmarkning':'ua')+'">'+(item.status==='not_checked'?'Ej kontrollerad':item.status==='not_applicable'?'Ej tillämplig':item.status==='fail'?'ANM':'UA')+'</span></button>'+(item.note?'<div class="sub" style="margin:2px 0 0 6px">'+esc(item.note)+'</div>':'')).join('');
-  for(const button of $('cplist').querySelectorAll('[data-cp]'))button.onclick=()=>toggleCheckpoint(button.dataset.cp);updateFooter('viewSpace')}
-function toggleCheckpoint(checkpointId){const item=state.checkpoints.find(cp=>cp.checkpoint_id===checkpointId);if(!item)return;const choice=prompt('Kontrollresultat: 1 = UA, 2 = anmärkning, 3 = ej tillämplig, 4 = ej kontrollerad',({pass:'1',fail:'2',not_applicable:'3',not_checked:'4'})[item.status]||'4');if(!['1','2','3','4'].includes(choice))return;let note='';if(choice==='2'||choice==='3'){note=(prompt('Motivering (obligatorisk): '+item.label,item.note||'')||'').trim();if(!note)return}item.status=({1:'pass',2:'fail',3:'not_applicable',4:'not_checked'})[choice];item.note=note;renderSpace();persist()}
+  renderCheckpointList(space);updateFooter('viewSpace')}
+// Kontrollresultat väljs med knappar under varje kontrollpunkt. Anmärkning och
+// ej tillämplig kräver en motivering, som skrivs i ett fält direkt under knapparna.
+const CP_CHOICES=[['pass','UA'],['fail','Anmärkning'],['not_applicable','Ej tillämplig']];
+let cpDraft=null;
+function renderCheckpointList(space){
+  const list=$('cplist');list.replaceChildren();
+  for(const item of spaceCheckpoints(space.space_id)){
+    const tone=item.status==='not_checked'?'ej_paborjad':item.status==='fail'?'anmarkning':'ua';
+    const box=document.createElement('div');box.className='cp-item unitrow '+tone;box.dataset.cp=item.checkpoint_id;
+    const head=document.createElement('div');head.className='cp-head';
+    const label=document.createElement('span');label.className='cp-label';label.textContent=item.label;
+    const tag=document.createElement('span');tag.className='tag '+tone;tag.textContent=item.status==='not_checked'?'Ej kontrollerad':item.status==='not_applicable'?'Ej tillämplig':item.status==='fail'?'ANM':'UA';
+    head.append(label,tag);box.append(head);
+    const drafting=cpDraft&&cpDraft.id===item.checkpoint_id?cpDraft:null;
+    const choices=document.createElement('div');choices.className='cp-choices';choices.setAttribute('role','group');choices.setAttribute('aria-label','Kontrollresultat för '+item.label);
+    for(const [status,text] of CP_CHOICES){
+      const button=document.createElement('button');button.type='button';button.textContent=text;button.dataset.cpChoice=status;
+      const selected=drafting?drafting.status===status:item.status===status;
+      button.className='cp-choice'+(selected?' on '+status:'');button.setAttribute('aria-pressed',String(selected));
+      button.onclick=()=>chooseCheckpoint(item,status);
+      choices.append(button);
+    }
+    box.append(choices);
+    if(drafting){
+      const note=document.createElement('textarea');note.className='cp-note';note.rows=2;note.maxLength=400;note.value=drafting.note;note.placeholder='Motivering (obligatorisk)';note.setAttribute('aria-label','Motivering för '+item.label);
+      note.oninput=()=>{drafting.note=note.value};
+      const actions=document.createElement('div');actions.className='cp-actions';
+      const save=document.createElement('button');save.type='button';save.className='cp-choice on pass';save.textContent='Spara';save.dataset.cpSave=item.checkpoint_id;
+      save.onclick=()=>saveCheckpointDraft(item);
+      const cancel=document.createElement('button');cancel.type='button';cancel.className='cp-choice';cancel.textContent='Avbryt';
+      cancel.onclick=()=>{cpDraft=null;renderSpace()};
+      actions.append(save,cancel);
+      const status=document.createElement('p');status.className='room-progress';status.textContent=drafting.error||'';status.setAttribute('role','status');
+      box.append(note,actions,status);
+    }else if(item.note){
+      const shown=document.createElement('div');shown.className='sub cp-shown-note';shown.textContent=item.note;box.append(shown);
+    }
+    list.append(box);
+  }
+}
+async function chooseCheckpoint(item,status){
+  // Ett tryck på det redan valda resultatet nollställer punkten till ej kontrollerad.
+  if(item.status===status&&!(cpDraft&&cpDraft.id===item.checkpoint_id)){item.status='not_checked';item.note='';cpDraft=null;renderSpace();await persist();return}
+  if(status==='pass'){item.status='pass';item.note='';cpDraft=null;renderSpace();await persist();return}
+  cpDraft={id:item.checkpoint_id,status,note:item.status===status?item.note:'',error:''};
+  renderSpace();
+  const field=$('cplist').querySelector('.cp-note');if(field)field.focus();
+}
+async function saveCheckpointDraft(item){
+  if(!cpDraft||cpDraft.id!==item.checkpoint_id)return;
+  const note=cpDraft.note.trim();
+  if(!note){cpDraft.error='Skriv en motivering innan du sparar.';renderSpace();return}
+  item.status=cpDraft.status;item.note=note;cpDraft=null;renderSpace();await persist();
+}
+function toggleCheckpoint(checkpointId){const item=state.checkpoints.find(cp=>cp.checkpoint_id===checkpointId);if(item)chooseCheckpoint(item,'pass')}
 
 /* ---------- händelser ---------- */
 $('generate').onclick=async()=>{generateUnits();await persist()};
