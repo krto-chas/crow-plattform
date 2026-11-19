@@ -129,6 +129,7 @@
     #viewStart #start{display:none}
     #viewStart.ovk-start-collapsed>.card:not(#ovkContinueCard){display:none}
     #ovkContinueCard[hidden]{display:none}
+    #generate[hidden]{display:none}
     .ovk-draft-list{display:flex;flex-direction:column;gap:8px;margin:8px 0 10px}
     .ovk-draft-text{display:flex;flex-direction:column;min-width:0}
     .ovk-draft-text .sub{font-size:13px;color:var(--mut)}
@@ -1533,6 +1534,9 @@
     $id('inspection').dispatchEvent(new Event('input',{bubbles:true}));
     $id('unitSeries').value='';
     window.ovkNewInspectionChosen=true;
+    // Enhetslistan skapas av Starta rondering. Knappen för att bygga på listan hör till
+    // den öppna besiktningen och döljs så länge en ny håller på att startas.
+    $id('generate').hidden=true;
     startView.classList.remove('ovk-start-collapsed');
     updateFooter('viewStart');
     $id('inspector').focus({preventScroll:true});
@@ -1542,6 +1546,7 @@
     draftList.sort((a,b)=>String(b.updated_at).localeCompare(String(a.updated_at)));
     continueCard.replaceChildren();
     continueCard.hidden=!draftList.length;
+    $id('generate').hidden=false;window.ovkNewInspectionChosen=false;
     startView.classList.toggle('ovk-start-collapsed',draftList.length>0);
     if(draftList.length){
       continueCard.append(el('div','eyebrow','Fortsätt besiktning'));

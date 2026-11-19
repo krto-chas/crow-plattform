@@ -1641,6 +1641,14 @@ def test_start_page_offers_continue_and_new_inspection(field_url: str, browser: 
     assert new_id.startswith("ovk-") and new_id != "forsta-besiktningen"
     assert page.input_value("#unitSeries") == ""
     page.fill("#unitSeries", "2001")
+    # Enhetslistan kan inte byggas på i den tidigare besiktningen härifrån.
+    assert not page.is_visible("#generate")
+    page.evaluate("() => document.getElementById('generate').onclick()")
+    page.wait_for_timeout(200)
+    assert page.evaluate("() => [state.inspection_id, state.units.length]") == [
+        "forsta-besiktningen",
+        3,
+    ]
     page.click("#footDone")
     on_view("viewRond")
     page.wait_for_function("state.units.length === 1")
