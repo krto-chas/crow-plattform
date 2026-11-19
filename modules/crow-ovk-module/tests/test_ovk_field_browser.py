@@ -1423,6 +1423,22 @@ def test_premises_rooms_suggest_the_last_verified_room_of_the_same_type(
     add_room("Kontor 103")
     assert page.text_content("#ovkWzCopyRoom") == "Som Kontor 102: 1 tilluft · 1 frånluft"
 
+    # Lämnar man rummet mitt i kopieringen hamnar inga don i ett annat rum.
+    before = flow.state("state.measurements.length")
+    page.evaluate(
+        """() => { document.getElementById('ovkWzCopyRoom').click();
+          state.activeRoomId = state.rooms[2].room_id; }"""
+    )
+    page.wait_for_timeout(400)
+    assert len(room_points(2)) == 0
+    page.evaluate(
+        """() => { const room = state.rooms[3];
+          state.measurements = state.measurements.filter(m => m.room_id !== room.room_id);
+          state.activeRoomId = room.room_id; renderUnit(); }"""
+    )
+    assert flow.state("state.measurements.length") == before
+    flow.expect_step("don")
+
     # Funktionen går att stänga av och slå på igen.
     page.click("#ovkWzCopyOff")
     page.wait_for_selector("#ovkWzCopyOn")

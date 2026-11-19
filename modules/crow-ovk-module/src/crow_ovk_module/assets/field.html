@@ -835,8 +835,20 @@
     return null;
   }
   async function copyRoomConfig(source,room){
+    if(wz.copying)return;
+    wz.copying=true;
+    try{await copyTerminals(source,room)}finally{wz.copying=false}
+    if(!copyTarget(room))return;
+    wz.note='Don föreslagna från '+source.name+'. Kontrollera och justera vid behov.';
+    render();await persist();
+  }
+  // Don läggs till i det aktiva rummet. Byter besiktningsmannen rum eller enhet medan
+  // kopieringen sparar avbryts den, så att inga don hamnar i fel rum.
+  const copyTarget=room=>state.activeUnitId===room.unit_id&&state.activeRoomId===room.room_id;
+  async function copyTerminals(source,room){
     for(const type of ['franluftsdon','tilluftsdon']){
       for(const original of roomPoints(source).filter(point=>point.point_type===type)){
+        if(!copyTarget(room))return;
         const before=new Set(state.measurements.map(item=>item.measurement_id));
         await addTerminal(type);
         // Nya don får egna id:n; bara det projekterade flödet följer med.
@@ -844,8 +856,6 @@
         if(created&&validFlowValue(original.designed_value))created.designed_value=original.designed_value;
       }
     }
-    wz.note='Don föreslagna från '+source.name+'. Kontrollera och justera vid behov.';
-    render();await persist();
   }
   async function renameRoom(room){
     const answer=await askSheet({title:'Byt namn på rummet',note:'Don, mätvärden och anmärkningar följer med.',fields:[{id:'name',label:'Rumsnamn',value:room.name,required:true,maxLength:80}],submitLabel:'Spara namn'});
