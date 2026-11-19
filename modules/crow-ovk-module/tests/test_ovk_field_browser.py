@@ -98,6 +98,16 @@ def browser() -> Iterator[Any]:
             launched.close()
 
 
+def _reload_after_save(page: Any) -> None:
+    """Laddar om sidan först när utkastet är skrivet till IndexedDB.
+
+    Knapptrycken sparar asynkront, så en omladdning direkt efter ett tryck kan
+    annars hinna före skrivningen och läsa ett äldre utkast.
+    """
+    page.evaluate("() => persist()")
+    page.reload()
+
+
 class _Flow:
     """Går igenom varv 1 och kontrollerar varje vy som visas."""
 
@@ -297,7 +307,7 @@ def test_visual_round_resumes_on_the_open_question_after_reload(
 
     # Omladdning mitt i rummet: överluftsfrågan är obesvarad och ska visas igen,
     # inte rummets sammanfattning.
-    flow.page.reload()
+    _reload_after_save(flow.page)
     flow.page.wait_for_function("typeof state === 'object' && state.rooms.length === 1")
     flow.page.click("#continueUnit")
     flow.expect_step("transfer")
@@ -306,7 +316,7 @@ def test_visual_round_resumes_on_the_open_question_after_reload(
     # Ett halvfärdigt anmärkningssteg återupptas på frågan om anmärkning.
     flow.next("remark")
     flow.answer("Ja, registrera anmärkning", "remarkText")
-    flow.page.reload()
+    _reload_after_save(flow.page)
     flow.page.wait_for_function("typeof state === 'object' && state.rooms.length === 1")
     flow.page.click("#continueUnit")
     flow.expect_step("remark")
@@ -400,7 +410,7 @@ def test_key_overview_registers_receipt_and_return_method(field_url: str, browse
     ]
 
     # Omladdning: huvudnyckeln och återlämningssätten ligger kvar i utkastet.
-    page.reload()
+    _reload_after_save(page)
     page.wait_for_function("typeof state === 'object' && state.units.length === 3")
     assert page.evaluate("() => payload().master_key.received") is True
     assert page.evaluate("() => state.units.map(unit => unit.key.returned_method)") == [
@@ -514,7 +524,7 @@ def test_measurement_round_skips_room_without_terminals_between_two_others(
     flow.page.wait_for_function("activeRoom().name === 'Badrum'")
 
     # Omladdning mitt i mätvarvet återupptar på samma mätrum.
-    flow.page.reload()
+    _reload_after_save(flow.page)
     flow.page.wait_for_function("typeof state === 'object' && state.rooms.length === 3")
     flow.page.click("#continueUnit")
     flow.page.wait_for_function(
