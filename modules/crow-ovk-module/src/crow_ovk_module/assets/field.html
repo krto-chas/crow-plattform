@@ -105,6 +105,26 @@
     body.ovk-unit-stepper #syncCard{display:none!important}
     body.ovk-unit-stepper .foot{position:relative;flex:0 0 auto;padding:8px 12px calc(8px + env(safe-area-inset-bottom))}
     body.ovk-unit-stepper .foot .btn{margin-top:0}
+    /* Inmatningsblad som ersätter webbläsarens dialogrutor. */
+    .ovk-sheet{position:fixed;inset:0;z-index:40;display:flex;align-items:flex-end;justify-content:center;background:rgba(16,24,32,.45)}
+    .ovk-sheet-panel{width:100%;max-width:560px;background:var(--panel);border-radius:18px 18px 0 0;padding:18px 16px calc(16px + env(safe-area-inset-bottom));display:flex;flex-direction:column;gap:10px;box-shadow:0 -8px 30px rgba(16,24,32,.2)}
+    /* Blad med textfält läggs överst: telefonens tangentbord täcker annars fält och knappar. */
+    .ovk-sheet.typed{align-items:flex-start}
+    .ovk-sheet.typed .ovk-sheet-panel{border-radius:0 0 18px 18px;padding:calc(18px + env(safe-area-inset-top)) 16px 16px;box-shadow:0 8px 30px rgba(16,24,32,.2)}
+    .ovk-sheet-panel h2{margin:0;font-size:20px;line-height:1.2}
+    .ovk-sheet-note,.ovk-sheet-status{margin:0;font-size:14px;color:var(--mut);line-height:1.4}
+    .ovk-sheet-status{color:#8a5a12;font-weight:600}
+    .ovk-sheet-status:empty{display:none}
+    .ovk-sheet-field{display:flex;flex-direction:column;gap:4px;margin:0}
+    .ovk-sheet-field span{font-size:13px;font-weight:650;color:var(--mut)}
+    .ovk-sheet-field input{min-height:52px;font-size:17px;margin:0;width:100%}
+    .ovk-sheet-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+    .ovk-sheet-actions:has(>:only-child){grid-template-columns:minmax(0,1fr)}
+    .ovk-sheet-actions.many{grid-template-columns:repeat(3,minmax(0,1fr))}
+    .ovk-sheet-actions.many>:first-child{grid-column:1/-1}
+    .ovk-sheet-btn{min-height:52px;padding:10px 8px;border-radius:14px;border:1.5px solid var(--line);background:#fff;color:inherit;font:inherit;font-size:16px;font-weight:650;overflow-wrap:anywhere}
+    .ovk-sheet-btn.on{background:var(--accent);border-color:var(--accent);color:#fff}
+    .ovk-sheet-btn.ghost{border-style:dashed;color:var(--mut);font-weight:600}
     /* Kontrollpunkter för fläktrum och aggregat: resultat väljs med knappar. */
     .cp-item{display:block;padding:12px}
     .cp-head{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}
@@ -167,6 +187,12 @@
     .ovk-wz-flow{min-height:72px;font-size:34px;font-weight:650;text-align:center;margin:0;width:100%;border-radius:14px}
     .ovk-wz-grid input{min-height:50px;font-size:16px;margin:0;width:100%;text-align:center}
     .ovk-wz-link{min-height:36px;padding:4px 0;border:0;background:none;color:var(--accent);font:inherit;font-size:14px;font-weight:600;text-align:left;text-decoration:underline;overflow-wrap:anywhere}
+    .ovk-wz-remarks{display:flex;flex-direction:column;gap:6px;flex:1;min-height:0;overflow:auto}
+    .ovk-wz-remark{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:8px;border:1.5px solid var(--line);border-radius:12px;padding:8px 10px;background:#fff}
+    .ovk-wz-remark strong{display:block;font-size:15px;overflow-wrap:anywhere}
+    .ovk-wz-remark span{display:block;font-size:13px;color:var(--mut)}
+    .ovk-wz-remove{min-height:44px;padding:8px 12px;border-radius:12px;border:1.5px solid var(--line);background:#fff;color:inherit;font:inherit;font-size:14px;font-weight:650}
+    .ovk-wz-remove.armed{background:var(--bom);border-color:var(--bom);color:#fff}
     .ovk-wz-mini{display:flex;flex-direction:column;gap:2px;margin:0}
     .ovk-wz-mini span{font-size:12px;font-weight:650;color:var(--mut);letter-spacing:.03em;text-transform:uppercase}
     .ovk-wz-grid .ovk-wz-mini input{min-height:44px}
@@ -639,8 +665,31 @@
     ['general_damage_observation','Skada / annat']
   ];
   const SEVERITY={0:'info',1:'minor',2:'major'};
+  const roomRemarks=room=>state.findings.filter(item=>item.unit_id===room.unit_id&&item.room_id===room.room_id);
+  function remarkListLink(room){
+    const count=roomRemarks(room).length;
+    const link=el('button','ovk-wz-link',count+(count===1?' anmärkning registrerad':' anmärkningar registrerade')+' · visa eller ta bort');
+    link.type='button';link.id='ovkWzRemarkList';
+    link.addEventListener('click',()=>{wz.removeId=null;return wizardGo('remarkList')});
+    return link;
+  }
+  // Samma regler som den tidigare borttagningsknappen: foton kopplas loss och ett
+  // don som var ej mätbart genom anmärkningen blir mätbart igen.
+  function removeFinding(finding){
+    state.findings=state.findings.filter(item=>item!==finding);
+    for(const photo of state.photos)if(photo.finding_id===finding.finding_id)photo.finding_id=null;
+    for(const item of state.measurements){
+      if(item.finding_id!==finding.finding_id)continue;
+      item.finding_id=null;
+      if(item.measurable===false){item.measurable=true;item.not_measurable_reason=''}
+    }
+    // En återkontroll som pekade på anmärkningen nollställs, annars avvisas synken.
+    state.finding_followups=state.finding_followups.map(item=>item.current_finding_id===finding.finding_id?{...item,status:'not_checked',note:'',current_finding_id:null,photo_ids:[]}:item);
+    if(state.activeFindingId===finding.finding_id)clearFindingSelection();
+    renderFindings();
+  }
   // Halvfärdiga anmärknings- och mallsteg återupptas på närmaste hela steg.
-  const RESUME_STEP={remarkText:'remark',remarkClass:'remark',remarkPhoto:'remark',template:'room'};
+  const RESUME_STEP={remarkText:'remark',remarkClass:'remark',remarkPhoto:'remark',remarkList:'remark',template:'room'};
   const typeCount=(room,type)=>roomPoints(room).filter(point=>point.point_type===type).length;
   const terminalCount=room=>typeCount(room,'franluftsdon')+typeCount(room,'tilluftsdon');
   const roomVent=room=>state.window_vents.find(item=>item.unit_id===room.unit_id&&item.room_id===room.room_id)||null;
@@ -781,7 +830,7 @@
       wz.step=room?(resumed&&(resumed==='room'||wizardSteps(room).includes(resumed))?resumed:firstOpenStep(room)):'room';wz.note='';
     }
     if(phase==='visual'&&!room)wz.step=wz.step==='template'?'template':'room';
-    if(phase==='visual'&&room&&!['room','template','remarkText','remarkClass','remarkPhoto'].includes(wz.step)&&!wizardSteps(room).includes(wz.step))wz.step=firstOpenStep(room);
+    if(phase==='visual'&&room&&!['room','template','remarkText','remarkClass','remarkPhoto','remarkList'].includes(wz.step)&&!wizardSteps(room).includes(wz.step))wz.step=firstOpenStep(room);
     if(wz.step!=='template')restoreTemplate();
     wizard.dataset.step=wz.step;
     wizard.replaceChildren();
@@ -850,7 +899,7 @@
     }else if(wz.step==='remark'){
       const marks=state.findings.filter(item=>item.unit_id===state.activeUnitId&&item.room_id===room.room_id).length;
       title.textContent=marks?'Fler anmärkningar i rummet?':'Något att anmärka i rummet?';
-      if(marks)body.append(el('p','ovk-wz-hint',marks+' anmärkning'+(marks>1?'ar':'')+' registrerad'+(marks>1?'e':'')+'.'));
+      if(marks)body.append(remarkListLink(room));
       body.append(
         choice(marks?'Nej, inga fler':'Nej, inget att anmärka',false,()=>wizardGo('done')),
         choice('Ja, registrera anmärkning',false,()=>{
@@ -876,6 +925,28 @@
         grid.append(choice(label,wz.type===type,()=>{wz.type=type;if(type!=='general_damage_observation')wz.text=label;render()}));
       }
       body.append(grid,area);
+      if(roomRemarks(room).length)body.append(remarkListLink(room));
+    }else if(wz.step==='remarkList'){
+      title.textContent='Anmärkningar i rummet';
+      const list=el('div','ovk-wz-remarks');
+      for(const finding of roomRemarks(room)){
+        const row=el('div','ovk-wz-remark');
+        const text=el('div','');
+        text.append(el('strong','',finding.description),el('span','',(finding.classification==null?'Klass saknas':'Klass '+finding.classification)+(state.photos.some(photo=>photo.finding_id===finding.finding_id)?' · foto':'')));
+        const armed=wz.removeId===finding.finding_id;
+        const remove=el('button','ovk-wz-remove'+(armed?' armed':''),armed?'Bekräfta':'Ta bort');
+        remove.type='button';remove.dataset.remove=finding.finding_id;
+        // Två tryck, så att ett feltryck inte tar bort en anmärkning.
+        remove.addEventListener('click',async()=>{
+          if(wz.removeId!==finding.finding_id){wz.removeId=finding.finding_id;render();return}
+          wz.removeId=null;removeFinding(finding);
+          if(!roomRemarks(room).length)wz.step=phase==='measure'?'point':'remark';
+          renderUnit();render();await persist();
+        });
+        row.append(text,remove);list.append(row);
+      }
+      body.append(list,el('p','ovk-wz-hint','Foton till en borttagen anmärkning behålls men kopplas loss. Ett don som var ej mätbart blir mätbart igen.'));
+      doneLabel='Klar';
     }else if(wz.step==='remarkClass'){
       title.textContent='Vilken klass har anmärkningen?';
       const pick=level=>async()=>{
@@ -903,6 +974,7 @@
           el('p','ovk-wz-hint warn','Ej mätbar: '+point.not_measurable_reason),
           choice('Ångra – donet går att mäta',false,async()=>{restoreMeasurable(point);renderUnit();render();await persist()},'ghost')
         );
+        if(roomRemarks(room).length)body.append(remarkListLink(room));
       }else{
         const flow=el('input','ovk-wz-flow');flow.id='ovkWzFlow';flow.type='text';flow.inputMode='decimal';flow.autocomplete='off';flow.placeholder='l/s';
         flow.value=point.measured_value??'';flow.setAttribute('aria-label',point.point_label+' – uppmätt luftflöde i liter per sekund');
@@ -923,7 +995,8 @@
         extras.append(
           designedField,
           choice('Ej mätbar',false,()=>{wz.text='';return wizardGo('reason')},'ghost'),
-          choice('Anmärkning',false,()=>{wz.type='general_damage_observation';wz.text='';return wizardGo('remarkText')},'ghost'),
+          // Antalet visar att rummet har anmärkningar; listan med borttagning nås i nästa vy.
+          choice('Anmärkning'+(roomRemarks(room).length?' ('+roomRemarks(room).length+')':''),false,()=>{wz.type='general_damage_observation';wz.text='';return wizardGo('remarkText')},'ghost'),
           choice('+ Don i rummet',false,()=>wizardGo('addPoint'),'ghost')
         );
         body.append(flowField,deviation);
@@ -1009,7 +1082,7 @@
       await wizardGo('remarkClass');return true;
     }
     if(wz.step==='remarkClass'){wz.note='Välj en klass för anmärkningen.';render();return true}
-    if(wz.step==='remarkPhoto'){clearFindingSelection();await wizardGo('remark');return true}
+    if(wz.step==='remarkPhoto'||wz.step==='remarkList'){clearFindingSelection();await wizardGo('remark');return true}
     await wizardAdvance();
     return true;
   }
@@ -1021,7 +1094,7 @@
       await wizardGo('done');return true;
     }
     if(!room)return false;
-    if(wz.step==='remarkText'){await wizardGo('remark');return true}
+    if(wz.step==='remarkText'||wz.step==='remarkList'){await wizardGo('remark');return true}
     if(wz.step==='remarkClass'){await wizardGo('remarkText');return true}
     if(wz.step==='remarkPhoto'){clearFindingSelection();await wizardGo('remark');return true}
     const list=wizardSteps(room);
@@ -1031,7 +1104,7 @@
     return true;
   }
   // ── Varv 2 don för don ───────────────────────────────────────────────
-  const MEASURE_STEPS=['point','reason','addPoint','history','remarkText','remarkClass','remarkPhoto'];
+  const MEASURE_STEPS=['point','reason','addPoint','history','remarkText','remarkClass','remarkPhoto','remarkList'];
   // Tidigare besiktnings mätvärden för rummet, och det som säkert avser samma don.
   const roomHistory=room=>(state.historical_measurements||[]).filter(item=>item.unit_id===room.unit_id&&item.room_id===room.room_id);
   function previousFor(point){
@@ -1068,11 +1141,8 @@
   // anmärkning tas bort för hand.
   function restoreMeasurable(point){
     const finding=state.findings.find(item=>item.finding_id===point.finding_id&&item.defect_type==='terminal_not_measurable');
-    if(finding){
-      state.findings=state.findings.filter(item=>item!==finding);
-      for(const photo of state.photos)if(photo.finding_id===finding.finding_id)photo.finding_id=null;
-      if(state.activeFindingId===finding.finding_id)clearFindingSelection();
-    }
+    // Samma städning som i anmärkningslistan, inklusive kopplade återkontroller.
+    if(finding)removeFinding(finding);
     point.finding_id=null;point.measurable=true;point.not_measurable_reason='';
     renderFindings();
   }
@@ -1095,7 +1165,7 @@
       markPointNotMeasurable(point,room,reason);
       await wizardGo('remarkPhoto');return true;
     }
-    if(wz.step==='addPoint'||wz.step==='history'){await wizardGo('point');return true}
+    if(wz.step==='addPoint'||wz.step==='history'||wz.step==='remarkList'){await wizardGo('point');return true}
     if(wz.step==='remarkText'){
       if(!wz.text.trim()){wz.note='Skriv en kort beskrivning eller välj en typ.';render();return true}
       await wizardGo('remarkClass');return true;

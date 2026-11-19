@@ -305,16 +305,68 @@ function renderRooms(){
     else button.textContent='+ '+entry.name;
     button.onclick=async()=>{
       let name=entry.id?entry.name:(REPEATABLE_ROOMS.has(entry.name)?nextPresetRoomName(entry.name,unitRooms()):entry.name);
-      if(!entry.id&&isCommercial()){const nr=(prompt('Rumsnr för '+name+' (valfritt):')||'').trim();if(nr)name+=' '+nr}
+      if(!entry.id&&isCommercial()){const answer=await askSheet({title:'Rumsnr för '+name,fields:[{id:'nr',label:'Rumsnr',placeholder:'T.ex. 101'}],submitLabel:'Lägg till rum'});if(!answer)return;if(answer.nr)name+=' '+answer.nr}
       state.activeRoomId=entry.id||ensureRoom(name).room_id;clearFindingSelection();renderUnit();await persist();
     };
     (entry.id?$('roomChips'):presets).append(button);
   }
   const add=document.createElement('button');add.type='button';add.className='chip';add.textContent='+ Rum/rumsnr';
-  add.onclick=async()=>{const name=(prompt('Rumsnamn eller rumsnr:')||'').trim();if(!name)return;state.activeRoomId=ensureRoom(name).room_id;clearFindingSelection();renderUnit();await persist()};
+  add.onclick=async()=>{const answer=await askSheet({title:'Lägg till rum',fields:[{id:'name',label:'Rumsnamn eller rumsnr',required:true}],submitLabel:'Lägg till rum'});if(!answer)return;const name=answer.name;state.activeRoomId=ensureRoom(name).room_id;clearFindingSelection();renderUnit();await persist()};
   presets.append(add);
   if(isCommercial()&&activeRoom()){const done=document.createElement('button');done.type='button';done.id='roomDone';done.className='chip quick';done.textContent='Rum klart → nästa';$('roomChips').append(done)}
   const roomDone=document.getElementById('roomDone');if(roomDone)roomDone.onclick=async()=>{const closed=activeRoom();state.activeRoomId=null;clearFindingSelection();$('photoStatus').className='status pass';$('photoStatus').textContent=(closed?closed.name+' klart. ':'')+'Välj nästa rum.';renderUnit();await persist()}}
+// Inmatning i appen i stället för webbläsarens dialogrutor. Returnerar ett objekt
+// med fältvärden (och valt alternativ i `choice`), eller null om användaren avbryter.
+function askSheet({title,note='',fields=[],choices=null,submitLabel='Spara'}){
+  return new Promise(resolve=>{
+    const previousFocus=document.activeElement;
+    const overlay=document.createElement('div');overlay.className='ovk-sheet'+(fields.length?' typed':'');overlay.id='ovkSheet';
+    const panel=document.createElement('div');panel.className='ovk-sheet-panel';panel.setAttribute('role','dialog');panel.setAttribute('aria-modal','true');panel.setAttribute('aria-labelledby','ovkSheetTitle');
+    const heading=document.createElement('h2');heading.id='ovkSheetTitle';heading.textContent=title;panel.append(heading);
+    if(note){const text=document.createElement('p');text.className='ovk-sheet-note';text.textContent=note;panel.append(text)}
+    const inputs=[];
+    for(const field of fields){
+      const label=document.createElement('label');label.className='ovk-sheet-field';
+      const caption=document.createElement('span');caption.textContent=field.label+(field.required?'':' (valfritt)');
+      const input=document.createElement('input');input.type='text';input.id='ovkSheet_'+field.id;input.value=field.value||'';input.maxLength=field.maxLength||120;input.autocomplete='off';
+      if(field.placeholder)input.placeholder=field.placeholder;if(field.inputMode)input.inputMode=field.inputMode;
+      label.append(caption,input);panel.append(label);inputs.push([field,input]);
+    }
+    const status=document.createElement('p');status.className='ovk-sheet-status';status.setAttribute('role','alert');panel.append(status);
+    const close=result=>{overlay.remove();document.removeEventListener('keydown',onKey,true);if(previousFocus&&previousFocus.focus)previousFocus.focus();resolve(result)};
+    const collect=choice=>{
+      const values={};
+      for(const [field,input] of inputs){
+        const value=input.value.trim();
+        if(field.required&&!value){status.textContent=field.label+' måste fyllas i.';input.focus();return}
+        values[field.id]=value;
+      }
+      if(choice!==undefined)values.choice=choice;
+      close(values);
+    };
+    const actions=document.createElement('div');actions.className='ovk-sheet-actions'+(choices&&choices.length>2?' many':'');
+    if(choices){
+      for(const [value,text,selected] of choices){
+        const button=document.createElement('button');button.type='button';button.className='ovk-sheet-btn'+(selected?' on':'');button.textContent=text;button.dataset.sheetChoice=String(value);
+        button.onclick=()=>collect(value);actions.append(button);
+      }
+    }else{
+      const save=document.createElement('button');save.type='button';save.className='ovk-sheet-btn on';save.textContent=submitLabel;save.dataset.sheetSubmit='1';
+      save.onclick=()=>collect();actions.append(save);
+    }
+    const cancel=document.createElement('button');cancel.type='button';cancel.className='ovk-sheet-btn ghost';cancel.textContent='Avbryt';cancel.dataset.sheetCancel='1';
+    cancel.onclick=()=>close(null);
+    panel.append(actions,cancel);
+    function onKey(event){
+      if(event.key==='Escape'){event.preventDefault();close(null)}
+      else if(event.key==='Enter'&&!choices&&event.target&&event.target.tagName==='INPUT'){event.preventDefault();collect()}
+    }
+    document.addEventListener('keydown',onKey,true);
+    overlay.addEventListener('click',event=>{if(event.target===overlay)close(null)});
+    overlay.append(panel);document.body.append(overlay);
+    (inputs.length?inputs[0][1]:actions.querySelector('button')).focus();
+  });
+}
 function localClock(iso){const date=new Date(iso);return Number.isNaN(date.getTime())?String(iso||''):date.toLocaleTimeString('sv-SE',{hour:'2-digit',minute:'2-digit'})}
 function keyStamp(){const unit=activeUnit();unit.key=unit.key||{received:false,received_at:null,returned:false,returned_at:null,master_key_used:false,master_key_note:'',returned_method:''};return unit.key}
 const KEY_METHOD_LABEL={hand:'i handen',mailbox:'i brevlådan'};
@@ -536,7 +588,7 @@ function markNotMeasurable(measurementId){const item=state.measurements.find(m=>
 function activeSpace(){return state.technical_spaces.find(item=>item.space_id===state.activeSpaceId)||null}
 function spaceCheckpoints(spaceId){return state.checkpoints.filter(item=>item.space_id===spaceId)}
 function spaceHasNameplate(spaceId){return state.photos.some(photo=>photo.space_id===spaceId&&photo.defect_type==='equipment_nameplate')}
-function addSpace(kind){const label=(prompt(kind==='flaktrum'?'Benämning på fläktrummet (t.ex. "Fläktrum plan 10, LB01"):':'Benämning på fläkten (t.ex. "Takfläkt hus A, FF01"):')||'').trim();if(!label)return;const location=(prompt(kind==='takflakt'?'Placering (tak eller vind):':'Placering (valfri):')||'').trim();const space={space_id:uid('space'),inspection_id:state.inspection_id,kind,label,location,system_id:null};state.technical_spaces.push(space);for(const item of (state.checklists[kind]||[])){state.checkpoints.push({checkpoint_id:uid('cp'),inspection_id:state.inspection_id,space_id:space.space_id,label:item.label,status:'not_checked',note:''})}openSpace(space.space_id);persist()}
+async function addSpace(kind){const answer=await askSheet({title:kind==='flaktrum'?'Nytt fläktrum':'Ny frånluftsfläkt',fields:[{id:'label',label:'Benämning',required:true,placeholder:kind==='flaktrum'?'T.ex. Fläktrum plan 10, LB01':'T.ex. Takfläkt hus A, FF01'},{id:'location',label:'Placering',placeholder:kind==='takflakt'?'Tak eller vind':'T.ex. plan 10'}],submitLabel:'Lägg till'});if(!answer)return;const label=answer.label,location=answer.location;const space={space_id:uid('space'),inspection_id:state.inspection_id,kind,label,location,system_id:null};state.technical_spaces.push(space);for(const item of (state.checklists[kind]||[])){state.checkpoints.push({checkpoint_id:uid('cp'),inspection_id:state.inspection_id,space_id:space.space_id,label:item.label,status:'not_checked',note:''})}openSpace(space.space_id);persist()}
 function spacePending(id){const points=spaceCheckpoints(id);return !points.length||points.some(p=>p.status==='not_checked')}
 function renderSpaces(){$('spaceMeta').textContent=state.technical_spaces.length+' utrymmen';$('spaceList').innerHTML=state.technical_spaces.map(space=>{const fails=spaceCheckpoints(space.space_id).filter(item=>item.status==='fail').length;const plate=spaceHasNameplate(space.space_id);const pending=spacePending(space.space_id);const cls=pending?'ej_paborjad':fails?'anmarkning':'ua';return '<button class="unitrow '+cls+'" data-space="'+space.space_id+'"><span class="nr" style="font-size:18px;min-width:0">'+esc(space.label)+'</span><span class="sub">'+(space.kind==='flaktrum'?'Fläktrum':'Takfläkt')+(space.system_id?' · '+esc(space.system_id):'')+(space.location?' · '+esc(space.location):'')+(plate?' · skylt ✓':' · skylt saknas')+'</span><span class="spacer"></span><span class="tag '+cls+'">'+(pending?'Ej klar':fails?fails+' anm.':'UA')+'</span></button>'}).join('');for(const button of $('spaceList').querySelectorAll('[data-space]'))button.onclick=()=>openSpace(button.dataset.space)}
 function openSpace(spaceId){state.activeSpaceId=spaceId;const space=activeSpace();$('spaceKindLabel').textContent=space.kind==='flaktrum'?'Fläktrum (aggregat)':'Frånluftsfläkt tak/vind';$('spaceName').textContent=space.label;$('spaceLoc').textContent=[space.system_id,space.location].filter(Boolean).join(' · ');renderSpace();view('viewSpace')}
@@ -624,9 +676,9 @@ $('keyOut').onclick=async()=>{const key=keyStamp();if(!key.received&&!key.master
 async function returnActiveKey(method){const key=keyStamp();if(!key.received){key.received=true;key.received_at=key.received_at||now()}key.returned=true;key.returned_at=now();key.returned_method=method;renderKeys();await persist()}
 $('keyReturnHand').onclick=()=>returnActiveKey('hand');
 $('keyReturnMailbox').onclick=()=>returnActiveKey('mailbox');
-$('keyMaster').onclick=async()=>{const key=keyStamp();if(key.master_key_used){key.master_key_used=false;key.master_key_note=''}else{const note=(prompt('Kommentar om huvudnyckel (obligatorisk för spårbarhet):')||'').trim();if(!note)return;key.master_key_used=true;key.master_key_note=note;if(!key.received){key.received=true;key.received_at=now()}}renderKeys();await persist()};
-$('unitSystemBtn').onclick=async()=>{const unit=activeUnit();if(!unit)return;const raw=(prompt('Systemtyp för denna enhet (F, S, FX, FT, FTX).\nLämna tomt för fastighetens ('+state.system_type+') – vanligt avvikande i vinds-/källarlägenheter.',unit.system_type||'')||'').trim().toUpperCase();if(raw&&!['F','S','FX','FT','FTX'].includes(raw)){alert('Ogiltig systemtyp: '+raw);return}unit.system_type=raw||null;renderUnit();await persist()};
-$('bom').onclick=async()=>{const unit=activeUnit();const meas=state.measurements.filter(item=>item.unit_id===unit.unit_id);const marks=state.findings.filter(item=>item.unit_id===unit.unit_id);const followups=state.finding_followups.filter(item=>item.unit_id===unit.unit_id);if((meas.length||marks.length||followups.length)&&!confirm('BOM: '+meas.length+' mätningar, '+marks.length+' anmärkningar och enhetens visuella kontroller tas bort och återkontroller återställs till ej återkontrollerad (foton behålls men kopplas loss). Fortsätt?'))return;const removedFindings=new Set(marks.map(item=>item.finding_id));state.measurements=state.measurements.filter(item=>item.unit_id!==unit.unit_id);state.findings=state.findings.filter(item=>item.unit_id!==unit.unit_id);state.visual_checks=state.visual_checks.filter(item=>item.unit_id!==unit.unit_id);state.window_vents=state.window_vents.filter(item=>item.unit_id!==unit.unit_id);delete state.field_progress[unit.unit_id];state.finding_followups=state.finding_followups.map(item=>item.unit_id===unit.unit_id?{...item,status:'not_checked',note:'',current_finding_id:null,photo_ids:[]}:item);for(const photo of state.photos)if(photo.finding_id&&removedFindings.has(photo.finding_id))photo.finding_id=null;if(state.activeFindingId&&removedFindings.has(state.activeFindingId))state.activeFindingId=null;const note=(prompt('BOM – valfri notering (tid och datum stämplas automatiskt):')||'').trim();unit.status='bom';unit.bom_at=now();unit.bom_note=note;unit.checked_at=null;renderRond();view('viewRond');await persist()};
+$('keyMaster').onclick=async()=>{const key=keyStamp();if(key.master_key_used){key.master_key_used=false;key.master_key_note=''}else{const answer=await askSheet({title:'Huvudnyckel använd',note:'Kommentaren krävs för spårbarhetens skull.',fields:[{id:'note',label:'Kommentar',required:true,placeholder:'T.ex. lånad av fastighetsskötaren',maxLength:200}]});if(!answer)return;const note=answer.note;key.master_key_used=true;key.master_key_note=note;if(!key.received){key.received=true;key.received_at=now()}}renderKeys();await persist()};
+$('unitSystemBtn').onclick=async()=>{const unit=activeUnit();if(!unit)return;const answer=await askSheet({title:'Systemtyp för enheten',note:'Avviker ofta i vinds- och källarlägenheter.',choices:[['','Som fastigheten ('+state.system_type+')',!unit.system_type],...['F','S','FX','FT','FTX'].map(type=>[type,type,unit.system_type===type])]});if(!answer)return;unit.system_type=answer.choice||null;renderUnit();await persist()};
+$('bom').onclick=async()=>{const unit=activeUnit();const meas=state.measurements.filter(item=>item.unit_id===unit.unit_id);const marks=state.findings.filter(item=>item.unit_id===unit.unit_id);const followups=state.finding_followups.filter(item=>item.unit_id===unit.unit_id);if((meas.length||marks.length||followups.length)&&!confirm('BOM: '+meas.length+' mätningar, '+marks.length+' anmärkningar och enhetens visuella kontroller tas bort och återkontroller återställs till ej återkontrollerad (foton behålls men kopplas loss). Fortsätt?'))return;const removedFindings=new Set(marks.map(item=>item.finding_id));state.measurements=state.measurements.filter(item=>item.unit_id!==unit.unit_id);state.findings=state.findings.filter(item=>item.unit_id!==unit.unit_id);state.visual_checks=state.visual_checks.filter(item=>item.unit_id!==unit.unit_id);state.window_vents=state.window_vents.filter(item=>item.unit_id!==unit.unit_id);delete state.field_progress[unit.unit_id];state.finding_followups=state.finding_followups.map(item=>item.unit_id===unit.unit_id?{...item,status:'not_checked',note:'',current_finding_id:null,photo_ids:[]}:item);for(const photo of state.photos)if(photo.finding_id&&removedFindings.has(photo.finding_id))photo.finding_id=null;if(state.activeFindingId&&removedFindings.has(state.activeFindingId))state.activeFindingId=null;const answer=await askSheet({title:'BOM – notering',note:'Tid och datum stämplas automatiskt. Avbryt sparar utan notering.',fields:[{id:'note',label:'Notering',placeholder:'T.ex. ingen hemma, lapp lämnad',maxLength:200}]});const note=answer?answer.note:'';unit.status='bom';unit.bom_at=now();unit.bom_note=note;unit.checked_at=null;renderRond();view('viewRond');await persist()};
 for(const chip of document.querySelectorAll('[data-defect]'))chip.onclick=async()=>{if(!activeUnit())return;const room=activeRoom();if(chip.dataset.defect==='kitchen_fan_central_system'&&(!room||!/^kök(?:\s|$)/i.test(room.name.trim())))return;const map={missing_terminal:['minor','Don saknas'],kitchen_fan_central_system:['minor','Köksfläkt installerad mot centralt system'],window_vent_missing:['minor','Fönsterventil saknas'],general_damage_observation:['info','Skada/observation']};const [severity,base]=map[chip.dataset.defect];if(chip.dataset.defect==='window_vent_missing'&&room){setWindowVent(room.room_id,false)}addFinding(chip.dataset.defect,severity,(room?room.name+': ':'')+base);renderUnit();await persist()};
 function setWindowVent(roomId,present){const existing=state.window_vents.find(item=>item.unit_id===state.activeUnitId&&item.room_id===roomId);if(existing){existing.present=present;return existing}const check={check_id:uid('wv'),inspection_id:state.inspection_id,unit_id:state.activeUnitId,room_id:roomId,present,note:''};state.window_vents.push(check);return check}
 $('wvPresent').onclick=async()=>{const room=activeRoom();if(!room)return;setWindowVent(room.room_id,true);$('photoStatus').textContent='Fönsterventil finns · '+room.name+' registrerad.';await persist()};

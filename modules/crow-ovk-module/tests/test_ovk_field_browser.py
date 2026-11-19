@@ -715,22 +715,25 @@ def test_measurement_round_takes_one_terminal_at_a_time(field_url: str, browser:
     context.close()
 
 
+def _record_dialogs(page: Any, dialogs: list[str]) -> None:
+    """Samla och avfärda webbläsardialoger så att testet kan kräva att inga visas."""
+
+    def on_dialog(dialog: Any) -> None:
+        dialogs.append(dialog.message)
+        dialog.dismiss()
+
+    page.on("dialog", on_dialog)
+
+
 def test_equipment_checkpoints_are_answered_with_buttons(field_url: str, browser: Any) -> None:
     context = browser.new_context(
         viewport={"width": 390, "height": 844}, is_mobile=True, has_touch=True
     )
     page = context.new_page()
     errors: list[str] = []
-    result_prompts: list[str] = []
+    dialogs: list[str] = []
     page.on("pageerror", lambda error: errors.append(str(error)))
-
-    def on_dialog(dialog: Any) -> None:
-        # Benämning och placering frågas fortfarande med dialog; kontrollresultat får inte göra det.
-        if "Kontrollresultat" in dialog.message or "Motivering" in dialog.message:
-            result_prompts.append(dialog.message)
-        dialog.accept("Fläktrum plan 10" if "Benämning" in dialog.message else "Vind")
-
-    page.on("dialog", on_dialog)
+    _record_dialogs(page, dialogs)
     page.goto(field_url)
     page.wait_for_function("typeof state === 'object' && typeof payload === 'function'")
     page.fill("#inspection", "aggregattest")
@@ -738,8 +741,24 @@ def test_equipment_checkpoints_are_answered_with_buttons(field_url: str, browser
     page.fill("#unitSeries", "1001")
     page.click("#start")
     page.wait_for_function("state.units.length === 1")
+    # Benämning och placering anges i appens inmatningsblad, inte i en dialogruta.
     page.click("#addFlaktrum")
+    page.click("#ovkSheet [data-sheet-submit]")
+    assert "Benämning måste fyllas i." in (page.text_content("#ovkSheet") or "")
+    page.click("#ovkSheet [data-sheet-cancel]")
+    assert page.locator("#ovkSheet").count() == 0
+    assert page.evaluate("() => state.technical_spaces.length") == 0
+    page.click("#addFlaktrum")
+    page.fill("#ovkSheet_label", "Fläktrum plan 10, LB01")
+    page.fill("#ovkSheet_location", "Vind")
+    page.click("#ovkSheet [data-sheet-submit]")
     page.wait_for_function("state.checkpoints.length > 2")
+    assert page.evaluate(
+        "() => [state.technical_spaces[0].label, state.technical_spaces[0].location]"
+    ) == [
+        "Fläktrum plan 10, LB01",
+        "Vind",
+    ]
     items = page.locator("#cplist .cp-item")
     assert items.count() == page.evaluate("() => state.checkpoints.length")
 
@@ -782,7 +801,176 @@ def test_equipment_checkpoints_are_answered_with_buttons(field_url: str, browser
     page.wait_for_function("state.checkpoints[1].status === 'pass'")
     assert status(1) == ["pass", ""]
 
-    assert result_prompts == []
+    assert dialogs == []
     assert errors == []
     _validated_payload(page.evaluate("() => payload()"))
+    context.close()
+
+
+def test_text_is_entered_in_app_sheets_instead_of_browser_dialogs(
+    field_url: str, browser: Any
+) -> None:
+    context = browser.new_context(
+        viewport={"width": 375, "height": 667}, is_mobile=True, has_touch=True
+    )
+    page = context.new_page()
+    errors: list[str] = []
+    dialogs: list[str] = []
+    page.on("pageerror", lambda error: errors.append(str(error)))
+    _record_dialogs(page, dialogs)
+    page.goto(field_url)
+    page.wait_for_function("typeof state === 'object' && typeof payload === 'function'")
+    page.fill("#inspection", "bladtest")
+    page.fill("#inspector", "Test Testsson")
+    page.fill("#unitSeries", "1001")
+    page.click("#start")
+    page.wait_for_function("state.units.length === 1")
+
+    def sheet_fits() -> None:
+        box = page.evaluate(
+            """() => {
+              const node = document.querySelector('#ovkSheet .ovk-sheet-panel');
+              const panel = node.getBoundingClientRect();
+              return [panel.top >= 0, panel.bottom <= window.innerHeight + 1];
+            }"""
+        )
+        assert box == [True, True]
+
+    # Lägenheter läggs till som nummerserie.
+    page.click("#addUnit")
+    sheet_fits()
+    page.fill("#ovkSheet_numbers", "1101-1102")
+    page.click("#ovkSheet [data-sheet-submit]")
+    page.wait_for_function("state.units.length === 3")
+
+    # Avbryt och Escape ändrar ingenting.
+    page.click("#addPremises")
+    page.keyboard.press("Escape")
+    assert page.locator("#ovkSheet").count() == 0
+    assert page.evaluate("() => state.units.length") == 3
+
+    # Lokal läggs till med namn och öppnas direkt; Enter sparar.
+    page.click("#addPremises")
+    page.fill("#ovkSheet_name", "Frisör Anna")
+    page.keyboard.press("Enter")
+    page.wait_for_function("state.units.length === 4 && state.activeUnitId")
+    assert page.evaluate("() => activeUnit().label") == "Frisör Anna"
+
+    # Lokalrum frågar efter rumsnummer i bladet.
+    page.wait_for_function("document.getElementById('ovkWizard').dataset.step === 'room'")
+    page.locator("#ovkWizard .ovk-wz-grid button").first.click()
+    sheet_fits()
+    page.fill("#ovkSheet_nr", "101")
+    page.click("#ovkSheet [data-sheet-submit]")
+    page.wait_for_function("state.rooms.length === 1")
+    assert page.evaluate("() => state.rooms[0].name").endswith(" 101")
+    page.wait_for_function("document.getElementById('ovkWizard').dataset.step === 'don'")
+
+    # Systemtyp per enhet väljs med knappar.
+    page.click("#footBack")
+    page.wait_for_function(
+        "document.getElementById('ovkStepTitle').textContent.includes('nycklar')"
+    )
+    page.click("#unitSystemBtn")
+    sheet_fits()
+    assert page.locator("#ovkSheet [data-sheet-choice]").count() == 6
+    page.click("#ovkSheet [data-sheet-choice='FTX']")
+    page.wait_for_function("activeUnit().system_type === 'FTX'")
+    page.click("#unitSystemBtn")
+    page.click("#ovkSheet [data-sheet-choice='']")
+    page.wait_for_function("activeUnit().system_type === null")
+
+    # Huvudnyckel kräver kommentar.
+    page.click("#keyMaster")
+    page.click("#ovkSheet [data-sheet-submit]")
+    assert "Kommentar måste fyllas i." in (page.text_content("#ovkSheet") or "")
+    assert page.evaluate("() => Boolean(activeUnit().key && activeUnit().key.master_key_used)") is (
+        False
+    )
+    page.fill("#ovkSheet_note", "Lånad av fastighetsskötaren")
+    page.click("#ovkSheet [data-sheet-submit]")
+    page.wait_for_function("activeUnit().key && activeUnit().key.master_key_used === true")
+    assert page.evaluate("() => activeUnit().key.master_key_note") == "Lånad av fastighetsskötaren"
+
+    assert dialogs == []
+    assert errors == []
+    _validated_payload(page.evaluate("() => payload()"))
+    context.close()
+
+
+def test_remarks_can_be_listed_and_removed_in_both_rounds(field_url: str, browser: Any) -> None:
+    context = browser.new_context(
+        viewport={"width": 375, "height": 667}, is_mobile=True, has_touch=True
+    )
+    flow = _Flow(context.new_page())
+    dialogs: list[str] = []
+    _record_dialogs(flow.page, dialogs)
+    flow.start(field_url)
+    flow.room("Badrum")
+    flow.page.click("[aria-label='Öka Frånluftsdon']")
+    flow.page.wait_for_function("state.measurements.length === 1")
+    for _ in range(6):
+        if flow.state("document.getElementById('ovkWizard').dataset.step") == "remark":
+            break
+        flow.page.click("#footDone")
+        flow.page.wait_for_timeout(150)
+    assert flow.page.locator("#ovkWzRemarkList").count() == 0
+
+    # Varv 1: registrera en anmärkning av misstag och ta bort den igen.
+    flow.answer("Ja, registrera anmärkning", "remarkText")
+    flow.page.fill("#ovkWzRemarkText", "Spricka i taket")
+    flow.next("remarkClass")
+    flow.answer("2 · Väsentlig brist", "remarkPhoto")
+    flow.next("remark")
+    assert (flow.page.text_content("#ovkWzRemarkList") or "").startswith("1 anmärkning registrerad")
+    flow.page.click("#ovkWzRemarkList")
+    flow.expect_step("remarkList")
+    remove = flow.page.locator("#ovkWizard [data-remove]")
+    assert remove.count() == 1
+    # En återkontroll från förra besiktningen pekar på anmärkningen.
+    flow.page.evaluate(
+        """() => { state.finding_followups.push({
+          source_inspection_id: 'tidigare', source_finding_id: 'gammal',
+          unit_id: state.findings[0].unit_id, status: 'remaining', note: 'Kvarstår',
+          current_finding_id: state.findings[0].finding_id, photo_ids: [] }); }"""
+    )
+    remove.first.click()
+    # Första trycket ber om bekräftelse och tar inte bort något.
+    assert flow.page.locator("#ovkWizard [data-remove]").first.text_content() == "Bekräfta"
+    assert flow.state("state.findings.length") == 1
+    flow.page.locator("#ovkWizard [data-remove]").first.click()
+    flow.page.wait_for_function("state.findings.length === 0")
+    flow.expect_step("remark")
+    assert flow.state("state.finding_followups[0].current_finding_id") is None
+    assert flow.state("state.finding_followups[0].status") == "not_checked"
+    flow.state("(state.finding_followups.length = 0, 0)")
+    assert flow.page.locator("#ovkWzRemarkList").count() == 0
+    flow.answer("Nej, inget att anmärka", "done")
+
+    # Varv 2: ej mätbar skapar en anmärkning; tas den bort blir donet mätbart igen.
+    flow.page.click("#footDone")
+    flow.expect_step("point")
+    flow.answer("Ej mätbar", "reason")
+    flow.answer("Ej åtkomligt", "reason")
+    flow.next("remarkPhoto")
+    flow.next("point")
+    assert flow.state("state.measurements[0].measurable") is False
+    flow.answer("Ångra – donet går att mäta", "point")
+    assert flow.state("state.findings.length") == 0
+    flow.answer("Ej mätbar", "reason")
+    flow.answer("Ej åtkomligt", "reason")
+    flow.next("remarkPhoto")
+    flow.next("point")
+    assert flow.state("state.findings.length") == 1
+    flow.page.click("#ovkWzRemarkList")
+    flow.expect_step("remarkList")
+    flow.page.locator("#ovkWizard [data-remove]").first.click()
+    flow.page.locator("#ovkWizard [data-remove]").first.click()
+    flow.page.wait_for_function("state.findings.length === 0")
+    flow.expect_step("point")
+    assert flow.state("state.measurements[0].measurable") is not False
+    assert flow.state("state.measurements[0].finding_id || null") is None
+    _validated_payload(flow.page.evaluate("() => payload()"))
+    assert dialogs == []
+    assert flow.errors == []
     context.close()
