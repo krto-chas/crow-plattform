@@ -460,6 +460,7 @@ def _field_data_from_payload(payload: dict[str, Any]) -> FieldInspectionData:
     )
     return FieldInspectionData(
         inspection_id=inspection_id,
+        master_key=_key_from_payload(payload.get("master_key")),
         units=units,
         rooms=rooms,
         findings=findings,
@@ -493,12 +494,27 @@ def _key_from_payload(value: Any) -> KeyLog | None:
         returned_at=_optional_str(value.get("returned_at")),
         master_key_used=bool(value.get("master_key_used", False)),
         master_key_note=str(value.get("master_key_note", "")),
+        returned_method=str(value.get("returned_method") or ""),
     )
+
+
+def _key_to_payload(key: KeyLog) -> dict[str, Any]:
+    return {
+        "received": key.received,
+        "received_at": key.received_at,
+        "returned": key.returned,
+        "returned_at": key.returned_at,
+        "master_key_used": key.master_key_used,
+        "master_key_note": key.master_key_note,
+        # Utelämnas när sättet inte angetts, så att äldre snapshots serialiseras oförändrat.
+        **({"returned_method": key.returned_method} if key.returned_method else {}),
+    }
 
 
 def _field_data_to_payload(data: FieldInspectionData) -> dict[str, Any]:
     return {
         "inspection_id": data.inspection_id,
+        **({"master_key": _key_to_payload(data.master_key)} if data.master_key is not None else {}),
         **(
             {
                 "finding_followups": [
@@ -528,18 +544,7 @@ def _field_data_to_payload(data: FieldInspectionData) -> dict[str, Any]:
                 "bom_at": item.bom_at,
                 "bom_note": item.bom_note,
                 "system_type": item.system_type,
-                "key": (
-                    {
-                        "received": item.key.received,
-                        "received_at": item.key.received_at,
-                        "returned": item.key.returned,
-                        "returned_at": item.key.returned_at,
-                        "master_key_used": item.key.master_key_used,
-                        "master_key_note": item.key.master_key_note,
-                    }
-                    if item.key is not None
-                    else None
-                ),
+                "key": _key_to_payload(item.key) if item.key is not None else None,
             }
             for item in data.units
         ],
