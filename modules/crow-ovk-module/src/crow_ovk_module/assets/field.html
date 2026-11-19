@@ -578,6 +578,8 @@
     ['general_damage_observation','Skada / annat']
   ];
   const SEVERITY={0:'info',1:'minor',2:'major'};
+  // Halvfärdiga anmärknings- och mallsteg återupptas på närmaste hela steg.
+  const RESUME_STEP={remarkText:'remark',remarkClass:'remark',remarkPhoto:'remark',template:'room'};
   const typeCount=(room,type)=>roomPoints(room).filter(point=>point.point_type===type).length;
   const terminalCount=room=>typeCount(room,'franluftsdon')+typeCount(room,'tilluftsdon');
   const roomVent=room=>state.window_vents.find(item=>item.unit_id===room.unit_id&&item.room_id===room.room_id)||null;
@@ -683,7 +685,11 @@
     const room=activeRoom();
     if(state.activeUnitId!==wz.unitId||state.activeRoomId!==wz.roomId){
       wz.unitId=state.activeUnitId;wz.roomId=state.activeRoomId;
-      wz.step=room?firstOpenStep(room):'room';wz.note='';
+      // Återuppta på det steg som sparades i utkastet, så att en omladdning mitt i
+      // ett rum fortsätter på nästa obesvarade fråga i stället för på sammanfattningen.
+      const saved=(state.field_progress||{})[state.activeUnitId];
+      const resumed=saved&&saved.phase==='visual'&&saved.room_id===state.activeRoomId?RESUME_STEP[saved.step]||saved.step:null;
+      wz.step=room?(resumed&&(resumed==='room'||wizardSteps(room).includes(resumed))?resumed:firstOpenStep(room)):'room';wz.note='';
     }
     if(!room)wz.step=wz.step==='template'?'template':'room';
     if(room&&!['room','template','remarkText','remarkClass','remarkPhoto'].includes(wz.step)&&!wizardSteps(room).includes(wz.step))wz.step=firstOpenStep(room);
@@ -875,7 +881,7 @@
     placePhoto();
     wizardRender(rooms);
     if(phase==='review')renderReview(rooms);
-    if(unit)state.field_progress[state.activeUnitId]={phase,room_id:state.activeRoomId};
+    if(unit)state.field_progress[state.activeUnitId]=phase==='visual'?{phase,room_id:state.activeRoomId,step:wz.step}:{phase,room_id:state.activeRoomId};
   }
   function selectRoom(index){
     const rooms=unitRooms();

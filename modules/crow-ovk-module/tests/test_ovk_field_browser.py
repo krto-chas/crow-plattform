@@ -256,3 +256,36 @@ def test_visual_round_resumes_room_and_skips_vent_question_for_ftx(
     assert flow.errors == []
     _validated_payload(flow.state("payload()"))
     context.close()
+
+
+def test_visual_round_resumes_on_the_open_question_after_reload(
+    field_url: str, browser: Any
+) -> None:
+    context = browser.new_context(
+        viewport={"width": 390, "height": 844}, is_mobile=True, has_touch=True
+    )
+    flow = _Flow(context.new_page())
+    flow.start(field_url)
+    flow.room("Badrum")
+    flow.page.click("[aria-label='Öka Frånluftsdon']")
+    flow.page.wait_for_function("state.measurements.length === 1")
+    flow.next("clean")
+    flow.answer("Rena", "transfer")
+
+    # Omladdning mitt i rummet: överluftsfrågan är obesvarad och ska visas igen,
+    # inte rummets sammanfattning.
+    flow.page.reload()
+    flow.page.wait_for_function("typeof state === 'object' && state.rooms.length === 1")
+    flow.page.click("#continueUnit")
+    flow.expect_step("transfer")
+    flow.answer("Nej", "fresh")
+
+    # Ett halvfärdigt anmärkningssteg återupptas på frågan om anmärkning.
+    flow.next("remark")
+    flow.answer("Ja, registrera anmärkning", "remarkText")
+    flow.page.reload()
+    flow.page.wait_for_function("typeof state === 'object' && state.rooms.length === 1")
+    flow.page.click("#continueUnit")
+    flow.expect_step("remark")
+    assert flow.errors == []
+    context.close()
