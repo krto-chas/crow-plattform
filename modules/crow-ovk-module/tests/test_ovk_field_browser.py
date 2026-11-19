@@ -175,7 +175,7 @@ def test_visual_round_runs_one_question_at_a_time_without_scrolling(
     flow.next("remark")
     # Svaret Smutsiga gör Smutsigt don till förvald anmärkning.
     flow.answer("Ja, registrera anmärkning", "remarkText")
-    assert flow.page.input_value("#ovkWzRemarkText") == "Smutsigt don"
+    assert flow.page.input_value("#ovkWzRemarkText") == "Smutsigt frånluftsdon"
     flow.next("remarkClass")
     flow.answer("1 · Bör åtgärdas", "remarkPhoto")
     flow.next("remark")
@@ -208,7 +208,7 @@ def test_visual_round_runs_one_question_at_a_time_without_scrolling(
     ]
     assert flow.state(
         "state.findings.map(f => [f.description, f.classification, f.defect_type].join('|'))"
-    ) == ["Badrum: Smutsigt don|1|contaminated_extract_terminal"]
+    ) == ["Badrum: Smutsigt frånluftsdon|1|contaminated_extract_terminal"]
 
     # Det som registrerats ska godtas av serverns validering vid synk.
     data = _validated_payload(flow.state("payload()"))
@@ -262,6 +262,12 @@ def test_visual_round_resumes_room_and_skips_vent_question_for_ftx(
     flow.answer("Smutsiga", "transfer")
     # FTX: ingen fråga om friskluftsventil.
     flow.answer("Ej kontrollerat", "remark")
+    # Rummet har bara tilluftsdon, så smutsigt tilluftsdon är förvalt.
+    flow.answer("Ja, registrera anmärkning", "remarkText")
+    assert flow.page.input_value("#ovkWzRemarkText") == "Smutsigt tilluftsdon"
+    assert flow.page.locator("#ovkWizard button:text-is('Smutsigt frånluftsdon')").count() == 0
+    flow.page.click("#footBack")
+    flow.expect_step("remark")
     flow.answer("Nej, inget att anmärka", "done")
 
     # Ändra svar: ta bort donet, då registreras att don saknas och renheten nollställs.
@@ -362,6 +368,7 @@ def test_key_overview_registers_receipt_and_return_method(field_url: str, browse
         page.evaluate("() => state.units.filter(unit => unit.key && unit.key.received).length") == 1
     )
     assert page.text_content("#ovkKeyReceiveAll") == "Bekräfta: ta emot 2"
+    assert page.evaluate("() => state.master_key.received_at") is not None
     page.click("#ovkKeyReceiveAll")
     page.wait_for_function("state.units.every(unit => unit.key && unit.key.received)")
     assert page.text_content("#ovkKeySummary") == "4 nycklar ute"
@@ -391,6 +398,39 @@ def test_key_overview_registers_receipt_and_return_method(field_url: str, browse
         "hand",
         "",
     ]
+
+    # Omladdning: huvudnyckeln och återlämningssätten ligger kvar i utkastet.
+    page.reload()
+    page.wait_for_function("typeof state === 'object' && state.units.length === 3")
+    assert page.evaluate("() => payload().master_key.received") is True
+    assert page.evaluate("() => state.units.map(unit => unit.key.returned_method)") == [
+        "mailbox",
+        "hand",
+        "",
+    ]
+    assert page.text_content("#ovkKeySummary") == "2 nycklar ute · 2 återlämnade"
+
+    # Lämna alla kräver två tryck och stämplar bara nycklar som är ute.
+    page.click("#ovkKeyToggle")
+    page.click("#ovkKeyReturnAllMailbox")
+    assert page.evaluate("() => state.master_key.returned") is False
+    page.click("#ovkKeyReturnAllMailbox")
+    page.wait_for_function("state.master_key.returned === true")
+    assert page.evaluate("() => state.units.map(unit => unit.key.returned_method)") == [
+        "mailbox",
+        "hand",
+        "mailbox",
+    ]
+    assert page.text_content("#ovkKeySummary") == "Alla 4 nycklar återlämnade"
+
+    # Ångra i två steg på huvudnyckeln: först återlämningen, sedan mottagandet.
+    master = page.locator("#ovkKeyList .ovk-key-row").nth(0)
+    master.locator("button:text-is('Ångra')").click()
+    page.wait_for_function("state.master_key.returned === false")
+    master.locator("button:text-is('Ångra')").click()
+    page.wait_for_function("state.master_key === null")
+    assert page.evaluate("() => 'master_key' in payload()") is False
+    _validated_payload(page.evaluate("() => payload()"))
     assert errors == []
     context.close()
 
@@ -422,4 +462,64 @@ def test_unit_key_card_asks_how_the_key_is_returned(field_url: str, browser: Any
     assert flow.state("state.units[0].key.returned_method") == ""
     assert flow.errors == []
     _validated_payload(flow.state("payload()"))
+    context.close()
+
+
+def test_measurement_round_skips_room_without_terminals_between_two_others(
+    field_url: str, browser: Any
+) -> None:
+    context = browser.new_context(
+        viewport={"width": 390, "height": 844}, is_mobile=True, has_touch=True
+    )
+    flow = _Flow(context.new_page())
+    flow.start(field_url)
+
+    def finish_room(name: str, terminals: int) -> None:
+        flow.room(name)
+        for _ in range(terminals):
+            flow.page.click("[aria-label='Öka Frånluftsdon']")
+        flow.page.wait_for_function(
+            "count => state.measurements.filter(point => point.room_id === state.activeRoomId)"
+            ".length === count",
+            arg=terminals,
+        )
+        for _ in range(6):
+            if flow.state("document.getElementById('ovkWizard').dataset.step") == "remark":
+                break
+            flow.page.click("#footDone")
+            flow.page.wait_for_timeout(150)
+        flow.answer("Nej, inget att anmärka", "done")
+
+    finish_room("Badrum", 1)
+    flow.answer("+ Nästa rum", "room")
+    finish_room("Hall", 0)
+    flow.answer("+ Nästa rum", "room")
+    finish_room("Kök", 1)
+
+    def active_room() -> Any:
+        return flow.state("activeRoom().name")
+
+    flow.page.click("#footDone")
+    flow.page.wait_for_function(
+        "document.getElementById('ovkStepTitle').textContent.includes('Varv 2')"
+    )
+    assert active_room() == "Badrum"
+    assert flow.page.text_content("#ovkStepCount") == "Rum 1 av 2"
+    assert flow.page.text_content("#footDone") == "Nästa rum"
+    flow.page.click("#footDone")
+    flow.page.wait_for_function("activeRoom().name === 'Kök'")
+    assert flow.page.text_content("#ovkStepCount") == "Rum 2 av 2"
+    assert flow.page.text_content("#footDone") == "Till slutkontroll"
+    flow.page.click("#footBack")
+    flow.page.wait_for_function("activeRoom().name === 'Badrum'")
+
+    # Omladdning mitt i mätvarvet återupptar på samma mätrum.
+    flow.page.reload()
+    flow.page.wait_for_function("typeof state === 'object' && state.rooms.length === 3")
+    flow.page.click("#continueUnit")
+    flow.page.wait_for_function(
+        "document.getElementById('ovkStepTitle').textContent.includes('Varv 2')"
+    )
+    assert active_room() == "Badrum"
+    assert flow.errors == []
     context.close()

@@ -78,3 +78,17 @@ def test_inspection_master_key_rejects_per_unit_master_note() -> None:
     with pytest.raises(HTTPException) as caught:
         _validated_payload(_payload(master_key=master))
     assert caught.value.status_code == 422
+
+
+def test_null_return_method_and_null_master_key_are_treated_as_absent() -> None:
+    data = _validated_payload(_payload(_key(returned_method=None), master_key=None))
+    assert data.master_key is None
+    assert data.units[0].key is not None
+    assert data.units[0].key.returned_method == ""
+
+
+@pytest.mark.parametrize("master_key", ["hand", 1, ["x"]])
+def test_master_key_must_be_an_object(master_key: Any) -> None:
+    with pytest.raises(HTTPException) as caught:
+        _validated_payload(_payload(master_key=master_key))
+    assert caught.value.status_code == 422

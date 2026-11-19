@@ -610,7 +610,8 @@
   const wz={step:'room',roomId:undefined,type:'general_damage_observation',text:'',note:''};
   const NO_VENT_ROOM=/^(hall|klädkammare|förråd|korridor|trapphus|städ|teknik)/i;
   const REMARK_TYPES=[
-    ['dirty_terminal','Smutsigt don'],
+    ['contaminated_extract_terminal','Smutsigt frånluftsdon'],
+    ['contaminated_supply_terminal','Smutsigt tilluftsdon'],
     ['missing_terminal','Don saknas'],
     ['kitchen_fan_central_system','Köksfläkt mot centralsystem'],
     ['window_vent_missing','Friskluftsventil saknas'],
@@ -803,7 +804,12 @@
       if(marks)body.append(el('p','ovk-wz-hint',marks+' anmärkning'+(marks>1?'ar':'')+' registrerad'+(marks>1?'e':'')+'.'));
       body.append(
         choice(marks?'Nej, inga fler':'Nej, inget att anmärka',false,()=>wizardGo('done')),
-        choice('Ja, registrera anmärkning',false,()=>{const dirty=check&&check.clean==='dirty';wz.type=dirty?'dirty_terminal':'general_damage_observation';wz.text=dirty?'Smutsigt don':'';return wizardGo('remarkText')},'warn')
+        choice('Ja, registrera anmärkning',false,()=>{
+          // Svarade man Smutsiga är smutsigt don förvalt, för den dontyp rummet har.
+          const dirty=check&&check.clean==='dirty'?REMARK_TYPES.find(([type])=>type===(typeCount(room,'franluftsdon')?'contaminated_extract_terminal':'contaminated_supply_terminal')):null;
+          wz.type=dirty?dirty[0]:'general_damage_observation';wz.text=dirty?dirty[1]:'';
+          return wizardGo('remarkText');
+        },'warn')
       );
     }else if(wz.step==='remarkText'){
       title.textContent='Vad gäller anmärkningen?';
@@ -814,16 +820,15 @@
       for(const [type,label] of REMARK_TYPES){
         if(type==='kitchen_fan_central_system'&&!kitchen)continue;
         if(type==='window_vent_missing'&&isFtx())continue;
-        if(type==='dirty_terminal'&&!terminalCount(room))continue;
+        if(type==='contaminated_extract_terminal'&&!typeCount(room,'franluftsdon'))continue;
+        if(type==='contaminated_supply_terminal'&&!typeCount(room,'tilluftsdon'))continue;
         grid.append(choice(label,wz.type===type,()=>{wz.type=type;if(type!=='general_damage_observation')wz.text=label;render()}));
       }
       body.append(grid,area);
     }else if(wz.step==='remarkClass'){
       title.textContent='Vilken klass har anmärkningen?';
       const pick=level=>async()=>{
-        // Smutsigt don lagras som från- eller tilluftsdon beroende på vad rummet har.
-        const defect=wz.type==='dirty_terminal'?(typeCount(room,'franluftsdon')?'contaminated_extract_terminal':'contaminated_supply_terminal'):wz.type;
-        const finding=addFinding(defect,SEVERITY[level],room.name+': '+wz.text.trim());
+        const finding=addFinding(wz.type,SEVERITY[level],room.name+': '+wz.text.trim());
         finding.classification=level;
         renderFindings();
         await wizardGo('remarkPhoto');
@@ -853,7 +858,7 @@
       const last=roomIndex>=rooms.length-1;
       if(last)body.append(choice('+ Nästa rum',false,()=>wizardGo('room')));
       body.append(choice('Ändra svar',false,()=>wizardGo('don'),'ghost'));
-      doneLabel=last?'Starta mätvarv':'Nästa rum';
+      doneLabel=last?(measureRooms().length?'Starta mätvarv':'Till slutkontroll'):'Nästa rum';
     }
     if(wz.note)body.append(el('p','ovk-wz-hint warn',wz.note));
     $id('footDone').textContent=doneLabel;
@@ -917,7 +922,7 @@
     const next=unit?nextPendingUnit(unit.unit_id):null;
     const nextLabel=!next?'Klar – till listan':'Klar – nästa '+(next.kind==='premises'?'lokal':'lägenhet')+' ('+(next.kind==='premises'&&next.label?next.label:next.number)+')';
     $id('ovkStepCount').textContent=phase==='review'?'Klart för granskning':phase==='setup'?'Förberedelse':!rooms.length?'Inga rum':phase==='measure'&&measureIndex>=0?'Rum '+(measureIndex+1)+' av '+measured.length:room?'Rum '+(roomIndex+1)+' av '+rooms.length:rooms.length+' rum · välj nästa';
-    $id('ovkStepFill').style.width=(phase==='review'?100:phase==='measure'?50+50*(roomIndex+1)/Math.max(1,rooms.length):phase==='visual'?50*(roomIndex+1)/Math.max(1,rooms.length):0)+'%';
+    $id('ovkStepFill').style.width=(phase==='review'?100:phase==='measure'?50+50*(Math.max(0,measureIndex)+1)/Math.max(1,measured.length):phase==='visual'?50*(roomIndex+1)/Math.max(1,rooms.length):0)+'%';
     $id('footBack').textContent=phase==='setup'?'Till listan':'Tillbaka';
     $id('footDone').textContent=phase==='review'?nextLabel:phase==='setup'?'Starta visuell kontroll':phase==='visual'?(lastRoom?'Starta mätvarv':'Nästa rum'):(lastRoom?'Till slutkontroll':'Nästa rum');
     $id('ovkNextRoomHeading').textContent=rooms.length?'Nästa rum i gångordning':'Lägg till första rummet';
@@ -1022,11 +1027,18 @@
     return list;
   }
   function receive(entry){const key=entry.ensure();key.received=true;key.received_at=now();key.returned=false;key.returned_at=null;key.returned_method=''}
-  function giveBack(entry,method){const key=entry.ensure();key.returned=true;key.returned_at=now();key.returned_method=method}
+  function giveBack(entry,method){
+    const key=entry.ensure();
+    // Servern avvisar en återlämnad nyckel som inte är mottagen, och då går hela synken inte igenom.
+    if(!key.received){key.received=true;key.received_at=key.received_at||now()}
+    key.returned=true;key.returned_at=now();key.returned_method=method;
+  }
   function undo(entry){
     const key=entry.ensure();
     if(key.returned){key.returned=false;key.returned_at=null;key.returned_method=''}
     else{key.received=false;key.received_at=null}
+    // En huvudnyckel som varken är mottagen eller återlämnad ska inte synkas som tom post.
+    if(entry.id==='master'&&!key.received)state.master_key=null;
   }
   function action(label,className,run){
     const button=document.createElement('button');
@@ -1038,7 +1050,7 @@
     const all=entries();
     const out=all.filter(entry=>held(entry.get()));
     const returned=all.filter(entry=>{const key=entry.get();return key&&key.returned}).length;
-    $id('ovkKeySummary').textContent=!out.length&&!returned?'Inga nycklar mottagna':out.length+(out.length===1?' nyckel':' nycklar')+' ute'+(returned?' · '+returned+' återlämnade':'');
+    $id('ovkKeySummary').textContent=!out.length&&!returned?'Inga nycklar mottagna':!out.length?'Alla '+returned+' nycklar återlämnade':out.length+(out.length===1?' nyckel':' nycklar')+' ute'+(returned?' · '+returned+' återlämnade':'');
     if($id('ovkKeyPanel').hidden)return;
     const onlyHeld=$id('ovkKeyOnlyHeld').checked;
     const list=$id('ovkKeyList');
@@ -1062,7 +1074,7 @@
       list.append(row);
     }
     if(!list.children.length){const empty=document.createElement('p');empty.className='room-progress';empty.textContent=onlyHeld?'Du har inga nycklar ute.':'Inga enheter upplagda än.';list.append(empty)}
-    const missing=all.filter(entry=>{const key=entry.get();return !key||!key.received}).length;
+    const missing=all.filter(entry=>{const key=entry.get();return entry.id!=='master'&&(!key||!key.received)}).length;
     $id('ovkKeyReceiveAll').hidden=!missing;
     $id('ovkKeyReceiveAll').textContent=armed==='receive'?'Bekräfta: ta emot '+missing:'Ta emot alla';
     $id('ovkKeyBulk').hidden=!out.length;
@@ -1081,7 +1093,7 @@
     renderKeyPanel();
   });
   $id('ovkKeyOnlyHeld').addEventListener('change',()=>{armed='';renderKeyPanel()});
-  $id('ovkKeyReceiveAll').addEventListener('click',()=>bulk('receive',()=>{for(const entry of entries()){const key=entry.get();if(!key||!key.received)receive(entry)}}));
+  $id('ovkKeyReceiveAll').addEventListener('click',()=>bulk('receive',()=>{for(const entry of entries()){const key=entry.get();if(entry.id!=='master'&&(!key||!key.received))receive(entry)}}));
   $id('ovkKeyReturnAllHand').addEventListener('click',()=>bulk('hand',()=>{for(const entry of entries())if(held(entry.get()))giveBack(entry,'hand')}));
   $id('ovkKeyReturnAllMailbox').addEventListener('click',()=>bulk('mailbox',()=>{for(const entry of entries())if(held(entry.get()))giveBack(entry,'mailbox')}));
   const originalRenderRond=renderRond;
