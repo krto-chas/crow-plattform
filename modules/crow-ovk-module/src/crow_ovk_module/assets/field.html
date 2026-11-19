@@ -127,6 +127,12 @@
     #viewStart .row{gap:10px;grid-template-columns:minmax(0,1fr) minmax(0,1fr)}
     #viewStart label{margin-top:8px}
     #viewStart #start{display:none}
+    #viewStart.ovk-start-collapsed>.card:not(#ovkContinueCard){display:none}
+    #ovkContinueCard[hidden]{display:none}
+    .ovk-draft-list{display:flex;flex-direction:column;gap:8px;margin:8px 0 10px}
+    .ovk-draft-text{display:flex;flex-direction:column;min-width:0}
+    .ovk-draft-text .sub{font-size:13px;color:var(--mut)}
+    #ovkContinueCard .btn{margin:6px 0 0}
     .ovk-more{margin-top:10px;border-top:1px solid var(--line)}
     .ovk-more>summary{min-height:44px;display:flex;align-items:center;font-size:14px;font-weight:650;color:var(--accent);cursor:pointer}
     .ovk-more.card{border-top:1px solid var(--line);margin-top:0;padding-top:4px!important;padding-bottom:4px!important}
@@ -1461,7 +1467,7 @@
     renderUnit();
     return true;
   }
-  view=function(name){originalView(name);if(name!=='viewUnit')document.body.classList.remove('ovk-unit-stepper');render()};
+  view=function(name){originalView(name);if(name!=='viewUnit')document.body.classList.remove('ovk-unit-stepper');if(name==='viewStart')void renderDrafts();render()};
   openUnit=function(id){
     const progress=(state.field_progress||{})[id];
     // Äldre utkast kan ha det borttagna försteget 'rooms': det motsvarar nu varv 1.
@@ -1503,6 +1509,65 @@
     $id('start').addEventListener('click',()=>{if(!$id('inspection').value.trim())more.open=true});
     const link=$id('workbenchLink');link.setAttribute('aria-label','Besiktningsunderlag');link.textContent='Underlag';
   })();
+  // ── Startsidan: Fortsätt eller Ny ────────────────────────────────────
+  // Lokalt sparade besiktningar listas först. Formuläret för en ny besiktning visas
+  // direkt bara när det inte finns något att fortsätta med.
+  const startView=$id('viewStart');
+  const continueCard=el('div','card');continueCard.id='ovkContinueCard';continueCard.hidden=true;
+  startView.prepend(continueCard);
+  let draftList=[];
+  let showAllDrafts=false;
+  const draftName=draft=>draft.assignment_name||draft.inspection_id;
+  const sameDraft=draft=>draft.project_id===state.project_id&&draft.inspection_id===state.inspection_id;
+  const startCollapsed=()=>startView.classList.contains('ovk-start-collapsed');
+  async function openDraft(draft){
+    if(!sameDraft(draft))await restoreLatest({project_id:draft.project_id,inspection_id:draft.inspection_id});
+    if(document.querySelector('.view.on').id==='viewStart'){
+      if(state.units.length||state.technical_spaces.length){renderRond();view('viewRond')}
+      else{startView.classList.remove('ovk-start-collapsed');updateFooter('viewStart')}
+    }
+  }
+  function newInspection(){
+    // Ett eget id gör att den nya besiktningen inte skriver i den som är öppen.
+    $id('inspection').value='ovk-'+new Date().toISOString().slice(0,10)+'-'+Math.random().toString(36).slice(2,6);
+    $id('inspection').dispatchEvent(new Event('input',{bubbles:true}));
+    $id('unitSeries').value='';
+    window.ovkNewInspectionChosen=true;
+    startView.classList.remove('ovk-start-collapsed');
+    updateFooter('viewStart');
+    $id('inspector').focus({preventScroll:true});
+  }
+  async function renderDrafts(){
+    try{draftList=await dbGetAll(DRAFT_STORE)}catch(_){draftList=[]}
+    draftList.sort((a,b)=>String(b.updated_at).localeCompare(String(a.updated_at)));
+    continueCard.replaceChildren();
+    continueCard.hidden=!draftList.length;
+    startView.classList.toggle('ovk-start-collapsed',draftList.length>0);
+    if(draftList.length){
+      continueCard.append(el('div','eyebrow','Fortsätt besiktning'));
+      const list=el('div','ovk-draft-list');
+      for(const draft of showAllDrafts?draftList:draftList.slice(0,3)){
+        const units=draft.units||[];
+        const checked=units.filter(unit=>unit.status==='ua'||unit.status==='anmarkning').length;
+        const row=el('button','ovk-wz-roomrow');row.type='button';row.dataset.inspection=draft.inspection_id;
+        const text=el('span','ovk-draft-text');
+        text.append(el('span','ovk-wz-roomname',draftName(draft)),el('span','sub',checked+'/'+units.length+' besiktigade'));
+        row.append(text,el('span','tag'+(draft.dirty?' anmarkning':' ua'),draft.dirty?'Ej synkad':'Synkad'));
+        row.addEventListener('click',()=>openDraft(draft));
+        list.append(row);
+      }
+      continueCard.append(list);
+      if(draftList.length>3&&!showAllDrafts){
+        const more=el('button','ovk-wz-link','Visa alla ('+draftList.length+')');more.type='button';more.id='ovkDraftsAll';
+        more.addEventListener('click',()=>{showAllDrafts=true;void renderDrafts()});
+        continueCard.append(more);
+      }
+      const fresh=el('button','btn ghost','+ Ny besiktning');fresh.type='button';fresh.id='ovkNewInspection';
+      fresh.addEventListener('click',newInspection);
+      continueCard.append(fresh);
+    }
+    if(document.querySelector('.view.on').id==='viewStart')updateFooter('viewStart');
+  }
   // Ronderingsvyn: nästa enhet ligger i sidfoten, synk bredvid.
   const footSync=$id('footSync');
   const footInner=$id('footDone').parentElement;
@@ -1512,7 +1577,11 @@
     footSync.hidden=!next;footInner.classList.toggle('three',Boolean(next));
     if(next){$id('footDone').textContent='Fortsätt · '+roundUnitLabel(next);$id('footBack').textContent='Start'}
     // På startsidan leder vänsterknappen tillbaka till OVK-modulens översikt.
-    if(name==='viewStart')$id('footBack').textContent='OVK-översikt';
+    if(name==='viewStart'){
+      $id('footBack').textContent='OVK-översikt';
+      const latest=startCollapsed()?draftList[0]:null;
+      if(latest)$id('footDone').textContent='Fortsätt · '+draftName(latest);
+    }
   }
   const originalFootBack=$id('footBack').onclick;
   $id('footBack').onclick=function(event){
@@ -1523,11 +1592,13 @@
   const originalFootDone=$id('footDone').onclick;
   $id('footDone').onclick=function(event){
     if(document.querySelector('.view.on').id==='viewRond'){const next=nextPendingUnit();if(next){openUnit(next.unit_id);return undefined}}
+    if(document.querySelector('.view.on').id==='viewStart'&&startCollapsed()&&draftList[0]){void openDraft(draftList[0]);return undefined}
     return originalFootDone.call(this,event);
   };
   const originalRenderRond=renderRond;
   renderRond=function(){originalRenderRond();if(document.querySelector('.view.on').id==='viewRond')roundFooter('viewRond')};
   updateFooter=function(name){originalUpdateFooter(name);roundFooter(name);if(name==='viewUnit')render()};
+  void renderDrafts();
   // Sidfoten ska stämma redan innan första vybytet.
   updateFooter(document.querySelector('.view.on').id);
   // ── Färdigbesiktigad enhet: varna innan den öppnas ───────────────────
