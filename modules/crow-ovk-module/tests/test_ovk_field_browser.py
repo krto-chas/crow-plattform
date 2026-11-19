@@ -127,7 +127,7 @@ class _Flow:
         self.page.click("#continueUnit")
         self.expect_step("room")
 
-    def expect_step(self, step: str) -> None:
+    def expect_step(self, step: str, controls: int = 1) -> None:
         self.page.wait_for_function(
             "step => document.getElementById('ovkWizard').dataset.step === step", arg=step
         )
@@ -137,7 +137,7 @@ class _Flow:
         assert view["cardOverflow"] <= 0, f"{step}: kortet scrollar {view['cardOverflow']} px"
         assert view["wizardOverflow"] <= 0, f"{step}: vyn scrollar {view['wizardOverflow']} px"
         assert view["pageOverflow"] <= 0, f"{step}: sidan scrollar {view['pageOverflow']} px"
-        assert view["controls"] >= 1
+        assert view["controls"] >= controls
 
     def answer(self, label: str, then: str) -> None:
         self.page.click(f"#ovkWizard button:text-is('{label}')")
@@ -237,7 +237,8 @@ def test_visual_round_runs_one_question_at_a_time_without_scrolling(
     assert flow.state("state.rooms.find(room => room.room_id === state.activeRoomId).name") == (
         "Badrum"
     )
-    assert flow.page.text_content("#ovkStepCount") == "Rum 1 av 1"
+    flow.expect_step("point")
+    assert flow.page.text_content("#ovkStepCount") == "0 av 1 don klara"
     assert flow.page.text_content("#footDone") == "Till slutkontroll"
     flow.page.click("#footDone")
     flow.page.wait_for_function(
@@ -514,11 +515,11 @@ def test_measurement_round_skips_room_without_terminals_between_two_others(
         "document.getElementById('ovkStepTitle').textContent.includes('Varv 2')"
     )
     assert active_room() == "Badrum"
-    assert flow.page.text_content("#ovkStepCount") == "Rum 1 av 2"
-    assert flow.page.text_content("#footDone") == "Nästa rum"
+    flow.expect_step("point")
+    assert flow.page.text_content("#ovkStepCount") == "0 av 2 don klara"
+    assert flow.page.text_content("#footDone") == "Nästa don"
     flow.page.click("#footDone")
     flow.page.wait_for_function("activeRoom().name === 'Kök'")
-    assert flow.page.text_content("#ovkStepCount") == "Rum 2 av 2"
     assert flow.page.text_content("#footDone") == "Till slutkontroll"
     flow.page.click("#footBack")
     flow.page.wait_for_function("activeRoom().name === 'Badrum'")
@@ -531,5 +532,184 @@ def test_measurement_round_skips_room_without_terminals_between_two_others(
         "document.getElementById('ovkStepTitle').textContent.includes('Varv 2')"
     )
     assert active_room() == "Badrum"
+    assert flow.errors == []
+    context.close()
+
+
+def test_measurement_round_takes_one_terminal_at_a_time(field_url: str, browser: Any) -> None:
+    context = browser.new_context(
+        viewport={"width": 375, "height": 667}, is_mobile=True, has_touch=True
+    )
+    flow = _Flow(context.new_page())
+    flow.start(field_url)
+
+    def visual_room(name: str, terminals: int) -> None:
+        flow.room(name)
+        for _ in range(terminals):
+            flow.page.click("[aria-label='Öka Frånluftsdon']")
+        flow.page.wait_for_function(
+            "count => state.measurements.filter(point => point.room_id === state.activeRoomId)"
+            ".length === count",
+            arg=terminals,
+        )
+        for _ in range(6):
+            if flow.state("document.getElementById('ovkWizard').dataset.step") == "remark":
+                break
+            flow.page.click("#footDone")
+            flow.page.wait_for_timeout(150)
+        flow.answer("Nej, inget att anmärka", "done")
+
+    visual_room("Badrum", 2)
+    flow.answer("+ Nästa rum", "room")
+    visual_room("Kök", 1)
+    flow.page.click("#footDone")
+    flow.expect_step("point")
+
+    def heading() -> str:
+        return (
+            (flow.page.text_content("#ovkWizard .ovk-wz-room") or "")
+            + " | "
+            + (flow.page.text_content("#ovkWizard .ovk-wz-title") or "")
+        )
+
+    def hint() -> str:
+        return flow.page.text_content("#ovkWzDeviation") or ""
+
+    # Utan tidigare besiktning visas ingen historik.
+    assert flow.page.locator("#ovkWzHistory").count() == 0
+
+    # Med tidigare mätvärden visas förra värdet för samma don och rummets historik.
+    flow.page.evaluate(
+        """() => {
+          const [first, second] = state.measurements;
+          state.previous_inspection_id = 'ovk-2023';
+          state.historical_measurements = [
+            {...first, measured_value: '14', measurable: true},
+            {...second, measurement_id: 'okand-punkt', measured_value: '9', measurable: true},
+          ];
+        }"""
+    )
+    # Ett steg bort och tillbaka ritar om mätvyn med historiken.
+    flow.answer("+ Don i rummet", "addPoint")
+    flow.page.click("#footBack")
+    flow.expect_step("point")
+    assert "Förra besiktningen: " in (flow.page.text_content("#ovkWizard") or "")
+    assert "14" in (flow.page.text_content("#ovkWizard") or "")
+    # Historikvyn är ren läsning: den har inga egna kontroller utöver sidfoten.
+    assert (flow.page.text_content("#ovkWzHistory") or "").endswith("Tidigare mätvärden (2)")
+    flow.page.click("#ovkWzHistory")
+    flow.expect_step("history", controls=0)
+    history = flow.page.text_content("#ovkWizard") or ""
+    assert "ovk-2023" in history
+    assert history.count("ingen säker donmatchning") == 1
+    flow.next("point")
+
+    # Don 1: mätvärde med decimalkomma och projekterat värde ger avvikelse.
+    assert heading() == "Badrum · Don 1 av 3 | Frånluft · Badrum 1"
+    assert flow.page.get_attribute("#ovkWzFlow", "inputmode") == "decimal"
+    flow.page.fill("#ovkWzFlow", "12,5")
+    flow.page.fill("#ovkWzDesigned", "15")
+    assert hint() == "Avvikelse mot projekterat: -2,5 l/s (-17 %)"
+
+    # Ogiltigt värde stoppar Nästa tills det rättats.
+    flow.page.fill("#ovkWzFlow", "tolv")
+    flow.page.click("#footDone")
+    flow.expect_step("point")
+    assert "inte ett giltigt flöde" in (flow.page.text_content("#ovkWizard") or "")
+    assert heading().startswith("Badrum · Don 1 av 3")
+    flow.page.fill("#ovkWzFlow", "12,5")
+    flow.page.click("#footDone")
+    flow.page.wait_for_function(
+        "document.querySelector('#ovkWizard .ovk-wz-room').textContent.includes('Don 2 av 3')"
+    )
+    flow.expect_step("point")
+    assert flow.page.text_content("#ovkStepCount") == "1 av 3 don klara"
+
+    # Don 2: summering per rum visas när rummet har flera don av samma typ.
+    flow.page.fill("#ovkWzFlow", "10")
+    assert hint() == "Rummet hittills: frånluft 22,5 l/s på 2 av 2 don"
+
+    # Ej mätbar kräver orsak och sparas som anmärkning på donet.
+    flow.answer("Ej mätbar", "reason")
+    flow.next("reason")
+    assert "Ange en orsak" in (flow.page.text_content("#ovkWizard") or "")
+    flow.answer("Ej åtkomligt", "reason")
+    flow.next("remarkPhoto")
+    flow.next("point")
+    assert "Ej mätbar: Ej åtkomligt" in (flow.page.text_content("#ovkWizard") or "")
+    assert flow.state(
+        "state.measurements.map(m => [m.measurable, m.measured_value, m.designed_value].join('/'))"
+    ) == ["true/12.5/15", "false//", "true//"]
+    assert flow.page.text_content("#ovkStepCount") == "2 av 3 don klara"
+
+    # Don 3 ligger i nästa rum; ett extra don läggs till och mäts direkt.
+    flow.page.click("#footDone")
+    flow.page.wait_for_function("activeRoom().name === 'Kök'")
+    flow.expect_step("point")
+    assert heading() == "Kök · Don 3 av 3 | Frånluft · Kök 1"
+    flow.page.fill("#ovkWzFlow", "20")
+    flow.answer("+ Don i rummet", "addPoint")
+    # System F: tilluftsdon erbjuds inte.
+    assert flow.page.locator("#ovkWizard button:text-is('Tilluftsdon')").count() == 0
+    flow.answer("Överluftsdon", "point")
+    assert heading().startswith("Kök · Don 4 av 4 | Överluft")
+    flow.page.fill("#ovkWzFlow", "8")
+
+    # Anmärkning från mätvyn bär donets namn och avvikande flöde som snabbval.
+    flow.answer("Anmärkning", "remarkText")
+    flow.answer("Avvikande luftflöde", "remarkText")
+    flow.next("remarkClass")
+    flow.answer("1 · Bör åtgärdas", "remarkPhoto")
+    flow.next("point")
+    findings = flow.state("state.findings.map(f => f.defect_type + '|' + f.description)")
+    assert findings[0] == "terminal_not_measurable|Badrum: Badrum 2 ej mätbart – Ej åtkomligt"
+    assert findings[1].startswith("incorrect_airflow|Kök: ")
+    assert findings[1].endswith(" – Avvikande luftflöde")
+
+    data = _validated_payload(flow.state("payload()"))
+    assert [str(item.measured_value) for item in data.measurements] == [
+        "12.5",
+        "None",
+        "20",
+        "8",
+    ]
+    assert str(data.measurements[0].designed_value) == "15"
+    assert data.measurements[1].measurable is False
+
+    # Omladdning återupptar på samma don, och Tillbaka går ett don i taget.
+    _reload_after_save(flow.page)
+    flow.page.wait_for_function("typeof state === 'object' && state.rooms.length === 2")
+    flow.page.click("#continueUnit")
+    flow.expect_step("point")
+    assert heading().startswith("Kök · Don 4 av 4")
+    assert flow.page.input_value("#ovkWzFlow") == "8"
+    flow.page.click("#footBack")
+    flow.page.wait_for_function(
+        "document.querySelector('#ovkWizard .ovk-wz-room').textContent.includes('Don 3 av 4')"
+    )
+    flow.page.click("#footBack")
+    flow.page.wait_for_function("activeRoom().name === 'Badrum'")
+    flow.expect_step("point")
+    assert heading().startswith("Badrum · Don 2 av 4")
+    # Ångra ej mätbar gör donet mätbart igen.
+    flow.answer("Ångra – donet går att mäta", "point")
+    assert flow.state("state.measurements[1].measurable") is True
+    # Anmärkningen som skapades för det ej mätbara donet följer med bort.
+    assert flow.state("state.measurements[1].finding_id") is None
+    assert flow.state("state.findings.map(f => f.defect_type)") == ["incorrect_airflow"]
+    _validated_payload(flow.state("payload()"))
+
+    # Framåt från sista donet leder till slutkontrollen, och Tillbaka därifrån till sista donet.
+    for _ in range(2):
+        flow.page.click("#footDone")
+        flow.page.wait_for_timeout(200)
+    assert flow.page.text_content("#footDone") == "Till slutkontroll"
+    flow.page.click("#footDone")
+    flow.page.wait_for_function(
+        "document.getElementById('ovkStepTitle').textContent.includes('Slutkontroll')"
+    )
+    flow.page.click("#footBack")
+    flow.expect_step("point")
+    assert heading().startswith("Kök · Don 4 av 4")
     assert flow.errors == []
     context.close()
