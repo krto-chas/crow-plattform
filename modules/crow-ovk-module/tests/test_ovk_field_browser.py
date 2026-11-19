@@ -1285,6 +1285,22 @@ def test_premises_are_inspected_room_by_room_in_one_pass(field_url: str, browser
     )
     assert (page.text_content("#ovkWizard .ovk-wz-room") or "") == "Mötesrum Alfa"
 
+    # Ett don utan värde nås direkt från klarsteget, även utan sparat varvläge.
+    assert page.locator("#ovkWzMeasureRoom").count() == 0
+    page.evaluate(
+        """() => { state.measurements[1].measured_value = null;
+          delete state.field_progress[state.activeUnitId]; renderUnit(); }"""
+    )
+    flow.expect_step("done")
+    assert page.text_content("#ovkWzMeasureRoom") == "Mät rummets don (1 kvar)"
+    page.click("#ovkWzMeasureRoom")
+    flow.expect_step("point")
+    assert "Don 2 av 2" in (page.text_content("#ovkWizard .ovk-wz-room") or "")
+    page.fill("#ovkWzFlow", "18")
+    flow.next("remark")
+    flow.answer("Nej, inget att anmärka", "done")
+    assert page.locator("#ovkWzMeasureRoom").count() == 0
+
     # Rum 2 utan don: mätmomentet hoppas över.
     flow.next("room")
     page.fill("#ovkWzRoomName", "Förråd väst")

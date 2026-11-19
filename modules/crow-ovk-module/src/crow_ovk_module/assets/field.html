@@ -1129,6 +1129,10 @@
       for(const line of lines)list.append(el('li','',line));
       body.append(list);
       const last=roomIndex>=rooms.length-1;
+      // Don utan värde (t.ex. utkast hämtat på annan enhet mitt i mätningen) nås direkt
+      // härifrån, utan att kontrollfrågorna behöver gås igenom igen.
+      const unmeasured=singlePass()?roomPoints(room).filter(pendingPoint).length:0;
+      if(unmeasured){const measure=choice('Mät rummets don ('+unmeasured+' kvar)',false,()=>enterRoomMeasure(room,false));measure.id='ovkWzMeasureRoom';body.append(measure)}
       if(last&&singlePass())body.append(choice('Alla rum klara – till slutkontroll',false,async()=>{phase='review';render();await persist()}));
       else if(last)body.append(choice('+ Nästa rum',false,()=>wizardGo('room')));
       const edit=el('div','ovk-wz-grid');
