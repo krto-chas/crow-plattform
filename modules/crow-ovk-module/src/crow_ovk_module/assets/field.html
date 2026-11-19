@@ -795,7 +795,34 @@
     const room=activeRoom();if(!room)return;
     const list=wizardSteps(room);
     const index=list.indexOf(wz.step);
-    await wizardGo(list[Math.min(list.length-1,index+1)]||'done');
+    const next=list[Math.min(list.length-1,index+1)]||'done';
+    if(singlePass()&&next==='remark'&&wz.step!=='remark'&&roomPoints(room).length){await enterRoomMeasure(room,false);return}
+    await wizardGo(next);
+  }
+  // ── Lokal: ett rum i taget ───────────────────────────────────────────
+  // I lokaler görs kontroll och mätning i samma svep: efter rummets kontrollfrågor
+  // mäts rummets don, sedan anmärkningar, sedan nästa rum. Mätvyn är densamma som
+  // i lägenheternas varv 2; bara ordningen skiljer.
+  const singlePass=()=>{const unit=activeUnit();return Boolean(unit&&unit.kind==='premises')};
+  async function enterRoomMeasure(room,fromEnd){
+    const points=roomPoints(room);
+    phase='measure';wz.measureUnitId=state.activeUnitId;
+    wz.pointId=(fromEnd?points[points.length-1]:points.find(pendingPoint)||points[0]).measurement_id;
+    wz.step='point';wz.note='';
+    render();await persist();
+  }
+  async function leaveRoomMeasure(step){
+    phase='visual';wz.unitId=state.activeUnitId;wz.roomId=state.activeRoomId;
+    wz.step=step;wz.note='';
+    render();await persist();
+  }
+  async function renameRoom(room){
+    const answer=await askSheet({title:'Byt namn på rummet',note:'Don, mätvärden och anmärkningar följer med.',fields:[{id:'name',label:'Rumsnamn',value:room.name,required:true,maxLength:80}],submitLabel:'Spara namn'});
+    if(!answer||answer.name===room.name)return;
+    if(unitRooms().some(item=>item!==room&&item.name.toLocaleLowerCase('sv')===answer.name.toLocaleLowerCase('sv'))){wz.note='Det finns redan ett rum som heter '+answer.name+'.';render();return}
+    room.name=answer.name;
+    for(const finding of state.findings)if(finding.unit_id===room.unit_id&&finding.room_id===room.room_id)finding.room_name=room.name;
+    wz.note='';renderUnit();render();await persist();
   }
   async function addTerminal(type){
     const button=document.querySelector('[data-point="'+type+'"]');
@@ -1010,7 +1037,7 @@
       );
       doneLabel=taken?'Klar':'Hoppa över';
     }else if(wz.step==='point'&&point){
-      const points=measurePoints();
+      const points=singlePass()?roomPoints(room):measurePoints();
       const index=points.indexOf(point);
       head.textContent=room.name+' · Don '+(index+1)+' av '+points.length;
       title.textContent=POINT_LABEL[point.point_type]+' · '+point.point_label;
@@ -1056,7 +1083,7 @@
         }
         body.append(extras);
       }
-      doneLabel=index>=points.length-1?'Till slutkontroll':'Nästa don';
+      doneLabel=index<points.length-1?'Nästa don':singlePass()?'Till anmärkningar':'Till slutkontroll';
     }else if(wz.step==='reason'&&point){
       head.textContent=room.name+' · '+point.point_label;
       title.textContent='Varför går donet inte att mäta?';
@@ -1085,7 +1112,7 @@
       body.append(choice('Överluftsdon',false,add('overluftsdon')),el('p','ovk-wz-hint','Donet läggs till i '+room.name+' och mäts direkt.'));
       doneLabel='Avbryt';
     }else{
-      title.textContent='Rummet är kontrollerat';
+      title.textContent=singlePass()?'Rummet är klart':'Rummet är kontrollerat';
       const lines=[];
       const extract=typeCount(room,'franluftsdon'),supply=typeCount(room,'tilluftsdon');
       lines.push(extract+supply?['Frånluft '+extract,'Tilluft '+supply].join(' · '):'Don saknas');
@@ -1094,13 +1121,25 @@
       if(needsFresh(room))lines.push(roomVent(room)||(check&&check.fresh)?'Friskluftsventiler: '+ventCount(room):'Friskluftsventil ej kontrollerad');
       const marks=state.findings.filter(item=>item.unit_id===state.activeUnitId&&item.room_id===room.room_id).length;
       lines.push(marks?marks+' anmärkning'+(marks>1?'ar':''):'Inga anmärkningar');
+      if(singlePass()){
+        const points=roomPoints(room);
+        if(points.length)lines.push('Mätt '+points.filter(item=>!pendingPoint(item)).length+' av '+points.length+' don');
+      }
       const list=el('ul','ovk-wz-summary');
       for(const line of lines)list.append(el('li','',line));
       body.append(list);
       const last=roomIndex>=rooms.length-1;
-      if(last)body.append(choice('+ Nästa rum',false,()=>wizardGo('room')));
-      body.append(choice('Ändra svar',false,()=>wizardGo('don'),'ghost'));
-      doneLabel=last?(measureRooms().length?'Starta mätvarv':'Till slutkontroll'):'Nästa rum';
+      // Don utan värde (t.ex. utkast hämtat på annan enhet mitt i mätningen) nås direkt
+      // härifrån, utan att kontrollfrågorna behöver gås igenom igen.
+      const unmeasured=singlePass()?roomPoints(room).filter(pendingPoint).length:0;
+      if(unmeasured){const measure=choice('Mät rummets don ('+unmeasured+' kvar)',false,()=>enterRoomMeasure(room,false));measure.id='ovkWzMeasureRoom';body.append(measure)}
+      if(last&&singlePass())body.append(choice('Alla rum klara – till slutkontroll',false,async()=>{phase='review';render();await persist()}));
+      else if(last)body.append(choice('+ Nästa rum',false,()=>wizardGo('room')));
+      const edit=el('div','ovk-wz-grid');
+      const rename=choice('Byt namn',false,()=>renameRoom(room),'ghost');rename.id='ovkWzRename';
+      edit.append(choice('Ändra svar',false,()=>wizardGo('don'),'ghost'),rename);
+      body.append(edit);
+      doneLabel=!last?'Nästa rum':singlePass()?'+ Nästa rum':measureRooms().length?'Starta mätvarv':'Till slutkontroll';
     }
     if(wz.note)body.append(el('p','ovk-wz-hint warn',wz.note));
     $id('footDone').textContent=doneLabel;
@@ -1119,6 +1158,7 @@
     const room=activeRoom();
     if(wz.step==='template'){await wizardGo('room');return true}
     if(!unitRooms().length){wz.note='Lägg till minst ett rum innan mätvarvet startar.';render();return true}
+    if(wz.step==='done'&&singlePass()&&roomIndex>=unitRooms().length-1){await wizardGo('room');return true}
     if(wz.step==='room'||!room||wz.step==='done')return false;
     if(wz.step==='don')commitTerminals();
     if(wz.step==='fresh'&&!roomVent(room))await setVentCount(room,0);
@@ -1145,6 +1185,7 @@
     const list=wizardSteps(room);
     const index=list.indexOf(wz.step);
     if(index<=0)return false;
+    if(singlePass()&&wz.step==='remark'&&roomPoints(room).length){await enterRoomMeasure(room,true);return true}
     await wizardGo(list[index-1]);
     return true;
   }
@@ -1221,6 +1262,12 @@
     if(point.measurable!==false&&filled(point.measured_value)&&!validFlowValue(point.measured_value)){wz.note='Mätvärdet är inte ett giltigt flöde. Rätta eller töm fältet.';render();return true}
     if(filled(point.designed_value)&&!validFlowValue(point.designed_value)){wz.note='Projekterat värde är inte ett giltigt flöde. Rätta eller töm fältet.';render();return true}
     updateUnitProgress();
+    if(singlePass()){
+      const inRoom=roomPoints(room);
+      const at=inRoom.indexOf(point);
+      if(at>=0&&at<inRoom.length-1)await measureGoto(inRoom[at+1]);else await leaveRoomMeasure('remark');
+      return true;
+    }
     const index=points.indexOf(point);
     if(index<points.length-1){await measureGoto(points[index+1]);return true}
     return false;
@@ -1232,6 +1279,14 @@
     if(wz.step==='remarkClass'){await wizardGo('remarkText');return true}
     if(wz.step==='remarkPhoto'){clearFindingSelection();await wizardGo('point');return true}
     if(wz.step!=='point'){await wizardGo('point');return true}
+    if(singlePass()){
+      const room=activeRoom();
+      const inRoom=room?roomPoints(room):[];
+      const at=inRoom.indexOf(point);
+      if(at>0){wz.fromEnd=true;await measureGoto(inRoom[at-1])}
+      else{const list=room?wizardSteps(room):['don'];await leaveRoomMeasure(list[Math.max(0,list.indexOf('remark')-1)])}
+      return true;
+    }
     const index=points.indexOf(point);
     if(index<=0)return false;
     wz.fromEnd=true;
@@ -1254,7 +1309,7 @@
     const lastRoom=phase==='measure'?measureIndex>=measured.length-1:!room||roomIndex>=rooms.length-1;
     const step=STEP[phase];
     cards.forEach((card,index)=>{const active=index===step;card.classList.toggle('ovk-step-active',active);card.setAttribute('aria-hidden',String(!active));if('inert' in card)card.inert=!active});
-    const title=phase==='measure'?'Varv 2 · Flödesmätning':phase==='visual'?'Varv 1 · Visuell kontroll':phase==='review'?'Slutkontroll':(premises?'Lokal och nycklar':'Lägenhet och nycklar');
+    const title=premises&&phase==='measure'?'Mätning i rummet':premises&&phase==='visual'?'Rum för rum':phase==='measure'?'Varv 2 · Flödesmätning':phase==='visual'?'Varv 1 · Visuell kontroll':phase==='review'?'Slutkontroll':(premises?'Lokal och nycklar':'Lägenhet och nycklar');
     const unitName=!unit?'':premises?(unit.label||unit.number):'Lgh '+unit.number;
     $id('ovkStepTitle').textContent=(unitName?unitName+' · ':'')+title;
     $id('ovkReviewHeading').textContent='Överblick'+(unitName?' · '+unitName:'');
@@ -1444,8 +1499,10 @@
       $id('ovkRoomFlowStatus').textContent='Lägg till minst ett rum innan mätvarvet startar.';
       return;
     }
+    else if(phase==='measure'&&singlePass())phase='visual';
     else if(phase==='measure'){const next=measureNeighbour(1);if(next)selectMeasureRoom(next);else phase='review'}
     else if(!lastRoom)selectRoom(roomIndex+1);
+    else if(phase==='visual'&&singlePass())phase='review';
     else if(phase==='visual'){phase='measure';selectRoom(0);wz.pointId=null;const first=measureRooms()[0];if(first)selectMeasureRoom(first);else phase='review'}
     else phase='review';
     render();
@@ -1457,7 +1514,9 @@
     if(phase==='visual'&&await wizardBack())return;
     if(phase==='measure'&&await measureBack())return;
     const rooms=unitRooms();
-    if(phase==='review'){const measured=measureRooms();if(measured.length){phase='measure';wz.fromEnd=true;wz.pointId=null;selectMeasureRoom(measured[measured.length-1])}else{phase='visual';selectRoom(Math.max(0,rooms.length-1))}}
+    if(phase==='review'&&singlePass()){phase='visual';selectRoom(Math.max(0,rooms.length-1))}
+    else if(phase==='measure'&&singlePass())phase='visual';
+    else if(phase==='review'){const measured=measureRooms();if(measured.length){phase='measure';wz.fromEnd=true;wz.pointId=null;selectMeasureRoom(measured[measured.length-1])}else{phase='visual';selectRoom(Math.max(0,rooms.length-1))}}
     else if(phase==='measure'){const previous=measureNeighbour(-1);if(previous)selectMeasureRoom(previous);else{phase='visual';selectRoom(Math.max(0,rooms.length-1))}}
     else if(activeRoom()&&roomIndex>0)selectRoom(roomIndex-1);
     else phase='setup';
