@@ -1960,7 +1960,25 @@ def test_system_type_is_chosen_explicitly_and_can_be_corrected(
     page.wait_for_function("state.system_type === 'FTX'")
     assert page.text_content("#roundSystemBtn") == "System: FTX · tilluftsdon · ändra"
     assert page.input_value("#systemType") == "FTX"
-    # Valet ligger i det lokala utkastet och överlever omladdning.
+    # Ett uppdrag från kontoret vars tillåtna systemtyper inte är inlästa erbjuder inget
+    # byte, och ett inläst uppdrag erbjuder bara sina egna typer.
+    page.evaluate("() => { state.assignment_name = 'Brf Exempel'; renderRond(); }")
+    assert page.text_content("#roundSystemBtn") == "System: FTX · tilluftsdon"
+    assert page.is_disabled("#roundSystemBtn")
+    page.evaluate(
+        """() => { for (const option of document.getElementById('systemType').options)
+            option.disabled = !['FT', 'FTX'].includes(option.value);
+          renderRond(); }"""
+    )
+    page.click("#roundSystemBtn")
+    assert page.locator("#ovkSheet [data-sheet-choice]").count() == 2
+    page.click("#ovkSheet [data-sheet-cancel]")
+    page.evaluate(
+        """() => { for (const option of document.getElementById('systemType').options)
+            option.disabled = false;
+          state.assignment_name = ''; renderRond(); }"""
+    )
+
     _reload_after_save(page)
     page.wait_for_function("typeof state === 'object' && state.units.length === 1")
     assert page.evaluate("() => state.system_type") == "FTX"

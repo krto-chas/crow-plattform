@@ -1585,7 +1585,15 @@
   // Systemtypen avgör om tilluftsdon eller friskluftsventiler efterfrågas. Den visas i
   // ronderingsvyn och kan rättas där, bland de typer uppdraget tillåter.
   const SYSTEM_LABEL={F:'F – frånluft',S:'S – självdrag',FX:'FX – frånluft med återvinning',FT:'FT – från- och tilluft',FTX:'FTX – från- och tilluft med återvinning'};
-  const allowedSystems=()=>[...$id('systemType').options].filter(option=>option.value&&!option.disabled).map(option=>option.value);
+  // Ett uppdrag från kontoret tillåter bara sina egna systemtyper, och servern avvisar
+  // andra. Begränsningen är känd först när uppdraget lästs in (då är övriga val spärrade);
+  // återställs ett lokalt utkast utan den läsningen erbjuds därför inget byte.
+  function allowedSystems(){
+    const options=[...$id('systemType').options].filter(option=>option.value);
+    const restricted=options.some(option=>option.disabled);
+    if(state.assignment_name&&!restricted)return state.system_type?[state.system_type]:[];
+    return options.filter(option=>!option.disabled).map(option=>option.value);
+  }
   function renderRoundSystem(){
     const button=$id('roundSystemBtn');
     const supply=state.system_type==='FT'||state.system_type==='FTX';
