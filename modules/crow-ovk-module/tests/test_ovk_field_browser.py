@@ -2275,20 +2275,23 @@ def test_keys_are_numbered_in_reception_order_and_returned_top_down(
     assert tags()["1101"] == 2
 
     # Fel bricka rättas, men två lägenheter kan inte få samma nummer.
+    # Felet visas i bladet, som stannar öppet så att inmatningen inte går förlorad.
     page.click(f"[data-key-tag='{ids['1102']}']")
     page.fill("#ovkSheet_tag", "3")
     page.click("#ovkSheet [data-sheet-submit]")
-    assert "Nr 3 används redan av lgh 1301" in (page.text_content("#ovkKeyStatus") or "")
+    assert "Nr 3 används redan av lgh 1301" in (page.text_content("#ovkSheet") or "")
+    assert page.is_visible("#ovkSheet .ovk-sheet-status")
     assert tags()["1102"] == 4
-    page.click(f"[data-key-tag='{ids['1102']}']")
     page.fill("#ovkSheet_tag", "abc")
     page.click("#ovkSheet [data-sheet-submit]")
-    assert "heltal från 1 till 999" in (page.text_content("#ovkKeyStatus") or "")
-    page.click(f"[data-key-tag='{ids['1102']}']")
+    assert "heltal från 1 till 999" in (page.text_content("#ovkSheet") or "")
+    page.fill("#ovkSheet_tag", "0")
+    page.click("#ovkSheet [data-sheet-submit]")
+    assert "heltal från 1 till 999" in (page.text_content("#ovkSheet") or "")
     page.fill("#ovkSheet_tag", "9")
     page.click("#ovkSheet [data-sheet-submit]")
     page.wait_for_function("state.units.find(unit => unit.number === '1102').key.tag === 9")
-    assert (page.text_content("#ovkKeyStatus") or "") == ""
+    assert page.locator("#ovkSheet").count() == 0
 
     # Rättas ett nummer upp till taket fortsätter numreringen på lägsta lediga nummer,
     # och en mottagen nyckel utan nummer kan alltid numreras för hand.
@@ -2311,6 +2314,21 @@ def test_keys_are_numbered_in_reception_order_and_returned_top_down(
     page.click("#ovkSheet [data-sheet-submit]")
     page.wait_for_function("state.units.find(unit => unit.number === '1301').key.tag === 3")
 
+    # En enhet som öppnats med huvudnyckel har ingen egen nyckel: återlämning från
+    # enhetskortet delar inte ut något nummer.
+    page.evaluate(
+        """async () => { const unit = state.units.find(u => u.number === '1101');
+          const saved = unit.key;
+          unit.key = {received: false, received_at: null, returned: false, returned_at: null,
+            master_key_used: true, master_key_note: 'Lånad', returned_method: '', state: ''};
+          state.activeUnitId = unit.unit_id;
+          await returnActiveKey('hand');
+          window.masterOnlyTag = unit.key.tag === undefined ? null : unit.key.tag;
+          unit.key = saved; state.activeUnitId = null; await persist(); }"""
+    )
+    assert page.evaluate("() => window.masterOnlyTag") is None
+
+    # Enhetskortet visar numret.
     page.click("#ovkKeyToggle")
     page.click("#unitList [data-unit] >> text=1201")
     page.wait_for_function("document.getElementById('ovkWizard').dataset.step === 'room'")
@@ -2335,6 +2353,38 @@ def test_keys_are_numbered_in_reception_order_and_returned_top_down(
         "Lgh 1102 · nr 9",
         "Huvudnyckel",
     ]
+    # Lokaler och nummer utan våningsplan ligger efter lägenheterna, huvudnyckeln sist.
+    page.evaluate(
+        """() => { const stamp = new Date().toISOString();
+          const key = tag => ({received: true, received_at: stamp, returned: false,
+            returned_at: null, master_key_used: false, master_key_note: '',
+            returned_method: '', state: '', tag});
+          state.units.unshift(
+            {unit_id: 'u-lokal', inspection_id: state.inspection_id, number: 'L2',
+             kind: 'premises', label: 'Tvättstuga', status: 'ej_paborjad', checked_at: null,
+             bom_at: null, bom_note: '', key: key(21), system_type: null},
+            {unit_id: 'u-udda', inspection_id: state.inspection_id, number: '901',
+             kind: 'apartment', label: '', status: 'ej_paborjad', checked_at: null,
+             bom_at: null, bom_note: '', key: key(22), system_type: null});
+          renderRond(); }"""
+    )
+    mixed = page.evaluate(
+        "() => [...document.querySelectorAll('#ovkKeyList .ovk-key-row strong')]"
+        ".map(node => node.textContent)"
+    )
+    assert mixed == [
+        "Lgh 1301 · nr 3",
+        "Lgh 1201 · nr 1",
+        "Lgh 1101 · nr 2",
+        "Lgh 1102 · nr 9",
+        "Lgh 901 · nr 22",
+        "Tvättstuga · nr 21",
+        "Huvudnyckel",
+    ]
+    page.evaluate(
+        """() => { state.units = state.units.filter(
+            unit => !['u-lokal', 'u-udda'].includes(unit.unit_id)); renderRond(); }"""
+    )
     page.click(row("1301") + " button:text-is('Brevlåda')")
     assert "Lgh 1301" not in (page.text_content("#ovkKeyList") or "")
     assert (

@@ -166,7 +166,7 @@
     #viewRond .round-toolbar{grid-template-columns:repeat(auto-fit,minmax(0,1fr));gap:8px;margin:10px 0 4px}
     #viewRond .round-toolbar label{font-size:12px;margin:0 0 2px}
     #viewRond .round-toolbar input,#viewRond .round-toolbar select{padding-left:8px;padding-right:4px;font-size:15px}
-    .ovk-key-tag{min-height:32px;padding:2px 0;font-size:12.5px;text-align:left}
+    .ovk-key-tag{min-height:44px;padding:4px 12px 4px 0;font-size:13px;text-align:left}
     .ovk-access-row{grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:8px;margin-top:8px}
     /* Blad med textfält läggs överst: telefonens tangentbord täcker annars fält och knappar. */
     .ovk-sheet.typed{align-items:flex-start}
@@ -1919,7 +1919,7 @@
   function action(label,className,run){
     const button=document.createElement('button');
     button.type='button';button.textContent=label;if(className)button.className=className;
-    button.addEventListener('click',async()=>{armed='';run();renderKeyPanel();
+    button.addEventListener('click',async()=>{armed='';$id('ovkKeyStatus').textContent='';run();renderKeyPanel();
       // Enhetslistans "Nyckel ute" ska följa nyckelöversikten direkt.
       if(typeof renderRoundUnits==='function')renderRoundUnits();
       if(state.activeUnitId&&typeof renderKeys==='function'&&activeUnit())renderKeys();await persist()});
@@ -1935,8 +1935,12 @@
     const list=$id('ovkKeyList');
     list.replaceChildren();
     // Återlämningsrundan går uppifrån och ned i trapphuset: högsta våningsplan först.
+    // Lägenheter med våningsplan först (högst upp först), sedan övriga enheter i nummerordning,
+    // och huvudnyckeln sist: den lämnas inte i någon brevlåda.
     const floorOf=entry=>entry.unit?unitFloor(entry.unit):'';
-    const shown=onlyHeld?all.filter(entry=>held(entry.get())).sort((a,b)=>floorOf(b).localeCompare(floorOf(a))||String(a.unit?a.unit.number:'').localeCompare(String(b.unit?b.unit.number:''),'sv',{numeric:true})):all;
+    const group=entry=>!entry.unit?2:floorOf(entry)?0:1;
+    const numberOf=entry=>String(entry.unit?entry.unit.number:'');
+    const shown=onlyHeld?all.filter(entry=>held(entry.get())).sort((a,b)=>group(a)-group(b)||floorOf(b).localeCompare(floorOf(a))||numberOf(a).localeCompare(numberOf(b),'sv',{numeric:true})):all;
     for(const entry of shown){
       const key=entry.get();
       const row=document.createElement('div');
@@ -1972,14 +1976,15 @@
   // Fel bricka på nyckeln: numret kan rättas, men två enheter får aldrig samma nummer.
   async function changeKeyTag(entry){
     const key=entry.ensure();
-    const answer=await askSheet({title:'Nyckelns nummer',note:entry.name.split(' · ')[0]+'. Numret på brickan du fäst på nyckeln.',fields:[{id:'tag',label:'Nummer',value:String(key.tag||''),required:true,inputMode:'numeric',maxLength:3}],submitLabel:'Spara nummer'});
+    const check=values=>{
+      const value=Number(values.tag);
+      if(!/^\d{1,3}$/.test(values.tag)||value<1||value>KEY_TAG_MAX)return 'Numret ska vara ett heltal från 1 till '+KEY_TAG_MAX+'.';
+      const taken=state.units.find(unit=>unit!==entry.unit&&unit.key&&unit.key.tag===value);
+      return taken?'Nr '+value+' används redan av '+(taken.kind==='premises'?(taken.label||'lokal '+taken.number):'lgh '+taken.number)+'.':'';
+    };
+    const answer=await askSheet({title:'Nyckelns nummer',note:entry.name.split(' · ')[0]+'. Numret på brickan du fäst på nyckeln.',fields:[{id:'tag',label:'Nummer',value:String(key.tag||''),required:true,inputMode:'numeric',maxLength:3}],submitLabel:'Spara nummer',validate:check});
     if(!answer)return;
-    const value=Number(answer.tag);
-    const status=$id('ovkKeyStatus');
-    if(!/^\d{1,3}$/.test(answer.tag)||value<1||value>KEY_TAG_MAX){status.textContent='Numret ska vara ett heltal från 1 till '+KEY_TAG_MAX+'.';return}
-    const taken=state.units.find(unit=>unit!==entry.unit&&unit.key&&unit.key.tag===value);
-    if(taken){status.textContent='Nr '+value+' används redan av '+(taken.kind==='premises'?(taken.label||'lokal '+taken.number):'lgh '+taken.number)+'.';return}
-    key.tag=value;status.textContent='';
+    key.tag=Number(answer.tag);
     renderKeyPanel();if(typeof renderRoundUnits==='function')renderRoundUnits();
     await persist();
   }
