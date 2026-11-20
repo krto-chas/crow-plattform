@@ -2095,7 +2095,10 @@ def test_field_work_is_reviewed_and_finished_from_the_round_view(
     page.wait_for_selector("#ovkFinishView")
     found = sections()
     assert "Måste åtgärdas först" not in found
-    assert "Lgh 1102 – ingen tillgång (BOM): Ingen hemma" in found["Kräver uppmärksamhet"]
+    assert (
+        "Lgh 1102 – ingen tillgång (BOM): Ingen hemma · återbesök krävs"
+        in found["Kräver uppmärksamhet"]
+    )
     assert page.is_enabled("#ovkFinishConfirm")
     page.click("#ovkFinishConfirm")
     assert "Skriv vilka enheter" in (page.text_content("#ovkFinishMsg") or "")
@@ -2111,6 +2114,13 @@ def test_field_work_is_reviewed_and_finished_from_the_round_view(
     assert "Protokoll: inte skapat" in banner
     assert page.is_disabled("#ovkProtocolBtn")
     assert "Kommer snart" in (page.text_content("#ovkProtocolBtn") or "")
+    # Bannern är låg nog att enhetslistan syns under den.
+    assert (
+        page.evaluate(
+            "() => document.getElementById('ovkFieldWork').getBoundingClientRect().height"
+        )
+        <= 120
+    )
     assert page.text_content("#footDone") == "Synka"
     sent = page.evaluate("() => payload()")
     assert sent["field_work_note"] == "1102 och 1103 ej tillgängliga, återbesök bokas."
@@ -2137,6 +2147,57 @@ def test_field_work_is_reviewed_and_finished_from_the_round_view(
     assert page.is_visible("#ovkFieldWork")
     assert (page.text_content("#ovkFieldWorkNote") or "") == ""
 
+    # Läggs en enhet till efter ett avslut utan notering gäller avslutet inte längre.
+    set_units(
+        """for (const unit of state.units) { unit.status = 'ua'; unit.bom_at = null;
+          unit.bom_note = ''; unit.revisit_required = false;
+          unit.checked_at = new Date().toISOString(); }
+        state.field_work_note = ''"""
+    )
+    assert page.is_visible("#ovkFieldWork")
+    assert "field_work_completed_at" in page.evaluate("() => payload()")
+    set_units(
+        """state.units.push({unit_id: 'u-ny', inspection_id: state.inspection_id,
+          number: '1104', kind: 'apartment', label: '', status: 'ej_paborjad', checked_at: null,
+          bom_at: null, bom_note: '', key: null, system_type: null})"""
+    )
+    assert page.evaluate("() => state.field_work_completed_at") is None
+    assert "Avslutet togs bort" in (page.text_content("#ovkFieldWorkNote") or "")
+    set_units(
+        f"""state.units = state.units.filter(unit => unit.unit_id !== 'u-ny');
+        const [, b, c] = state.units;
+        for (const unit of [b, c]) {{ unit.status = 'bom'; unit.checked_at = null;
+          unit.bom_at = new Date().toISOString(); }}
+        b.bom_note = 'Ingen hemma'; b.revisit_required = true;
+        state.field_work_completed_at = '{saved_at}';
+        state.field_work_note = '1102 och 1103 ej tillgängliga, återbesök bokas.'"""
+    )
+    page.wait_for_function("Boolean(state.field_work_completed_at)")
+
+    # I ett uppdrag från kontoret är rum förifyllda: en orörd enhet är inte påbörjad
+    # och hindrar inte avslut.
+    set_units(
+        """state.assignment_name = 'Brf Exempel';
+        state.rooms.push({room_id: 'r-plan', unit_id: state.units[1].unit_id, name: 'Kök'});
+        state.units[1].status = 'ej_paborjad'; state.units[1].bom_at = null"""
+    )
+    assert page.evaluate("() => unitProgress(state.units[1])") == "not_started"
+    assert page.evaluate("() => Boolean(state.field_work_completed_at)") is True
+    set_units(
+        """state.assignment_name = '';
+        state.rooms = state.rooms.filter(room => room.room_id !== 'r-plan');
+        state.units[1].status = 'bom'; state.units[1].bom_at = new Date().toISOString()"""
+    )
+
+    # Första trycket på Öppna igen följer inte med till en annan besiktning.
+    page.click("#ovkReopen")
+    assert page.text_content("#ovkReopen") == "Bekräfta"
+    set_units("state.inspection_id = 'annan-besiktning'")
+    assert page.text_content("#ovkReopen") == "Öppna igen"
+    set_units("state.inspection_id = 'avslutstest'")
+    assert page.text_content("#ovkReopen") == "Öppna igen"
+
+    # Avslutet överlever omladdning och går att öppna igen med två tryck.
     _reload_after_save(page)
     page.wait_for_function("typeof state === 'object' && state.units.length === 3")
     page.wait_for_function("document.querySelector('.view.on').id === 'viewRond'")

@@ -81,6 +81,9 @@ function unitProgress(unit){
   if(unit.status==='bom')return 'unavailable';
   if(checkedUnit(unit))return 'done';
   if(!state.rooms.some(room=>room.unit_id===unit.unit_id))return 'not_started';
+  // Ett uppdrag från kontoret kommer med rum och don förifyllda. Där är enheten påbörjad
+  // först när något faktiskt är besvarat, mätt eller anmärkt.
+  if(state.assignment_name&&!unitTouched(unit))return 'not_started';
   // Lokaler görs rum för rum i ett svep och har inga varv att skilja på.
   if(unit.kind==='premises')return 'ongoing';
   const points=state.measurements.filter(point=>point.unit_id===unit.unit_id);
@@ -91,8 +94,17 @@ function unitProgress(unit){
   if(!points.some(pendingPoint))return 'review_left';
   return points.some(point=>measuredPoint(point)||point.measurable===false)?'measure_left':'visual_done';
 }
-// Ett avslutat fältarbete förutsätter att ingen enhet är påbörjad men inte klar.
-function fieldWorkValid(){return !state.units.some(unit=>['ongoing','visual_done','measure_left','review_left'].includes(unitProgress(unit)))}
+function unitTouched(unit){
+  const mine=item=>item.unit_id===unit.unit_id;
+  return state.visual_checks.some(mine)||state.findings.some(mine)||state.window_vents.some(mine)||state.measurements.some(point=>mine(point)&&(measuredPoint(point)||point.measurable===false));
+}
+// Ett avslutat fältarbete förutsätter att ingen enhet är påbörjad men inte klar, och att
+// omfattningen är dokumenterad när någon enhet inte är besiktad.
+function fieldWorkValid(){
+  const progress=state.units.map(unitProgress);
+  if(progress.some(item=>['ongoing','visual_done','measure_left','review_left'].includes(item)))return false;
+  return !progress.some(item=>item==='not_started'||item==='unavailable')||Boolean((state.field_work_note||'').trim());
+}
 const UNIT_FILTERS={
   all:()=>true,
   pending:progress=>progress!=='done'&&progress!=='unavailable',

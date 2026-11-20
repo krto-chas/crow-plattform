@@ -152,11 +152,11 @@
     #ovkFieldWork[hidden]{display:none}
     #ovkFieldWorkNote:empty{display:none}
     #ovkFieldWorkNote{margin:4px 0 0}
-    #ovkFieldWork{margin:6px 0 2px;padding:10px 12px;border:1.5px solid var(--ua);border-radius:12px;background:var(--panel)}
-    #ovkFieldWork p{margin:0 0 6px;font-size:14px}
+    #ovkFieldWork{margin:4px 0 2px;padding:8px 12px;border:1.5px solid var(--ua);border-radius:12px;background:var(--panel)}
+    #ovkFieldWork p{margin:0;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
     #ovkFieldWork .ovk-fw-title{font-weight:700;font-size:15px}
-    #ovkFieldWork .ovk-fw-actions{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:8px;margin-top:8px}
-    #ovkFieldWork .btn{min-height:44px;margin:0;font-size:14px}
+    #ovkFieldWork .ovk-fw-actions{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:8px;margin-top:6px}
+    #ovkFieldWork .btn{min-height:44px;height:44px;margin:0;padding:4px 6px;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
     .ovk-finish-block.block h4{color:var(--anm)}
     .ovk-finish-note{width:100%;min-height:96px;margin-top:6px;padding:10px;border:1.5px solid var(--line);border-radius:12px;font:inherit;font-size:16px}
     .ovk-finish-msg{margin:6px 0 0;color:var(--anm);font-weight:650;font-size:14px}
@@ -1637,8 +1637,11 @@
     const points=state.measurements.filter(point=>doneIds.has(point.unit_id));
     const keysOut=state.units.filter(unit=>unit.key&&unit.key.received&&!unit.key.returned).map(fwUnit);
     if(state.master_key&&state.master_key.received&&!state.master_key.returned)keysOut.unshift('Huvudnyckel');
-    const classes=[2,1,0].map(level=>[level,state.findings.filter(item=>item.classification===level).length]).filter(item=>item[1]);
-    return {done,unavailable,untouched,started,keysOut,classes,
+    // Varje anmärkning hamnar i exakt en grupp, även de som saknar klass.
+    const classes=[[2,'klass 2'],[1,'klass 1'],[0,'klass 0']].map(([level,label])=>[label,state.findings.filter(item=>item.classification===level).length]);
+    classes.push(['utan klass',state.findings.length-classes.reduce((sum,item)=>sum+item[1],0)]);
+    const spaces=state.technical_spaces.filter(space=>typeof spacePending==='function'&&spacePending(space.space_id));
+    return {done,unavailable,untouched,started,keysOut,classes:classes.filter(item=>item[1]),spaces,
       revisit:state.units.filter(unit=>unit.revisit_required),
       measured:points.filter(measuredPoint).length,
       notMeasurable:points.filter(point=>point.measurable===false).length,
@@ -1663,7 +1666,8 @@
     block('Måste åtgärdas först',facts.started.map(unit=>fwUnit(unit)+' är påbörjad men inte klar'),'block');
     block('Kräver uppmärksamhet',[
       ...facts.untouched.map(unit=>fwUnit(unit)+' är inte besiktad'),
-      ...facts.unavailable.map(unit=>fwUnit(unit)+' – ingen tillgång (BOM)'+(unit.bom_note?': '+unit.bom_note:'')),
+      ...facts.unavailable.map(unit=>fwUnit(unit)+' – ingen tillgång (BOM)'+(unit.bom_note?': '+unit.bom_note:'')+(unit.revisit_required?' · återbesök krävs':'')),
+      ...facts.spaces.map(space=>(space.label||'Fläktrum/aggregat')+' har kontrollpunkter som inte är besvarade'),
       ...facts.revisit.filter(unit=>unit.status!=='bom').map(unit=>fwUnit(unit)+' kräver återbesök'),
       ...(facts.unmeasured?[facts.unmeasured+' don saknar mätvärde i klara enheter']:[]),
       ...(facts.keysOut.length?['Nycklar ute: '+facts.keysOut.join(', ')]:[])
@@ -1671,7 +1675,7 @@
     block('Genomfört',[
       facts.done.length+' av '+state.units.length+' enheter besiktade',
       facts.measured+' don mätta'+(facts.notMeasurable?' · '+facts.notMeasurable+' ej mätbara':''),
-      state.findings.length?state.findings.length+' anmärkningar ('+facts.classes.map(item=>item[1]+' i klass '+item[0]).join(', ')+')':'Inga anmärkningar',
+      state.findings.length?state.findings.length+(state.findings.length===1?' anmärkning (':' anmärkningar (')+facts.classes.map(item=>item[1]+' i '+item[0]).join(', ')+')':'Inga anmärkningar',
       state.photos.length+' foton',
       state.technical_spaces.length?state.technical_spaces.length+' fläktrum/aggregat registrerade':'Inga fläktrum eller aggregat registrerade'
     ]);
@@ -1698,25 +1702,32 @@
   }
   let reopenArmed=false;
   let reopenNote='';
+  let reopenTimer=0;
+  let fieldWorkFor='';
   function renderFieldWork(){
     const box=$id('ovkFieldWork');
     // Samma regel som hindrar avslut: en påbörjad enhet som inte är klar. Uppstår den efter
     // avslutet tas avslutet bort, så att en ofullständig besiktning inte synkas som avslutad.
-    if(state.field_work_completed_at&&!fieldWorkValid()){state.field_work_completed_at=null;state.field_work_note='';reopenNote='Avslutet togs bort eftersom en enhet åter är påbörjad men inte klar.';void persist()}
+    // Tillstånd för återöppning hör till en besiktning och får inte följa med till nästa.
+    if(fieldWorkFor!==state.inspection_id){fieldWorkFor=state.inspection_id;reopenArmed=false;reopenNote='';clearTimeout(reopenTimer)}
+    if(state.field_work_completed_at&&!fieldWorkValid()){state.field_work_completed_at=null;state.field_work_note='';reopenNote='Avslutet togs bort eftersom besiktningen har ändrats. Granska och avsluta igen.';persist().catch(()=>{})}
     const completed=state.field_work_completed_at;
     $id('ovkFieldWorkNote').textContent=completed?'':reopenNote;
     if(completed)reopenNote='';
     box.hidden=!completed;box.replaceChildren();
     if(!completed){reopenArmed=false;return}
+    // Kompakt: enhetslistan ska fortfarande synas under. Hela noteringen står i Sammanställning.
     box.append(el('p','ovk-fw-title','Fältarbete avslutat '+fwStamp(completed)));
-    box.append(el('p','','Protokoll: inte skapat. Det tas fram på kontoret.'));
-    if(state.field_work_note)box.append(el('p','','Omfattning: '+state.field_work_note));
+    box.append(el('p','ovk-fw-sub','Protokoll: inte skapat – tas fram på kontoret.'));
     const actions=el('div','ovk-fw-actions');
-    const protocol=el('button','btn ghost','Generera protokoll · Kommer snart');protocol.type='button';protocol.id='ovkProtocolBtn';protocol.disabled=true;
-    const reopen=el('button','btn ghost',reopenArmed?'Bekräfta: öppna igen':'Öppna besiktningen igen');reopen.type='button';reopen.id='ovkReopen';
+    const protocol=el('button','btn ghost','Protokoll · Kommer snart');protocol.type='button';protocol.id='ovkProtocolBtn';protocol.disabled=true;
+    protocol.setAttribute('aria-label','Generera protokoll – kommer snart');
+    const reopen=el('button','btn ghost',reopenArmed?'Bekräfta':'Öppna igen');reopen.type='button';reopen.id='ovkReopen';
+    reopen.setAttribute('aria-label',reopenArmed?'Bekräfta: öppna besiktningen igen':'Öppna besiktningen igen');
     reopen.addEventListener('click',async()=>{
-      if(!reopenArmed){reopenArmed=true;renderFieldWork();return}
-      reopenArmed=false;state.field_work_completed_at=null;state.field_work_note='';
+      // Första trycket armerar i några sekunder; därefter krävs ett nytt första tryck.
+      if(!reopenArmed){reopenArmed=true;clearTimeout(reopenTimer);reopenTimer=setTimeout(()=>{reopenArmed=false;renderFieldWork()},5000);renderFieldWork();return}
+      clearTimeout(reopenTimer);reopenArmed=false;state.field_work_completed_at=null;state.field_work_note='';
       renderRond();await persist();
     });
     actions.append(protocol,reopen);box.append(actions);
