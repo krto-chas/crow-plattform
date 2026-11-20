@@ -1591,3 +1591,82 @@ def test_rooms_can_be_opened_in_any_order_and_finished_rooms_ask_first(
     assert flow.errors == []
     _validated_payload(page.evaluate("() => payload()"))
     context.close()
+
+
+def test_start_page_offers_continue_and_new_inspection(field_url: str, browser: Any) -> None:
+    context = browser.new_context(
+        viewport={"width": 375, "height": 667}, is_mobile=True, has_touch=True
+    )
+    page = context.new_page()
+    errors: list[str] = []
+    dialogs: list[str] = []
+    page.on("pageerror", lambda error: errors.append(str(error)))
+    _record_dialogs(page, dialogs)
+    page.goto(field_url)
+    page.wait_for_function("typeof state === 'object' && typeof payload === 'function'")
+
+    def on_view(name: str) -> None:
+        page.wait_for_function("name => document.querySelector('.view.on').id === name", arg=name)
+
+    # Utan sparade besiktningar visas formuläret direkt.
+    page.wait_for_function("document.getElementById('footDone').textContent === 'Starta rondering'")
+    assert not page.is_visible("#ovkContinueCard")
+    page.click("#ovkStartMore > summary")
+    page.fill("#inspection", "forsta-besiktningen")
+    page.fill("#inspector", "Test Testsson")
+    page.fill("#unitSeries", "1001-1003")
+    page.click("#footDone")
+    on_view("viewRond")
+    page.evaluate("() => persist()")
+
+    # Tillbaka på startsidan: Fortsätt först, formuläret ett tryck bort.
+    page.click("#footBack")
+    on_view("viewStart")
+    page.wait_for_selector("#ovkContinueCard [data-inspection='forsta-besiktningen']")
+    assert not page.is_visible("#inspector")
+    assert "0/3 besiktigade" in (page.text_content("#ovkContinueCard") or "")
+    assert page.text_content("#footDone") == "Fortsätt · forsta-besiktningen"
+    assert page.evaluate("() => document.documentElement.scrollHeight - window.innerHeight") <= 0
+    page.click("#footDone")
+    on_view("viewRond")
+    assert page.evaluate("() => state.units.length") == 3
+
+    # Ny besiktning får ett eget id och skriver inte i den som var öppen.
+    page.click("#footBack")
+    on_view("viewStart")
+    page.click("#ovkNewInspection")
+    assert page.is_visible("#inspector")
+    assert page.text_content("#footDone") == "Starta rondering"
+    new_id = page.input_value("#inspection")
+    assert new_id.startswith("ovk-") and new_id != "forsta-besiktningen"
+    assert page.input_value("#unitSeries") == ""
+    page.fill("#unitSeries", "2001")
+    # Enhetslistan kan inte byggas på i den tidigare besiktningen härifrån.
+    assert not page.is_visible("#generate")
+    page.evaluate("() => document.getElementById('generate').onclick()")
+    page.wait_for_timeout(200)
+    assert page.evaluate("() => [state.inspection_id, state.units.length]") == [
+        "forsta-besiktningen",
+        3,
+    ]
+    page.click("#footDone")
+    on_view("viewRond")
+    page.wait_for_function("state.units.length === 1")
+    assert page.evaluate("() => state.inspection_id") == new_id
+    page.evaluate("() => persist()")
+
+    # Båda finns kvar och går att växla mellan.
+    page.click("#footBack")
+    on_view("viewStart")
+    page.wait_for_function(
+        "document.querySelectorAll('#ovkContinueCard [data-inspection]').length === 2"
+    )
+    page.click("#ovkContinueCard [data-inspection='forsta-besiktningen']")
+    on_view("viewRond")
+    page.wait_for_function("state.inspection_id === 'forsta-besiktningen'")
+    assert page.evaluate("() => state.units.map(unit => unit.number).join()") == "1001,1002,1003"
+
+    assert dialogs == []
+    assert errors == []
+    _validated_payload(page.evaluate("() => payload()"))
+    context.close()
