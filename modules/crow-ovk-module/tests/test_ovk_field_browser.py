@@ -1721,7 +1721,15 @@ def test_access_revisit_and_key_status_are_registered_and_summarised(
     assert unit("1101")["access"] == "resident"
     assert unit("1101").get("key") is None
 
-    # Huvudnyckel som tillträde kräver kommentaren om huvudnyckeln.
+    # Huvudnyckel som tillträde kräver kommentaren om huvudnyckeln. Avbryts
+    # kommentaren ändras varken tillträdet eller nyckeln.
+    page.click("#unitAccessBtn")
+    page.click("#ovkSheet [data-sheet-choice='master_key']")
+    page.wait_for_selector("#ovkSheet_note")
+    page.click("#ovkSheet [data-sheet-cancel]")
+    page.wait_for_timeout(150)
+    assert unit("1101")["access"] == "resident"
+    assert not (unit("1101").get("key") or {}).get("master_key_used")
     page.click("#unitAccessBtn")
     page.click("#ovkSheet [data-sheet-choice='master_key']")
     page.wait_for_selector("#ovkSheet_note")
@@ -1791,6 +1799,33 @@ def test_access_revisit_and_key_status_are_registered_and_summarised(
     assert unit("1104")["key"]["received"] is True
     assert unit("1104")["key"].get("state", "") == ""
     page.click("#ovkKeyToggle")
+
+    # En nyckel som är "ej aktuell" och sedan används som huvudnyckel eller lämnas
+    # tillbaka från enhetskortet får inte fastna i en kombination som synken avvisar.
+    page.evaluate(
+        """() => { const u = state.units.find(item => item.number === '1104');
+          u.key = {received: false, received_at: null, returned: false, returned_at: null,
+                   master_key_used: false, master_key_note: '', returned_method: '',
+                   state: 'not_applicable'};
+          state.activeUnitId = u.unit_id; }"""
+    )
+    page.evaluate("() => returnActiveKey('hand')")
+    page.wait_for_function("activeUnit().key.returned === true")
+    assert unit("1104")["key"].get("state", "") == ""
+    _validated_payload(page.evaluate("() => payload()"))
+    page.evaluate(
+        """() => { const key = activeUnit().key;
+          Object.assign(key, {received: false, received_at: null, returned: false,
+            returned_at: null, returned_method: '', state: 'not_applicable'}); }"""
+    )
+    page.evaluate("() => { void recordMasterKey(); }")
+    page.wait_for_selector("#ovkSheet_note")
+    page.fill("#ovkSheet_note", "Lånad igen")
+    page.click("#ovkSheet [data-sheet-submit]")
+    page.wait_for_function("activeUnit().key.master_key_used === true")
+    assert unit("1104")["key"].get("state", "") == ""
+    _validated_payload(page.evaluate("() => payload()"))
+    page.evaluate("() => { state.activeUnitId = null; return persist(); }")
 
     # Dagsavslut samlar det som måste vara omhändertaget.
     page.click("#ovkDayEnd")
