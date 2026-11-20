@@ -332,6 +332,8 @@ def _field_data_from_payload(payload: dict[str, Any]) -> FieldInspectionData:
             bom_note=str(item.get("bom_note", "")),
             key=_key_from_payload(item.get("key")),
             system_type=_optional_str(item.get("system_type")),
+            access=_strict_str(item.get("access"), "access"),
+            revisit_required=_strict_bool(item.get("revisit_required"), "revisit_required"),
         )
         for item in _dict_items(payload.get("units", []), "units")
     )
@@ -482,6 +484,24 @@ def _followup_photo_ids(value: Any) -> tuple[str, ...]:
     return tuple(value)
 
 
+def _strict_str(value: Any, name: str) -> str:
+    """Saknat värde är tom sträng; allt annat än en sträng avvisas."""
+    if value is None:
+        return ""
+    if not isinstance(value, str):
+        raise ValueError(f"{name} must be a string")
+    return value
+
+
+def _strict_bool(value: Any, name: str) -> bool:
+    """Saknat värde är falskt; allt annat än en riktig boolean avvisas."""
+    if value is None:
+        return False
+    if not isinstance(value, bool):
+        raise ValueError(f"{name} must be a boolean")
+    return value
+
+
 def _key_from_payload(value: Any) -> KeyLog | None:
     if value is None:
         return None
@@ -495,6 +515,7 @@ def _key_from_payload(value: Any) -> KeyLog | None:
         master_key_used=bool(value.get("master_key_used", False)),
         master_key_note=str(value.get("master_key_note", "")),
         returned_method=str(value.get("returned_method") or ""),
+        state=_strict_str(value.get("state"), "key state"),
     )
 
 
@@ -508,6 +529,7 @@ def _key_to_payload(key: KeyLog) -> dict[str, Any]:
         "master_key_note": key.master_key_note,
         # Utelämnas när sättet inte angetts, så att äldre snapshots serialiseras oförändrat.
         **({"returned_method": key.returned_method} if key.returned_method else {}),
+        **({"state": key.state} if key.state else {}),
     }
 
 
@@ -545,6 +567,9 @@ def _field_data_to_payload(data: FieldInspectionData) -> dict[str, Any]:
                 "bom_note": item.bom_note,
                 "system_type": item.system_type,
                 "key": _key_to_payload(item.key) if item.key is not None else None,
+                # Utelämnas när de inte används, så att äldre snapshots serialiseras oförändrat.
+                **({"access": item.access} if item.access else {}),
+                **({"revisit_required": True} if item.revisit_required else {}),
             }
             for item in data.units
         ],

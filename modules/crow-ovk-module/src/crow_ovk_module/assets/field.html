@@ -140,6 +140,7 @@
     #viewRond #ovkKeyCard{padding:8px 14px}
     #viewRond #ovkKeyCard .eyebrow{display:none}
     #viewRond .ovk-key-summary{margin:0;font-size:15px}
+    #ovkDayEnd{min-height:30px;padding:2px 0;font-size:13px}
     #viewRond .ovk-key-head .btn{min-height:40px;padding:6px 12px;font-size:14px}
     #viewRond h1{margin:0;font-size:20px;line-height:1.2;overflow-wrap:anywhere}
     #viewRond .rondbar{margin:8px 0 6px}
@@ -150,6 +151,7 @@
     #viewRond .round-toolbar{grid-template-columns:repeat(auto-fit,minmax(0,1fr));gap:8px;margin:10px 0 4px}
     #viewRond .round-toolbar label{font-size:12px;margin:0 0 2px}
     #viewRond .round-toolbar input,#viewRond .round-toolbar select{padding-left:8px;padding-right:4px;font-size:15px}
+    .ovk-access-row{grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:8px;margin-top:8px}
     /* Blad med textfält läggs överst: telefonens tangentbord täcker annars fält och knappar. */
     .ovk-sheet.typed{align-items:flex-start}
     .ovk-sheet.typed .ovk-sheet-panel{border-radius:0 0 18px 18px;padding:calc(18px + env(safe-area-inset-top)) 16px 16px;box-shadow:0 8px 30px rgba(16,24,32,.2)}
@@ -312,7 +314,7 @@
   <section class="view" id="viewRond">
     <div class="card" id="ovkKeyCard">
       <div class="ovk-key-head">
-        <div><div class="eyebrow">Nycklar</div><p id="ovkKeySummary" class="ovk-key-summary" role="status" aria-live="polite"></p></div>
+        <div><div class="eyebrow">Nycklar</div><p id="ovkKeySummary" class="ovk-key-summary" role="status" aria-live="polite"></p><button type="button" class="ovk-wz-link" id="ovkDayEnd">Dagsavslut</button></div>
         <button class="btn ghost" id="ovkKeyToggle" aria-expanded="false" aria-controls="ovkKeyPanel">Hantera nycklar</button>
       </div>
       <div id="ovkKeyPanel" hidden>
@@ -332,7 +334,7 @@
       <div class="counts"><span><b id="cDone">0</b>/<b id="cTotal">0</b> besiktigade</span><span><b id="cAnm">0</b> med anm.</span><span><b id="cBom">0</b> BOM</span><span><b id="cMeas">0</b> uppmätta don</span></div>
       <p id="roundSummary" class="room-progress" role="status" aria-live="polite"></p>
       <button class="btn" id="continueUnit" hidden>Fortsätt med nästa enhet</button>
-      <div class="round-toolbar"><div><label for="unitSearch">Sök</label><input id="unitSearch" type="search" placeholder="T.ex. 1201" aria-label="Sök lägenhet eller lokal"></div><div><label for="unitFilter">Visa</label><select id="unitFilter"><option value="all">Alla</option><option value="pending">Återstående</option><option value="not_started">Ej påbörjade</option><option value="ongoing">Pågående</option><option value="measure_left">Mätning återstår</option><option value="checked">Färdigbesiktigade</option><option value="bom">Ej tillgängliga (BOM)</option></select></div><div hidden><label for="unitFloor">Våning</label><select id="unitFloor"><option value="">Alla våningar</option></select></div></div>
+      <div class="round-toolbar"><div><label for="unitSearch">Sök</label><input id="unitSearch" type="search" placeholder="T.ex. 1201" aria-label="Sök lägenhet eller lokal"></div><div><label for="unitFilter">Visa</label><select id="unitFilter"><option value="all">Alla</option><option value="pending">Återstående</option><option value="not_started">Ej påbörjade</option><option value="ongoing">Pågående</option><option value="measure_left">Mätning återstår</option><option value="checked">Färdigbesiktigade</option><option value="bom">Ej tillgängliga (BOM)</option><option value="revisit">Återbesök krävs</option></select></div><div hidden><label for="unitFloor">Våning</label><select id="unitFloor"><option value="">Alla våningar</option></select></div></div>
       <div id="unitList"></div>
       <p id="unitEmpty" class="room-progress" hidden></p>
       <button class="btn ghost" id="addUnit">+ Lägg till enhet</button>
@@ -373,6 +375,7 @@
       <div class="row" id="keyMethodRow" hidden><button class="chip" id="keyReturnHand">Lämnad<br>i handen</button><button class="chip" id="keyReturnMailbox">Lämnad<br>i brevlådan</button></div>
       <div class="sub" id="keyInfo" style="margin-top:6px"></div>
       <button class="chip" id="unitSystemBtn" style="margin-top:8px">System: –</button>
+      <div class="row ovk-access-row"><button class="chip" id="unitAccessBtn">Tillträde: –</button><button class="chip" id="unitRevisitBtn" aria-pressed="false">Återbesök: nej</button></div>
       <div id="ovkPremisesNameRow" hidden><label for="ovkPremisesName">Lokalens namn</label><input id="ovkPremisesName" type="text" placeholder="T.ex. Butik, Kontor eller Restaurang" maxlength="120"><button type="button" class="chip" id="ovkPremisesSave">Spara lokalnamn</button></div>
       <div id="prevFindings" class="status warn hidden" style="margin-top:8px"></div>
       <button class="btn bom" id="bom">BOM – ingen tillgång (stämplar tid)</button>
@@ -1722,7 +1725,11 @@
 // nycklar hör till var sin enhet och delar data med enhetens nyckelkort.
 (function(){
   const $id=id=>document.getElementById(id);
-  const blank=()=>({received:false,received_at:null,returned:false,returned_at:null,master_key_used:false,master_key_note:'',returned_method:''});
+  const blank=()=>({received:false,received_at:null,returned:false,returned_at:null,master_key_used:false,master_key_note:'',returned_method:'',state:''});
+  // Uttrycklig status utöver mottagen/återlämnad. Nyckelnummer lagras inte i appen.
+  const KEY_STATE_LABEL={missing:'Saknas',not_applicable:'Ej aktuell'};
+  const flagged=key=>Boolean(key&&key.state);
+  function mark(entry,value){const key=entry.ensure();key.state=value}
   const held=key=>Boolean(key&&key.received&&!key.returned);
   let armed='';
   function entries(){
@@ -1730,15 +1737,17 @@
     for(const unit of state.units)list.push({id:unit.unit_id,name:(unit.kind==='premises'?(unit.label||'Lokal '+unit.number):'Lgh '+unit.number),get:()=>unit.key,ensure:()=>unit.key=unit.key||blank()});
     return list;
   }
-  function receive(entry){const key=entry.ensure();key.received=true;key.received_at=now();key.returned=false;key.returned_at=null;key.returned_method=''}
+  function receive(entry){const key=entry.ensure();key.state='';key.received=true;key.received_at=now();key.returned=false;key.returned_at=null;key.returned_method=''}
   function giveBack(entry,method){
     const key=entry.ensure();
     // Servern avvisar en återlämnad nyckel som inte är mottagen, och då går hela synken inte igenom.
+    key.state='';
     if(!key.received){key.received=true;key.received_at=key.received_at||now()}
     key.returned=true;key.returned_at=now();key.returned_method=method;
   }
   function undo(entry){
     const key=entry.ensure();
+    if(key.state&&!key.received){key.state='';return}
     if(key.returned){key.returned=false;key.returned_at=null;key.returned_method=''}
     else{key.received=false;key.received_at=null}
     // En huvudnyckel som varken är mottagen eller återlämnad ska inte synkas som tom post.
@@ -1747,7 +1756,10 @@
   function action(label,className,run){
     const button=document.createElement('button');
     button.type='button';button.textContent=label;if(className)button.className=className;
-    button.addEventListener('click',async()=>{armed='';run();renderKeyPanel();if(state.activeUnitId&&typeof renderKeys==='function'&&activeUnit())renderKeys();await persist()});
+    button.addEventListener('click',async()=>{armed='';run();renderKeyPanel();
+      // Enhetslistans "Nyckel ute" ska följa nyckelöversikten direkt.
+      if(typeof renderRoundUnits==='function')renderRoundUnits();
+      if(state.activeUnitId&&typeof renderKeys==='function'&&activeUnit())renderKeys();await persist()});
     return button;
   }
   function renderKeyPanel(){
@@ -1768,17 +1780,18 @@
       const text=document.createElement('div');
       const name=document.createElement('strong');name.textContent=entry.name;
       const info=document.createElement('span');
-      info.textContent=!key||!key.received?'Ej mottagen':key.returned?'Mottagen '+localClock(key.received_at)+' · '+keyReturnText(key).toLowerCase():'Mottagen '+localClock(key.received_at)+' · hos dig';
+      info.textContent=flagged(key)&&!key.received?KEY_STATE_LABEL[key.state]:!key||!key.received?'Ej mottagen':key.returned?'Mottagen '+localClock(key.received_at)+' · '+keyReturnText(key).toLowerCase():'Mottagen '+localClock(key.received_at)+' · hos dig';
       text.append(name,info);
       const actions=document.createElement('div');actions.className='ovk-key-actions';
-      if(!key||!key.received)actions.append(action('Ta emot','primary',()=>receive(entry)));
+      if(flagged(key)&&!key.received)actions.append(action('Ta emot','primary',()=>receive(entry)),action('Ångra','',()=>undo(entry)));
+      else if(!key||!key.received)actions.append(action('Ta emot','primary',()=>receive(entry)),...(entry.id==='master'?[]:[action('Saknas','',()=>mark(entry,'missing')),action('Ej aktuell','',()=>mark(entry,'not_applicable'))]));
       else if(!key.returned)actions.append(action('I handen','',()=>giveBack(entry,'hand')),action('Brevlåda','',()=>giveBack(entry,'mailbox')),action('Ångra','',()=>undo(entry)));
       else actions.append(action('Ångra','',()=>undo(entry)));
       row.append(text,actions);
       list.append(row);
     }
     if(!list.children.length){const empty=document.createElement('p');empty.className='room-progress';empty.textContent=onlyHeld?'Du har inga nycklar ute.':'Inga enheter upplagda än.';list.append(empty)}
-    const missing=all.filter(entry=>{const key=entry.get();return entry.id!=='master'&&(!key||!key.received)}).length;
+    const missing=all.filter(entry=>{const key=entry.get();return entry.id!=='master'&&(!key||!key.received)&&!flagged(key)}).length;
     $id('ovkKeyReceiveAll').hidden=!missing;
     $id('ovkKeyReceiveAll').textContent=armed==='receive'?'Bekräfta: ta emot '+missing:'Ta emot alla';
     $id('ovkKeyBulk').hidden=!out.length;
@@ -1797,9 +1810,46 @@
     renderKeyPanel();
   });
   $id('ovkKeyOnlyHeld').addEventListener('change',()=>{armed='';renderKeyPanel()});
-  $id('ovkKeyReceiveAll').addEventListener('click',()=>bulk('receive',()=>{for(const entry of entries()){const key=entry.get();if(entry.id!=='master'&&(!key||!key.received))receive(entry)}}));
+  $id('ovkKeyReceiveAll').addEventListener('click',()=>bulk('receive',()=>{for(const entry of entries()){const key=entry.get();if(entry.id!=='master'&&(!key||!key.received)&&!flagged(key))receive(entry)}}));
   $id('ovkKeyReturnAllHand').addEventListener('click',()=>bulk('hand',()=>{for(const entry of entries())if(held(entry.get()))giveBack(entry,'hand')}));
   $id('ovkKeyReturnAllMailbox').addEventListener('click',()=>bulk('mailbox',()=>{for(const entry of entries())if(held(entry.get()))giveBack(entry,'mailbox')}));
+  // ── Dagsavslut ───────────────────────────────────────────────────────
+  // Det som måste vara omhändertaget innan man lämnar huset: nycklar som är ute eller
+  // saknas, enheter som kräver återbesök och enheter utan tillgång. Ren läsvy.
+  const unitLabel=unit=>unit.kind==='premises'?(unit.label||'Lokal '+unit.number):'Lgh '+unit.number;
+  function dayEndSections(){
+    const all=entries();
+    return [
+      ['Nycklar ute',all.filter(entry=>held(entry.get())).map(entry=>entry.name+' · mottagen '+localClock(entry.get().received_at)),'Inga nycklar ute.'],
+      ['Nycklar som saknas',all.filter(entry=>{const key=entry.get();return key&&key.state==='missing'&&!key.received}).map(entry=>entry.name),''],
+      ['Återbesök krävs',state.units.filter(unit=>unit.revisit_required).map(unit=>unitLabel(unit)+(unit.status==='bom'&&unit.bom_note?' · '+unit.bom_note:'')),'Inga återbesök.'],
+      ['Ej tillgängliga (BOM)',state.units.filter(unit=>unit.status==='bom').map(unit=>unitLabel(unit)+' · '+localClock(unit.bom_at)+(unit.bom_note?' · '+unit.bom_note:'')),''],
+      ['Ej påbörjade',state.units.filter(unit=>unit.status==='ej_paborjad'&&!state.rooms.some(room=>room.unit_id===unit.unit_id)).map(unitLabel),'']
+    ];
+  }
+  function showDayEnd(){
+    const make=(tag,className,text)=>{const node=document.createElement(tag);if(className)node.className=className;if(text!==undefined)node.textContent=text;return node};
+    const overlay=make('div','ovk-summary');overlay.id='ovkDayEndView';
+    overlay.setAttribute('role','dialog');overlay.setAttribute('aria-modal','true');overlay.setAttribute('aria-labelledby','ovkDayEndTitle');
+    const body=make('div','ovk-summary-body');
+    const title=make('h2','','Dagsavslut');title.id='ovkDayEndTitle';title.tabIndex=-1;
+    body.append(make('p','ovk-summary-note','Visning – inget ändras här.'),title);
+    for(const [heading,rows,empty] of dayEndSections()){
+      if(!rows.length&&!empty)continue;
+      const block=make('div','ovk-review-room');block.dataset.section=heading;
+      block.append(make('h4','',heading+(rows.length?' ('+rows.length+')':'')));
+      if(!rows.length)block.append(make('p','',empty));
+      for(const row of rows)block.append(make('p','',row));
+      body.append(block);
+    }
+    const actions=make('div','ovk-summary-actions');actions.style.gridTemplateColumns='minmax(0,1fr)';
+    const close=make('button','ovk-sheet-btn on','Stäng');close.type='button';close.dataset.dayEndClose='1';
+    const done=()=>{overlay.remove();document.removeEventListener('keydown',onKey,true);$id('ovkDayEnd').focus({preventScroll:true})};
+    function onKey(event){if(event.key==='Escape'){event.preventDefault();done()}}
+    close.addEventListener('click',done);document.addEventListener('keydown',onKey,true);
+    actions.append(close);overlay.append(body,actions);document.body.append(overlay);title.focus({preventScroll:true});
+  }
+  $id('ovkDayEnd').addEventListener('click',showDayEnd);
   const originalRenderRond=renderRond;
   renderRond=function(){originalRenderRond();renderKeyPanel()};
 })();
