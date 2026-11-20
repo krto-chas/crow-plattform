@@ -15,7 +15,7 @@ function isCommercial(){const unit=activeUnit();return unit ? unit.kind==='premi
 function roomPresets(){return isCommercial()?ROOMS_COMMERCIAL:ROOMS}
 const DEFAULT_STATE = () => ({project_id: 'adhoc', inspection_id: '', inspector: '', system_type: 'F', object_type: 'flerbostadshus', assignment_name: '',
   previous_inspection_id: null, historical_findings: [], historical_measurements: [], historical_checkpoints: [], historical_space_photos: [], history_unavailable:false, units: [], rooms: [], findings: [], finding_followups: [], photos: [],
-  measurements: [], window_vents: [], visual_checks: [], field_progress: {}, master_key: null, technical_spaces: [], checkpoints: [], dirty: false, last_sync: null,
+  measurements: [], window_vents: [], visual_checks: [], field_progress: {}, master_key: null, field_work_completed_at: null, field_work_note: '', technical_spaces: [], checkpoints: [], dirty: false, last_sync: null,
   activeUnitId: null, activeRoomId: null, activeFindingId: null, activeSpaceId: null, defects: [], checklists: {}});
 let state = DEFAULT_STATE();
 
@@ -34,6 +34,8 @@ function payload(){return {inspection_id:state.inspection_id,object_type:state.o
   measurements:state.measurements,
   window_vents:state.window_vents,
   ...(state.master_key?{master_key:state.master_key}:{}),
+  // Avslutat fältarbete skickas bara när det är satt, så att äldre snapshots inte ändras.
+  ...(state.field_work_completed_at&&fieldWorkValid()?{field_work_completed_at:state.field_work_completed_at,...(state.field_work_note?{field_work_note:state.field_work_note}:{})}:{}),
   visual_checks:state.visual_checks,
   technical_spaces:state.technical_spaces,
   checkpoints:state.checkpoints}}
@@ -79,6 +81,9 @@ function unitProgress(unit){
   if(unit.status==='bom')return 'unavailable';
   if(checkedUnit(unit))return 'done';
   if(!state.rooms.some(room=>room.unit_id===unit.unit_id))return 'not_started';
+  // Ett uppdrag från kontoret kommer med rum och don förifyllda. Där är enheten påbörjad
+  // först när något faktiskt är besvarat, mätt eller anmärkt.
+  if(state.assignment_name&&!unitTouched(unit))return 'not_started';
   // Lokaler görs rum för rum i ett svep och har inga varv att skilja på.
   if(unit.kind==='premises')return 'ongoing';
   const points=state.measurements.filter(point=>point.unit_id===unit.unit_id);
@@ -88,6 +93,17 @@ function unitProgress(unit){
   if(!visualDone)return 'ongoing';
   if(!points.some(pendingPoint))return 'review_left';
   return points.some(point=>measuredPoint(point)||point.measurable===false)?'measure_left':'visual_done';
+}
+function unitTouched(unit){
+  const mine=item=>item.unit_id===unit.unit_id;
+  return state.visual_checks.some(mine)||state.findings.some(mine)||state.window_vents.some(mine)||state.measurements.some(point=>mine(point)&&(measuredPoint(point)||point.measurable===false));
+}
+// Ett avslutat fältarbete förutsätter att ingen enhet är påbörjad men inte klar, och att
+// omfattningen är dokumenterad när någon enhet inte är besiktad.
+function fieldWorkValid(){
+  const progress=state.units.map(unitProgress);
+  if(progress.some(item=>['ongoing','visual_done','measure_left','review_left'].includes(item)))return false;
+  return !progress.some(item=>item==='not_started'||item==='unavailable')||Boolean((state.field_work_note||'').trim());
 }
 const UNIT_FILTERS={
   all:()=>true,
@@ -795,7 +811,7 @@ function fillInspectors(persons){if(!persons||!persons.length)return;$('inspecto
 async function prefillObjectType(){if(state.inspection_id||state.units.length)return;const projectId=$('project').value;if(!projectId||!navigator.onLine)return;try{const response=await fetch('/api/ovk/projects/'+encodeURIComponent(projectId)+'/fastighet');if(!response.ok)return;const data=await response.json();const first=(data.fastigheter||[])[0];if(first&&first.fastighetstyp){$('objectType').value=first.fastighetstyp;state.object_type=first.fastighetstyp}}catch(_){/* offline */}}
 async function loadHistory(){$('history').innerHTML='<option value="">Välj via uppdragsplaneringen</option>';$('history').disabled=true;$('restore').disabled=true;$('historyStatus').textContent='Tidigare besiktning väljs i uppdragsplaneringen. Historik hämtas automatiskt för planerade uppdrag.'}
 async function restoreFromServer(){$('historyStatus').textContent='Öppna ett planerat uppdrag för att återställa projektbundet underlag.'}
-async function restoreLatest(requested=null){const drafts=await dbGetAll(DRAFT_STORE);if(!drafts.length)return false;drafts.sort((a,b)=>String(b.updated_at).localeCompare(String(a.updated_at)));const draft=requested?drafts.find(item=>item.inspection_id===requested.inspection_id&&item.project_id===requested.project_id):drafts[0];if(!draft)return false;Object.assign(state,DEFAULT_STATE(),{project_id:draft.project_id||'adhoc',inspection_id:draft.inspection_id||'',inspector:draft.inspector||'',system_type:draft.system_type||'F',object_type:draft.object_type||'flerbostadshus',assignment_name:draft.assignment_name||'',previous_inspection_id:draft.previous_inspection_id||null,historical_findings:draft.historical_findings||[],historical_measurements:draft.historical_measurements||[],history_unavailable:Boolean(draft.history_unavailable),historical_checkpoints:draft.historical_checkpoints||[],historical_space_photos:draft.historical_space_photos||[],units:draft.units||[],rooms:draft.rooms||[],findings:draft.findings||[],finding_followups:draft.finding_followups||[],photos:draft.photos||[],measurements:draft.measurements||[],window_vents:draft.window_vents||[],master_key:draft.master_key||null,visual_checks:draft.visual_checks||[],field_progress:draft.field_progress||{},technical_spaces:draft.technical_spaces||[],checkpoints:draft.checkpoints||[],dirty:Boolean(draft.dirty),last_sync:draft.last_sync||null,defects:state.defects,checklists:state.checklists});$('inspection').value=state.inspection_id;$('inspector').value=state.inspector;$('systemType').value=state.system_type;$('objectType').value=state.object_type;ensureProject(state.project_id);$('project').value=state.project_id;$('draftStatus').textContent='Återställd lokal session · '+(state.assignment_name||state.inspection_id);if(state.assignment_name||state.units.length||state.technical_spaces.length){renderRond();view('viewRond')}return true}
+async function restoreLatest(requested=null){const drafts=await dbGetAll(DRAFT_STORE);if(!drafts.length)return false;drafts.sort((a,b)=>String(b.updated_at).localeCompare(String(a.updated_at)));const draft=requested?drafts.find(item=>item.inspection_id===requested.inspection_id&&item.project_id===requested.project_id):drafts[0];if(!draft)return false;Object.assign(state,DEFAULT_STATE(),{project_id:draft.project_id||'adhoc',inspection_id:draft.inspection_id||'',inspector:draft.inspector||'',system_type:draft.system_type||'F',object_type:draft.object_type||'flerbostadshus',assignment_name:draft.assignment_name||'',previous_inspection_id:draft.previous_inspection_id||null,historical_findings:draft.historical_findings||[],historical_measurements:draft.historical_measurements||[],history_unavailable:Boolean(draft.history_unavailable),historical_checkpoints:draft.historical_checkpoints||[],historical_space_photos:draft.historical_space_photos||[],units:draft.units||[],rooms:draft.rooms||[],findings:draft.findings||[],finding_followups:draft.finding_followups||[],photos:draft.photos||[],measurements:draft.measurements||[],window_vents:draft.window_vents||[],master_key:draft.master_key||null,field_work_completed_at:draft.field_work_completed_at||null,field_work_note:draft.field_work_note||'',visual_checks:draft.visual_checks||[],field_progress:draft.field_progress||{},technical_spaces:draft.technical_spaces||[],checkpoints:draft.checkpoints||[],dirty:Boolean(draft.dirty),last_sync:draft.last_sync||null,defects:state.defects,checklists:state.checklists});$('inspection').value=state.inspection_id;$('inspector').value=state.inspector;$('systemType').value=state.system_type;$('objectType').value=state.object_type;ensureProject(state.project_id);$('project').value=state.project_id;$('draftStatus').textContent='Återställd lokal session · '+(state.assignment_name||state.inspection_id);if(state.assignment_name||state.units.length||state.technical_spaces.length){renderRond();view('viewRond')}return true}
 async function syncContext(){const response=await fetch(fieldEndpoint('context',state.project_id,state.inspection_id),{method:'PUT',headers:{'content-type':'application/json'},body:JSON.stringify({project_id:state.project_id,inspector:state.inspector,previous_inspection_id:state.previous_inspection_id,system_type:state.system_type})});const data=await response.json();if(!response.ok)throw new Error(JSON.stringify(data));return data}
 async function syncSnapshot(){const response=await fetch(fieldEndpoint('sync',state.project_id,state.inspection_id),{method:'PUT',headers:{'content-type':'application/json','X-OVK-Base-Revision':state.last_sync||'new'},body:JSON.stringify(payload())});const data=await response.json();if(!response.ok)throw new Error(JSON.stringify(data));state.last_sync=data.snapshot_sha256;return data}
 async function syncPendingMedia(){let uploaded=0;for(const photo of state.photos.filter(item=>item.sync_status!=='synced')){const media=await dbGet(MEDIA_STORE,mediaKey(state.project_id,state.inspection_id,photo.photo_id));if(!media||!media.blob||media.sha256!==photo.sha256)throw new Error('Saknar matchande lokal mediablob för '+photo.photo_id);const response=await fetch(fieldEndpoint('media',state.project_id,state.inspection_id)+'/'+encodeURIComponent(photo.photo_id),{method:'PUT',headers:{'content-type':photo.mime_type,'X-OVK-Base-Revision':state.last_sync},body:media.blob});const receipt=await response.json();if(!response.ok)throw new Error(JSON.stringify(receipt));photo.sync_status='synced';state.last_sync=receipt.snapshot_sha256;media.media_id=receipt.media_id;media.evidence_id=receipt.evidence_id;media.synced_at=now();await dbPut(MEDIA_STORE,media);uploaded+=1}return uploaded}

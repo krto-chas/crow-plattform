@@ -1199,14 +1199,14 @@ def test_start_and_round_views_fit_the_first_screen(
     assert page.evaluate("() => activeUnit().number") == "1101"
     assert not page.is_visible("#footSync")
 
-    # Utan återstående enheter blir huvudknappen Synka igen.
     page.evaluate(
         """() => { for (const unit of state.units) {
             unit.status = 'ua'; unit.checked_at = new Date().toISOString(); }
           renderRond(); view('viewRond'); }"""
     )
-    assert page.text_content("#footDone") == "Synka"
-    assert not page.is_visible("#footSync")
+    # Utan återstående enheter är nästa steg att granska och avsluta; synk ligger bredvid.
+    assert page.text_content("#footDone") == "Granska och avsluta"
+    assert page.is_visible("#footSync")
     assert errors == []
     context.close()
 
@@ -1940,7 +1940,7 @@ def test_system_type_is_chosen_explicitly_and_can_be_corrected(
     page.wait_for_function("document.querySelector('.view.on').id === 'viewRond'")
 
     # Ronderingsvyn säger vad systemtypen innebär.
-    assert page.text_content("#roundSystemBtn") == "System: F · friskluftsventiler · ändra"
+    assert page.text_content("#roundSystemBtn") == "System: F · friskluft"
 
     def don_step_offers_supply() -> bool:
         page.click("#footDone")
@@ -1958,12 +1958,12 @@ def test_system_type_is_chosen_explicitly_and_can_be_corrected(
     assert page.locator("#ovkSheet [data-sheet-choice]").count() == 5
     page.click("#ovkSheet [data-sheet-choice='FTX']")
     page.wait_for_function("state.system_type === 'FTX'")
-    assert page.text_content("#roundSystemBtn") == "System: FTX · tilluftsdon · ändra"
+    assert page.text_content("#roundSystemBtn") == "System: FTX · tilluft"
     assert page.input_value("#systemType") == "FTX"
     # Ett uppdrag från kontoret vars tillåtna systemtyper inte är inlästa erbjuder inget
     # byte, och ett inläst uppdrag erbjuder bara sina egna typer.
     page.evaluate("() => { state.assignment_name = 'Brf Exempel'; renderRond(); }")
-    assert page.text_content("#roundSystemBtn") == "System: FTX · tilluftsdon"
+    assert page.text_content("#roundSystemBtn") == "System: FTX · tilluft"
     assert page.is_disabled("#roundSystemBtn")
     page.evaluate(
         """() => { for (const option of document.getElementById('systemType').options)
@@ -2008,4 +2008,210 @@ def test_system_type_is_chosen_explicitly_and_can_be_corrected(
     assert dialogs == []
     assert flow.errors == []
     _validated_payload(page.evaluate("() => payload()"))
+    context.close()
+
+
+def test_field_work_is_reviewed_and_finished_from_the_round_view(
+    field_url: str, browser: Any
+) -> None:
+    context = browser.new_context(
+        viewport={"width": 375, "height": 667}, is_mobile=True, has_touch=True
+    )
+    page = context.new_page()
+    errors: list[str] = []
+    dialogs: list[str] = []
+    page.on("pageerror", lambda error: errors.append(str(error)))
+    _record_dialogs(page, dialogs)
+    page.goto(field_url)
+    page.wait_for_function("typeof state === 'object' && typeof payload === 'function'")
+    page.click("#ovkStartMore > summary")
+    page.fill("#inspection", "avslutstest")
+    page.fill("#inspector", "Test Testsson")
+    page.select_option("#systemType", "F")
+    page.fill("#unitSeries", "1101-1103")
+    page.click("#footDone")
+    page.wait_for_function("state.units.length === 3")
+
+    def sections() -> dict[str, list[str]]:
+        result: dict[str, list[str]] = page.evaluate(
+            """() => Object.fromEntries(
+              [...document.querySelectorAll('#ovkFinishView [data-section]')]
+                .map(block => [block.dataset.section,
+                               [...block.querySelectorAll('p')].map(p => p.textContent)]))"""
+        )
+        return result
+
+    def set_units(script: str) -> None:
+        page.evaluate(f"() => {{ {script}; renderRond(); view('viewRond'); }}")
+
+    # 1101 klar med ett mätt don, 1102 påbörjad men inte klar, 1103 orörd.
+    set_units(
+        """const [a, b] = state.units;
+        a.status = 'ua'; a.checked_at = new Date().toISOString();
+        state.rooms.push({room_id: 'r1', unit_id: a.unit_id, name: 'Badrum'},
+                         {room_id: 'r2', unit_id: b.unit_id, name: 'Badrum'});
+        state.measurements.push({measurement_id: 'm1', inspection_id: state.inspection_id,
+          unit_id: a.unit_id, room_id: 'r1', point_id: 'p1', point_label: 'F1',
+          point_type: 'franluftsdon', measured_value: '12', designed_value: null,
+          measurable: true, note: '', photo_ids: []})"""
+    )
+    _validated_payload(page.evaluate("() => payload()"))
+
+    # En påbörjad enhet som inte är klar hindrar avslut.
+    page.click("#ovkFinishOpen")
+    page.wait_for_selector("#ovkFinishView")
+    found = sections()
+    assert found["Måste åtgärdas först"] == ["Lgh 1102 är påbörjad men inte klar"]
+    assert "Lgh 1103 är inte besiktad" in found["Kräver uppmärksamhet"]
+    assert "1 av 3 enheter besiktade" in found["Genomfört"]
+    assert "1 don mätta" in found["Genomfört"]
+    # Ett don som inte gått att mäta räknas inte som mätt.
+    page.click("#ovkFinishView [data-finish-close]")
+    set_units(
+        """state.measurements.push({...state.measurements[0], measurement_id: 'm2',
+          point_id: 'p2', point_label: 'F2', measured_value: null, measurable: false,
+          not_measurable_reason: 'Ej åtkomligt'})"""
+    )
+    page.click("#ovkFinishOpen")
+    page.wait_for_selector("#ovkFinishView")
+    assert "1 don mätta · 1 ej mätbara" in sections()["Genomfört"]
+    page.click("#ovkFinishView [data-finish-close]")
+    set_units("state.measurements = state.measurements.filter(m => m.measurement_id !== 'm2')")
+    page.click("#ovkFinishOpen")
+    page.wait_for_selector("#ovkFinishView")
+    assert page.is_disabled("#ovkFinishConfirm")
+    page.click("#ovkFinishView [data-finish-close]")
+    assert page.evaluate("() => state.field_work_completed_at") is None
+
+    # Utan tillträde går det att avsluta, men omfattningen måste dokumenteras.
+    set_units(
+        """const [, b, c] = state.units;
+        state.rooms = state.rooms.filter(room => room.unit_id !== b.unit_id);
+        for (const unit of [b, c]) { unit.status = 'bom'; unit.bom_at = new Date().toISOString(); }
+        b.bom_note = 'Ingen hemma'; b.revisit_required = true"""
+    )
+    assert page.text_content("#footDone") == "Granska och avsluta"
+    page.click("#footDone")
+    page.wait_for_selector("#ovkFinishView")
+    found = sections()
+    assert "Måste åtgärdas först" not in found
+    assert (
+        "Lgh 1102 – ingen tillgång (BOM): Ingen hemma · återbesök krävs"
+        in found["Kräver uppmärksamhet"]
+    )
+    assert page.is_enabled("#ovkFinishConfirm")
+    page.click("#ovkFinishConfirm")
+    assert "Skriv vilka enheter" in (page.text_content("#ovkFinishMsg") or "")
+    assert page.evaluate("() => state.field_work_completed_at") is None
+    page.fill("#ovkFinishNote", "1102 och 1103 ej tillgängliga, återbesök bokas.")
+    page.click("#ovkFinishConfirm")
+    page.wait_for_function("Boolean(state.field_work_completed_at)")
+    assert page.locator("#ovkFinishView").count() == 0
+
+    # Fältarbetet är avslutat utan att något protokoll finns; knappen är inaktiv.
+    banner = page.text_content("#ovkFieldWork") or ""
+    assert "Fältarbete avslutat" in banner
+    assert "Protokoll: inte skapat" in banner
+    assert page.is_disabled("#ovkProtocolBtn")
+    assert "Kommer snart" in (page.text_content("#ovkProtocolBtn") or "")
+    # Bannern är låg nog att enhetslistan syns under den.
+    assert (
+        page.evaluate(
+            "() => document.getElementById('ovkFieldWork').getBoundingClientRect().height"
+        )
+        <= 120
+    )
+    assert page.text_content("#footDone") == "Synka"
+    sent = page.evaluate("() => payload()")
+    assert sent["field_work_note"] == "1102 och 1103 ej tillgängliga, återbesök bokas."
+    data = _validated_payload(sent)
+    assert data.field_work_completed_at == sent["field_work_completed_at"]
+
+    # Blir en enhet åter påbörjad men inte klar gäller avslutet inte längre: det skickas
+    # inte, tas bort i vyn och måste göras om.
+    saved_at = sent["field_work_completed_at"]
+    page.evaluate(
+        """() => { const a = state.units[0]; a.status = 'ej_paborjad'; a.checked_at = null; }"""
+    )
+    assert "field_work_completed_at" not in page.evaluate("() => payload()")
+    set_units("void 0")
+    assert page.evaluate("() => state.field_work_completed_at") is None
+    assert not page.is_visible("#ovkFieldWork")
+    assert "Avslutet togs bort" in (page.text_content("#ovkFieldWorkNote") or "")
+    set_units(
+        f"""const a = state.units[0]; a.status = 'ua'; a.checked_at = new Date().toISOString();
+        state.field_work_completed_at = '{saved_at}';
+        state.field_work_note = '1102 och 1103 ej tillgängliga, återbesök bokas.'"""
+    )
+    page.wait_for_function("Boolean(state.field_work_completed_at)")
+    assert page.is_visible("#ovkFieldWork")
+    assert (page.text_content("#ovkFieldWorkNote") or "") == ""
+
+    # Läggs en enhet till efter ett avslut utan notering gäller avslutet inte längre.
+    set_units(
+        """for (const unit of state.units) { unit.status = 'ua'; unit.bom_at = null;
+          unit.bom_note = ''; unit.revisit_required = false;
+          unit.checked_at = new Date().toISOString(); }
+        state.field_work_note = ''"""
+    )
+    assert page.is_visible("#ovkFieldWork")
+    assert "field_work_completed_at" in page.evaluate("() => payload()")
+    set_units(
+        """state.units.push({unit_id: 'u-ny', inspection_id: state.inspection_id,
+          number: '1104', kind: 'apartment', label: '', status: 'ej_paborjad', checked_at: null,
+          bom_at: null, bom_note: '', key: null, system_type: null})"""
+    )
+    assert page.evaluate("() => state.field_work_completed_at") is None
+    assert "Avslutet togs bort" in (page.text_content("#ovkFieldWorkNote") or "")
+    set_units(
+        f"""state.units = state.units.filter(unit => unit.unit_id !== 'u-ny');
+        const [, b, c] = state.units;
+        for (const unit of [b, c]) {{ unit.status = 'bom'; unit.checked_at = null;
+          unit.bom_at = new Date().toISOString(); }}
+        b.bom_note = 'Ingen hemma'; b.revisit_required = true;
+        state.field_work_completed_at = '{saved_at}';
+        state.field_work_note = '1102 och 1103 ej tillgängliga, återbesök bokas.'"""
+    )
+    page.wait_for_function("Boolean(state.field_work_completed_at)")
+
+    # I ett uppdrag från kontoret är rum förifyllda: en orörd enhet är inte påbörjad
+    # och hindrar inte avslut.
+    set_units(
+        """state.assignment_name = 'Brf Exempel';
+        state.rooms.push({room_id: 'r-plan', unit_id: state.units[1].unit_id, name: 'Kök'});
+        state.units[1].status = 'ej_paborjad'; state.units[1].bom_at = null"""
+    )
+    assert page.evaluate("() => unitProgress(state.units[1])") == "not_started"
+    assert page.evaluate("() => Boolean(state.field_work_completed_at)") is True
+    set_units(
+        """state.assignment_name = '';
+        state.rooms = state.rooms.filter(room => room.room_id !== 'r-plan');
+        state.units[1].status = 'bom'; state.units[1].bom_at = new Date().toISOString()"""
+    )
+
+    # Första trycket på Öppna igen följer inte med till en annan besiktning.
+    page.click("#ovkReopen")
+    assert page.text_content("#ovkReopen") == "Bekräfta"
+    set_units("state.inspection_id = 'annan-besiktning'")
+    assert page.text_content("#ovkReopen") == "Öppna igen"
+    set_units("state.inspection_id = 'avslutstest'")
+    assert page.text_content("#ovkReopen") == "Öppna igen"
+
+    # Avslutet överlever omladdning och går att öppna igen med två tryck.
+    _reload_after_save(page)
+    page.wait_for_function("typeof state === 'object' && state.units.length === 3")
+    page.wait_for_function("document.querySelector('.view.on').id === 'viewRond'")
+    assert page.evaluate("() => Boolean(state.field_work_completed_at)") is True
+    page.click("#ovkReopen")
+    assert page.evaluate("() => Boolean(state.field_work_completed_at)") is True
+    page.click("#ovkReopen")
+    page.wait_for_function("state.field_work_completed_at === null")
+    assert not page.is_visible("#ovkFieldWork")
+    reopened = page.evaluate("() => payload()")
+    assert "field_work_completed_at" not in reopened
+    assert "field_work_note" not in reopened
+
+    assert dialogs == []
+    assert errors == []
+    _validated_payload(reopened)
     context.close()

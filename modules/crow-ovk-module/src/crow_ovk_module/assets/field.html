@@ -140,13 +140,26 @@
     #viewRond #ovkKeyCard{padding:8px 14px}
     #viewRond #ovkKeyCard .eyebrow{display:none}
     #viewRond .ovk-key-summary{margin:0;font-size:15px}
-    #ovkDayEnd{min-height:30px;padding:2px 0;font-size:13px}
     #viewRond .ovk-key-head .btn{min-height:40px;padding:6px 12px;font-size:14px}
     #viewRond h1{margin:0;font-size:20px;line-height:1.2;overflow-wrap:anywhere}
     #viewRond .rondbar{margin:8px 0 6px}
     #viewRond .counts{font-size:12.5px;gap:4px 10px}
     #viewRond #roundSummary{margin:4px 0 0}
-    #roundSystemBtn{min-height:36px;padding:4px 0;font-size:13px;text-align:left}
+    /* En rad som aldrig radbryts: höjden får inte bero på teckensnittets bredd. */
+    .ovk-round-links{display:flex;flex-wrap:nowrap;justify-content:space-between;align-items:center;gap:10px;min-height:40px}
+    .ovk-round-links .ovk-wz-link{min-height:40px;padding:4px 0;font-size:13px;white-space:nowrap;flex:none}
+    .ovk-round-links #roundSystemBtn{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;text-align:left}
+    #ovkFieldWork[hidden]{display:none}
+    #ovkFieldWorkNote:empty{display:none}
+    #ovkFieldWorkNote{margin:4px 0 0}
+    #ovkFieldWork{margin:4px 0 2px;padding:8px 12px;border:1.5px solid var(--ua);border-radius:12px;background:var(--panel)}
+    #ovkFieldWork p{margin:0;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    #ovkFieldWork .ovk-fw-title{font-weight:700;font-size:15px}
+    #ovkFieldWork .ovk-fw-actions{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:8px;margin-top:6px}
+    #ovkFieldWork .btn{min-height:44px;height:44px;margin:0;padding:4px 6px;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .ovk-finish-block.block h4{color:var(--anm)}
+    .ovk-finish-note{width:100%;min-height:96px;margin-top:6px;padding:10px;border:1.5px solid var(--line);border-radius:12px;font:inherit;font-size:16px}
+    .ovk-finish-msg{margin:6px 0 0;color:var(--anm);font-weight:650;font-size:14px}
     #roundSystemBtn:disabled{color:var(--mut);text-decoration:none;opacity:1}
     #viewRond #roundSummary:empty{display:none}
     #viewRond #continueUnit{display:none}
@@ -316,7 +329,7 @@
   <section class="view" id="viewRond">
     <div class="card" id="ovkKeyCard">
       <div class="ovk-key-head">
-        <div><div class="eyebrow">Nycklar</div><p id="ovkKeySummary" class="ovk-key-summary" role="status" aria-live="polite"></p><button type="button" class="ovk-wz-link" id="ovkDayEnd">Dagsavslut</button></div>
+        <div><div class="eyebrow">Nycklar</div><p id="ovkKeySummary" class="ovk-key-summary" role="status" aria-live="polite"></p></div>
         <button class="btn ghost" id="ovkKeyToggle" aria-expanded="false" aria-controls="ovkKeyPanel">Hantera nycklar</button>
       </div>
       <div id="ovkKeyPanel" hidden>
@@ -334,7 +347,9 @@
       <h1 id="rondMeta" tabindex="-1">Besiktning</h1>
       <div class="rondbar" id="rondbar" aria-hidden="true"></div>
       <div class="counts"><span><b id="cDone">0</b>/<b id="cTotal">0</b> besiktigade</span><span><b id="cAnm">0</b> med anm.</span><span><b id="cBom">0</b> BOM</span><span><b id="cMeas">0</b> uppmätta don</span></div>
-      <button type="button" class="ovk-wz-link" id="roundSystemBtn">System: –</button>
+      <div class="ovk-round-links"><button type="button" class="ovk-wz-link" id="roundSystemBtn">System: –</button><button type="button" class="ovk-wz-link" id="ovkDayEnd">Dagsavslut</button><button type="button" class="ovk-wz-link" id="ovkFinishOpen">Sammanställning</button></div>
+      <div id="ovkFieldWork" hidden></div>
+      <p id="ovkFieldWorkNote" class="room-progress" role="status" aria-live="polite"></p>
       <p id="roundSummary" class="room-progress" role="status" aria-live="polite"></p>
       <button class="btn" id="continueUnit" hidden>Fortsätt med nästa enhet</button>
       <div class="round-toolbar"><div><label for="unitSearch">Sök</label><input id="unitSearch" type="search" placeholder="T.ex. 1201" aria-label="Sök lägenhet eller lokal"></div><div><label for="unitFilter">Visa</label><select id="unitFilter"><option value="all">Alla</option><option value="pending">Återstående</option><option value="not_started">Ej påbörjade</option><option value="ongoing">Pågående</option><option value="measure_left">Mätning återstår</option><option value="checked">Färdigbesiktigade</option><option value="bom">Ej tillgängliga (BOM)</option><option value="revisit">Återbesök krävs</option></select></div><div hidden><label for="unitFloor">Våning</label><select id="unitFloor"><option value="">Alla våningar</option></select></div></div>
@@ -1597,7 +1612,8 @@
   function renderRoundSystem(){
     const button=$id('roundSystemBtn');
     const supply=state.system_type==='FT'||state.system_type==='FTX';
-    button.textContent='System: '+(state.system_type||'–')+(supply?' · tilluftsdon':' · friskluftsventiler')+(allowedSystems().length>1?' · ändra':'');
+    button.textContent='System: '+(state.system_type||'–')+(supply?' · tilluft':' · friskluft');
+    button.setAttribute('aria-label','Systemtyp '+(state.system_type||'ej vald')+(supply?', tilluftsdon efterfrågas':', friskluftsventiler efterfrågas')+(allowedSystems().length>1?'. Tryck för att ändra.':''));
     button.disabled=allowedSystems().length<2;
   }
   $id('roundSystemBtn').addEventListener('click',async()=>{
@@ -1606,14 +1622,128 @@
     state.system_type=answer.choice;$id('systemType').value=answer.choice;
     renderRond();await persist();
   });
+  // ── Avsluta besiktningen ─────────────────────────────────────────────
+  // Sammanställningen skiljer det som måste åtgärdas (påbörjade enheter som inte är
+  // klara) från det som bara ska uppmärksammas. Enheter utan tillträde hindrar inte
+  // avslut, men då ska omfattning och begränsningar skrivas in. Protokollet skapas
+  // senare och på kontorssidan; här sätts bara att fältarbetet är avslutat.
+  const fwUnit=unit=>unit.kind==='premises'?(unit.label||'Lokal '+unit.number):'Lgh '+unit.number;
+  const fwStamp=value=>{const date=new Date(value);return Number.isNaN(date.getTime())?'':date.toLocaleString('sv-SE',{dateStyle:'short',timeStyle:'short'})};
+  function finishFacts(){
+    const by=key=>state.units.filter(unit=>key.includes(unitProgress(unit)));
+    const done=by(['done']),unavailable=by(['unavailable']),untouched=by(['not_started']);
+    const started=by(['ongoing','visual_done','measure_left','review_left']);
+    const doneIds=new Set(done.map(unit=>unit.unit_id));
+    const points=state.measurements.filter(point=>doneIds.has(point.unit_id));
+    const keysOut=state.units.filter(unit=>unit.key&&unit.key.received&&!unit.key.returned).map(fwUnit);
+    if(state.master_key&&state.master_key.received&&!state.master_key.returned)keysOut.unshift('Huvudnyckel');
+    // Varje anmärkning hamnar i exakt en grupp, även de som saknar klass.
+    const classes=[[2,'klass 2'],[1,'klass 1'],[0,'klass 0']].map(([level,label])=>[label,state.findings.filter(item=>item.classification===level).length]);
+    classes.push(['utan klass',state.findings.length-classes.reduce((sum,item)=>sum+item[1],0)]);
+    const spaces=state.technical_spaces.filter(space=>typeof spacePending==='function'&&spacePending(space.space_id));
+    return {done,unavailable,untouched,started,keysOut,classes:classes.filter(item=>item[1]),spaces,
+      revisit:state.units.filter(unit=>unit.revisit_required),
+      measured:points.filter(measuredPoint).length,
+      notMeasurable:points.filter(point=>point.measurable===false).length,
+      unmeasured:points.filter(pendingPoint).length,
+      noteRequired:unavailable.length+untouched.length>0};
+  }
+  function showFinish(){
+    const facts=finishFacts();
+    const overlay=el('div','ovk-summary');overlay.id='ovkFinishView';
+    overlay.setAttribute('role','dialog');overlay.setAttribute('aria-modal','true');overlay.setAttribute('aria-labelledby','ovkFinishTitle');
+    const body=el('div','ovk-summary-body');
+    const title=el('h2','','Sammanställning');title.id='ovkFinishTitle';title.tabIndex=-1;
+    body.append(el('p','ovk-summary-note',state.field_work_completed_at?'Fältarbetet är avslutat':'Innan fältarbetet avslutas'),title);
+    body.append(el('p','ovk-summary-result',(state.assignment_name||state.inspection_id)+' · '+(state.system_type||'–')+' · '+(state.inspector||'besiktningsman saknas')+' · '+new Date().toLocaleDateString('sv-SE')));
+    const block=(heading,rows,kind)=>{
+      if(!rows.length)return;
+      const node=el('div','ovk-review-room ovk-finish-block'+(kind?' '+kind:''));node.dataset.section=heading;
+      node.append(el('h4','',heading));
+      for(const row of rows)node.append(el('p','',row));
+      body.append(node);
+    };
+    block('Måste åtgärdas först',facts.started.map(unit=>fwUnit(unit)+' är påbörjad men inte klar'),'block');
+    block('Kräver uppmärksamhet',[
+      ...facts.untouched.map(unit=>fwUnit(unit)+' är inte besiktad'),
+      ...facts.unavailable.map(unit=>fwUnit(unit)+' – ingen tillgång (BOM)'+(unit.bom_note?': '+unit.bom_note:'')+(unit.revisit_required?' · återbesök krävs':'')),
+      ...facts.spaces.map(space=>(space.label||'Fläktrum/aggregat')+' har kontrollpunkter som inte är besvarade'),
+      ...facts.revisit.filter(unit=>unit.status!=='bom').map(unit=>fwUnit(unit)+' kräver återbesök'),
+      ...(facts.unmeasured?[facts.unmeasured+' don saknar mätvärde i klara enheter']:[]),
+      ...(facts.keysOut.length?['Nycklar ute: '+facts.keysOut.join(', ')]:[])
+    ]);
+    block('Genomfört',[
+      facts.done.length+' av '+state.units.length+' enheter besiktade',
+      facts.measured+' don mätta'+(facts.notMeasurable?' · '+facts.notMeasurable+' ej mätbara':''),
+      state.findings.length?state.findings.length+(state.findings.length===1?' anmärkning (':' anmärkningar (')+facts.classes.map(item=>item[1]+' i '+item[0]).join(', ')+')':'Inga anmärkningar',
+      state.photos.length+' foton',
+      state.technical_spaces.length?state.technical_spaces.length+' fläktrum/aggregat registrerade':'Inga fläktrum eller aggregat registrerade'
+    ]);
+    const scope=el('div','ovk-review-room');
+    const label=document.createElement('label');label.htmlFor='ovkFinishNote';label.textContent='Omfattning och begränsningar'+(facts.noteRequired?' (krävs)':'');
+    const note=document.createElement('textarea');note.id='ovkFinishNote';note.className='ovk-finish-note';note.maxLength=2000;note.value=state.field_work_note||'';
+    note.placeholder=facts.noteRequired?'T.ex. vilka enheter som inte kunnat besiktas och varför':'Valfritt';
+    const message=el('p','ovk-finish-msg','');message.id='ovkFinishMsg';message.setAttribute('role','alert');
+    scope.append(label,note,message);body.append(scope);
+    const actions=el('div','ovk-summary-actions');
+    const close=()=>{overlay.remove();document.removeEventListener('keydown',onKey,true)};
+    const back=el('button','ovk-sheet-btn ghost','Tillbaka');back.type='button';back.dataset.finishClose='1';back.addEventListener('click',close);
+    const confirm=el('button','ovk-sheet-btn on',state.field_work_completed_at?'Spara':'Avsluta fältarbetet');confirm.type='button';confirm.id='ovkFinishConfirm';
+    confirm.disabled=facts.started.length>0;
+    confirm.addEventListener('click',async()=>{
+      const text=note.value.trim();
+      if(facts.noteRequired&&!text){message.textContent='Skriv vilka enheter som inte besiktats och varför.';note.focus();return}
+      state.field_work_completed_at=state.field_work_completed_at||now();state.field_work_note=text;
+      close();renderRond();await persist();
+    });
+    function onKey(event){if(event.key==='Escape'){event.preventDefault();close()}}
+    document.addEventListener('keydown',onKey,true);
+    actions.append(back,confirm);overlay.append(body,actions);document.body.append(overlay);title.focus({preventScroll:true});
+  }
+  let reopenArmed=false;
+  let reopenNote='';
+  let reopenTimer=0;
+  let fieldWorkFor='';
+  function renderFieldWork(){
+    const box=$id('ovkFieldWork');
+    // Samma regel som hindrar avslut: en påbörjad enhet som inte är klar. Uppstår den efter
+    // avslutet tas avslutet bort, så att en ofullständig besiktning inte synkas som avslutad.
+    // Tillstånd för återöppning hör till en besiktning och får inte följa med till nästa.
+    if(fieldWorkFor!==state.inspection_id){fieldWorkFor=state.inspection_id;reopenArmed=false;reopenNote='';clearTimeout(reopenTimer)}
+    if(state.field_work_completed_at&&!fieldWorkValid()){state.field_work_completed_at=null;state.field_work_note='';reopenNote='Avslutet togs bort eftersom besiktningen har ändrats. Granska och avsluta igen.';persist().catch(()=>{})}
+    const completed=state.field_work_completed_at;
+    $id('ovkFieldWorkNote').textContent=completed?'':reopenNote;
+    if(completed)reopenNote='';
+    box.hidden=!completed;box.replaceChildren();
+    if(!completed){reopenArmed=false;return}
+    // Kompakt: enhetslistan ska fortfarande synas under. Hela noteringen står i Sammanställning.
+    box.append(el('p','ovk-fw-title','Fältarbete avslutat '+fwStamp(completed)));
+    box.append(el('p','ovk-fw-sub','Protokoll: inte skapat – tas fram på kontoret.'));
+    const actions=el('div','ovk-fw-actions');
+    const protocol=el('button','btn ghost','Protokoll · Kommer snart');protocol.type='button';protocol.id='ovkProtocolBtn';protocol.disabled=true;
+    protocol.setAttribute('aria-label','Generera protokoll – kommer snart');
+    const reopen=el('button','btn ghost',reopenArmed?'Bekräfta':'Öppna igen');reopen.type='button';reopen.id='ovkReopen';
+    reopen.setAttribute('aria-label',reopenArmed?'Bekräfta: öppna besiktningen igen':'Öppna besiktningen igen');
+    reopen.addEventListener('click',async()=>{
+      // Första trycket armerar i några sekunder; därefter krävs ett nytt första tryck.
+      if(!reopenArmed){reopenArmed=true;clearTimeout(reopenTimer);reopenTimer=setTimeout(()=>{reopenArmed=false;renderFieldWork()},5000);renderFieldWork();return}
+      clearTimeout(reopenTimer);reopenArmed=false;state.field_work_completed_at=null;state.field_work_note='';
+      renderRond();await persist();
+    });
+    actions.append(protocol,reopen);box.append(actions);
+  }
+  $id('ovkFinishOpen').addEventListener('click',showFinish);
   // Ronderingsvyn: nästa enhet ligger i sidfoten, synk bredvid.
   const footSync=$id('footSync');
   const footInner=$id('footDone').parentElement;
   const roundUnitLabel=unit=>unit.kind==='premises'?(unit.label||'lokal '+unit.number):'lgh '+unit.number;
   function roundFooter(name){
     const next=name==='viewRond'?nextPendingUnit():null;
-    footSync.hidden=!next;footInner.classList.toggle('three',Boolean(next));
+    // När inget återstår är nästa steg att granska och avsluta; därefter att synka.
+    const finish=name==='viewRond'&&!next&&state.units.length>0&&!state.field_work_completed_at;
+    footSync.hidden=!(next||finish);footInner.classList.toggle('three',Boolean(next||finish));
     if(next){$id('footDone').textContent='Fortsätt · '+roundUnitLabel(next);$id('footBack').textContent='Start'}
+    else if(finish){$id('footDone').textContent='Granska och avsluta';$id('footBack').textContent='Start'}
     // På startsidan leder vänsterknappen tillbaka till OVK-modulens översikt.
     if(name==='viewStart'){
       $id('footBack').textContent='OVK-översikt';
@@ -1629,12 +1759,13 @@
   footSync.addEventListener('click',()=>syncDraft());
   const originalFootDone=$id('footDone').onclick;
   $id('footDone').onclick=function(event){
-    if(document.querySelector('.view.on').id==='viewRond'){const next=nextPendingUnit();if(next){openUnit(next.unit_id);return undefined}}
+    if(document.querySelector('.view.on').id==='viewRond'){const next=nextPendingUnit();if(next){openUnit(next.unit_id);return undefined}
+      if(state.units.length&&!state.field_work_completed_at){showFinish();return undefined}}
     if(document.querySelector('.view.on').id==='viewStart'&&startCollapsed()&&draftList[0]){void openDraft(draftList[0]);return undefined}
     return originalFootDone.call(this,event);
   };
   const originalRenderRond=renderRond;
-  renderRond=function(){originalRenderRond();renderRoundSystem();if(document.querySelector('.view.on').id==='viewRond')roundFooter('viewRond')};
+  renderRond=function(){originalRenderRond();renderRoundSystem();renderFieldWork();if(document.querySelector('.view.on').id==='viewRond'){originalUpdateFooter('viewRond');roundFooter('viewRond')}};
   updateFooter=function(name){originalUpdateFooter(name);roundFooter(name);if(name==='viewUnit')render()};
   void renderDrafts();
   // Sidfoten ska stämma redan innan första vybytet.

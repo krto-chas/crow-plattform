@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from datetime import datetime
 from decimal import Decimal, InvalidOperation
 from enum import StrEnum
 
@@ -34,6 +35,7 @@ class MeasurePointType(StrEnum):
 
 _KEY_RETURN_METHODS = ("", "hand", "mailbox")
 _KEY_STATES = ("", "missing", "not_applicable")
+_FIELD_WORK_NOTE_MAX = 2000
 
 
 @dataclass(frozen=True, slots=True)
@@ -440,10 +442,32 @@ class FieldInspectionData:
     finding_followups: tuple[FindingFollowup, ...] = field(default=())
     # Huvudnyckeln hör till besiktningen, inte till en enskild enhet.
     master_key: KeyLog | None = None
+    # Besiktningsmannen har avslutat fältarbetet. Protokollet är ett eget, senare steg:
+    # en besiktning kan vara färdig i fält utan att något protokoll har skapats.
+    field_work_completed_at: str | None = None
+    # Besiktningens omfattning och begränsningar, t.ex. enheter utan tillträde.
+    field_work_note: str = ""
 
     def __post_init__(self) -> None:
         if self.master_key is not None and self.master_key.master_key_used:
             raise ValueError("inspection master key cannot carry a per-unit master key note")
+        if self.field_work_completed_at is not None:
+            if not isinstance(self.field_work_completed_at, str):
+                raise ValueError("field_work_completed_at must be an ISO timestamp")
+            try:
+                completed = datetime.fromisoformat(self.field_work_completed_at)
+            except ValueError as exc:
+                raise ValueError("field_work_completed_at must be an ISO timestamp") from exc
+            if completed.tzinfo is None:
+                raise ValueError("field_work_completed_at must carry a time zone")
+        if not isinstance(self.field_work_note, str):
+            raise ValueError("field_work_note must be a string")
+        if len(self.field_work_note) > _FIELD_WORK_NOTE_MAX:
+            raise ValueError("field_work_note is too long")
+        if self.field_work_note and not self.field_work_note.strip():
+            raise ValueError("field_work_note must not be blank")
+        if self.field_work_note and self.field_work_completed_at is None:
+            raise ValueError("field_work_note requires completed field work")
         seen: set[tuple[str, str]] = set()
         units = {unit.unit_id for unit in self.units}
         findings = {finding.finding_id: finding for finding in self.findings}
