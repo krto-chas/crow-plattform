@@ -166,6 +166,7 @@
     #viewRond .round-toolbar{grid-template-columns:repeat(auto-fit,minmax(0,1fr));gap:8px;margin:10px 0 4px}
     #viewRond .round-toolbar label{font-size:12px;margin:0 0 2px}
     #viewRond .round-toolbar input,#viewRond .round-toolbar select{padding-left:8px;padding-right:4px;font-size:15px}
+    .ovk-key-tag{min-height:32px;padding:2px 0;font-size:12.5px;text-align:left}
     .ovk-access-row{grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:8px;margin-top:8px}
     /* Blad med textfält läggs överst: telefonens tangentbord täcker annars fält och knappar. */
     .ovk-sheet.typed{align-items:flex-start}
@@ -334,7 +335,7 @@
       </div>
       <div id="ovkKeyPanel" hidden>
         <div class="ovk-key-tools">
-          <label class="ovk-key-filter"><input type="checkbox" id="ovkKeyOnlyHeld"> Visa bara nycklar jag har</label>
+          <label class="ovk-key-filter"><input type="checkbox" id="ovkKeyOnlyHeld"> Återlämningsrunda: nycklar jag har, uppifrån och ned</label>
           <button class="btn ghost" id="ovkKeyReceiveAll">Ta emot alla</button>
         </div>
         <div id="ovkKeyList"></div>
@@ -1635,7 +1636,7 @@
     const started=by(['ongoing','visual_done','measure_left','review_left']);
     const doneIds=new Set(done.map(unit=>unit.unit_id));
     const points=state.measurements.filter(point=>doneIds.has(point.unit_id));
-    const keysOut=state.units.filter(unit=>unit.key&&unit.key.received&&!unit.key.returned).map(fwUnit);
+    const keysOut=state.units.filter(unit=>unit.key&&unit.key.received&&!unit.key.returned).map(unit=>fwUnit(unit)+(keyTagText(unit.key)?' ('+keyTagText(unit.key)+')':''));
     if(state.master_key&&state.master_key.received&&!state.master_key.returned)keysOut.unshift('Huvudnyckel');
     // Varje anmärkning hamnar i exakt en grupp, även de som saknar klass.
     const classes=[[2,'klass 2'],[1,'klass 1'],[0,'klass 0']].map(([level,label])=>[label,state.findings.filter(item=>item.classification===level).length]);
@@ -1895,15 +1896,15 @@
   let armed='';
   function entries(){
     const list=[{id:'master',name:'Huvudnyckel',get:()=>state.master_key,ensure:()=>state.master_key=state.master_key||blank()}];
-    for(const unit of state.units)list.push({id:unit.unit_id,name:(unit.kind==='premises'?(unit.label||'Lokal '+unit.number):'Lgh '+unit.number),get:()=>unit.key,ensure:()=>unit.key=unit.key||blank()});
+    for(const unit of state.units)list.push({id:unit.unit_id,unit,name:(unit.kind==='premises'?(unit.label||'Lokal '+unit.number):'Lgh '+unit.number)+(keyTagText(unit.key)?' · '+keyTagText(unit.key):''),get:()=>unit.key,ensure:()=>unit.key=unit.key||blank()});
     return list;
   }
-  function receive(entry){const key=entry.ensure();key.state='';key.received=true;key.received_at=now();key.returned=false;key.returned_at=null;key.returned_method=''}
+  function receive(entry){const key=entry.ensure();key.state='';if(entry.unit)assignKeyTag(key);key.received=true;key.received_at=now();key.returned=false;key.returned_at=null;key.returned_method=''}
   function giveBack(entry,method){
     const key=entry.ensure();
     // Servern avvisar en återlämnad nyckel som inte är mottagen, och då går hela synken inte igenom.
     key.state='';
-    if(!key.received){key.received=true;key.received_at=key.received_at||now()}
+    if(!key.received){if(entry.unit)assignKeyTag(key);key.received=true;key.received_at=key.received_at||now()}
     key.returned=true;key.returned_at=now();key.returned_method=method;
   }
   function undo(entry){
@@ -1932,9 +1933,11 @@
     const onlyHeld=$id('ovkKeyOnlyHeld').checked;
     const list=$id('ovkKeyList');
     list.replaceChildren();
-    for(const entry of all){
+    // Återlämningsrundan går uppifrån och ned i trapphuset: högsta våningsplan först.
+    const floorOf=entry=>entry.unit?unitFloor(entry.unit):'';
+    const shown=onlyHeld?all.filter(entry=>held(entry.get())).sort((a,b)=>floorOf(b).localeCompare(floorOf(a))||String(a.unit?a.unit.number:'').localeCompare(String(b.unit?b.unit.number:''),'sv',{numeric:true})):all;
+    for(const entry of shown){
       const key=entry.get();
-      if(onlyHeld&&!held(key))continue;
       const row=document.createElement('div');
       row.className='ovk-key-row'+(held(key)?' held':'');
       row.dataset.key=entry.id;
@@ -1943,6 +1946,11 @@
       const info=document.createElement('span');
       info.textContent=flagged(key)&&!key.received?KEY_STATE_LABEL[key.state]:!key||!key.received?'Ej mottagen':key.returned?'Mottagen '+localClock(key.received_at)+' · '+keyReturnText(key).toLowerCase():'Mottagen '+localClock(key.received_at)+' · hos dig';
       text.append(name,info);
+      if(entry.unit&&keyTagText(key)){
+        const change=document.createElement('button');change.type='button';change.className='ovk-wz-link ovk-key-tag';change.dataset.keyTag=entry.id;change.textContent='Ändra nr';
+        change.addEventListener('click',()=>changeKeyTag(entry));
+        text.append(change);
+      }
       const actions=document.createElement('div');actions.className='ovk-key-actions';
       if(flagged(key)&&!key.received)actions.append(action('Ta emot','primary',()=>receive(entry)),action('Ångra','',()=>undo(entry)));
       else if(!key||!key.received)actions.append(action('Ta emot','primary',()=>receive(entry)),...(entry.id==='master'?[]:[action('Saknas','',()=>mark(entry,'missing')),action('Ej aktuell','',()=>mark(entry,'not_applicable'))]));
@@ -1958,6 +1966,20 @@
     $id('ovkKeyBulk').hidden=!out.length;
     $id('ovkKeyReturnAllHand').textContent=armed==='hand'?'Bekräfta: '+out.length+' i handen':'I handen';
     $id('ovkKeyReturnAllMailbox').textContent=armed==='mailbox'?'Bekräfta: '+out.length+' i brevlådan':'I brevlådan';
+  }
+  // Fel bricka på nyckeln: numret kan rättas, men två enheter får aldrig samma nummer.
+  async function changeKeyTag(entry){
+    const key=entry.ensure();
+    const answer=await askSheet({title:'Nyckelns nummer',note:entry.name.split(' · ')[0]+'. Numret på brickan du fäst på nyckeln.',fields:[{id:'tag',label:'Nummer',value:String(key.tag||''),required:true,inputMode:'numeric',maxLength:3}],submitLabel:'Spara nummer'});
+    if(!answer)return;
+    const value=Number(answer.tag);
+    const status=$id('ovkKeyStatus');
+    if(!/^\d{1,3}$/.test(answer.tag)||value<1||value>KEY_TAG_MAX){status.textContent='Numret ska vara ett heltal från 1 till '+KEY_TAG_MAX+'.';return}
+    const taken=state.units.find(unit=>unit!==entry.unit&&unit.key&&unit.key.tag===value);
+    if(taken){status.textContent='Nr '+value+' används redan av '+(taken.kind==='premises'?(taken.label||'lokal '+taken.number):'lgh '+taken.number)+'.';return}
+    key.tag=value;status.textContent='';
+    renderKeyPanel();if(typeof renderRoundUnits==='function')renderRoundUnits();
+    await persist();
   }
   // Massåtgärderna kräver två tryck, så att ett feltryck inte stämplar alla nycklar.
   async function bulk(kind,run){

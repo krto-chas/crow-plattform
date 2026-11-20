@@ -144,7 +144,7 @@ function renderRoundUnits(){
     const button=document.createElement('button');button.type='button';button.className='unitrow '+unit.status;button.dataset.unit=unit.unit_id;
     const number=document.createElement('span');number.className='nr';number.textContent=unit.kind==='premises'&&unit.label?unit.label:unit.number;
     const meta=document.createElement('span');meta.className='sub';
-    meta.textContent=(unit.kind==='premises'?'Lokal · '+unit.number:'Lgh')+(points.length?' · '+points.filter(measuredPoint).length+'/'+points.length+' uppmätta':'')+(unit.key?.received&&!unit.key.returned?' · Nyckel ute':'')+(unit.revisit_required?' · Återbesök krävs':'');button.dataset.revisit=String(Boolean(unit.revisit_required));
+    meta.textContent=(unit.kind==='premises'?'Lokal · '+unit.number:'Lgh')+(points.length?' · '+points.filter(measuredPoint).length+'/'+points.length+' uppmätta':'')+(unit.key?.received&&!unit.key.returned?' · Nyckel '+(keyTagText(unit.key)?keyTagText(unit.key)+' ':'')+'ute':'')+(unit.revisit_required?' · Återbesök krävs':'');button.dataset.revisit=String(Boolean(unit.revisit_required));
     const status=document.createElement('span');status.className='tag '+unit.status;
     const progress=unitProgress(unit);button.dataset.progress=progress;
     // Färdiga enheter visar resultatet; övriga visar var i arbetet de står.
@@ -429,10 +429,16 @@ function askSheet({title,note='',fields=[],choices=null,submitLabel='Spara',canc
   });
 }
 function localClock(iso){const date=new Date(iso);return Number.isNaN(date.getTime())?String(iso||''):date.toLocaleTimeString('sv-SE',{hour:'2-digit',minute:'2-digit'})}
+// Nyckelbrickans löpnummer: första mottagna nyckeln får 1, nästa 2 osv. Numret följer
+// enheten genom besiktningen, behålls om mottagandet ångras och återanvänds inte.
+const KEY_TAG_MAX=999;
+function nextKeyTag(){return Math.max(0,...state.units.map(unit=>unit.key&&Number.isInteger(unit.key.tag)?unit.key.tag:0))+1}
+function assignKeyTag(key){if(!Number.isInteger(key.tag)){const next=nextKeyTag();if(next<=KEY_TAG_MAX)key.tag=next}}
+function keyTagText(key){return key&&Number.isInteger(key.tag)?'nr '+key.tag:''}
 function keyStamp(){const unit=activeUnit();unit.key=unit.key||{received:false,received_at:null,returned:false,returned_at:null,master_key_used:false,master_key_note:'',returned_method:''};return unit.key}
 const KEY_METHOD_LABEL={hand:'i handen',mailbox:'i brevlådan'};
 function keyReturnText(key){return 'Återlämnad '+localClock(key.returned_at)+(KEY_METHOD_LABEL[key.returned_method]?' · '+KEY_METHOD_LABEL[key.returned_method]:'')}
-function renderKeys(){const key=activeUnit().key;$('keyIn').classList.toggle('set',Boolean(key&&key.received));$('keyOut').classList.toggle('set',Boolean(key&&key.returned));$('keyMaster').classList.toggle('set',Boolean(key&&key.master_key_used));const parts=[];if(key&&key.state&&!key.received)parts.push(key.state==='missing'?'Nyckeln saknas':'Nyckel ej aktuell');if(key&&key.received)parts.push('Mottagen '+localClock(key.received_at));if(key&&key.master_key_used)parts.push('Huvudnyckel: '+key.master_key_note);if(key&&key.returned)parts.push(keyReturnText(key));$('keyInfo').textContent=parts.join(' · ');$('keyMethodRow').hidden=true}
+function renderKeys(){const key=activeUnit().key;$('keyIn').classList.toggle('set',Boolean(key&&key.received));$('keyOut').classList.toggle('set',Boolean(key&&key.returned));$('keyMaster').classList.toggle('set',Boolean(key&&key.master_key_used));const parts=[];if(keyTagText(key))parts.push('Nyckel '+keyTagText(key));if(key&&key.state&&!key.received)parts.push(key.state==='missing'?'Nyckeln saknas':'Nyckel ej aktuell');if(key&&key.received)parts.push('Mottagen '+localClock(key.received_at));if(key&&key.master_key_used)parts.push('Huvudnyckel: '+key.master_key_note);if(key&&key.returned)parts.push(keyReturnText(key));$('keyInfo').textContent=parts.join(' · ');$('keyMethodRow').hidden=true}
 function historicalMeasurementText(item){
   const unit=item.unit_of_measure||'l/s';
   const value=v=>v===null||v===undefined||v===''?'–':String(v)+' '+unit;
@@ -732,9 +738,9 @@ $('start').onclick=async()=>{const newId=$('inspection').value.trim();const insp
   if(state.object_type==='flerbostadshus'&&!state.units.length&&$('unitSeries').value.trim()){generateUnits()}
   if(state.object_type!=='flerbostadshus'&&!state.units.length&&!state.assignment_name){const unit={unit_id:uid('unit'),inspection_id:state.inspection_id,number:'Objekt 1',kind:'premises',label:'',status:'ej_paborjad',checked_at:null,bom_at:null,bom_note:'',key:null,system_type:null};state.units.push(unit);renderRond();openUnit(unit.unit_id);await persist();return}
   renderRond();view('viewRond');await persist()};
-$('keyIn').onclick=async()=>{const key=keyStamp();key.state='';key.received=!key.received;key.received_at=key.received?now():null;if(!key.received){key.returned=false;key.returned_at=null;key.returned_method=''}renderKeys();await persist()};
+$('keyIn').onclick=async()=>{const key=keyStamp();key.state='';key.received=!key.received;if(key.received)assignKeyTag(key);key.received_at=key.received?now():null;if(!key.received){key.returned=false;key.returned_at=null;key.returned_method=''}renderKeys();await persist()};
 $('keyOut').onclick=async()=>{const key=keyStamp();if(!key.received&&!key.master_key_used){$('keyInfo').textContent='Markera först nyckel mottagen eller huvudnyckel.';return}if(key.returned){key.returned=false;key.returned_at=null;key.returned_method='';renderKeys();await persist();return}$('keyMethodRow').hidden=false;$('keyInfo').textContent='Hur lämnas nyckeln tillbaka?'};
-async function returnActiveKey(method){const key=keyStamp();key.state='';if(!key.received){key.received=true;key.received_at=key.received_at||now()}key.returned=true;key.returned_at=now();key.returned_method=method;renderKeys();await persist()}
+async function returnActiveKey(method){const key=keyStamp();key.state='';if(!key.received){assignKeyTag(key);key.received=true;key.received_at=key.received_at||now()}key.returned=true;key.returned_at=now();key.returned_method=method;renderKeys();await persist()}
 $('keyReturnHand').onclick=()=>returnActiveKey('hand');
 $('keyReturnMailbox').onclick=()=>returnActiveKey('mailbox');
 // Huvudnyckel kräver en kommentar. Returnerar false om kommentaren avbröts; då ändras inget.

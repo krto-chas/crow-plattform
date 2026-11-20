@@ -36,6 +36,7 @@ class MeasurePointType(StrEnum):
 _KEY_RETURN_METHODS = ("", "hand", "mailbox")
 _KEY_STATES = ("", "missing", "not_applicable")
 _FIELD_WORK_NOTE_MAX = 2000
+_KEY_TAG_MAX = 999
 
 
 @dataclass(frozen=True, slots=True)
@@ -48,8 +49,11 @@ class KeyLog:
 
     ``state`` är en uttrycklig nyckelstatus utöver mottagen/återlämnad: ``missing``
     (nyckeln saknas) eller ``not_applicable`` (ingen nyckel är aktuell för enheten).
-    Nyckelnummer och vem som kvitterat lagras inte här; de hör till ett
-    serverlagrat register och får inte ligga i fältappens lokala utkast.
+
+    ``tag`` är besiktningsmannens eget löpnummer på nyckelbrickan: första mottagna
+    nyckeln får 1, nästa 2 och så vidare. Numret kopplar en bricka till en enhet under
+    besiktningen och får lagras i fältappens lokala utkast (beslut 2026-11-20). Nyckelns
+    egen märkning eller låsnummer lagras inte.
     """
 
     received: bool = False
@@ -60,8 +64,15 @@ class KeyLog:
     master_key_note: str = ""
     returned_method: str = ""
     state: str = ""
+    tag: int | None = None
 
     def __post_init__(self) -> None:
+        if self.tag is not None and (
+            isinstance(self.tag, bool)
+            or not isinstance(self.tag, int)
+            or not 1 <= self.tag <= _KEY_TAG_MAX
+        ):
+            raise ValueError(f"key tag must be a whole number from 1 to {_KEY_TAG_MAX}")
         if self.returned_method not in _KEY_RETURN_METHODS:
             raise ValueError("unsupported key return method")
         if self.state not in _KEY_STATES:
@@ -451,6 +462,11 @@ class FieldInspectionData:
     def __post_init__(self) -> None:
         if self.master_key is not None and self.master_key.master_key_used:
             raise ValueError("inspection master key cannot carry a per-unit master key note")
+        if self.master_key is not None and self.master_key.tag is not None:
+            raise ValueError("inspection master key cannot carry a key tag")
+        tags = [unit.key.tag for unit in self.units if unit.key and unit.key.tag is not None]
+        if len(tags) != len(set(tags)):
+            raise ValueError("key tags must be unique within an inspection")
         if self.field_work_completed_at is not None:
             if not isinstance(self.field_work_completed_at, str):
                 raise ValueError("field_work_completed_at must be an ISO timestamp")

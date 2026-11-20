@@ -2215,3 +2215,124 @@ def test_field_work_is_reviewed_and_finished_from_the_round_view(
     assert errors == []
     _validated_payload(reopened)
     context.close()
+
+
+def test_keys_are_numbered_in_reception_order_and_returned_top_down(
+    field_url: str, browser: Any
+) -> None:
+    context = browser.new_context(
+        viewport={"width": 375, "height": 667}, is_mobile=True, has_touch=True
+    )
+    page = context.new_page()
+    errors: list[str] = []
+    dialogs: list[str] = []
+    page.on("pageerror", lambda error: errors.append(str(error)))
+    _record_dialogs(page, dialogs)
+    page.goto(field_url)
+    page.wait_for_function("typeof state === 'object' && typeof payload === 'function'")
+    page.click("#ovkStartMore > summary")
+    page.fill("#inspection", "nyckelnummertest")
+    page.fill("#inspector", "Test Testsson")
+    page.select_option("#systemType", "F")
+    page.fill("#unitSeries", "1101-1102, 1201, 1301")
+    page.click("#footDone")
+    page.wait_for_function("state.units.length === 4")
+    ids = page.evaluate("() => Object.fromEntries(state.units.map(u => [u.number, u.unit_id]))")
+
+    def row(number: str) -> str:
+        return f"#ovkKeyList [data-key='{ids[number]}']"
+
+    def tags() -> dict[str, Any]:
+        result: dict[str, Any] = page.evaluate(
+            "() => Object.fromEntries(payload().units.map(u => [u.number, u.key && u.key.tag]))"
+        )
+        return result
+
+    # Nycklarna tas emot i porten i den ordning de boende kommer.
+    page.click("#ovkKeyToggle")
+    for number in ("1201", "1101", "1301"):
+        page.click(row(number) + " button:text-is('Ta emot')")
+    assert tags() == {"1101": 2, "1102": None, "1201": 1, "1301": 3}
+    assert "Lgh 1201 · nr 1" in (page.text_content(row("1201")) or "")
+    assert "Huvudnyckel" in (page.text_content("#ovkKeyList [data-key='master']") or "")
+    page.click("#ovkKeyList [data-key='master'] button:text-is('Ta emot')")
+    assert page.evaluate("() => payload().master_key.tag === undefined") is True
+
+    # Numret syns i enhetslistan, så att rätt bricka tas fram vid lägenheten.
+    meta = page.evaluate(
+        """() => Object.fromEntries([...document.querySelectorAll('#unitList .unitrow')]
+          .map(r => [r.querySelector('.nr').textContent, r.textContent]))"""
+    )
+    assert "Nyckel nr 2 ute" in meta["1101"]
+    assert "Nyckel" not in meta["1102"]
+
+    # Ångras mottagandet behålls numret, och nästa nyckel får nästa lediga nummer.
+    page.click(row("1101") + " button:text-is('Ångra')")
+    assert tags()["1101"] == 2
+    page.click(row("1102") + " button:text-is('Ta emot')")
+    assert tags()["1102"] == 4
+    page.click(row("1101") + " button:text-is('Ta emot')")
+    assert tags()["1101"] == 2
+
+    # Fel bricka rättas, men två lägenheter kan inte få samma nummer.
+    page.click(f"[data-key-tag='{ids['1102']}']")
+    page.fill("#ovkSheet_tag", "3")
+    page.click("#ovkSheet [data-sheet-submit]")
+    assert "Nr 3 används redan av lgh 1301" in (page.text_content("#ovkKeyStatus") or "")
+    assert tags()["1102"] == 4
+    page.click(f"[data-key-tag='{ids['1102']}']")
+    page.fill("#ovkSheet_tag", "abc")
+    page.click("#ovkSheet [data-sheet-submit]")
+    assert "heltal från 1 till 999" in (page.text_content("#ovkKeyStatus") or "")
+    page.click(f"[data-key-tag='{ids['1102']}']")
+    page.fill("#ovkSheet_tag", "9")
+    page.click("#ovkSheet [data-sheet-submit]")
+    page.wait_for_function("state.units.find(unit => unit.number === '1102').key.tag === 9")
+    assert (page.text_content("#ovkKeyStatus") or "") == ""
+
+    # Enhetskortet visar numret.
+    page.click("#ovkKeyToggle")
+    page.click("#unitList [data-unit] >> text=1201")
+    page.wait_for_function("document.getElementById('ovkWizard').dataset.step === 'room'")
+    page.click("#footBack")
+    page.wait_for_function(
+        "document.getElementById('ovkStepTitle').textContent.includes('nycklar')"
+    )
+    assert "Nyckel nr 1" in (page.text_content("#keyInfo") or "")
+    page.evaluate("() => { renderRond(); view('viewRond'); }")
+
+    # Återlämningsrundan: bara nycklar som är ute, högsta våningen först.
+    page.click("#ovkKeyToggle")
+    page.check("#ovkKeyOnlyHeld")
+    order = page.evaluate(
+        "() => [...document.querySelectorAll('#ovkKeyList .ovk-key-row strong')]"
+        ".map(node => node.textContent)"
+    )
+    assert order == [
+        "Lgh 1301 · nr 3",
+        "Lgh 1201 · nr 1",
+        "Lgh 1101 · nr 2",
+        "Lgh 1102 · nr 9",
+        "Huvudnyckel",
+    ]
+    page.click(row("1301") + " button:text-is('Brevlåda')")
+    assert "Lgh 1301" not in (page.text_content("#ovkKeyList") or "")
+    assert (
+        page.evaluate("() => state.units.find(u => u.number === '1301').key.returned_method")
+        == "mailbox"
+    )
+
+    # Sammanställningen namnger nycklar som är ute med nummer.
+    page.click("#ovkFinishOpen")
+    page.wait_for_selector("#ovkFinishView")
+    assert "Lgh 1201 (nr 1)" in (page.text_content("#ovkFinishView") or "")
+    page.click("#ovkFinishView [data-finish-close]")
+
+    # Numren överlever omladdning och godtas av synkkontraktet.
+    _reload_after_save(page)
+    page.wait_for_function("typeof state === 'object' && state.units.length === 4")
+    assert tags() == {"1101": 2, "1102": 9, "1201": 1, "1301": 3}
+    assert dialogs == []
+    assert errors == []
+    _validated_payload(page.evaluate("() => payload()"))
+    context.close()
