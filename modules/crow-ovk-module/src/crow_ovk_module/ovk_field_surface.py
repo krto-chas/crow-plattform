@@ -332,7 +332,7 @@ def _field_data_from_payload(payload: dict[str, Any]) -> FieldInspectionData:
             bom_note=str(item.get("bom_note", "")),
             key=_key_from_payload(item.get("key")),
             system_type=_optional_str(item.get("system_type")),
-            access=str(item.get("access") or ""),
+            access=_strict_str(item.get("access"), "access"),
             revisit_required=_strict_bool(item.get("revisit_required"), "revisit_required"),
         )
         for item in _dict_items(payload.get("units", []), "units")
@@ -482,6 +482,15 @@ def _followup_photo_ids(value: Any) -> tuple[str, ...]:
     ):
         raise ValueError("followup photo_ids must be a list of identifiers")
     return tuple(value)
+
+
+def _strict_str(value: Any, name: str) -> str:
+    """Saknat värde är tom sträng; allt annat än en sträng avvisas."""
+    if value is None:
+        return ""
+    if not isinstance(value, str):
+        raise ValueError(f"{name} must be a string")
+    return value
 
 
 def _strict_bool(value: Any, name: str) -> bool:

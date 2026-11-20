@@ -93,6 +93,8 @@ def test_model_rejects_invalid_values() -> None:
     "unit",
     [
         {"access": "fönster"},
+        {"access": 0},
+        {"access": False},
         {"revisit_required": "false"},
         {"revisit_required": 1},
         {"key": _key(state="borta")},
