@@ -2290,7 +2290,27 @@ def test_keys_are_numbered_in_reception_order_and_returned_top_down(
     page.wait_for_function("state.units.find(unit => unit.number === '1102').key.tag === 9")
     assert (page.text_content("#ovkKeyStatus") or "") == ""
 
-    # Enhetskortet visar numret.
+    # Rättas ett nummer upp till taket fortsätter numreringen på lägsta lediga nummer,
+    # och en mottagen nyckel utan nummer kan alltid numreras för hand.
+    assert (
+        page.evaluate(
+            """() => { const keep = state.units.map(u => u.key && u.key.tag);
+          state.units[0].key.tag = 999; const next = nextKeyTag();
+          state.units.forEach((u, i) => { if (u.key) u.key.tag = keep[i]; });
+          return next; }"""
+        )
+        == 5
+    )
+    page.evaluate(
+        """() => { state.units.find(u => u.number === '1301').key.tag = undefined;
+          renderRond(); }"""
+    )
+    assert page.text_content(f"[data-key-tag='{ids['1301']}']") == "Sätt nr"
+    page.click(f"[data-key-tag='{ids['1301']}']")
+    page.fill("#ovkSheet_tag", "3")
+    page.click("#ovkSheet [data-sheet-submit]")
+    page.wait_for_function("state.units.find(unit => unit.number === '1301').key.tag === 3")
+
     page.click("#ovkKeyToggle")
     page.click("#unitList [data-unit] >> text=1201")
     page.wait_for_function("document.getElementById('ovkWizard').dataset.step === 'room'")

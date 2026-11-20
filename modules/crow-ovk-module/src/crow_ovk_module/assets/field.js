@@ -432,8 +432,15 @@ function localClock(iso){const date=new Date(iso);return Number.isNaN(date.getTi
 // Nyckelbrickans löpnummer: första mottagna nyckeln får 1, nästa 2 osv. Numret följer
 // enheten genom besiktningen, behålls om mottagandet ångras och återanvänds inte.
 const KEY_TAG_MAX=999;
-function nextKeyTag(){return Math.max(0,...state.units.map(unit=>unit.key&&Number.isInteger(unit.key.tag)?unit.key.tag:0))+1}
-function assignKeyTag(key){if(!Number.isInteger(key.tag)){const next=nextKeyTag();if(next<=KEY_TAG_MAX)key.tag=next}}
+function nextKeyTag(){
+  const used=new Set(state.units.map(unit=>unit.key&&Number.isInteger(unit.key.tag)?unit.key.tag:0));
+  const next=Math.max(0,...used)+1;
+  if(next<=KEY_TAG_MAX)return next;
+  // Har ett nummer rättats upp till taket fortsätter numreringen på lägsta lediga nummer.
+  for(let tag=1;tag<=KEY_TAG_MAX;tag+=1)if(!used.has(tag))return tag;
+  return null;
+}
+function assignKeyTag(key){if(!Number.isInteger(key.tag)){const next=nextKeyTag();if(next!==null)key.tag=next}}
 function keyTagText(key){return key&&Number.isInteger(key.tag)?'nr '+key.tag:''}
 function keyStamp(){const unit=activeUnit();unit.key=unit.key||{received:false,received_at:null,returned:false,returned_at:null,master_key_used:false,master_key_note:'',returned_method:''};return unit.key}
 const KEY_METHOD_LABEL={hand:'i handen',mailbox:'i brevlådan'};

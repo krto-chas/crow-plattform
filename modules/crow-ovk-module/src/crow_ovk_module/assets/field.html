@@ -1888,7 +1888,8 @@
 (function(){
   const $id=id=>document.getElementById(id);
   const blank=()=>({received:false,received_at:null,returned:false,returned_at:null,master_key_used:false,master_key_note:'',returned_method:'',state:''});
-  // Uttrycklig status utöver mottagen/återlämnad. Nyckelnummer lagras inte i appen.
+  // Uttrycklig status utöver mottagen/återlämnad. Brickans löpnummer (tag) lagras; nyckelns
+  // egen märkning eller låsnummer gör det inte.
   const KEY_STATE_LABEL={missing:'Saknas',not_applicable:'Ej aktuell'};
   const flagged=key=>Boolean(key&&key.state);
   function mark(entry,value){const key=entry.ensure();key.state=value}
@@ -1946,8 +1947,9 @@
       const info=document.createElement('span');
       info.textContent=flagged(key)&&!key.received?KEY_STATE_LABEL[key.state]:!key||!key.received?'Ej mottagen':key.returned?'Mottagen '+localClock(key.received_at)+' · '+keyReturnText(key).toLowerCase():'Mottagen '+localClock(key.received_at)+' · hos dig';
       text.append(name,info);
-      if(entry.unit&&keyTagText(key)){
-        const change=document.createElement('button');change.type='button';change.className='ovk-wz-link ovk-key-tag';change.dataset.keyTag=entry.id;change.textContent='Ändra nr';
+      // Även en mottagen nyckel utan nummer ska gå att numrera för hand.
+      if(entry.unit&&(keyTagText(key)||(key&&key.received))){
+        const change=document.createElement('button');change.type='button';change.className='ovk-wz-link ovk-key-tag';change.dataset.keyTag=entry.id;change.textContent=keyTagText(key)?'Ändra nr':'Sätt nr';
         change.addEventListener('click',()=>changeKeyTag(entry));
         text.append(change);
       }
