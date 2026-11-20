@@ -1670,3 +1670,153 @@ def test_start_page_offers_continue_and_new_inspection(field_url: str, browser: 
     assert errors == []
     _validated_payload(page.evaluate("() => payload()"))
     context.close()
+
+
+def test_access_revisit_and_key_status_are_registered_and_summarised(
+    field_url: str, browser: Any
+) -> None:
+    context = browser.new_context(
+        viewport={"width": 375, "height": 667}, is_mobile=True, has_touch=True
+    )
+    page = context.new_page()
+    errors: list[str] = []
+    dialogs: list[str] = []
+    page.on("pageerror", lambda error: errors.append(str(error)))
+    _record_dialogs(page, dialogs)
+    page.goto(field_url)
+    page.wait_for_function("typeof state === 'object' && typeof payload === 'function'")
+    page.click("#ovkStartMore > summary")
+    page.fill("#inspection", "tilltradestest")
+    page.fill("#inspector", "Test Testsson")
+    page.fill("#unitSeries", "1101-1104")
+    page.click("#footDone")
+    page.wait_for_function("state.units.length === 4")
+
+    def unit(number: str) -> dict[str, Any]:
+        result: dict[str, Any] = page.evaluate(
+            "number => payload().units.find(item => item.number === number)", number
+        )
+        return result
+
+    def open_key_step(number: str) -> None:
+        page.click(f"#unitList [data-unit] >> text={number}")
+        page.wait_for_function("document.getElementById('ovkWizard').dataset.step === 'room'")
+        page.click("#footBack")
+        page.wait_for_function(
+            "document.getElementById('ovkStepTitle').textContent.includes('nycklar')"
+        )
+
+    def to_list() -> None:
+        page.evaluate("() => { renderRond(); view('viewRond'); }")
+
+    # Tillträde väljs med knappar och är skilt från nyckeln.
+    open_key_step("1101")
+    assert page.evaluate("() => document.documentElement.scrollHeight - window.innerHeight") <= 0
+    assert page.text_content("#unitAccessBtn") == "Tillträde: –"
+    page.click("#unitAccessBtn")
+    assert page.locator("#ovkSheet [data-sheet-choice]").count() == 5
+    page.click("#ovkSheet [data-sheet-choice='resident']")
+    page.wait_for_function("activeUnit().access === 'resident'")
+    assert page.text_content("#unitAccessBtn") == "Tillträde: Boende öppnade"
+    assert unit("1101")["access"] == "resident"
+    assert unit("1101").get("key") is None
+
+    # Huvudnyckel som tillträde kräver kommentaren om huvudnyckeln.
+    page.click("#unitAccessBtn")
+    page.click("#ovkSheet [data-sheet-choice='master_key']")
+    page.wait_for_selector("#ovkSheet_note")
+    page.fill("#ovkSheet_note", "Lånad av förvaltaren")
+    page.click("#ovkSheet [data-sheet-submit]")
+    page.wait_for_function("activeUnit().key && activeUnit().key.master_key_used === true")
+    assert unit("1101")["access"] == "master_key"
+
+    # Återbesök kan sättas på en enhet som är besiktad till en del.
+    assert page.text_content("#unitRevisitBtn") == "Återbesök: nej"
+    page.click("#unitRevisitBtn")
+    page.wait_for_function("activeUnit().revisit_required === true")
+    assert page.text_content("#unitRevisitBtn") == "Återbesök krävs"
+    assert unit("1101")["revisit_required"] is True
+    # Oanvända fält skickas inte alls.
+    assert "access" not in unit("1102")
+    assert "revisit_required" not in unit("1102")
+
+    # BOM frågar efter notering och om återbesök krävs.
+    to_list()
+    open_key_step("1102")
+    page.click("#bom")
+    page.fill("#ovkSheet_note", "Ingen hemma")
+    page.click("#ovkSheet [data-sheet-choice='revisit']")
+    page.wait_for_function("document.querySelector('.view.on').id === 'viewRond'")
+    assert unit("1102")["status"] == "bom"
+    assert unit("1102")["revisit_required"] is True
+    to_list()
+    open_key_step("1103")
+    page.click("#bom")
+    page.click("#ovkSheet [data-sheet-choice='none']")
+    page.wait_for_function("document.querySelector('.view.on').id === 'viewRond'")
+    assert unit("1103")["status"] == "bom"
+    assert "revisit_required" not in unit("1103")
+
+    # Listan visar återbesök och kan filtrera på det.
+    rows = page.evaluate(
+        """() => Object.fromEntries([...document.querySelectorAll('#unitList .unitrow')]
+          .map(row => [row.querySelector('.nr').textContent, row.dataset.revisit]))"""
+    )
+    assert rows == {"1101": "true", "1102": "true", "1103": "false", "1104": "false"}
+    page.select_option("#unitFilter", "revisit")
+    assert page.locator("#unitList .unitrow").count() == 2
+    page.select_option("#unitFilter", "all")
+
+    # Nyckelstatus: saknas och ej aktuell, och de tas inte emot av "Ta emot alla".
+    page.click("#ovkKeyToggle")
+    key_row = "#ovkKeyList [data-key='{}']"
+    unit_ids = page.evaluate(
+        "() => Object.fromEntries(state.units.map(u => [u.number, u.unit_id]))"
+    )
+    page.click(key_row.format(unit_ids["1103"]) + " button:text-is('Saknas')")
+    page.click(key_row.format(unit_ids["1104"]) + " button:text-is('Ej aktuell')")
+    assert unit("1103")["key"]["state"] == "missing"
+    assert unit("1104")["key"]["state"] == "not_applicable"
+    assert "Saknas" in (page.text_content(key_row.format(unit_ids["1103"])) or "")
+    page.click("#ovkKeyReceiveAll")
+    page.click("#ovkKeyReceiveAll")
+    page.wait_for_function(
+        "state.units.find(item => item.number === '1102').key && "
+        "state.units.find(item => item.number === '1102').key.received === true"
+    )
+    assert unit("1103")["key"]["received"] is False
+    assert unit("1104")["key"]["received"] is False
+    # Tas en nyckel ändå emot försvinner den uttryckliga statusen.
+    page.click(key_row.format(unit_ids["1104"]) + " button:text-is('Ta emot')")
+    assert unit("1104")["key"]["received"] is True
+    assert unit("1104")["key"].get("state", "") == ""
+    page.click("#ovkKeyToggle")
+
+    # Dagsavslut samlar det som måste vara omhändertaget.
+    page.click("#ovkDayEnd")
+    page.wait_for_selector("#ovkDayEndView")
+    sections = page.evaluate(
+        """() => Object.fromEntries([...document.querySelectorAll('#ovkDayEndView [data-section]')]
+          .map(block => [block.dataset.section,
+                         [...block.querySelectorAll('p')].map(p => p.textContent)]))"""
+    )
+    assert len(sections["Nycklar ute"]) == 3
+    assert sections["Nycklar som saknas"] == ["Lgh 1103"]
+    assert sections["Återbesök krävs"] == ["Lgh 1101", "Lgh 1102 · Ingen hemma"]
+    assert len(sections["Ej tillgängliga (BOM)"]) == 2
+    assert sections["Ej påbörjade"] == ["Lgh 1101", "Lgh 1104"]
+    before = page.evaluate("() => JSON.stringify(payload())")
+    page.click("#ovkDayEndView [data-day-end-close]")
+    assert page.locator("#ovkDayEndView").count() == 0
+    assert page.evaluate("() => JSON.stringify(payload())") == before
+
+    # Allt överlever omladdning och godtas av synkkontraktet.
+    _reload_after_save(page)
+    page.wait_for_function("typeof state === 'object' && state.units.length === 4")
+    assert unit("1101")["access"] == "master_key"
+    assert unit("1102")["revisit_required"] is True
+    assert unit("1103")["key"]["state"] == "missing"
+    assert dialogs == []
+    assert errors == []
+    _validated_payload(page.evaluate("() => payload()"))
+    context.close()

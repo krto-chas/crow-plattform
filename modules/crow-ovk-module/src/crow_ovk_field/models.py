@@ -33,6 +33,7 @@ class MeasurePointType(StrEnum):
 
 
 _KEY_RETURN_METHODS = ("", "hand", "mailbox")
+_KEY_STATES = ("", "missing", "not_applicable")
 
 
 @dataclass(frozen=True, slots=True)
@@ -42,6 +43,11 @@ class KeyLog:
     Huvudnyckel kräver alltid en skriven kommentar för spårbarhetens skull.
     ``returned_method`` anger hur nyckeln lämnades tillbaka: ``hand`` (i handen)
     eller ``mailbox`` (i brevlådan). Tom sträng betyder att sättet inte angetts.
+
+    ``state`` är en uttrycklig nyckelstatus utöver mottagen/återlämnad: ``missing``
+    (nyckeln saknas) eller ``not_applicable`` (ingen nyckel är aktuell för enheten).
+    Nyckelnummer och vem som kvitterat lagras inte här; de hör till ett
+    serverlagrat register och får inte ligga i fältappens lokala utkast.
     """
 
     received: bool = False
@@ -51,10 +57,15 @@ class KeyLog:
     master_key_used: bool = False
     master_key_note: str = ""
     returned_method: str = ""
+    state: str = ""
 
     def __post_init__(self) -> None:
         if self.returned_method not in _KEY_RETURN_METHODS:
             raise ValueError("unsupported key return method")
+        if self.state not in _KEY_STATES:
+            raise ValueError("unsupported key state")
+        if self.state == "not_applicable" and self.received:
+            raise ValueError("a key that is not applicable cannot be received")
         if self.returned_method and not self.returned:
             raise ValueError("key return method requires a returned key")
         if self.received and not (self.received_at or "").strip():
@@ -68,6 +79,9 @@ class KeyLog:
 
 
 _UNIT_SYSTEM_TYPES = ("S", "F", "FX", "FT", "FTX")
+# Hur besiktningsmannen kom in. Tillträde är skilt från nyckelstatus: en boende kan
+# öppna utan att någon nyckel lämnats ut. Utebliven tillgång registreras som BOM.
+_UNIT_ACCESS = ("", "resident", "key", "master_key", "open")
 
 
 @dataclass(frozen=True, slots=True)
@@ -87,8 +101,16 @@ class FieldUnit:
 
     None = fastighetens systemtyp gäller. Uppgiften är STATED av besiktningsmannen.
     """
+    access: str = ""
+    """Tillträdessätt: boende öppnade, enhetens nyckel, huvudnyckel eller öppet."""
+    revisit_required: bool = False
+    """Besiktningsmannen har angett att enheten kräver återbesök."""
 
     def __post_init__(self) -> None:
+        if self.access not in _UNIT_ACCESS:
+            raise ValueError(f"unit access {self.access!r} must be one of {_UNIT_ACCESS}")
+        if not isinstance(self.revisit_required, bool):
+            raise ValueError("unit revisit_required must be a boolean")
         if not self.unit_id.strip():
             raise ValueError("unit_id must not be empty")
         if not self.inspection_id.strip():
