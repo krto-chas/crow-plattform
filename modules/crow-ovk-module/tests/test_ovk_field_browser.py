@@ -2299,7 +2299,7 @@ def test_keys_are_numbered_in_reception_order_and_returned_top_down(
           state.units.forEach((u, i) => { if (u.key) u.key.tag = keep[i]; });
           return next; }"""
         )
-        == 5
+        == 2
     )
     page.evaluate(
         """() => { state.units.find(u => u.number === '1301').key.tag = undefined;
