@@ -146,6 +146,8 @@
     #viewRond .rondbar{margin:8px 0 6px}
     #viewRond .counts{font-size:12.5px;gap:4px 10px}
     #viewRond #roundSummary{margin:4px 0 0}
+    #roundSystemBtn{min-height:36px;padding:4px 0;font-size:13px;text-align:left}
+    #roundSystemBtn:disabled{color:var(--mut);text-decoration:none;opacity:1}
     #viewRond #roundSummary:empty{display:none}
     #viewRond #continueUnit{display:none}
     #viewRond .round-toolbar{grid-template-columns:repeat(auto-fit,minmax(0,1fr));gap:8px;margin:10px 0 4px}
@@ -297,7 +299,7 @@
       <div class="row"><div><label>Projekt</label><select id="project"><option value="adhoc">Ad hoc</option></select></div><div><label>Besiktnings-ID</label><input id="inspection" value="ovk-001"></div></div>
       <p id="ovkInstallHint" class="status" hidden>Öppna i helskärm: tryck på Dela i Safari och välj <strong>Lägg till på hemskärmen</strong>. Starta sedan appen från ikonen.</p>
       <div id="authStatus" class="status">Kontrollerar session…</div>
-      <div class="row"><div><label>Besiktningsman</label><select id="inspectorSelect" class="hidden"><option value="">— Välj ur registret —</option></select><input id="inspector" placeholder="Namn"></div><div><label>Objektstyp</label><select id="objectType"><option value="flerbostadshus">Flerbostadshus</option><option value="villa">Villa</option><option value="kontorsbyggnad">Kontorsbyggnad</option><option value="industrifastighet">Industrifastighet</option></select></div><div><label for="systemType">Systemtyp</label><select id="systemType"><option value="F">F – frånluft</option><option value="S">S – självdrag</option><option value="FX">FX – frånluft återvinning</option><option value="FT">FT – från/tilluft</option><option value="FTX">FTX – från/tilluft återvinning</option></select></div></div>
+      <div class="row"><div><label>Besiktningsman</label><select id="inspectorSelect" class="hidden"><option value="">— Välj ur registret —</option></select><input id="inspector" placeholder="Namn"></div><div><label>Objektstyp</label><select id="objectType"><option value="flerbostadshus">Flerbostadshus</option><option value="villa">Villa</option><option value="kontorsbyggnad">Kontorsbyggnad</option><option value="industrifastighet">Industrifastighet</option></select></div><div><label for="systemType">Systemtyp</label><select id="systemType"><option value="">Välj systemtyp</option><option value="F">F – frånluft</option><option value="S">S – självdrag</option><option value="FX">FX – frånluft återvinning</option><option value="FT">FT – från/tilluft</option><option value="FTX">FTX – från/tilluft återvinning</option></select></div></div>
       <label for="unitSeries">Lägenhetsnummer (Lantmäteriets)</label>
       <input id="unitSeries" inputmode="numeric" placeholder="1001-1004, 1101-1104">
       <div class="row"><button class="btn ghost" id="generate">Skapa enhetslista</button><button class="btn" id="start">Starta rondering</button></div>
@@ -332,6 +334,7 @@
       <h1 id="rondMeta" tabindex="-1">Besiktning</h1>
       <div class="rondbar" id="rondbar" aria-hidden="true"></div>
       <div class="counts"><span><b id="cDone">0</b>/<b id="cTotal">0</b> besiktigade</span><span><b id="cAnm">0</b> med anm.</span><span><b id="cBom">0</b> BOM</span><span><b id="cMeas">0</b> uppmätta don</span></div>
+      <button type="button" class="ovk-wz-link" id="roundSystemBtn">System: –</button>
       <p id="roundSummary" class="room-progress" role="status" aria-live="polite"></p>
       <button class="btn" id="continueUnit" hidden>Fortsätt med nästa enhet</button>
       <div class="round-toolbar"><div><label for="unitSearch">Sök</label><input id="unitSearch" type="search" placeholder="T.ex. 1201" aria-label="Sök lägenhet eller lokal"></div><div><label for="unitFilter">Visa</label><select id="unitFilter"><option value="all">Alla</option><option value="pending">Återstående</option><option value="not_started">Ej påbörjade</option><option value="ongoing">Pågående</option><option value="measure_left">Mätning återstår</option><option value="checked">Färdigbesiktigade</option><option value="bom">Ej tillgängliga (BOM)</option><option value="revisit">Återbesök krävs</option></select></div><div hidden><label for="unitFloor">Våning</label><select id="unitFloor"><option value="">Alla våningar</option></select></div></div>
@@ -1536,6 +1539,8 @@
     $id('inspection').value='ovk-'+new Date().toISOString().slice(0,10)+'-'+Math.random().toString(36).slice(2,6);
     $id('inspection').dispatchEvent(new Event('input',{bubbles:true}));
     $id('unitSeries').value='';
+    // Systemtypen styr vilka frågor som ställs och väljs därför uttryckligen för varje ny besiktning.
+    $id('systemType').value='';
     window.ovkNewInspectionChosen=true;
     // Enhetslistan skapas av Starta rondering. Knappen för att bygga på listan hör till
     // den öppna besiktningen och döljs så länge en ny håller på att startas.
@@ -1576,6 +1581,23 @@
     }
     if(document.querySelector('.view.on').id==='viewStart')updateFooter('viewStart');
   }
+  // ── Systemtyp för besiktningen ───────────────────────────────────────
+  // Systemtypen avgör om tilluftsdon eller friskluftsventiler efterfrågas. Den visas i
+  // ronderingsvyn och kan rättas där, bland de typer uppdraget tillåter.
+  const SYSTEM_LABEL={F:'F – frånluft',S:'S – självdrag',FX:'FX – frånluft med återvinning',FT:'FT – från- och tilluft',FTX:'FTX – från- och tilluft med återvinning'};
+  const allowedSystems=()=>[...$id('systemType').options].filter(option=>option.value&&!option.disabled).map(option=>option.value);
+  function renderRoundSystem(){
+    const button=$id('roundSystemBtn');
+    const supply=state.system_type==='FT'||state.system_type==='FTX';
+    button.textContent='System: '+(state.system_type||'–')+(supply?' · tilluftsdon':' · friskluftsventiler')+(allowedSystems().length>1?' · ändra':'');
+    button.disabled=allowedSystems().length<2;
+  }
+  $id('roundSystemBtn').addEventListener('click',async()=>{
+    const answer=await askSheet({title:'Systemtyp för besiktningen',note:'Styr om tilluftsdon eller friskluftsventiler efterfrågas. Rum som redan är besvarade ändras inte. Enskilda enheter kan avvika på enhetskortet.',choices:allowedSystems().map(type=>[type,SYSTEM_LABEL[type]||type,state.system_type===type]),stack:true});
+    if(!answer||!answer.choice||answer.choice===state.system_type)return;
+    state.system_type=answer.choice;$id('systemType').value=answer.choice;
+    renderRond();await persist();
+  });
   // Ronderingsvyn: nästa enhet ligger i sidfoten, synk bredvid.
   const footSync=$id('footSync');
   const footInner=$id('footDone').parentElement;
@@ -1604,7 +1626,7 @@
     return originalFootDone.call(this,event);
   };
   const originalRenderRond=renderRond;
-  renderRond=function(){originalRenderRond();if(document.querySelector('.view.on').id==='viewRond')roundFooter('viewRond')};
+  renderRond=function(){originalRenderRond();renderRoundSystem();if(document.querySelector('.view.on').id==='viewRond')roundFooter('viewRond')};
   updateFooter=function(name){originalUpdateFooter(name);roundFooter(name);if(name==='viewUnit')render()};
   void renderDrafts();
   // Sidfoten ska stämma redan innan första vybytet.
