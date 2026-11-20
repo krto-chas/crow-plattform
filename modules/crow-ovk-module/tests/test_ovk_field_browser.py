@@ -123,6 +123,7 @@ class _Flow:
         self.page.click("#ovkStartMore > summary")
         self.page.fill("#inspection", "webblasartest")
         self.page.fill("#inspector", "Test Testsson")
+        self.page.select_option("#systemType", "F")
         self.page.fill("#unitSeries", "1001-1002")
         self.page.click("#footDone")
         self.page.click("#footDone")
@@ -359,6 +360,7 @@ def test_key_overview_registers_receipt_and_return_method(field_url: str, browse
     page.click("#ovkStartMore > summary")
     page.fill("#inspection", "nyckeltest")
     page.fill("#inspector", "Test Testsson")
+    page.select_option("#systemType", "F")
     page.fill("#unitSeries", "1001-1003")
     page.click("#footDone")
     page.wait_for_function("state.units.length === 3")
@@ -741,6 +743,7 @@ def test_equipment_checkpoints_are_answered_with_buttons(field_url: str, browser
     page.click("#ovkStartMore > summary")
     page.fill("#inspection", "aggregattest")
     page.fill("#inspector", "Test Testsson")
+    page.select_option("#systemType", "F")
     page.fill("#unitSeries", "1001")
     page.click("#footDone")
     page.wait_for_function("state.units.length === 1")
@@ -826,6 +829,7 @@ def test_text_is_entered_in_app_sheets_instead_of_browser_dialogs(
     page.click("#ovkStartMore > summary")
     page.fill("#inspection", "bladtest")
     page.fill("#inspector", "Test Testsson")
+    page.select_option("#systemType", "F")
     page.fill("#unitSeries", "1001")
     page.click("#footDone")
     page.wait_for_function("state.units.length === 1")
@@ -996,6 +1000,7 @@ def test_unit_list_shows_progress_filters_and_guards_finished_units(
     page.click("#ovkStartMore > summary")
     page.fill("#inspection", "listtest")
     page.fill("#inspector", "Test Testsson")
+    page.select_option("#systemType", "F")
     page.fill("#unitSeries", "1101-1103, 1201")
     page.click("#footDone")
     page.wait_for_function("state.units.length === 4")
@@ -1168,6 +1173,7 @@ def test_start_and_round_views_fit_the_first_screen(
         assert page.is_visible(selector)
     page.fill("#inspection", f"forstaskarm-{width}")
     page.fill("#inspector", "Test Testsson")
+    page.select_option("#systemType", "F")
     page.fill("#unitSeries", "1101-1104, 1201")
     page.click("#footDone")
     page.wait_for_function("document.querySelector('.view.on').id === 'viewRond'")
@@ -1614,6 +1620,7 @@ def test_start_page_offers_continue_and_new_inspection(field_url: str, browser: 
     page.click("#ovkStartMore > summary")
     page.fill("#inspection", "forsta-besiktningen")
     page.fill("#inspector", "Test Testsson")
+    page.select_option("#systemType", "F")
     page.fill("#unitSeries", "1001-1003")
     page.click("#footDone")
     on_view("viewRond")
@@ -1641,6 +1648,15 @@ def test_start_page_offers_continue_and_new_inspection(field_url: str, browser: 
     assert new_id.startswith("ovk-") and new_id != "forsta-besiktningen"
     assert page.input_value("#unitSeries") == ""
     page.fill("#unitSeries", "2001")
+    # Systemtypen ärvs inte från den förra besiktningen: den måste väljas.
+    assert page.input_value("#systemType") == ""
+    page.click("#footDone")
+    page.wait_for_function(
+        "document.getElementById('draftStatus').textContent.includes('systemtyp')"
+    )
+    assert page.evaluate("() => document.querySelector('.view.on').id") == "viewStart"
+    assert page.evaluate("() => state.inspection_id") == "forsta-besiktningen"
+    page.select_option("#systemType", "FTX")
     # Enhetslistan kan inte byggas på i den tidigare besiktningen härifrån.
     assert not page.is_visible("#generate")
     page.evaluate("() => document.getElementById('generate').onclick()")
@@ -1688,6 +1704,7 @@ def test_access_revisit_and_key_status_are_registered_and_summarised(
     page.click("#ovkStartMore > summary")
     page.fill("#inspection", "tilltradestest")
     page.fill("#inspector", "Test Testsson")
+    page.select_option("#systemType", "F")
     page.fill("#unitSeries", "1101-1104")
     page.click("#footDone")
     page.wait_for_function("state.units.length === 4")
@@ -1890,5 +1907,105 @@ def test_access_revisit_and_key_status_are_registered_and_summarised(
     assert unit("1103")["key"]["state"] == "missing"
     assert dialogs == []
     assert errors == []
+    _validated_payload(page.evaluate("() => payload()"))
+    context.close()
+
+
+def test_system_type_is_chosen_explicitly_and_can_be_corrected(
+    field_url: str, browser: Any
+) -> None:
+    context = browser.new_context(
+        viewport={"width": 375, "height": 667}, is_mobile=True, has_touch=True
+    )
+    flow = _Flow(context.new_page())
+    page = flow.page
+    dialogs: list[str] = []
+    _record_dialogs(page, dialogs)
+    page.goto(field_url)
+    page.wait_for_function("typeof state === 'object' && typeof payload === 'function'")
+
+    # Ingen systemtyp är förvald: utan val startar ingen rondering.
+    assert page.input_value("#systemType") == ""
+    page.click("#ovkStartMore > summary")
+    page.fill("#inspection", "systemtest")
+    page.fill("#inspector", "Test Testsson")
+    page.fill("#unitSeries", "1101")
+    page.click("#footDone")
+    page.wait_for_function(
+        "document.getElementById('draftStatus').textContent.includes('systemtyp')"
+    )
+    assert page.evaluate("() => document.querySelector('.view.on').id") == "viewStart"
+    page.select_option("#systemType", "F")
+    page.click("#footDone")
+    page.wait_for_function("document.querySelector('.view.on').id === 'viewRond'")
+
+    # Ronderingsvyn säger vad systemtypen innebär.
+    assert page.text_content("#roundSystemBtn") == "System: F · friskluftsventiler · ändra"
+
+    def don_step_offers_supply() -> bool:
+        page.click("#footDone")
+        page.wait_for_function("document.querySelector('.view.on').id === 'viewUnit'")
+        flow.expect_step("room")
+        flow.room("Sovrum")
+        offered = bool(page.locator("[aria-label='Öka Tilluftsdon']").count() > 0)
+        page.evaluate("() => { renderRond(); view('viewRond'); }")
+        return offered
+
+    assert don_step_offers_supply() is False
+
+    # Fel vald systemtyp rättas härifrån, utan att börja om.
+    page.click("#roundSystemBtn")
+    assert page.locator("#ovkSheet [data-sheet-choice]").count() == 5
+    page.click("#ovkSheet [data-sheet-choice='FTX']")
+    page.wait_for_function("state.system_type === 'FTX'")
+    assert page.text_content("#roundSystemBtn") == "System: FTX · tilluftsdon · ändra"
+    assert page.input_value("#systemType") == "FTX"
+    # Ett uppdrag från kontoret vars tillåtna systemtyper inte är inlästa erbjuder inget
+    # byte, och ett inläst uppdrag erbjuder bara sina egna typer.
+    page.evaluate("() => { state.assignment_name = 'Brf Exempel'; renderRond(); }")
+    assert page.text_content("#roundSystemBtn") == "System: FTX · tilluftsdon"
+    assert page.is_disabled("#roundSystemBtn")
+    page.evaluate(
+        """() => { for (const option of document.getElementById('systemType').options)
+            option.disabled = !['FT', 'FTX'].includes(option.value);
+          renderRond(); }"""
+    )
+    page.click("#roundSystemBtn")
+    assert page.locator("#ovkSheet [data-sheet-choice]").count() == 2
+    page.click("#ovkSheet [data-sheet-cancel]")
+    page.evaluate(
+        """() => { for (const option of document.getElementById('systemType').options)
+            option.disabled = false;
+          state.assignment_name = ''; renderRond(); }"""
+    )
+
+    _reload_after_save(page)
+    page.wait_for_function("typeof state === 'object' && state.units.length === 1")
+    assert page.evaluate("() => state.system_type") == "FTX"
+    page.wait_for_function("document.querySelector('.view.on').id === 'viewRond'")
+
+    page.click("#footDone")
+    page.wait_for_function("document.querySelector('.view.on').id === 'viewUnit'")
+    page.wait_for_function("document.getElementById('ovkWizard').dataset.step === 'don'")
+    assert page.locator("[aria-label='Öka Tilluftsdon']").count() == 1
+    page.click("[aria-label='Öka Tilluftsdon']")
+    page.wait_for_function("state.measurements.some(m => m.point_type === 'tilluftsdon')")
+    # Med tilluft ställs ingen fråga om friskluftsventil.
+    for _ in range(8):
+        step = flow.state("document.getElementById('ovkWizard').dataset.step")
+        assert step != "fresh"
+        if step == "remark":
+            break
+        if step == "clean":
+            page.click("#ovkWizard button:text-is('Rena')")
+        elif step == "transfer":
+            page.click("#ovkWizard button:text-is('Ja')")
+        else:
+            page.click("#footDone")
+        page.wait_for_timeout(120)
+    flow.expect_step("remark")
+
+    assert dialogs == []
+    assert flow.errors == []
     _validated_payload(page.evaluate("() => payload()"))
     context.close()
