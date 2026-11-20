@@ -35,7 +35,7 @@ function payload(){return {inspection_id:state.inspection_id,object_type:state.o
   window_vents:state.window_vents,
   ...(state.master_key?{master_key:state.master_key}:{}),
   // Avslutat fältarbete skickas bara när det är satt, så att äldre snapshots inte ändras.
-  ...(state.field_work_completed_at?{field_work_completed_at:state.field_work_completed_at,...(state.field_work_note?{field_work_note:state.field_work_note}:{})}:{}),
+  ...(state.field_work_completed_at&&fieldWorkValid()?{field_work_completed_at:state.field_work_completed_at,...(state.field_work_note?{field_work_note:state.field_work_note}:{})}:{}),
   visual_checks:state.visual_checks,
   technical_spaces:state.technical_spaces,
   checkpoints:state.checkpoints}}
@@ -91,6 +91,8 @@ function unitProgress(unit){
   if(!points.some(pendingPoint))return 'review_left';
   return points.some(point=>measuredPoint(point)||point.measurable===false)?'measure_left':'visual_done';
 }
+// Ett avslutat fältarbete förutsätter att ingen enhet är påbörjad men inte klar.
+function fieldWorkValid(){return !state.units.some(unit=>['ongoing','visual_done','measure_left','review_left'].includes(unitProgress(unit)))}
 const UNIT_FILTERS={
   all:()=>true,
   pending:progress=>progress!=='done'&&progress!=='unavailable',

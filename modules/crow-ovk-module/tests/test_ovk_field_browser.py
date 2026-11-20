@@ -1940,7 +1940,7 @@ def test_system_type_is_chosen_explicitly_and_can_be_corrected(
     page.wait_for_function("document.querySelector('.view.on').id === 'viewRond'")
 
     # Ronderingsvyn säger vad systemtypen innebär.
-    assert page.text_content("#roundSystemBtn") == "System: F · friskluftsventiler · ändra"
+    assert page.text_content("#roundSystemBtn") == "System: F · friskluft"
 
     def don_step_offers_supply() -> bool:
         page.click("#footDone")
@@ -1958,12 +1958,12 @@ def test_system_type_is_chosen_explicitly_and_can_be_corrected(
     assert page.locator("#ovkSheet [data-sheet-choice]").count() == 5
     page.click("#ovkSheet [data-sheet-choice='FTX']")
     page.wait_for_function("state.system_type === 'FTX'")
-    assert page.text_content("#roundSystemBtn") == "System: FTX · tilluftsdon · ändra"
+    assert page.text_content("#roundSystemBtn") == "System: FTX · tilluft"
     assert page.input_value("#systemType") == "FTX"
     # Ett uppdrag från kontoret vars tillåtna systemtyper inte är inlästa erbjuder inget
     # byte, och ett inläst uppdrag erbjuder bara sina egna typer.
     page.evaluate("() => { state.assignment_name = 'Brf Exempel'; renderRond(); }")
-    assert page.text_content("#roundSystemBtn") == "System: FTX · tilluftsdon"
+    assert page.text_content("#roundSystemBtn") == "System: FTX · tilluft"
     assert page.is_disabled("#roundSystemBtn")
     page.evaluate(
         """() => { for (const option of document.getElementById('systemType').options)
@@ -2065,6 +2065,20 @@ def test_field_work_is_reviewed_and_finished_from_the_round_view(
     assert "Lgh 1103 är inte besiktad" in found["Kräver uppmärksamhet"]
     assert "1 av 3 enheter besiktade" in found["Genomfört"]
     assert "1 don mätta" in found["Genomfört"]
+    # Ett don som inte gått att mäta räknas inte som mätt.
+    page.click("#ovkFinishView [data-finish-close]")
+    set_units(
+        """state.measurements.push({...state.measurements[0], measurement_id: 'm2',
+          point_id: 'p2', point_label: 'F2', measured_value: null, measurable: false,
+          not_measurable_reason: 'Ej åtkomligt'})"""
+    )
+    page.click("#ovkFinishOpen")
+    page.wait_for_selector("#ovkFinishView")
+    assert "1 don mätta · 1 ej mätbara" in sections()["Genomfört"]
+    page.click("#ovkFinishView [data-finish-close]")
+    set_units("state.measurements = state.measurements.filter(m => m.measurement_id !== 'm2')")
+    page.click("#ovkFinishOpen")
+    page.wait_for_selector("#ovkFinishView")
     assert page.is_disabled("#ovkFinishConfirm")
     page.click("#ovkFinishView [data-finish-close]")
     assert page.evaluate("() => state.field_work_completed_at") is None
@@ -2103,7 +2117,26 @@ def test_field_work_is_reviewed_and_finished_from_the_round_view(
     data = _validated_payload(sent)
     assert data.field_work_completed_at == sent["field_work_completed_at"]
 
-    # Avslutet överlever omladdning och går att öppna igen med två tryck.
+    # Blir en enhet åter påbörjad men inte klar gäller avslutet inte längre: det skickas
+    # inte, tas bort i vyn och måste göras om.
+    saved_at = sent["field_work_completed_at"]
+    page.evaluate(
+        """() => { const a = state.units[0]; a.status = 'ej_paborjad'; a.checked_at = null; }"""
+    )
+    assert "field_work_completed_at" not in page.evaluate("() => payload()")
+    set_units("void 0")
+    assert page.evaluate("() => state.field_work_completed_at") is None
+    assert not page.is_visible("#ovkFieldWork")
+    assert "Avslutet togs bort" in (page.text_content("#ovkFieldWorkNote") or "")
+    set_units(
+        f"""const a = state.units[0]; a.status = 'ua'; a.checked_at = new Date().toISOString();
+        state.field_work_completed_at = '{saved_at}';
+        state.field_work_note = '1102 och 1103 ej tillgängliga, återbesök bokas.'"""
+    )
+    page.wait_for_function("Boolean(state.field_work_completed_at)")
+    assert page.is_visible("#ovkFieldWork")
+    assert (page.text_content("#ovkFieldWorkNote") or "") == ""
+
     _reload_after_save(page)
     page.wait_for_function("typeof state === 'object' && state.units.length === 3")
     page.wait_for_function("document.querySelector('.view.on').id === 'viewRond'")

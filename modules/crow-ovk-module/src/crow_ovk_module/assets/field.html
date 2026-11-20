@@ -140,15 +140,18 @@
     #viewRond #ovkKeyCard{padding:8px 14px}
     #viewRond #ovkKeyCard .eyebrow{display:none}
     #viewRond .ovk-key-summary{margin:0;font-size:15px}
-    #ovkDayEnd{min-height:30px;padding:2px 0;font-size:13px}
     #viewRond .ovk-key-head .btn{min-height:40px;padding:6px 12px;font-size:14px}
     #viewRond h1{margin:0;font-size:20px;line-height:1.2;overflow-wrap:anywhere}
     #viewRond .rondbar{margin:8px 0 6px}
     #viewRond .counts{font-size:12.5px;gap:4px 10px}
     #viewRond #roundSummary{margin:4px 0 0}
-    .ovk-round-links{display:flex;justify-content:space-between;align-items:center;gap:10px}
-    #ovkFinishOpen{min-height:36px;padding:4px 0;font-size:13px;white-space:nowrap}
+    /* En rad som aldrig radbryts: höjden får inte bero på teckensnittets bredd. */
+    .ovk-round-links{display:flex;flex-wrap:nowrap;justify-content:space-between;align-items:center;gap:10px;min-height:40px}
+    .ovk-round-links .ovk-wz-link{min-height:40px;padding:4px 0;font-size:13px;white-space:nowrap;flex:none}
+    .ovk-round-links #roundSystemBtn{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;text-align:left}
     #ovkFieldWork[hidden]{display:none}
+    #ovkFieldWorkNote:empty{display:none}
+    #ovkFieldWorkNote{margin:4px 0 0}
     #ovkFieldWork{margin:6px 0 2px;padding:10px 12px;border:1.5px solid var(--ua);border-radius:12px;background:var(--panel)}
     #ovkFieldWork p{margin:0 0 6px;font-size:14px}
     #ovkFieldWork .ovk-fw-title{font-weight:700;font-size:15px}
@@ -157,7 +160,6 @@
     .ovk-finish-block.block h4{color:var(--anm)}
     .ovk-finish-note{width:100%;min-height:96px;margin-top:6px;padding:10px;border:1.5px solid var(--line);border-radius:12px;font:inherit;font-size:16px}
     .ovk-finish-msg{margin:6px 0 0;color:var(--anm);font-weight:650;font-size:14px}
-    #roundSystemBtn{min-height:36px;padding:4px 0;font-size:13px;text-align:left}
     #roundSystemBtn:disabled{color:var(--mut);text-decoration:none;opacity:1}
     #viewRond #roundSummary:empty{display:none}
     #viewRond #continueUnit{display:none}
@@ -327,7 +329,7 @@
   <section class="view" id="viewRond">
     <div class="card" id="ovkKeyCard">
       <div class="ovk-key-head">
-        <div><div class="eyebrow">Nycklar</div><p id="ovkKeySummary" class="ovk-key-summary" role="status" aria-live="polite"></p><button type="button" class="ovk-wz-link" id="ovkDayEnd">Dagsavslut</button></div>
+        <div><div class="eyebrow">Nycklar</div><p id="ovkKeySummary" class="ovk-key-summary" role="status" aria-live="polite"></p></div>
         <button class="btn ghost" id="ovkKeyToggle" aria-expanded="false" aria-controls="ovkKeyPanel">Hantera nycklar</button>
       </div>
       <div id="ovkKeyPanel" hidden>
@@ -345,8 +347,9 @@
       <h1 id="rondMeta" tabindex="-1">Besiktning</h1>
       <div class="rondbar" id="rondbar" aria-hidden="true"></div>
       <div class="counts"><span><b id="cDone">0</b>/<b id="cTotal">0</b> besiktigade</span><span><b id="cAnm">0</b> med anm.</span><span><b id="cBom">0</b> BOM</span><span><b id="cMeas">0</b> uppmätta don</span></div>
-      <div class="ovk-round-links"><button type="button" class="ovk-wz-link" id="roundSystemBtn">System: –</button><button type="button" class="ovk-wz-link" id="ovkFinishOpen">Sammanställning</button></div>
+      <div class="ovk-round-links"><button type="button" class="ovk-wz-link" id="roundSystemBtn">System: –</button><button type="button" class="ovk-wz-link" id="ovkDayEnd">Dagsavslut</button><button type="button" class="ovk-wz-link" id="ovkFinishOpen">Sammanställning</button></div>
       <div id="ovkFieldWork" hidden></div>
+      <p id="ovkFieldWorkNote" class="room-progress" role="status" aria-live="polite"></p>
       <p id="roundSummary" class="room-progress" role="status" aria-live="polite"></p>
       <button class="btn" id="continueUnit" hidden>Fortsätt med nästa enhet</button>
       <div class="round-toolbar"><div><label for="unitSearch">Sök</label><input id="unitSearch" type="search" placeholder="T.ex. 1201" aria-label="Sök lägenhet eller lokal"></div><div><label for="unitFilter">Visa</label><select id="unitFilter"><option value="all">Alla</option><option value="pending">Återstående</option><option value="not_started">Ej påbörjade</option><option value="ongoing">Pågående</option><option value="measure_left">Mätning återstår</option><option value="checked">Färdigbesiktigade</option><option value="bom">Ej tillgängliga (BOM)</option><option value="revisit">Återbesök krävs</option></select></div><div hidden><label for="unitFloor">Våning</label><select id="unitFloor"><option value="">Alla våningar</option></select></div></div>
@@ -1609,7 +1612,8 @@
   function renderRoundSystem(){
     const button=$id('roundSystemBtn');
     const supply=state.system_type==='FT'||state.system_type==='FTX';
-    button.textContent='System: '+(state.system_type||'–')+(supply?' · tilluftsdon':' · friskluftsventiler')+(allowedSystems().length>1?' · ändra':'');
+    button.textContent='System: '+(state.system_type||'–')+(supply?' · tilluft':' · friskluft');
+    button.setAttribute('aria-label','Systemtyp '+(state.system_type||'ej vald')+(supply?', tilluftsdon efterfrågas':', friskluftsventiler efterfrågas')+(allowedSystems().length>1?'. Tryck för att ändra.':''));
     button.disabled=allowedSystems().length<2;
   }
   $id('roundSystemBtn').addEventListener('click',async()=>{
@@ -1636,7 +1640,8 @@
     const classes=[2,1,0].map(level=>[level,state.findings.filter(item=>item.classification===level).length]).filter(item=>item[1]);
     return {done,unavailable,untouched,started,keysOut,classes,
       revisit:state.units.filter(unit=>unit.revisit_required),
-      measured:points.filter(point=>!pendingPoint(point)).length,
+      measured:points.filter(measuredPoint).length,
+      notMeasurable:points.filter(point=>point.measurable===false).length,
       unmeasured:points.filter(pendingPoint).length,
       noteRequired:unavailable.length+untouched.length>0};
   }
@@ -1660,12 +1665,12 @@
       ...facts.untouched.map(unit=>fwUnit(unit)+' är inte besiktad'),
       ...facts.unavailable.map(unit=>fwUnit(unit)+' – ingen tillgång (BOM)'+(unit.bom_note?': '+unit.bom_note:'')),
       ...facts.revisit.filter(unit=>unit.status!=='bom').map(unit=>fwUnit(unit)+' kräver återbesök'),
-      ...(facts.unmeasured?[facts.unmeasured+(facts.unmeasured===1?' don':' don')+' saknar mätvärde i klara enheter']:[]),
+      ...(facts.unmeasured?[facts.unmeasured+' don saknar mätvärde i klara enheter']:[]),
       ...(facts.keysOut.length?['Nycklar ute: '+facts.keysOut.join(', ')]:[])
     ]);
     block('Genomfört',[
       facts.done.length+' av '+state.units.length+' enheter besiktade',
-      facts.measured+' don mätta',
+      facts.measured+' don mätta'+(facts.notMeasurable?' · '+facts.notMeasurable+' ej mätbara':''),
       state.findings.length?state.findings.length+' anmärkningar ('+facts.classes.map(item=>item[1]+' i klass '+item[0]).join(', ')+')':'Inga anmärkningar',
       state.photos.length+' foton',
       state.technical_spaces.length?state.technical_spaces.length+' fläktrum/aggregat registrerade':'Inga fläktrum eller aggregat registrerade'
@@ -1692,11 +1697,16 @@
     actions.append(back,confirm);overlay.append(body,actions);document.body.append(overlay);title.focus({preventScroll:true});
   }
   let reopenArmed=false;
+  let reopenNote='';
   function renderFieldWork(){
     const box=$id('ovkFieldWork');
+    // Samma regel som hindrar avslut: en påbörjad enhet som inte är klar. Uppstår den efter
+    // avslutet tas avslutet bort, så att en ofullständig besiktning inte synkas som avslutad.
+    if(state.field_work_completed_at&&!fieldWorkValid()){state.field_work_completed_at=null;state.field_work_note='';reopenNote='Avslutet togs bort eftersom en enhet åter är påbörjad men inte klar.';void persist()}
     const completed=state.field_work_completed_at;
+    $id('ovkFieldWorkNote').textContent=completed?'':reopenNote;
+    if(completed)reopenNote='';
     box.hidden=!completed;box.replaceChildren();
-    $id('ovkFinishOpen').textContent=completed?'Sammanställning':'Sammanställning och avslut';
     if(!completed){reopenArmed=false;return}
     box.append(el('p','ovk-fw-title','Fältarbete avslutat '+fwStamp(completed)));
     box.append(el('p','','Protokoll: inte skapat. Det tas fram på kontoret.'));

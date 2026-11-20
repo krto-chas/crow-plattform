@@ -464,6 +464,8 @@ class FieldInspectionData:
             raise ValueError("field_work_note must be a string")
         if len(self.field_work_note) > _FIELD_WORK_NOTE_MAX:
             raise ValueError("field_work_note is too long")
+        if self.field_work_note and not self.field_work_note.strip():
+            raise ValueError("field_work_note must not be blank")
         if self.field_work_note and self.field_work_completed_at is None:
             raise ValueError("field_work_note requires completed field work")
         seen: set[tuple[str, str]] = set()

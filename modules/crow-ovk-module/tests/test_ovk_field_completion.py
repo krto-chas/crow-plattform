@@ -69,6 +69,7 @@ def test_model_rejects_invalid_completion() -> None:
         {"field_work_completed_at": True},
         {"field_work_note": "Begränsning utan avslut"},
         {"field_work_completed_at": _AT, "field_work_note": 7},
+        {"field_work_completed_at": _AT, "field_work_note": "   "},
         {"field_work_completed_at": _AT, "field_work_note": "x" * 2001},
     ],
 )
