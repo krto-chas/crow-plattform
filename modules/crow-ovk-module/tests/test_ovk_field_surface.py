@@ -814,7 +814,7 @@ def test_r2a_round_workspace_controls(tmp_path: Path) -> None:
     assert "button.setAttribute('aria-pressed',String(selected))" in script
     assert "Mätpunkterna blir kvar som ofullständiga." in script
     assert "Ronderingen är komplett" not in script
-    assert "v31" in client.get("/ovk/falt/sw.js").text
+    assert "v32" in client.get("/ovk/falt/sw.js").text
 
 
 def test_field_apartment_template_controls(tmp_path: Path) -> None:

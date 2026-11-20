@@ -463,6 +463,10 @@ def _field_data_from_payload(payload: dict[str, Any]) -> FieldInspectionData:
     return FieldInspectionData(
         inspection_id=inspection_id,
         master_key=_key_from_payload(payload.get("master_key")),
+        field_work_completed_at=_optional_timestamp(
+            payload.get("field_work_completed_at"), "field_work_completed_at"
+        ),
+        field_work_note=_strict_str(payload.get("field_work_note"), "field_work_note"),
         units=units,
         rooms=rooms,
         findings=findings,
@@ -482,6 +486,15 @@ def _followup_photo_ids(value: Any) -> tuple[str, ...]:
     ):
         raise ValueError("followup photo_ids must be a list of identifiers")
     return tuple(value)
+
+
+def _optional_timestamp(value: Any, name: str) -> str | None:
+    """Saknat värde är None; allt annat än en sträng avvisas. Formatet prövas i modellen."""
+    if value is None:
+        return None
+    if not isinstance(value, str):
+        raise ValueError(f"{name} must be an ISO timestamp")
+    return value
 
 
 def _strict_str(value: Any, name: str) -> str:
@@ -537,6 +550,13 @@ def _field_data_to_payload(data: FieldInspectionData) -> dict[str, Any]:
     return {
         "inspection_id": data.inspection_id,
         **({"master_key": _key_to_payload(data.master_key)} if data.master_key is not None else {}),
+        # Utelämnas tills fältarbetet avslutats, så att äldre snapshots serialiseras oförändrat.
+        **(
+            {"field_work_completed_at": data.field_work_completed_at}
+            if data.field_work_completed_at is not None
+            else {}
+        ),
+        **({"field_work_note": data.field_work_note} if data.field_work_note else {}),
         **(
             {
                 "finding_followups": [
