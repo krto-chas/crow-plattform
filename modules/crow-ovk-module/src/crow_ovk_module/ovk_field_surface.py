@@ -515,7 +515,7 @@ def _key_from_payload(value: Any) -> KeyLog | None:
         master_key_used=bool(value.get("master_key_used", False)),
         master_key_note=str(value.get("master_key_note", "")),
         returned_method=str(value.get("returned_method") or ""),
-        state=str(value.get("state") or ""),
+        state=_strict_str(value.get("state"), "key state"),
     )
 
 

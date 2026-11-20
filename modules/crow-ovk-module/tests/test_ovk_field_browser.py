@@ -1727,7 +1727,7 @@ def test_access_revisit_and_key_status_are_registered_and_summarised(
     page.click("#ovkSheet [data-sheet-choice='master_key']")
     page.wait_for_selector("#ovkSheet_note")
     page.click("#ovkSheet [data-sheet-cancel]")
-    page.wait_for_timeout(150)
+    page.wait_for_selector("#ovkSheet", state="detached")
     assert unit("1101")["access"] == "resident"
     assert not (unit("1101").get("key") or {}).get("master_key_used")
     page.click("#unitAccessBtn")
@@ -1736,7 +1736,28 @@ def test_access_revisit_and_key_status_are_registered_and_summarised(
     page.fill("#ovkSheet_note", "Lånad av förvaltaren")
     page.click("#ovkSheet [data-sheet-submit]")
     page.wait_for_function("activeUnit().key && activeUnit().key.master_key_used === true")
+    page.wait_for_function("activeUnit().access === 'master_key'")
     assert unit("1101")["access"] == "master_key"
+    # Tillträdet rör inte enhetens egen nyckel: den är fortfarande inte mottagen.
+    assert unit("1101")["key"]["received"] is False
+    # Byts tillträdet följer huvudnyckelmarkeringen med, och tvärtom.
+    page.click("#unitAccessBtn")
+    page.click("#ovkSheet [data-sheet-choice='open']")
+    page.wait_for_function("activeUnit().access === 'open'")
+    assert unit("1101")["key"]["master_key_used"] is False
+    page.click("#unitAccessBtn")
+    page.click("#ovkSheet [data-sheet-choice='master_key']")
+    page.fill("#ovkSheet_note", "Lånad av förvaltaren")
+    page.click("#ovkSheet [data-sheet-submit]")
+    page.wait_for_function("activeUnit().access === 'master_key'")
+    page.click("#keyMaster")
+    page.wait_for_function("activeUnit().access === ''")
+    assert unit("1101")["key"]["master_key_used"] is False
+    page.click("#unitAccessBtn")
+    page.click("#ovkSheet [data-sheet-choice='master_key']")
+    page.fill("#ovkSheet_note", "Lånad av förvaltaren")
+    page.click("#ovkSheet [data-sheet-submit]")
+    page.wait_for_function("activeUnit().access === 'master_key'")
 
     # Återbesök kan sättas på en enhet som är besiktad till en del.
     assert page.text_content("#unitRevisitBtn") == "Återbesök: nej"
@@ -1751,6 +1772,18 @@ def test_access_revisit_and_key_status_are_registered_and_summarised(
     # BOM frågar efter notering och om återbesök krävs.
     to_list()
     open_key_step("1102")
+    # Avbryt registrerar ingen BOM och ändrar ingenting.
+    page.click("#unitRevisitBtn")
+    page.wait_for_function("activeUnit().revisit_required === true")
+    before_bom = page.evaluate("() => JSON.stringify(payload())")
+    page.click("#bom")
+    page.fill("#ovkSheet_note", "Skrivet men avbrutet")
+    page.click("#ovkSheet [data-sheet-cancel]")
+    page.wait_for_selector("#ovkSheet", state="detached")
+    assert page.evaluate("() => document.querySelector('.view.on').id") == "viewUnit"
+    assert page.evaluate("() => JSON.stringify(payload())") == before_bom
+    page.click("#unitRevisitBtn")
+    page.wait_for_function("activeUnit().revisit_required === false")
     page.click("#bom")
     page.fill("#ovkSheet_note", "Ingen hemma")
     page.click("#ovkSheet [data-sheet-choice='revisit']")
@@ -1786,6 +1819,10 @@ def test_access_revisit_and_key_status_are_registered_and_summarised(
     assert unit("1103")["key"]["state"] == "missing"
     assert unit("1104")["key"]["state"] == "not_applicable"
     assert "Saknas" in (page.text_content(key_row.format(unit_ids["1103"])) or "")
+    # Ångra tar bort markeringen, och den går att sätta igen.
+    page.click(key_row.format(unit_ids["1103"]) + " button:text-is('Ångra')")
+    assert unit("1103")["key"].get("state", "") == ""
+    page.click(key_row.format(unit_ids["1103"]) + " button:text-is('Saknas')")
     page.click("#ovkKeyReceiveAll")
     page.click("#ovkKeyReceiveAll")
     page.wait_for_function(

@@ -1741,6 +1741,7 @@
   function giveBack(entry,method){
     const key=entry.ensure();
     // Servern avvisar en återlämnad nyckel som inte är mottagen, och då går hela synken inte igenom.
+    key.state='';
     if(!key.received){key.received=true;key.received_at=key.received_at||now()}
     key.returned=true;key.returned_at=now();key.returned_method=method;
   }
@@ -1755,7 +1756,10 @@
   function action(label,className,run){
     const button=document.createElement('button');
     button.type='button';button.textContent=label;if(className)button.className=className;
-    button.addEventListener('click',async()=>{armed='';run();renderKeyPanel();if(state.activeUnitId&&typeof renderKeys==='function'&&activeUnit())renderKeys();await persist()});
+    button.addEventListener('click',async()=>{armed='';run();renderKeyPanel();
+      // Enhetslistans "Nyckel ute" ska följa nyckelöversikten direkt.
+      if(typeof renderRoundUnits==='function')renderRoundUnits();
+      if(state.activeUnitId&&typeof renderKeys==='function'&&activeUnit())renderKeys();await persist()});
     return button;
   }
   function renderKeyPanel(){

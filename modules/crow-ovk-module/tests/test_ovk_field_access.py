@@ -98,6 +98,8 @@ def test_model_rejects_invalid_values() -> None:
         {"revisit_required": "false"},
         {"revisit_required": 1},
         {"key": _key(state="borta")},
+        {"key": _key(state=0)},
+        {"key": _key(state=[])},
         {"key": _key(received=True, received_at=_AT, state="not_applicable")},
     ],
 )
