@@ -77,3 +77,14 @@ def require_current_protocol_source(
     except (OSError, ValueError, KeyError, TypeError):
         pass
     raise HTTPException(status_code=409, detail={"code": "OVK_PROTOCOL_SOURCE_STALE"})
+
+
+def protocol_source_is_current(
+    data_root: Path, project_id: str, inspection_id: str, record: OvkWorkflowRecord
+) -> bool:
+    """Samma kontroll som utfärdandet gör, som ja eller nej i stället för 409."""
+    try:
+        require_current_protocol_source(data_root, project_id, inspection_id, record)
+    except HTTPException:
+        return False
+    return True
