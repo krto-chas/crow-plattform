@@ -497,6 +497,15 @@ def _optional_timestamp(value: Any, name: str) -> str | None:
     return value
 
 
+def _optional_key_tag(value: Any) -> int | None:
+    """Saknat värde är None. Typen prövas här, intervallet i modellen."""
+    if value is None:
+        return None
+    if isinstance(value, bool) or not isinstance(value, int):
+        raise ValueError("key tag must be a whole number")
+    return value
+
+
 def _strict_str(value: Any, name: str) -> str:
     """Saknat värde är tom sträng; allt annat än en sträng avvisas."""
     if value is None:
@@ -529,6 +538,7 @@ def _key_from_payload(value: Any) -> KeyLog | None:
         master_key_note=str(value.get("master_key_note", "")),
         returned_method=str(value.get("returned_method") or ""),
         state=_strict_str(value.get("state"), "key state"),
+        tag=_optional_key_tag(value.get("tag")),
     )
 
 
@@ -543,6 +553,7 @@ def _key_to_payload(key: KeyLog) -> dict[str, Any]:
         # Utelämnas när sättet inte angetts, så att äldre snapshots serialiseras oförändrat.
         **({"returned_method": key.returned_method} if key.returned_method else {}),
         **({"state": key.state} if key.state else {}),
+        **({"tag": key.tag} if key.tag is not None else {}),
     }
 
 
