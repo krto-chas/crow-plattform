@@ -14,6 +14,7 @@ kräver det.
 from __future__ import annotations
 
 import json
+import re
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -50,6 +51,7 @@ STATUS_LABELS: dict[str, str] = {
 }
 
 _READ_ERRORS = (OSError, ValueError, KeyError, TypeError)
+_SAFE_ID = re.compile(r"^[A-Za-z0-9_-]+$")
 
 
 def derive_status(
@@ -80,7 +82,10 @@ def derive_status(
     if issuance_interrupted:
         return "utfardande_avbrutet"
     if has_snapshot and not field_completed:
-        return "pagaende"
+        # Utfärdandet kräver inte avslutat fältarbete, och äldre ögonblicksbilder
+        # saknar uppgiften. Ett protokollklart uppdrag ska därför till
+        # granskning, inte bli stående som pågående.
+        return "att_granska" if ready_to_issue else "pagaende"
     if ready_to_issue:
         return "leveransklar"
     if field_completed:
@@ -197,7 +202,7 @@ def _field_state(data_root: Path, project_id: str, inspection_id: str) -> dict[s
     """Fältets läge ur ögonblicksbilden, eller orsaken till att det inte kan anges."""
     path = data_root / "projects" / project_id / "ovk-field" / inspection_id / "snapshot.json"
     if not path.is_file():
-        if (data_root / "ovk-field-sync" / f"{inspection_id}.json").exists():
+        if _legacy_snapshot_belongs_to(data_root, project_id, inspection_id):
             # Äldre fältdata som ännu inte flyttats in under projektet. Utan
             # den här kontrollen skulle uppdraget se ut att sakna fältarbete.
             return "omigrerad"
@@ -217,6 +222,25 @@ def _field_state(data_root: Path, project_id: str, inspection_id: str) -> dict[s
         "ogonblicksbild_andrad": modified.isoformat(timespec="seconds"),
         "avslutat": completed if isinstance(completed, str) and completed else None,
     }
+
+
+def _legacy_snapshot_belongs_to(data_root: Path, project_id: str, inspection_id: str) -> bool:
+    """Om äldre, inte projektbunden fältdata hör till det här projektets uppdrag.
+
+    Samma regel som fältrutten använder när den kräver migrering: filen räknas
+    hit om dess sammanhang pekar på projektet eller inte pekar ut något giltigt
+    projekt alls. Pekar det på ett annat projekt är filen inte vår.
+    """
+    if not (data_root / "ovk-field-sync" / f"{inspection_id}.json").exists():
+        return False
+    try:
+        context = json.loads(
+            (data_root / "ovk-field-context" / f"{inspection_id}.json").read_text(encoding="utf-8")
+        )
+        owner = context.get("project_id") if isinstance(context, dict) else None
+    except (OSError, ValueError):
+        owner = None
+    return owner == project_id or not isinstance(owner, str) or not _SAFE_ID.fullmatch(owner)
 
 
 def _assignment(

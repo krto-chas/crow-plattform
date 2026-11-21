@@ -219,7 +219,7 @@ _DEFAULTS: dict[str, object] = {
         ({}, "ej_planerad"),
         ({"planned": True}, "planerad"),
         ({"planned": True, "has_snapshot": True}, "pagaende"),
-        ({"has_snapshot": True, "ready_to_issue": True}, "pagaende"),
+        ({"has_snapshot": True, "ready_to_issue": True}, "att_granska"),
         ({"has_snapshot": True, "field_completed": True}, "att_granska"),
         ({"has_snapshot": True, "field_completed": True, "ready_to_issue": True}, "leveransklar"),
         ({"ready_to_issue": True}, "leveransklar"),
@@ -297,13 +297,18 @@ def test_leveransklar_requires_a_current_protocol_source(tmp_path: Path) -> None
     assert item["nasta_steg"]["text"] == "Granska"
 
 
-def test_protocol_ready_record_with_ongoing_field_work_is_pagaende(tmp_path: Path) -> None:
+def test_protocol_ready_record_without_completed_field_work_goes_to_review(
+    tmp_path: Path,
+) -> None:
     record = _record("ovk-1", ready=True)
     OvkWorkflowRepository(tmp_path).save(record)
     _snapshot(tmp_path, "ovk-1")
     save_protocol_source(tmp_path, "p1", "ovk-1", record)
 
-    assert _by_id(tmp_path)["ovk-1"]["status"] == "pagaende"
+    item = _by_id(tmp_path)["ovk-1"]
+
+    assert item["status"] == "att_granska"
+    assert item["nasta_steg"]["text"] == "Granska"
 
 
 def test_overview_shows_business_names_and_next_step(tmp_path: Path) -> None:
@@ -489,6 +494,56 @@ def test_unreadable_records_are_reported_not_hidden(tmp_path: Path) -> None:
     ]
 
 
+def test_legacy_field_data_of_another_project_does_not_hide_the_assignment(
+    tmp_path: Path,
+) -> None:
+    workflows = OvkWorkflowRepository(tmp_path)
+    workflows.save(_record("ovk-1", project_id="p1"))
+    workflows.save(_record("ovk-1", project_id="p2"))
+    legacy = tmp_path / "ovk-field-sync" / "ovk-1.json"
+    legacy.parent.mkdir()
+    legacy.write_text("{}", encoding="utf-8")
+    context = tmp_path / "ovk-field-context" / "ovk-1.json"
+    context.parent.mkdir()
+    context.write_text(json.dumps({"project_id": "p2"}), encoding="utf-8")
+
+    body = _body(tmp_path)
+
+    assert [item["project_id"] for item in body["uppdrag"]] == ["p1"]
+    assert body["ej_lasbara"] == [
+        {"project_id": "p2", "inspection_id": "ovk-1", "orsak": "omigrerad"}
+    ]
+
+
+def test_snapshot_of_another_inspection_is_not_read_as_this_one(tmp_path: Path) -> None:
+    OvkWorkflowRepository(tmp_path).save(_record("ovk-1"))
+    _snapshot(tmp_path, "ovk-1").write_text(
+        json.dumps({"inspection_id": "ovk-2", "field_work_completed_at": _DONE}),
+        encoding="utf-8",
+    )
+
+    body = _body(tmp_path)
+
+    assert body["uppdrag"] == []
+    assert body["ej_lasbara"] == [{"project_id": "p1", "inspection_id": "ovk-1", "orsak": "falt"}]
+
+
+def test_certificate_claiming_another_project_withholds_the_project(tmp_path: Path) -> None:
+    record = _record("ovk-klar", ready=True)
+    OvkWorkflowRepository(tmp_path).save(record)
+    issued = _issue(tmp_path, record)
+    path = tmp_path / "projects" / "p1" / "ovk-intyg" / "intyg-1.json"
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    assert payload["project_id"] == issued.project_id
+    payload["project_id"] = "p2"
+    path.write_text(json.dumps(payload), encoding="utf-8")
+
+    body = _body(tmp_path)
+
+    assert body["uppdrag"] == []
+    assert body["ej_lasbara"] == [{"project_id": "p1", "inspection_id": "", "orsak": "intyg"}]
+
+
 def test_record_whose_content_points_elsewhere_is_not_followed(tmp_path: Path) -> None:
     OvkWorkflowRepository(tmp_path).save(_record("ovk-1"))
     OvkWorkflowRepository(tmp_path).save(_record("hemlig", project_id="p2"))
@@ -560,6 +615,7 @@ def _entitle(root: Path, *, active: bool) -> None:
 def test_overview_is_served_through_the_platform_shell(
     tmp_path: Path, monkeypatch: MonkeyPatch
 ) -> None:
+    monkeypatch.delenv("CROW_AUTH_MODE", raising=False)
     monkeypatch.setenv("CROW_MODE", "local")
     monkeypatch.setenv("CROW_CUSTOMER_ID", "acme")
     _entitle(tmp_path, active=True)
@@ -574,6 +630,7 @@ def test_overview_is_served_through_the_platform_shell(
 def test_shell_refuses_the_overview_without_an_ovk_licence(
     tmp_path: Path, monkeypatch: MonkeyPatch
 ) -> None:
+    monkeypatch.delenv("CROW_AUTH_MODE", raising=False)
     monkeypatch.setenv("CROW_MODE", "local")
     monkeypatch.setenv("CROW_CUSTOMER_ID", "acme")
     _entitle(tmp_path, active=False)
