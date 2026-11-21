@@ -534,7 +534,7 @@ function historyDisclosure(panel,key,count,photoCount=0){
   const details=document.createElement('details');details.open=wasOpen;
   const summary=document.createElement('summary');summary.style.cursor='pointer';
   summary.style.fontWeight='700';
-  if(count)summary.style.color='#b91c1c';
+  if(count)summary.style.color='var(--bom)';
   summary.textContent=count?count+' anmärkning(ar) från föregående OVK': 'Historiska installationsfotografier ('+photoCount+')';
   details.append(summary);
   const body=document.createElement('div');const title=document.createElement('p');
