@@ -81,15 +81,14 @@ def derive_status(
         return "utfardad"
     if issuance_interrupted:
         return "utfardande_avbrutet"
-    if has_snapshot and not field_completed:
-        # Utfärdandet kräver inte avslutat fältarbete, och äldre ögonblicksbilder
-        # saknar uppgiften. Ett protokollklart uppdrag ska därför till
-        # granskning, inte bli stående som pågående.
-        return "att_granska" if ready_to_issue else "pagaende"
     if ready_to_issue:
+        # Utfärdande kräver inte att fältarbetet är klarmarkerat (beslut
+        # 2026-11-21). Saknad klarmarkering visas som upplysning i översikten.
         return "leveransklar"
     if field_completed:
         return "att_granska"
+    if has_snapshot:
+        return "pagaende"
     if planned:
         return "planerad"
     return "ej_planerad"

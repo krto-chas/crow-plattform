@@ -22,7 +22,9 @@
     const path = location.pathname.replace(/\/+$/, '') || '/';
     if (path === '/ovk') {
       const view = new URLSearchParams(location.search).get('vy');
-      return WORKSPACES.some(item => item.id === view) ? view : 'oversikt';
+      // Bara ytor som är en vy av översikten kan väljas med ?vy=.
+      const isView = WORKSPACES.some(item => item.id === view && item.href === '/ovk?vy=' + view);
+      return isView ? view : 'oversikt';
     }
     const match = WORKSPACES.find(item => item.href && !item.href.includes('?') && item.href === path);
     return match ? match.id : null;
@@ -37,7 +39,6 @@
       if (!item.href) {
         const pending = document.createElement('span');
         pending.className = 'ovk-nav-pending';
-        pending.setAttribute('aria-disabled', 'true');
         pending.textContent = item.text;
         const note = document.createElement('small');
         note.textContent = 'Kommer';

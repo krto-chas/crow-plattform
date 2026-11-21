@@ -27,6 +27,13 @@
   let data = null;
   let revision = 0;
 
+  // Serverns statusar i köordning. En status som skriptet inte känner till
+  // hamnar sist i stället för att försvinna ur kö och filter.
+  function statusOrder() {
+    const known = ORDER.filter(status => status in data.statusar);
+    return known.concat(Object.keys(data.statusar).filter(status => !ORDER.includes(status)));
+  }
+
   function selectedStatuses() {
     const value = $('overviewFilter').value;
     if (!value) return null;
@@ -55,7 +62,7 @@
 
   function hints(item) {
     const notes = [];
-    if (item.falt.synkad && !item.falt.avslutat && ['att_granska', 'leveransklar'].includes(item.status)) {
+    if (item.falt.synkad && !item.falt.avslutat && item.status === 'leveransklar') {
       notes.push('Fältarbetet är inte klarmarkerat i fältappen.');
     }
     if (item.oppna_granskningar) notes.push(item.oppna_granskningar + ' granskningsbeslut väntar.');
@@ -64,9 +71,11 @@
 
   function renderQueue() {
     const queue = $('queue');
+    // Korten ritas om vid varje ändring; fokus ska stanna på det kort som hade det.
+    const focused = queue.contains(document.activeElement) ? document.activeElement.dataset.status : null;
     queue.replaceChildren();
     const filter = $('overviewFilter');
-    for (const status of ORDER) {
+    for (const status of statusOrder()) {
       const count = data.antal[status] || 0;
       if (!count && !ALWAYS_SHOWN.includes(status)) continue;
       const button = document.createElement('button');
@@ -81,16 +90,18 @@
       number.textContent = String(count);
       button.append(label, number);
       queue.append(button);
+      if (status === focused) button.focus();
     }
   }
 
   function renderRows() {
     const search = $('overviewSearch').value.trim().toLocaleLowerCase('sv');
     const statuses = selectedStatuses();
+    const order = statusOrder();
     const rows = data.uppdrag
       .filter(item => (!statuses || statuses.has(item.status)) && matches(item, search))
       .sort((a, b) =>
-        ORDER.indexOf(a.status) - ORDER.indexOf(b.status)
+        order.indexOf(a.status) - order.indexOf(b.status)
         || String(a.planerat_datum || '9999').localeCompare(String(b.planerat_datum || '9999'))
         || String(a.fastighetsbeteckning || a.objekt).localeCompare(String(b.fastighetsbeteckning || b.objekt), 'sv'));
     const body = $('overviewItems');
@@ -118,16 +129,21 @@
       const next = row.insertCell();
       const link = document.createElement('a');
       link.className = 'button';
-      link.href = item.nasta_steg.href;
-      link.textContent = item.nasta_steg.text;
-      next.append(link);
+      // Servern bygger länken; godta ändå bara sökvägar inom OVK.
+      if (String(item.nasta_steg.href).startsWith('/ovk/')) {
+        link.href = item.nasta_steg.href;
+        link.textContent = item.nasta_steg.text;
+        next.append(link);
+      } else {
+        next.textContent = '—';
+      }
     }
     $('overviewTable').hidden = !rows.length;
     const empty = $('overviewEmpty');
     empty.hidden = Boolean(rows.length);
-    empty.textContent = data.uppdrag.length
-      ? 'Inga uppdrag matchar urvalet.'
-      : 'Det finns inga uppdrag ännu. Börja med Ny OVK.';
+    if (data.uppdrag.length) empty.textContent = 'Inga uppdrag matchar urvalet.';
+    else if (data.fullstandig) empty.textContent = 'Det finns inga uppdrag ännu. Börja med Ny OVK.';
+    else empty.textContent = 'Inga uppdrag kunde läsas. Se varningen ovan.';
     $('overviewStatus').textContent = rows.length === data.uppdrag.length
       ? 'Visar ' + rows.length + ' uppdrag.'
       : 'Visar ' + rows.length + ' av ' + data.uppdrag.length + ' uppdrag.';
@@ -145,7 +161,9 @@
     const list = document.createElement('ul');
     for (const entry of data.ej_lasbara) {
       const line = document.createElement('li');
-      const target = entry.inspection_id ? 'Uppdrag i projekt ' + entry.project_id : 'Projekt ' + entry.project_id;
+      const target = entry.inspection_id
+        ? 'Uppdrag ' + entry.inspection_id + ' i projekt ' + entry.project_id
+        : 'Projekt ' + entry.project_id;
       line.textContent = target + ': ' + (REASONS[entry.orsak] || 'okänt fel') + '.';
       list.append(line);
     }
@@ -164,7 +182,7 @@
     const chosen = filter.dataset.initial ?? filter.value;
     filter.replaceChildren(new Option('Alla statusar', ''));
     for (const [id, view] of Object.entries(VIEWS)) filter.append(new Option(view.text, 'vy:' + id));
-    for (const status of ORDER) filter.append(new Option(data.statusar[status], status));
+    for (const status of statusOrder()) filter.append(new Option(data.statusar[status], status));
     filter.value = [...filter.options].some(option => option.value === chosen) ? chosen : '';
     delete filter.dataset.initial;
   }

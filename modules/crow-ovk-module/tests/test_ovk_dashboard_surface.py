@@ -61,7 +61,7 @@ def test_overview_is_a_work_queue_fed_by_the_assignment_route(tmp_path: Path) ->
         'id="refreshOverview"',
     ):
         assert element in page
-    assert page.index('<script src="/ovk/skal.js">') < page.index("ovkShell.mount()")
+    assert page.index('<script src="/ovk/skal.js">') < page.index("ovkShell?.mount()")
     assert page.index('<script src="/ovk/oversikt.js">') < page.index("ovkOverview.init()")
 
     script = client.get("/ovk/oversikt.js")
@@ -76,7 +76,11 @@ def test_overview_is_a_work_queue_fed_by_the_assignment_route(tmp_path: Path) ->
 def test_desktop_overview_and_mobile_home_load_separately(tmp_path: Path) -> None:
     page = _client(tmp_path).get("/ovk").text
 
-    assert "return mobileView.matches?loadOverview():ovkOverview.load();" in page
+    assert (
+        "return mobileView.matches||!window.ovkOverview?loadOverview():ovkOverview.load();" in page
+    )
+    # Byte av fönsterbredd laddar inget förrän init har hämtat projekten.
+    assert "if(projectsReady)startOverview();" in page
     # Mobilens startsida behåller sin egen väg och sina element.
     for element in ('id="fieldHomeStatus"', 'id="fieldOngoing"', 'id="fieldPrepared"'):
         assert element in page

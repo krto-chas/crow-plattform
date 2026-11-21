@@ -34,7 +34,7 @@
 </head>
 <body>
 <div class="shell">
-  <aside><div class="brand"><strong>OVK</strong><small>CROW Plattform</small></div><nav><a href="/app">Projekt</a><a class="active" href="/ovk">OVK</a><a href="/logout">Logga ut</a></nav><nav aria-label="OVK-navigation" id="ovkNav"></nav></aside>
+  <aside><div class="brand"><strong>OVK</strong><small>CROW Plattform</small></div><nav><a href="/app">Projekt</a><a class="active" href="/ovk">OVK</a><a href="/logout">Logga ut</a></nav><nav aria-label="OVK-navigation" id="ovkNav"><a class="active" aria-current="page" href="/ovk">Översikt och arbetskö</a><a href="/ovk/besiktning">Uppdrag och planering</a><a href="/ovk/fastighet">Kunder och fastigheter</a><a href="/ovk/intyg">Protokoll, intyg och bilagor</a><a href="/ovk/bevakning">Bevakning och ombesiktningar</a></nav></aside>
   <main>
     <section class="field-home" aria-labelledby="fieldHomeTitle">
       <header class="field-brand"><strong>CROW OVK</strong><a href="/logout">Logga ut</a></header>
@@ -62,7 +62,7 @@
         <div class="toolbar"><input id="overviewSearch" type="search" aria-label="Sök uppdrag" placeholder="Sök fastighet, adress eller besiktningsman"><select id="overviewFilter" aria-label="Filtrera på status"><option value="">Alla statusar</option></select></div>
         <div id="overviewStatus" role="status" aria-live="polite" class="muted">Laddar uppdrag…</div>
         <div id="overviewWarning" class="status warn" role="alert" hidden></div>
-        <div class="ovk-table-wrap"><table id="overviewTable" class="ovk-table" hidden>
+        <div class="ovk-table-wrap"><table id="overviewTable" class="ovk-table" aria-labelledby="overviewTitle" hidden>
           <thead><tr><th scope="col">Fastighet</th><th scope="col">Besiktningsman</th><th scope="col">Planerat</th><th scope="col">System</th><th scope="col">Status</th><th scope="col">Nästa steg</th></tr></thead>
           <tbody id="overviewItems"></tbody>
         </table></div>
@@ -184,7 +184,7 @@
 const $=id=>document.getElementById(id);
 const esc=value=>String(value??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
 const enc=encodeURIComponent;
-let overviewRows=[];let overviewRevision=0;let overviewLoaded=false;let projects=[];let currentInspections=[];let loadRevision=0;let projectLoaded=false;
+let projectsReady=false;let overviewRows=[];let overviewRevision=0;let overviewLoaded=false;let projects=[];let currentInspections=[];let loadRevision=0;let projectLoaded=false;
 
 async function api(url){const r=await fetch(url);const data=await r.json().catch(()=>({}));if(!r.ok)throw new Error(typeof data.detail==='string'?data.detail:JSON.stringify(data.detail||data));return data;}
 function checksum(asset){return String(asset.checksum_sha256||'').toLowerCase();}
@@ -273,7 +273,7 @@ async function loadProject(){
   $('inspections').textContent='Laddar…';$('imports').textContent='Laddar…';
   $('status').className='status';$('status').textContent='Laddar projektets OVK-data…';renderActions(projectId);
   $('newInspection').href='/ovk/besiktning?new=1&project_id='+enc(projectId);$('newInspection').removeAttribute('aria-disabled');
-  ovkShell.setProject(projectId);
+  window.ovkShell?.setProject(projectId);
   $('pbProject').value=projectId;$('pbInspection').value='';$('pbResult').textContent='';
   try{
     const [inspections,imports]=await Promise.all([api('/api/ovk/projects/'+enc(projectId)+'/inspections'),api('/api/projects/'+enc(projectId)+'/imports')]);
@@ -284,7 +284,7 @@ async function loadProject(){
 async function init(){
   try{
     const modules=await api('/api/me/modules');if(!(modules.modules||[]).some(m=>m.id==='ovk'))throw new Error('OVK ingår inte i licensen.');
-    projects=await api('/api/projects');
+    projects=await api('/api/projects');projectsReady=true;
     const requested=new URLSearchParams(location.search).get('project_id');
     $('project').innerHTML=projects.length?projects.map(p=>`<option value="${esc(p.project_id)}">${esc(p.project_name||p.name||p.project_id)}</option>`).join(''):'<option value="">Inga projekt</option>';
     if(requested&&projects.some(p=>p.project_id===requested))$('project').value=requested;
@@ -296,13 +296,15 @@ $('inspectionSearch').addEventListener('input',()=>{if(projectLoaded)renderInspe
 $('inspectionFilter').addEventListener('change',()=>renderInspections($('project').value,{inspections:currentInspections}));
 const mobileView=matchMedia('(max-width:900px)');
 // Mobilens startsida och skrivbordets arbetskö har var sin datakälla; bara den som syns laddas.
-function startOverview(){ return mobileView.matches?loadOverview():ovkOverview.load(); }
-function updateLayout(){ $('desktopTools').open=!mobileView.matches; startOverview(); }
+// Saknas översiktens skript (laddfel) ska mobilens startsida ändå fungera.
+function startOverview(){ return mobileView.matches||!window.ovkOverview?loadOverview():ovkOverview.load(); }
+// Ladda inte förrän init har hämtat projekten och godkänt licensen.
+function updateLayout(){ $('desktopTools').open=!mobileView.matches; if(projectsReady)startOverview(); }
 mobileView.addEventListener('change',updateLayout);
 $('desktopTools').open=!mobileView.matches;
 $('fieldRefresh').addEventListener('click',()=>{if(overviewLoaded)loadOverview();else location.reload();});
-ovkShell.mount();
-ovkOverview.init();
+window.ovkShell?.mount();
+if(window.ovkOverview)ovkOverview.init();else $('overviewStatus').textContent='Översikten kunde inte laddas. Ladda om sidan.';
 init();
 </script>
 </body>
