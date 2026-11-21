@@ -40,7 +40,7 @@ def ovk_property_register_router(data_root: Path) -> APIRouter:
     properties = FastighetRepository(data_root)
     workflows = OvkWorkflowRepository(data_root)
     certificates = OvkIntygRepository(data_root)
-    customers = KundRepository(data_root)
+    kunder = KundRepository(data_root)
 
     @router.get("/api/ovk/fastigheter", response_model=None)
     def list_properties(request: Request) -> dict[str, Any]:
@@ -49,13 +49,13 @@ def ovk_property_register_router(data_root: Path) -> APIRouter:
         unreadable: list[dict[str, str]] = []
         names: dict[str, str | None] = {}
 
-        def customer(kund_id: str | None) -> dict[str, str | None] | None:
+        def kund_ref(kund_id: str | None) -> dict[str, str | None] | None:
             """Kundens id och namn. Namnet är None när posten inte går att läsa."""
             if kund_id is None:
                 return None
             if kund_id not in names:
                 try:
-                    names[kund_id] = customers.load(kund_id).namn
+                    names[kund_id] = kunder.load(kund_id).namn
                 except _READ_ERRORS:
                     names[kund_id] = None
             return {"kund_id": kund_id, "namn": names[kund_id]}
@@ -112,7 +112,7 @@ def ovk_property_register_router(data_root: Path) -> APIRouter:
                         len(own_inspections),
                         [item for item in own if item is not None],
                         unclear=any(item is None for item in own),
-                        customer=customer(fastighet.kund_id),
+                        kund=kund_ref(fastighet.kund_id),
                     )
                 )
         occurrences: dict[tuple[str, str], int] = {}
@@ -136,7 +136,7 @@ def _property(
     certificates: list[OvkIntyg],
     *,
     unclear: bool,
-    customer: dict[str, str | None] | None,
+    kund: dict[str, str | None] | None,
 ) -> dict[str, Any]:
     adress = fastighet.byggnadens_adress
 
@@ -170,7 +170,7 @@ def _property(
         "gata": adress.gata or None,
         "postnr": adress.postnr or None,
         "ort": adress.ort or None,
-        "kund": customer,
+        "kund": kund,
         "byggnadsagare": fastighet.byggnadsagare_namn or None,
         "fastighetstyp": fastighet.fastighetstyp.value,
         "byggnader": [

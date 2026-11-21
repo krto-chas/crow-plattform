@@ -17,9 +17,11 @@ from crow_ovk_fastighet import (
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from pytest import MonkeyPatch
+from test_ovk_overview_surface import _entitle
 
-from crow_ovk_module.ovk_customer_surface import kund_revision
+from crow_ovk_module.ovk_kund_surface import kund_revision
 from crow_ovk_module.plugin import CrowOvkModulePlugin
+from crow_workbench.shell import create_app
 
 _NEW = {"X-OVK-Base-Revision": "new"}
 _FASTIGHET = "/api/ovk/projects/p1/fastighet/object-1"
@@ -62,7 +64,12 @@ def test_customer_is_created_listed_and_read_back(tmp_path: Path, monkeypatch: M
     assert created["revision"] == kund_revision(KundRepository(tmp_path).load("kund-1"))
     assert client.get("/api/ovk/kunder/kund-1").json() == created
     listed = client.get("/api/ovk/kunder").json()
-    assert listed == {"kunder": [{**created, "antal_fastigheter": 0}], "fullstandig": True}
+    assert listed == {
+        "kunder": [{**created, "antal_fastigheter": 0}],
+        "ej_lasbara": [],
+        "antal_fastigheter_kant": True,
+        "fullstandig": True,
+    }
 
 
 def test_customers_are_listed_by_name(tmp_path: Path) -> None:
@@ -123,6 +130,12 @@ def test_concurrent_edit_does_not_overwrite_silently(tmp_path: Path) -> None:
         ("kund-1", {"namn": "Brf Lärkan", "epost": "inte en adress"}),
         ("kund-1", {"namn": "x" * 201}),
         ("kund-1", {"namn": "Brf Lärkan", "postadress": "Storgatan 1"}),
+        ("kund-1", {"namn": None}),
+        ("kund-1", {"namn": {"a": 1}}),
+        ("kund-1", {"namn": "Brf Lärkan", "telefon": 81234}),
+        ("kund-1", {"namn": "Brf Lärkan", "referens": "rad 1\nrad 2"}),
+        ("kund-1", {"namn": "Brf Lärkan", "postadress": {"gata": "x" * 201}}),
+        ("kund-1", {"namn": "Brf Lärkan", "postadress": {"ort": None, "gata": 5}}),
         ("kund.1", {"namn": "Brf Lärkan"}),
     ],
 )
@@ -231,18 +244,75 @@ def test_property_count_is_withheld_when_a_project_cannot_be_read(tmp_path: Path
     body = client.get("/api/ovk/kunder").json()
 
     assert body["fullstandig"] is False
+    assert body["antal_fastigheter_kant"] is False
+    assert body["ej_lasbara"] == []
     assert body["kunder"][0]["antal_fastigheter"] is None
 
 
-def test_unreadable_customer_register_is_an_error_not_an_empty_list(tmp_path: Path) -> None:
+def test_one_unreadable_customer_does_not_hide_the_others(tmp_path: Path) -> None:
     client = _client(tmp_path)
-    _create(client)
-    (tmp_path / "registry" / "kund" / "trasig.json").write_text("{", encoding="utf-8")
+    created = _create(client)
+    registry = tmp_path / "registry" / "kund"
+    (registry / "trasig.json").write_text("{", encoding="utf-8")
+    # En läsbar post som säger sig vara en annan kund än filen den ligger i.
+    (registry / "fel-namn.json").write_text(
+        (registry / "kund-1.json").read_text(encoding="utf-8"), encoding="utf-8"
+    )
 
-    response = client.get("/api/ovk/kunder")
+    body = client.get("/api/ovk/kunder").json()
 
-    assert response.status_code == 500
-    assert response.json() == {"detail": {"code": "KUND_REGISTER_UNREADABLE"}}
+    assert [item["kund_id"] for item in body["kunder"]] == ["kund-1"]
+    assert body["ej_lasbara"] == ["fel-namn", "trasig"]
+    assert body["fullstandig"] is False
+    assert body["antal_fastigheter_kant"] is True
+
+    # Den trasiga posten skrivs inte över, och felet skylls inte på indata.
+    for revision in ("new", created["revision"]):
+        refused = client.put(
+            "/api/ovk/kunder/trasig",
+            json={"namn": "Ny"},
+            headers={"X-OVK-Base-Revision": revision},
+        )
+        assert refused.status_code == 409
+        assert refused.json() == {"detail": {"code": "KUND_UNREADABLE"}}
+    assert (registry / "trasig.json").read_text(encoding="utf-8") == "{"
+    assert client.get("/api/ovk/kunder/trasig").status_code == 409
+
+
+def test_null_and_missing_optional_fields_are_empty_not_the_text_none(tmp_path: Path) -> None:
+    created = _create(_client(tmp_path), namn="  Brf Lärkan  ", telefon=None, postadress=None)
+
+    assert created["namn"] == "Brf Lärkan"
+    assert created["telefon"] == ""
+    assert created["kontaktperson"] == ""
+    assert created["postadress"] == {"gata": "", "postnr": "", "ort": ""}
+
+
+def test_unreadable_previous_property_can_still_be_overwritten(tmp_path: Path) -> None:
+    client = _client(tmp_path)
+    path = tmp_path / "projects" / "p1" / "fastighet" / "object-1.json"
+    path.parent.mkdir(parents=True)
+    path.write_text("[]", encoding="utf-8")
+
+    saved = client.put(_FASTIGHET, json={"fastighetsbeteckning": "Lärkan 4"})
+
+    assert saved.status_code == 200
+    assert FastighetRepository(tmp_path).load("p1", "object-1").kund_id is None
+
+
+def test_shell_refuses_customer_routes_without_an_ovk_licence(
+    tmp_path: Path, monkeypatch: MonkeyPatch
+) -> None:
+    monkeypatch.setenv("CROW_MODE", "local")
+    monkeypatch.setenv("CROW_CUSTOMER_ID", "acme")
+    monkeypatch.delenv("CROW_AUTH_MODE", raising=False)
+    _entitle(tmp_path, active=False)
+    client = TestClient(create_app(tmp_path))
+
+    assert client.get("/api/ovk/kunder").status_code == 403
+    refused = client.put("/api/ovk/kunder/kund-1", json={"namn": "Brf Lärkan"}, headers=_NEW)
+    assert refused.status_code == 403
+    assert not (tmp_path / "registry" / "kund").exists()
 
 
 def test_customer_routes_require_a_session_in_session_mode(
@@ -288,4 +358,6 @@ def test_property_page_carries_the_customer_panel(tmp_path: Path) -> None:
     assert "X-OVK-Base-Revision" in script.text
     assert "innerHTML" not in script.text
     app_script = client.get("/ovk/fastighet/app.js").text
-    assert "window.ovkCustomers?.loaded()?{kund_id:$('kund').value||null}:{}" in app_script
+    assert "window.ovkKunder?.loaded()?{kund_id:$('kund').value||null}:{}" in app_script
+    # ADR-013: beställaren heter kund i identifierare, inte customer.
+    assert "customer" not in script.text.lower()

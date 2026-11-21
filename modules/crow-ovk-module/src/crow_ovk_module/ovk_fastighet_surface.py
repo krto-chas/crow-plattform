@@ -75,9 +75,9 @@ def ovk_fastighet_router(data_root: Path) -> APIRouter:
         )
 
     @router.get("/ovk/kunder.js", response_model=None)
-    def customer_register_script() -> Response:
+    def kund_register_script() -> Response:
         return Response(
-            _asset_text("desktop-customers.js"),
+            _asset_text("desktop-kunder.js"),
             media_type="application/javascript",
             headers=_NO_CACHE,
         )
@@ -100,11 +100,12 @@ def ovk_fastighet_router(data_root: Path) -> APIRouter:
         payload["updated_at"] = datetime.now(UTC).isoformat()
         try:
             if "kund_id" not in payload:
-                # En klient som inte känner till kundkopplingen (fältappen, äldre
-                # formulär) ska inte ta bort den genom att spara fastigheten.
+                # En klient som inte känner till kundkopplingen (flödet för ny
+                # besiktning, äldre formulär) ska inte ta bort den genom att spara
+                # fastigheten. En oläsbar tidigare post hindrar inte att den skrivs över.
                 try:
                     previous = fastighet_repository.load(project_id, fastighet_id)
-                except FileNotFoundError:
+                except (FileNotFoundError, ValueError):
                     previous = None
                 if previous is not None and previous.kund_id is not None:
                     payload["kund_id"] = previous.kund_id

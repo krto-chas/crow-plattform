@@ -6,10 +6,12 @@
   const $ = id => document.getElementById(id);
   const FIELDS = ['Namn', 'Kontaktperson', 'Telefon', 'Epost', 'Referens'];
   const ADDRESSES = { postadress: 'kundPost', faktureringsadress: 'kundFaktura' };
-  let customers = null;
+  let kunder = null;
   let editing = null;
   let revision = 0;
   let onChange = null;
+  // Bekräftelsen från senaste sparning, visad tills nästa händelse i panelen.
+  let saved = '';
 
   function newId() {
     const bytes = crypto.getRandomValues(new Uint8Array(12));
@@ -26,7 +28,7 @@
     const select = $('kund');
     const chosen = select.value;
     select.replaceChildren(new Option('— Ingen kund —', ''));
-    for (const customer of customers) select.append(new Option(customer.namn, customer.kund_id));
+    for (const kund of kunder) select.append(new Option(kund.namn, kund.kund_id));
     choose(chosen);
   }
 
@@ -46,34 +48,46 @@
   function renderList() {
     const body = $('kundItems');
     body.replaceChildren();
-    for (const customer of customers) {
+    for (const kund of kunder) {
       const row = body.insertRow();
       const name = row.insertCell();
       const title = document.createElement('strong');
-      title.textContent = customer.namn;
+      title.textContent = kund.namn;
       name.append(title);
       const contact = row.insertCell();
-      contact.textContent = [customer.kontaktperson, customer.telefon, customer.epost].filter(Boolean).join(' · ') || '—';
+      contact.textContent = [kund.kontaktperson, kund.telefon, kund.epost].filter(Boolean).join(' · ') || '—';
       const count = row.insertCell();
-      count.textContent = customer.antal_fastigheter === null ? '—' : String(customer.antal_fastigheter);
+      count.textContent = kund.antal_fastigheter === null ? '—' : String(kund.antal_fastigheter);
       const actions = row.insertCell();
       const edit = document.createElement('button');
       edit.type = 'button';
       edit.className = 'button secondary';
       edit.textContent = 'Ändra';
-      edit.addEventListener('click', () => openForm(customer));
+      edit.addEventListener('click', () => openForm(kund));
       actions.append(edit);
     }
-    $('kundTable').hidden = !customers.length;
-    $('kundEmpty').hidden = Boolean(customers.length);
+    $('kundTable').hidden = !kunder.length;
+    $('kundEmpty').hidden = Boolean(kunder.length);
   }
 
-  function openForm(customer) {
-    editing = customer ? { id: customer.kund_id, revision: customer.revision } : { id: newId(), revision: 'new' };
-    $('kundFormTitle').textContent = customer ? 'Ändra kund' : 'Ny kund';
-    for (const field of FIELDS) $('kund' + field).value = customer ? customer[field.toLowerCase()] || '' : '';
+  // Statusraden beskriver alltid det senast hämtade läget.
+  function renderStatus(payload) {
+    const notes = [];
+    if (payload.ej_lasbara.length) {
+      notes.push(payload.ej_lasbara.length === 1
+        ? 'En kundpost går inte att läsa och saknas i listan (' + payload.ej_lasbara[0] + ').'
+        : payload.ej_lasbara.length + ' kundposter går inte att läsa och saknas i listan (' + payload.ej_lasbara.join(', ') + ').');
+    }
+    if (!payload.antal_fastigheter_kant) notes.push('Antal fastigheter per kund kan inte anges: ett projekt gick inte att läsa.');
+    status([saved].concat(notes).filter(Boolean).join(' '), notes.length > 0);
+  }
+
+  function openForm(kund) {
+    editing = kund ? { id: kund.kund_id, revision: kund.revision } : { id: newId(), revision: 'new' };
+    $('kundFormTitle').textContent = kund ? 'Ändra kund' : 'Ny kund';
+    for (const field of FIELDS) $('kund' + field).value = kund ? kund[field.toLowerCase()] || '' : '';
     for (const [key, prefix] of Object.entries(ADDRESSES)) {
-      const address = (customer && customer[key]) || {};
+      const address = (kund && kund[key]) || {};
       $(prefix + 'Gata').value = address.gata || '';
       $(prefix + 'Postnr').value = address.postnr || '';
       $(prefix + 'Ort').value = address.ort || '';
@@ -116,7 +130,11 @@
       });
       const body = await response.json().catch(() => ({}));
       if (response.status === 409) {
-        note.textContent = 'Kunden har ändrats av någon annan sedan du öppnade den. Dina ändringar är inte sparade. Uppdatera listan och öppna kunden igen.';
+        note.textContent = body.detail && body.detail.code === 'KUND_UNREADABLE'
+          ? 'Den sparade kundposten går inte att läsa och kan inte ändras här.'
+          : 'Kunden har ändrats av någon annan sedan du öppnade den. Dina ändringar är inte sparade. Stäng formuläret och öppna kunden igen.';
+        // Listan hämtas om, så att kunden öppnas med aktuella uppgifter nästa gång.
+        load();
         return;
       }
       if (response.status === 422) {
@@ -125,7 +143,7 @@
       }
       if (!response.ok) throw new Error(String(response.status));
       closeForm();
-      status('Kunden ' + body.namn + ' är sparad.');
+      saved = 'Kunden ' + body.namn + ' är sparad.';
       await load();
       if (onChange) onChange();
     } catch (error) {
@@ -142,29 +160,29 @@
       if (!response.ok) throw new Error(String(response.status));
       const payload = await response.json();
       if (current !== revision) return;
-      customers = payload.kunder;
+      kunder = payload.kunder;
       renderList();
       fillSelect();
-      if (!$('kundStatus').textContent || $('kundStatus').textContent.startsWith('Laddar')) {
-        status(payload.fullstandig ? '' : 'Antal fastigheter per kund kan inte anges: ett projekt gick inte att läsa.', !payload.fullstandig);
-      }
+      renderStatus(payload);
     } catch (error) {
       if (current !== revision) return;
-      customers = null;
-      $('kundTable').hidden = true;
-      $('kundEmpty').hidden = true;
+      // En tidigare hämtad lista står kvar: den är fortfarande det senast kända.
+      if (kunder === null) {
+        $('kundTable').hidden = true;
+        $('kundEmpty').hidden = true;
+      }
       status('Kunderna kunde inte hämtas. Kontrollera anslutningen och ladda om sidan.', true);
     }
   }
 
   function init(options) {
     onChange = options && options.onChange;
-    $('kundNew').addEventListener('click', () => openForm(null));
+    $('kundNew').addEventListener('click', () => { saved = ''; openForm(null); });
     $('kundCancel').addEventListener('click', closeForm);
     $('kundForm').addEventListener('submit', save);
   }
 
   // loaded() avgör om fastighetsformuläret får skicka kundkopplingen: utan en
   // hämtad kundlista vet formuläret inte vad som är valt och ska inte ändra den.
-  window.ovkCustomers = { init, load, choose, loaded: () => customers !== null };
+  window.ovkKunder = { init, load, choose, loaded: () => kunder !== null };
 })();

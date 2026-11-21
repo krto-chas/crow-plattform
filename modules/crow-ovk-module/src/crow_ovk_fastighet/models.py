@@ -118,6 +118,8 @@ class Kund:
         ):
             if len(value) > _KUND_TEXT_LIMIT:
                 raise ValueError(f"{label} is too long")
+            if any(ord(char) < 32 for char in value):
+                raise ValueError(f"{label} must be a single line")
         if self.epost and ("@" not in self.epost or any(c.isspace() for c in self.epost)):
             raise ValueError("epost is not an e-mail address")
 
@@ -322,18 +324,44 @@ def kund_to_payload(kund: Kund) -> dict[str, object]:
     }
 
 
+def _kund_text(payload: dict[str, object], key: str) -> str:
+    """Ett textfält i kundposten. Saknat eller null är tomt; annat än text avvisas."""
+    value = payload.get(key)
+    if value is None:
+        return ""
+    if not isinstance(value, str):
+        raise ValueError(f"{key} must be a string")
+    return value.strip()
+
+
+def _kund_adress(payload: dict[str, object], key: str) -> Adress:
+    value = payload.get(key)
+    if value is None:
+        return Adress()
+    if not isinstance(value, dict):
+        raise ValueError(f"{key} must be an object")
+    adress = Adress(
+        gata=_kund_text(value, "gata"),
+        postnr=_kund_text(value, "postnr"),
+        ort=_kund_text(value, "ort"),
+    )
+    if any(len(part) > _KUND_TEXT_LIMIT for part in (adress.gata, adress.postnr, adress.ort)):
+        raise ValueError(f"{key} is too long")
+    return adress
+
+
 def kund_from_payload(payload: dict[str, object]) -> Kund:
     updated_by = payload.get("updated_by")
     return Kund(
-        kund_id=str(payload.get("kund_id", "")),
-        namn=str(payload.get("namn", "")),
-        kontaktperson=str(payload.get("kontaktperson", "")),
-        telefon=str(payload.get("telefon", "")),
-        epost=str(payload.get("epost", "")),
-        postadress=_adress_from_payload(payload.get("postadress")),
-        faktureringsadress=_adress_from_payload(payload.get("faktureringsadress")),
-        referens=str(payload.get("referens", "")),
-        updated_at=str(payload.get("updated_at", "")),
+        kund_id=_kund_text(payload, "kund_id"),
+        namn=_kund_text(payload, "namn"),
+        kontaktperson=_kund_text(payload, "kontaktperson"),
+        telefon=_kund_text(payload, "telefon"),
+        epost=_kund_text(payload, "epost"),
+        postadress=_kund_adress(payload, "postadress"),
+        faktureringsadress=_kund_adress(payload, "faktureringsadress"),
+        referens=_kund_text(payload, "referens"),
+        updated_at=_kund_text(payload, "updated_at"),
         updated_by=updated_by if isinstance(updated_by, str) and updated_by else None,
     )
 
