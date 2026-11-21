@@ -9,6 +9,7 @@ CROW GRC ska vara en fristående verksamhetsmodul för styrning, riskhantering, 
 
 ## Dokument
 - [ARCHITECTURE.md](ARCHITECTURE.md) – målbild, ansvar, moduler, integrationer, datamodell, säkerhet och faser.
+- [EXISTING_CAPABILITIES_REVIEW.md](EXISTING_CAPABILITIES_REVIEW.md) – kartläggning av redan befintlig governance, kod, återanvändning och luckor.
 - [IDEAS_AND_DECISIONS.md](IDEAS_AND_DECISIONS.md) – idéregister, fastlagda principer, öppna frågor och beslutslogg.
 
 ## Grundprinciper
