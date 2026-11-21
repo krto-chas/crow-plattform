@@ -76,6 +76,7 @@ def test_register_lists_properties_from_all_projects(tmp_path: Path) -> None:
         "gata": "Storgatan 1",
         "postnr": "185 31",
         "ort": "Vaxholm",
+        "kund": None,
         "byggnadsagare": "Brf Lärkan",
         "fastighetstyp": "flerbostadshus",
         "byggnader": [{"byggnad_id": "building-1", "namn": "Hus A"}],

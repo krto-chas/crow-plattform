@@ -12,6 +12,7 @@ BRA lagras som Decimal och serialiseras som sträng enligt ADR-0009.
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass, field
 from datetime import date
 from decimal import Decimal, InvalidOperation
@@ -80,6 +81,47 @@ class Byggnad:
                 raise ValueError(f"{label} cannot be negative")
 
 
+_KUND_ID = re.compile(r"^[A-Za-z0-9_-]{1,120}$")
+_KUND_TEXT_LIMIT = 200
+
+
+@dataclass(frozen=True, slots=True)
+class Kund:
+    """Den som besiktningen görs åt: beställaren eller fastighetsägaren.
+
+    Kunden är gemensam för organisationen och inte bunden till ett projekt.
+    I koden heter den ``kund``; ``customer`` är organisationen som använder Crow.
+    """
+
+    kund_id: str
+    namn: str
+    kontaktperson: str = ""
+    telefon: str = ""
+    epost: str = ""
+    postadress: Adress = field(default_factory=Adress)
+    faktureringsadress: Adress = field(default_factory=Adress)
+    referens: str = ""
+    updated_at: str = ""
+    updated_by: str | None = None
+
+    def __post_init__(self) -> None:
+        if not _KUND_ID.fullmatch(self.kund_id):
+            raise ValueError("invalid kund_id")
+        if not self.namn.strip():
+            raise ValueError("kundens namn must not be empty")
+        for label, value in (
+            ("namn", self.namn),
+            ("kontaktperson", self.kontaktperson),
+            ("telefon", self.telefon),
+            ("epost", self.epost),
+            ("referens", self.referens),
+        ):
+            if len(value) > _KUND_TEXT_LIMIT:
+                raise ValueError(f"{label} is too long")
+        if self.epost and ("@" not in self.epost or any(c.isspace() for c in self.epost)):
+            raise ValueError("epost is not an e-mail address")
+
+
 @dataclass(frozen=True, slots=True)
 class Fastighet:
     fastighet_id: str
@@ -94,8 +136,13 @@ class Fastighet:
     fastighetstyp: Fastighetstyp = Fastighetstyp.FLERBOSTADSHUS
     byggnader: tuple[Byggnad, ...] = ()
     updated_at: str = ""
+    # Kunden (beställaren) som fastigheten hör till, eller None. Byggnadsägare
+    # och förvaltare ligger kvar som egna uppgifter på fastigheten.
+    kund_id: str | None = None
 
     def __post_init__(self) -> None:
+        if self.kund_id is not None and not _KUND_ID.fullmatch(self.kund_id):
+            raise ValueError("invalid kund_id")
         if not self.fastighet_id.strip():
             raise ValueError("fastighet_id must not be empty")
         if not self.project_id.strip():
@@ -201,6 +248,8 @@ def fastighet_to_payload(fastighet: Fastighet) -> dict[str, object]:
             for byggnad in fastighet.byggnader
         ],
         "updated_at": fastighet.updated_at,
+        # Utelämnas utan kund, så att äldre poster serialiseras oförändrat.
+        **({"kund_id": fastighet.kund_id} if fastighet.kund_id is not None else {}),
     }
 
 
@@ -245,6 +294,47 @@ def fastighet_from_payload(payload: dict[str, object]) -> Fastighet:
         ),
         byggnader=tuple(byggnader),
         updated_at=str(payload.get("updated_at", "")),
+        kund_id=_optional_id(payload.get("kund_id"), "kund_id"),
+    )
+
+
+def _optional_id(value: object, label: str) -> str | None:
+    if value is None or value == "":
+        return None
+    if not isinstance(value, str):
+        raise ValueError(f"{label} must be a string")
+    return value
+
+
+def kund_to_payload(kund: Kund) -> dict[str, object]:
+    return {
+        "schema_version": SCHEMA_VERSION,
+        "kund_id": kund.kund_id,
+        "namn": kund.namn,
+        "kontaktperson": kund.kontaktperson,
+        "telefon": kund.telefon,
+        "epost": kund.epost,
+        "postadress": _adress_to_payload(kund.postadress),
+        "faktureringsadress": _adress_to_payload(kund.faktureringsadress),
+        "referens": kund.referens,
+        "updated_at": kund.updated_at,
+        "updated_by": kund.updated_by,
+    }
+
+
+def kund_from_payload(payload: dict[str, object]) -> Kund:
+    updated_by = payload.get("updated_by")
+    return Kund(
+        kund_id=str(payload.get("kund_id", "")),
+        namn=str(payload.get("namn", "")),
+        kontaktperson=str(payload.get("kontaktperson", "")),
+        telefon=str(payload.get("telefon", "")),
+        epost=str(payload.get("epost", "")),
+        postadress=_adress_from_payload(payload.get("postadress")),
+        faktureringsadress=_adress_from_payload(payload.get("faktureringsadress")),
+        referens=str(payload.get("referens", "")),
+        updated_at=str(payload.get("updated_at", "")),
+        updated_by=updated_by if isinstance(updated_by, str) and updated_by else None,
     )
 
 

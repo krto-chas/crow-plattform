@@ -8,12 +8,15 @@ from .models import (
     Fastighet,
     Fastighetstyp,
     Forvaltare,
+    Kund,
     besiktningsman_from_payload,
     besiktningsman_to_payload,
     fastighet_from_payload,
     fastighet_to_payload,
+    kund_from_payload,
+    kund_to_payload,
 )
-from .repository import BesiktningsmanRepository, FastighetRepository
+from .repository import BesiktningsmanRepository, FastighetRepository, KundRepository
 
 __all__ = [
     "SCHEMA_VERSION",
@@ -26,9 +29,13 @@ __all__ = [
     "Fastighetstyp",
     "FastighetRepository",
     "Forvaltare",
+    "Kund",
+    "KundRepository",
     "besiktningsman_from_payload",
     "besiktningsman_to_payload",
     "fastighet_from_payload",
     "fastighet_to_payload",
     "funktionskontrollant_from",
+    "kund_from_payload",
+    "kund_to_payload",
 ]

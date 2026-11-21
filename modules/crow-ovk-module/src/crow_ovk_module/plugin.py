@@ -17,6 +17,7 @@ from crow_module_sdk.models import (
 from crow_ovk_field import load_defect_types
 
 from .ovk_bevakning_surface import ovk_bevakning_router
+from .ovk_customer_surface import ovk_customer_router
 from .ovk_dashboard_surface import ovk_dashboard_router
 from .ovk_export_surface import ovk_export_router
 from .ovk_fastighet_surface import ovk_fastighet_router
@@ -111,6 +112,7 @@ class CrowOvkModulePlugin:
             ovk_dashboard_router(data_root),
             ovk_overview_router(data_root),
             ovk_property_register_router(data_root),
+            ovk_customer_router(data_root),
             ovk_router(),
             ovk_workflow_page_router(),
             ovk_workflow_router(data_root),

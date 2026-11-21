@@ -10,7 +10,7 @@
 
   function matches(item, search) {
     if (!search) return true;
-    return [item.fastighetsbeteckning, item.gata, item.ort, item.byggnadsagare]
+    return [item.fastighetsbeteckning, item.gata, item.ort, item.byggnadsagare, item.kund && item.kund.namn]
       .concat(item.byggnader.map(byggnad => byggnad.namn))
       .some(value => String(value || '').toLocaleLowerCase('sv').includes(search));
   }
@@ -64,6 +64,7 @@
         note.textContent = 'Finns ' + item.forekomster + ' gånger i registret med samma beteckning och ort.';
         name.append(note);
       }
+      cell(row, item.kund ? item.kund.namn || 'Okänd kund' : null);
       cell(row, item.byggnadsagare);
       cell(row, item.byggnader.length ? String(item.byggnader.length) : null,
         item.byggnader.map(byggnad => byggnad.namn).filter(Boolean).join(', '));

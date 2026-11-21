@@ -29,7 +29,7 @@ function renderByggnader(){$('byggnader').innerHTML=byggnader.map((item,index)=>
 
 $('addByggnad').onclick=()=>{byggnader.push({byggnad_id:'bygg-'+Date.now().toString(36),internt_namn:'',internt_nr:'',verksamhet:'',bra_m2:null,antal_lagenheter:null,antal_lokaler:null});renderByggnader()};
 
-function fillFastighet(data){$('fastighetId').value=data.fastighet_id||'';$('referensnr').value=data.referensnr||'';$('beteckning').value=data.fastighetsbeteckning||'';$('fastighetstyp').value=data.fastighetstyp||'flerbostadshus';
+function fillFastighet(data){window.ovkCustomers?.choose(data.kund_id||'');$('fastighetId').value=data.fastighet_id||'';$('referensnr').value=data.referensnr||'';$('beteckning').value=data.fastighetsbeteckning||'';$('fastighetstyp').value=data.fastighetstyp||'flerbostadshus';
   const b=data.byggnadens_adress||{};$('bGata').value=b.gata||'';$('bPostnr').value=b.postnr||'';$('bOrt').value=b.ort||'';
   $('agare').value=data.byggnadsagare_namn||'';const a=data.byggnadsagare_adress||{};$('aGata').value=a.gata||'';$('aPostnr').value=a.postnr||'';$('aOrt').value=a.ort||'';
   const f=data.faktureringsadress||{};$('fGata').value=f.gata||'';$('fPostnr').value=f.postnr||'';$('fOrt').value=f.ort||'';
@@ -39,6 +39,8 @@ function fillFastighet(data){$('fastighetId').value=data.fastighet_id||'';$('ref
 function buildFastighet(){return{referensnr:$('referensnr').value,fastighetsbeteckning:$('beteckning').value,fastighetstyp:$('fastighetstyp').value,
   byggnadens_adress:{gata:$('bGata').value,postnr:$('bPostnr').value,ort:$('bOrt').value},
   byggnadsagare_namn:$('agare').value,
+  // Kundkopplingen skickas bara när kundlistan är hämtad; annars lämnar servern den orörd.
+  ...(window.ovkCustomers?.loaded()?{kund_id:$('kund').value||null}:{}),
   byggnadsagare_adress:{gata:$('aGata').value,postnr:$('aPostnr').value,ort:$('aOrt').value},
   faktureringsadress:{gata:$('fGata').value,postnr:$('fPostnr').value,ort:$('fOrt').value},
   forvaltare:{namn:$('forvNamn').value,telefon:$('forvTel').value,epost:$('forvEpost').value},
@@ -61,7 +63,7 @@ $('saveFastighet').onclick=async()=>{if(!inventoryCanLeave())return;if(!$('betec
   if(!project){$('status').className='status warn';$('status').textContent='Välj projekt eller ange fastighetsbeteckning.';return}
   let id=$('fastighetId').value.trim();if(!id){id=slugify($('beteckning').value);$('fastighetId').value=id}
   try{const saved=await jsonFetch('/api/ovk/projects/'+enc(project)+'/fastighet/'+enc(id),{method:'PUT',headers:{'content-type':'application/json'},body:JSON.stringify(buildFastighet())});
-  $('status').className='status';$('status').textContent='Fastigheten sparad.';await loadFastighetList();window.ovkProperties?.load();if($('project').value===project){$('fastighetList').value=id;inventoryReset(saved.fastighet)}}catch(error){$('status').className='status warn';$('status').textContent='Kunde inte spara: '+errText(error)}};
+  $('status').className='status';$('status').textContent='Fastigheten sparad.';await loadFastighetList();window.ovkProperties?.load();window.ovkCustomers?.load();if($('project').value===project){$('fastighetList').value=id;inventoryReset(saved.fastighet)}}catch(error){$('status').className='status warn';$('status').textContent='Kunde inte spara: '+errText(error)}};
 
 async function loadPersons(){try{const data=await jsonFetch('/api/ovk/registry/besiktningsman');const items=data.besiktningsman||[];
   $('personList').innerHTML=items.length?items.map(item=>'<div class="item" data-id="'+esc(item.besiktningsman_id)+'">'+esc(item.namn)+' <span class="pill">'+esc(item.behorighet)+'</span> <span class="muted">'+esc(item.certifieringsorgan)+' · '+esc(item.certnummer)+(item.giltig_till?' · t.o.m. '+esc(item.giltig_till):'')+'</span></div>').join(''):'<p class="muted">Inga registrerade ännu.</p>';
@@ -447,5 +449,6 @@ async function openRegisteredProperty(project,id){
   $('editorSelection').scrollIntoView({block:'start'});
 }
 window.ovkShell?.mount();
+if(window.ovkCustomers){ovkCustomers.init({onChange:()=>window.ovkProperties?.load()});ovkCustomers.load()}else $('kundStatus').textContent='Kunderna kunde inte laddas. Ladda om sidan.';
 if(window.ovkProperties){ovkProperties.init({onOpen:openRegisteredProperty});ovkProperties.load()}else $('registerStatus').textContent='Registret kunde inte laddas. Ladda om sidan.';
 renderByggnader();loadProjects();loadPersons();

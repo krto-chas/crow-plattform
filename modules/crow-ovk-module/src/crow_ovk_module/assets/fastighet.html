@@ -9,7 +9,8 @@
     .template-check{display:flex;align-items:flex-start;gap:10px;line-height:1.5;padding:8px 0}.template-check input{width:20px;height:20px;flex:none;margin:0}.template-check input:focus-visible,.button:focus-visible,summary:focus-visible{outline:3px solid #416c89;outline-offset:3px}#templatePanel .button{min-height:44px;border-radius:10px}#templatePanel .button:not(.secondary){background:#416c89}#templatePanel .button:disabled{opacity:.55}#templateResult p{border-bottom:1px solid #e6eaee;padding:8px 0;overflow-wrap:anywhere}
     #promotionPanel .button{min-height:44px;border-radius:10px}#promotionPanel .button:not(.secondary){background:#416c89}#promotionPanel .button:disabled{opacity:.55}.promotion-results{max-height:440px;overflow:auto;overflow-wrap:anywhere}.promotion-results p{margin:8px 0;border-bottom:1px solid #e6eaee;padding:6px 0}.promotion-results h4{margin:16px 0 8px}.promotion-results select{min-height:44px}
   .ovk-nav{margin-top:20px;padding-top:12px;border-top:1px solid rgba(255,255,255,.18)}.ovk-nav-pending{display:block;padding:10px 0;opacity:.6}.ovk-nav-pending small{font-size:11px;letter-spacing:.06em;text-transform:uppercase;border:1px solid currentColor;border-radius:999px;padding:1px 7px;margin-left:4px}
-.register-head{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}.register-head h2{margin:0}#registerSearch{width:100%;margin:12px 0}.register-wrap{overflow-x:auto}.register-table{width:100%;border-collapse:collapse;margin-top:12px}.register-table th{text-align:left;font-size:12px;letter-spacing:.06em;text-transform:uppercase;font-weight:600;padding:10px 12px;border-bottom:1px solid #dfe5ea}.register-table td{padding:12px;border-bottom:1px solid #e6eaee;vertical-align:top}.register-table tr:last-child td{border-bottom:0}.register-hint{display:block;font-size:13px;margin-top:6px}.register-actions{white-space:nowrap}.register-actions .button{margin-left:6px;text-decoration:none}.visually-hidden{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.register-head{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}.register-head h2{margin:0}#registerSearch{width:100%;margin:12px 0}.register-wrap{overflow-x:auto}.register-table{width:100%;border-collapse:collapse;margin-top:12px}.register-table th{text-align:left;font-size:12px;letter-spacing:.06em;text-transform:uppercase;font-weight:600;padding:10px 12px;border-bottom:1px solid #dfe5ea}.register-table td{padding:12px;border-bottom:1px solid #e6eaee;vertical-align:top}.register-table tr:last-child td{border-bottom:0}.register-hint{display:block;font-size:13px;margin-top:6px}.register-actions{white-space:nowrap}.register-actions .button{margin-left:6px;text-decoration:none}.kund-form{margin-top:16px;padding-top:16px;border-top:1px solid #e6eaee}.kund-form h3{margin:0 0 12px}.kund-actions{display:flex;gap:8px;margin:12px 0}
+.visually-hidden{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
 </style>
 </head>
 <body>
@@ -23,14 +24,49 @@
     <section class="panel" id="registerPanel" aria-labelledby="registerTitle">
       <div class="register-head"><h2 id="registerTitle">Fastighetsregister</h2><button type="button" class="button secondary" id="registerRefresh">Uppdatera</button></div>
       <p class="muted">Alla registrerade fastigheter. Öppna en fastighet för att ändra den, eller starta en ny besiktning på den.</p>
-      <input id="registerSearch" type="search" aria-label="Sök fastighet" placeholder="Sök beteckning, adress, ägare eller byggnad">
+      <input id="registerSearch" type="search" aria-label="Sök fastighet" placeholder="Sök beteckning, adress, kund, ägare eller byggnad">
       <div id="registerStatus" class="muted" role="status" aria-live="polite">Laddar fastigheter…</div>
       <div id="registerWarning" class="status warn" role="alert" hidden></div>
       <div class="register-wrap"><table id="registerTable" class="register-table" aria-labelledby="registerTitle" hidden>
-        <thead><tr><th scope="col">Fastighet</th><th scope="col">Byggnadsägare</th><th scope="col">Byggnader</th><th scope="col">Senast utfärdat</th><th scope="col">Nästa besiktning</th><th scope="col"><span class="visually-hidden">Åtgärder</span></th></tr></thead>
+        <thead><tr><th scope="col">Fastighet</th><th scope="col">Kund</th><th scope="col">Byggnadsägare</th><th scope="col">Byggnader</th><th scope="col">Senast utfärdat</th><th scope="col">Nästa besiktning</th><th scope="col"><span class="visually-hidden">Åtgärder</span></th></tr></thead>
         <tbody id="registerItems"></tbody>
       </table></div>
       <div id="registerEmpty" class="muted" hidden></div>
+    </section>
+
+    <section class="panel" id="kundPanel" aria-labelledby="kundTitle">
+      <div class="register-head"><h2 id="kundTitle">Kunder</h2><button type="button" class="button secondary" id="kundNew">Ny kund</button></div>
+      <p class="muted">Kunden är den som besiktningen görs åt. Välj kund på fastigheten i formuläret längre ned.</p>
+      <div id="kundStatus" class="muted" role="status" aria-live="polite">Laddar kunder…</div>
+      <div class="register-wrap"><table id="kundTable" class="register-table" aria-labelledby="kundTitle" hidden>
+        <thead><tr><th scope="col">Kund</th><th scope="col">Kontakt</th><th scope="col">Fastigheter</th><th scope="col"><span class="visually-hidden">Åtgärder</span></th></tr></thead>
+        <tbody id="kundItems"></tbody>
+      </table></div>
+      <div id="kundEmpty" class="muted" hidden>Inga kunder är registrerade ännu.</div>
+      <form id="kundForm" class="kund-form" hidden aria-labelledby="kundFormTitle">
+        <h3 id="kundFormTitle">Ny kund</h3>
+        <div class="row">
+          <div><label for="kundNamn">Namn *</label><input id="kundNamn" required maxlength="200"></div>
+          <div><label for="kundKontaktperson">Kontaktperson</label><input id="kundKontaktperson" maxlength="200"></div>
+        </div>
+        <div class="row">
+          <div><label for="kundTelefon">Telefon</label><input id="kundTelefon" type="tel" maxlength="200"></div>
+          <div><label for="kundEpost">E-post</label><input id="kundEpost" type="email" maxlength="200"></div>
+          <div><label for="kundReferens">Referens</label><input id="kundReferens" maxlength="200"></div>
+        </div>
+        <div class="row">
+          <div><label for="kundPostGata">Postadress</label><input id="kundPostGata"></div>
+          <div><label for="kundPostPostnr">Postnr</label><input id="kundPostPostnr"></div>
+          <div><label for="kundPostOrt">Ort</label><input id="kundPostOrt"></div>
+        </div>
+        <div class="row">
+          <div><label for="kundFakturaGata">Faktureringsadress</label><input id="kundFakturaGata"></div>
+          <div><label for="kundFakturaPostnr">Postnr</label><input id="kundFakturaPostnr"></div>
+          <div><label for="kundFakturaOrt">Ort</label><input id="kundFakturaOrt"></div>
+        </div>
+        <div class="kund-actions"><button type="submit" class="button" id="kundSave">Spara kund</button><button type="button" class="button secondary" id="kundCancel">Avbryt</button></div>
+        <div id="kundFormStatus" class="muted" role="status" aria-live="polite"></div>
+      </form>
     </section>
 
     <section class="panel" id="editorSelection">
@@ -122,6 +158,7 @@ Sovrum</textarea>
           <div><label>Postnr</label><input id="bPostnr"></div>
           <div><label>Ort</label><input id="bOrt"></div>
         </div>
+        <label for="kund">Kund</label><select id="kund"><option value="">— Ingen kund —</option></select>
         <label>Byggnadsägare</label><input id="agare">
         <div class="row">
           <div><label>Ägarens postadress</label><input id="aGata"></div>
@@ -172,6 +209,7 @@ Sovrum</textarea>
 </div>
 <script src="/ovk/skal.js"></script>
 <script src="/ovk/fastigheter.js"></script>
+<script src="/ovk/kunder.js"></script>
 <script src="/ovk/fastighet/app.js"></script>
 </body>
 </html>

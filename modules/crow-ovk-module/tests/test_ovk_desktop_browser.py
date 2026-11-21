@@ -442,7 +442,9 @@ def register_url(tmp_path: Path, monkeypatch: MonkeyPatch) -> Iterator[str]:
 def _register_rows(page: Any) -> list[list[str]]:
     result: list[list[str]] = page.eval_on_selector_all(
         "#registerItems tr",
-        "rows => rows.map(row => [...row.cells].slice(0, 5).map(c => c.innerText.trim()))",
+        # Kolumnen Kund (index 1) läses för sig, så att övriga index står kvar.
+        "rows => rows.map(row => [...row.cells].filter((_, i) => i !== 1).slice(0, 5)"
+        ".map(c => c.innerText.trim()))",
     )
     return result
 
@@ -604,6 +606,7 @@ def test_register_marks_unclear_certificates_and_partial_deadlines(
             "gata": None,
             "postnr": None,
             "ort": None,
+            "kund": None,
             "byggnadsagare": None,
             "byggnader": [],
             "antal_besiktningar": 1,
@@ -648,4 +651,92 @@ def test_register_marks_unclear_certificates_and_partial_deadlines(
     assert "Finns 2 gånger i registret" in rows["Dubbel 3"][0]
     warning = page.inner_text("#registerWarning")
     assert "p9 (ett intyg anger ett annat projekt)" in warning
+    page.close()
+
+
+def test_customer_is_registered_linked_to_a_property_and_shown_in_the_register(
+    register_url: str,
+    browser: Any,  # noqa: F811
+) -> None:
+    page, errors, _ = _open(browser, register_url + "/ovk/fastighet", _DESKTOP)
+    page.wait_for_selector("#registerItems tr")
+    assert page.inner_text("#kundEmpty") == "Inga kunder är registrerade ännu."
+
+    page.click("#kundNew")
+    page.fill("#kundNamn", "Brf Lärkan <b>")
+    page.fill("#kundKontaktperson", "Anna Ek")
+    page.fill("#kundEpost", "styrelsen@larkan.example")
+    page.click("#kundSave")
+    page.wait_for_selector("#kundItems tr")
+
+    assert page.is_hidden("#kundForm")
+    assert page.inner_text("#kundItems tr td:first-child") == "Brf Lärkan <b>"
+    assert page.inner_text("#kundItems tr td:nth-child(3)") == "0"
+    assert page.inner_text("#kundStatus") == "Kunden Brf Lärkan <b> är sparad."
+
+    # Kunden väljs på fastigheten och följer med när fastigheten sparas.
+    page.locator("#registerItems tr", has_text="Lärkan 4").locator("button").click()
+    page.wait_for_function("() => document.getElementById('beteckning').value === 'Lärkan 4'")
+    page.select_option("#kund", label="Brf Lärkan <b>")
+    page.click("#saveFastighet")
+    page.wait_for_function(
+        "() => document.querySelector('#registerItems tr td:nth-child(2)').innerText"
+        " === 'Brf Lärkan <b>'"
+    )
+    page.wait_for_function(
+        "() => document.querySelector('#kundItems tr td:nth-child(3)').innerText === '1'"
+    )
+
+    # Efter omladdning är kunden vald när fastigheten öppnas igen.
+    page.reload()
+    page.wait_for_selector("#registerItems tr")
+    page.wait_for_selector("#kund option:nth-child(2)", state="attached")
+    page.locator("#registerItems tr", has_text="Lärkan 4").locator("button").click()
+    page.wait_for_function("() => document.getElementById('beteckning').value === 'Lärkan 4'")
+    assert page.eval_on_selector("#kund", "s => s.selectedOptions[0].textContent") == (
+        "Brf Lärkan <b>"
+    )
+    page.fill("#registerSearch", "brf lärkan")
+    assert len(_register_rows(page)) == 1
+    assert errors == []
+    page.close()
+
+
+def test_customer_changed_elsewhere_is_not_overwritten(
+    register_url: str,
+    browser: Any,  # noqa: F811
+) -> None:
+    page, errors, _ = _open(browser, register_url + "/ovk/fastighet", _DESKTOP)
+    page.wait_for_selector("#registerItems tr")
+    page.click("#kundNew")
+    page.fill("#kundNamn", "Brf Lärkan")
+    page.click("#kundSave")
+    page.wait_for_selector("#kundItems tr")
+
+    page.click("#kundItems tr button")
+    # Någon annan sparar samma kund medan formuläret är öppet.
+    changed = page.evaluate(
+        """async () => {
+          const list = await (await fetch('/api/ovk/kunder')).json();
+          const kund = list.kunder[0];
+          const response = await fetch('/api/ovk/kunder/' + kund.kund_id, {
+            method: 'PUT',
+            headers: {'content-type': 'application/json', 'X-OVK-Base-Revision': kund.revision},
+            body: JSON.stringify({namn: 'Brf Lärkan', telefon: '08-1'}),
+          });
+          return response.status;
+        }"""
+    )
+    assert changed == 200
+    page.fill("#kundTelefon", "08-2")
+    page.click("#kundSave")
+    page.wait_for_function(
+        "() => document.getElementById('kundFormStatus')"
+        ".textContent.startsWith('Kunden har ändrats')"
+    )
+
+    assert page.is_visible("#kundForm")
+    stored = page.evaluate("async () => (await (await fetch('/api/ovk/kunder')).json()).kunder[0]")
+    assert stored["telefon"] == "08-1"
+    assert errors == []
     page.close()
