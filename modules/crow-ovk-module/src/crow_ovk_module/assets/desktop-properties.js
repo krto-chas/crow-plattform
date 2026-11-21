@@ -33,6 +33,13 @@
     return td;
   }
 
+  function hint(td, text) {
+    const note = document.createElement('span');
+    note.className = 'muted register-hint';
+    note.textContent = text;
+    td.append(note);
+  }
+
   function renderRows() {
     const search = $('registerSearch').value.trim().toLocaleLowerCase('sv');
     const rows = data.fastigheter.filter(item => matches(item, search));
@@ -60,10 +67,17 @@
       cell(row, item.byggnadsagare);
       cell(row, item.byggnader.length ? String(item.byggnader.length) : null,
         item.byggnader.map(byggnad => byggnad.namn).filter(Boolean).join(', '));
-      cell(row, item.senast_utfardat, item.antal_besiktningar
+      const issued = cell(row, item.senast_utfardat, item.antal_besiktningar
         ? item.antal_besiktningar + (item.antal_besiktningar === 1 ? ' besiktning' : ' besiktningar')
         : 'Ingen besiktning');
-      cell(row, item.nasta_besiktning);
+      if (item.intyg_oklart) hint(issued, 'Intygets ställning går inte att fastställa.');
+      const next = cell(row, item.nasta_besiktning);
+      // En frist för en byggnad får inte se ut att gälla hela fastigheten.
+      if (item.senast_utfardat && item.byggnader_utan_frist) {
+        hint(next, item.byggnader_utan_frist === 1
+          ? '1 byggnad saknar gällande frist.'
+          : item.byggnader_utan_frist + ' byggnader saknar gällande frist.');
+      }
       const actions = row.insertCell();
       actions.className = 'register-actions';
       const open = document.createElement('button');
@@ -97,8 +111,13 @@
     const lead = document.createElement('strong');
     lead.textContent = 'Registret är ofullständigt. ';
     const text = document.createElement('span');
-    text.textContent = 'Fastigheterna i följande projekt kunde inte läsas och saknas i listan: '
-      + data.ej_lasbara.map(entry => entry.project_id).join(', ') + '.';
+    const reasons = {
+      projekt: 'registren går inte att läsa',
+      identitet: 'en post pekar på annan plats än där den ligger',
+      intyg: 'ett intyg anger ett annat projekt',
+    };
+    text.textContent = 'Fastigheterna i följande projekt saknas i listan: '
+      + data.ej_lasbara.map(entry => entry.project_id + ' (' + (reasons[entry.orsak] || 'okänt fel') + ')').join(', ') + '.';
     warning.append(lead, text);
   }
 

@@ -58,15 +58,31 @@ def ovk_property_register_router(data_root: Path) -> APIRouter:
                 # senast besiktades. Hellre ett redovisat läsfel än en gissning.
                 unreadable.append({"project_id": project_id, "orsak": "projekt"})
                 continue
-            if any(item.project_id != project_id for item in project_properties):
+            stems = {
+                path.stem
+                for path in (data_root / "projects" / project_id / "fastighet").glob("*.json")
+            }
+            if any(item.project_id != project_id for item in project_properties) or stems != {
+                item.fastighet_id for item in project_properties
+            }:
+                # En post som säger sig höra hemma någon annanstans än där den
+                # ligger ger fel antal och fel länkar.
                 unreadable.append({"project_id": project_id, "orsak": "identitet"})
                 continue
-            current = [
-                item
-                for item in project_certificates
-                if item.project_id == project_id
-                and intyg_standing(data_root, certificates, item).get("status") == "current"
-            ]
+            if any(item.project_id != project_id for item in project_certificates):
+                unreadable.append({"project_id": project_id, "orsak": "intyg"})
+                continue
+            # Per besiktning: det gällande intyget, eller None när intyg finns
+            # men deras ställning inte går att fastställa.
+            certificate_of: dict[str, OvkIntyg | None] = {}
+            for inspection_id in {item.inspection_id for item in project_certificates}:
+                current = [
+                    item
+                    for item in project_certificates
+                    if item.inspection_id == inspection_id
+                    and intyg_standing(data_root, certificates, item).get("status") == "current"
+                ]
+                certificate_of[inspection_id] = current[0] if len(current) == 1 else None
             inspections_per_object: dict[str, list[str]] = {}
             for record in project_records:
                 obj = record.inspection.ovk_object
@@ -75,10 +91,15 @@ def ovk_property_register_router(data_root: Path) -> APIRouter:
                 )
             for fastighet in project_properties:
                 own_inspections = inspections_per_object.get(fastighet.fastighet_id, [])
-                own_certificates = [
-                    item for item in current if item.inspection_id in own_inspections
-                ]
-                items.append(_property(fastighet, len(own_inspections), own_certificates))
+                own = [certificate_of[i] for i in own_inspections if i in certificate_of]
+                items.append(
+                    _property(
+                        fastighet,
+                        len(own_inspections),
+                        [item for item in own if item is not None],
+                        unclear=any(item is None for item in own),
+                    )
+                )
         occurrences: dict[tuple[str, str], int] = {}
         for item in items:
             occurrences[item["_nyckel"]] = occurrences.get(item["_nyckel"], 0) + 1
@@ -95,20 +116,37 @@ def ovk_property_register_router(data_root: Path) -> APIRouter:
 
 
 def _property(
-    fastighet: Fastighet, inspection_count: int, certificates: list[OvkIntyg]
+    fastighet: Fastighet,
+    inspection_count: int,
+    certificates: list[OvkIntyg],
+    *,
+    unclear: bool,
 ) -> dict[str, Any]:
     adress = fastighet.byggnadens_adress
-    latest = max(certificates, key=lambda item: (item.issued_date, item.intyg_id), default=None)
-    # Varje byggnads frist följer av dess senaste intyg, inte av äldre intyg
-    # som fortfarande är gällande för sin besiktning.
+
+    def order(item: OvkIntyg) -> tuple[date, date, str]:
+        return (item.inspection_date, item.issued_date, item.intyg_id)
+
+    latest = max(certificates, key=order, default=None)
+    # Varje byggnads frist följer av dess senaste besiktning, inte av äldre
+    # intyg som fortfarande är gällande för sin besiktning.
     latest_per_building: dict[str, OvkIntyg] = {}
-    for item in sorted(certificates, key=lambda item: (item.issued_date, item.intyg_id)):
+    for item in sorted(certificates, key=order):
         latest_per_building[item.building_id] = item
     due_dates: list[date] = [
         item.next_inspection.due_date
         for item in latest_per_building.values()
         if item.next_inspection.due_date is not None
     ]
+    # Byggnader vars senaste intyg saknar frist (underkänt, ombesiktning krävs)
+    # och byggnader utan intyg. Utan den uppgiften kunde fristen för en godkänd
+    # byggnad se ut att gälla hela fastigheten.
+    without_due = sum(
+        1
+        for byggnad in fastighet.byggnader
+        if byggnad.byggnad_id not in latest_per_building
+        or latest_per_building[byggnad.byggnad_id].next_inspection.due_date is None
+    )
     return {
         "project_id": fastighet.project_id,
         "fastighet_id": fastighet.fastighet_id,
@@ -123,9 +161,13 @@ def _property(
             for byggnad in fastighet.byggnader
         ],
         "antal_besiktningar": inspection_count,
-        "senast_utfardat": latest.issued_date.isoformat() if latest else None,
+        "senast_utfardat": latest.issued_date.isoformat() if latest and not unclear else None,
         # Tidigaste fristen bland byggnaderna: den som först kräver handling.
-        "nasta_besiktning": min(due_dates).isoformat() if due_dates else None,
+        "nasta_besiktning": min(due_dates).isoformat() if due_dates and not unclear else None,
+        "byggnader_utan_frist": without_due,
+        # Sant när intyg finns men deras ställning inte går att fastställa. Då
+        # anges varken utfärdandedatum eller frist.
+        "intyg_oklart": unclear,
         "_nyckel": (
             normalize_designation(fastighet.fastighetsbeteckning),
             adress.ort.strip().casefold(),

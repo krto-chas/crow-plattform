@@ -425,14 +425,22 @@ $('templateApply').onclick=()=>{
 window.addEventListener('beforeunload',event=>{if(inventoryDirty||inventoryBusy){event.preventDefault();event.returnValue=''}});
 // Öppnar en fastighet från registret i formuläret nedan, genom samma väg som
 // när den väljs i listorna, så att skydden mot osparade ändringar gäller.
+let registerOpenRevision=0;
 async function openRegisteredProperty(project,id){
+  const revision=++registerOpenRevision;
+  const warn=text=>{$('status').className='status warn';$('status').textContent=text};
+  // Ingenting i formuläret ändras förrän projektet finns, användaren har
+  // bekräftat och fastigheten är hämtad. Annars kunde formuläret stå kvar med
+  // den förra fastigheten under ett nytt projekt och sparas dit.
+  if(![...$('project').options].some(option=>option.value===project)){warn('Fastighetens projekt finns inte i projektlistan.');return}
   if(!inventoryCanLeave())return;
-  $('project').value=project;
-  if($('project').value!==project){$('status').className='status warn';$('status').textContent='Fastighetens projekt finns inte i projektlistan.';return}
-  inventoryReset();await loadFastighetList();
-  $('fastighetList').value=id;
-  if($('fastighetList').value!==id){$('status').className='status warn';$('status').textContent='Fastigheten kunde inte hittas i projektet.';return}
-  await $('fastighetList').onchange();
+  if(hasFormContent()&&$('fastighetId').value.trim()!==id&&!confirm('Formuläret innehåller uppgifter. Ersätt dem med den valda fastigheten?'))return;
+  let data;
+  try{data=await jsonFetch('/api/ovk/projects/'+enc(project)+'/fastighet/'+enc(id))}catch(error){if(revision===registerOpenRevision)warn(errText(error));return}
+  if(revision!==registerOpenRevision)return;
+  $('project').value=project;inventoryReset();await loadFastighetList();
+  if(revision!==registerOpenRevision)return;
+  $('fastighetList').value=id;fillFastighet(data);inventoryReset(data);
   $('editorSelection').scrollIntoView({block:'start'});
 }
 window.ovkShell?.mount();

@@ -514,8 +514,9 @@ async function initDraft(projects, requestedProject) {
 // på samma sätt som när användaren bekräftar en sökträff.
 async function openRequestedProperty(projects, requestedProject) {
   const propertyId = new URLSearchParams(location.search).get('fastighet_id');
+  if (!propertyId) return;
   const project = projects.find(item => item.project_id === requestedProject);
-  if (!propertyId || !project) return;
+  if (!project) { $('propertySearchStatus').textContent = 'Fastigheten kunde inte öppnas. Sök den i stället.'; return; }
   try {
     const property = await api('/api/ovk/projects/'+enc(project.project_id)+'/fastighet/'+enc(propertyId), {cache:'no-store'});
     if (property.project_id !== project.project_id || property.fastighet_id !== propertyId || typeof property.fastighetsbeteckning !== 'string') throw new Error('Ogiltig fastighet.');

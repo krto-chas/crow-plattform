@@ -528,3 +528,124 @@ def test_unknown_property_in_the_link_falls_back_to_search(
     assert page.is_hidden("#draftForm")
     assert errors == []
     page.close()
+
+
+def test_opening_from_the_register_changes_nothing_when_declined(
+    register_url: str,
+    browser: Any,  # noqa: F811
+) -> None:
+    page, errors, _ = _open(browser, register_url + "/ovk/fastighet", _DESKTOP)
+    page.wait_for_selector("#registerItems tr")
+    page.wait_for_selector("#project option[value=p1]", state="attached")
+    # Användaren har börjat fylla i en ny fastighet i ett annat projekt.
+    page.select_option("#project", "p2")
+    page.fill("#beteckning", "Påbörjad 9")
+    questions: list[str] = []
+
+    def decline(dialog: Any) -> None:
+        questions.append(dialog.message)
+        dialog.dismiss()
+
+    page.on("dialog", decline)
+    page.locator("#registerItems tr", has_text="Lärkan 4").locator("button").click()
+    page.wait_for_function("() => true")
+
+    assert questions == ["Formuläret innehåller uppgifter. Ersätt dem med den valda fastigheten?"]
+    # Projektet är inte bytt, så det påbörjade kan inte sparas i fel projekt.
+    assert page.input_value("#project") == "p2"
+    assert page.input_value("#beteckning") == "Påbörjad 9"
+    assert errors == []
+    page.close()
+
+
+def test_opening_a_property_whose_project_is_not_listed_is_refused(
+    register_url: str,
+    browser: Any,  # noqa: F811
+) -> None:
+    page, errors, _ = _open(browser, register_url + "/ovk/fastighet", _DESKTOP)
+    page.wait_for_selector("#registerItems tr")
+    page.wait_for_selector("#project option[value=p1]", state="attached")
+    page.evaluate("() => document.querySelector('#project option[value=p1]').remove()")
+
+    page.locator("#registerItems tr", has_text="Lärkan 4").locator("button").click()
+    page.wait_for_function(
+        "() => document.getElementById('status').textContent.startsWith('Fastighetens projekt')"
+    )
+
+    assert page.input_value("#project") == ""
+    assert page.input_value("#beteckning") == ""
+    assert errors == []
+    page.close()
+
+
+def test_register_request_failure_is_stated(register_url: str, browser: Any) -> None:  # noqa: F811
+    page = browser.new_page(viewport=_DESKTOP)
+    page.route("**/api/ovk/fastigheter", lambda route: route.fulfill(status=500, body="{}"))
+    page.goto(register_url + "/ovk/fastighet")
+    page.wait_for_function(
+        "() => document.getElementById('registerStatus')"
+        ".textContent.startsWith('Fastigheterna kunde')"
+    )
+
+    assert page.is_hidden("#registerTable")
+    assert page.is_hidden("#registerEmpty")
+    page.close()
+
+
+def test_register_marks_unclear_certificates_and_partial_deadlines(
+    register_url: str,
+    browser: Any,  # noqa: F811
+) -> None:
+    def item(name: str, **changes: Any) -> dict[str, Any]:
+        return {
+            "project_id": "p1",
+            "fastighet_id": name,
+            "fastighetsbeteckning": name,
+            "gata": None,
+            "postnr": None,
+            "ort": None,
+            "byggnadsagare": None,
+            "byggnader": [],
+            "antal_besiktningar": 1,
+            "senast_utfardat": None,
+            "nasta_besiktning": None,
+            "byggnader_utan_frist": 0,
+            "intyg_oklart": False,
+            "forekomster": 1,
+            **changes,
+        }
+
+    body = json.dumps(
+        {
+            "fastigheter": [
+                item("Oklar 1", intyg_oklart=True),
+                item(
+                    "Delvis 2",
+                    senast_utfardat="2026-12-02",
+                    nasta_besiktning="2029-12-01",
+                    byggnader_utan_frist=2,
+                ),
+                item("Dubbel 3", forekomster=2),
+            ],
+            "ej_lasbara": [{"project_id": "p9", "orsak": "intyg"}],
+            "fullstandig": False,
+        }
+    )
+    page = browser.new_page(viewport=_DESKTOP)
+    page.route(
+        "**/api/ovk/fastigheter",
+        lambda route: route.fulfill(status=200, content_type="application/json", body=body),
+    )
+    page.goto(register_url + "/ovk/fastighet")
+    page.wait_for_selector("#registerItems tr")
+
+    rows = {row[0].splitlines()[0]: row for row in _register_rows(page)}
+    assert "Intygets ställning går inte att fastställa." in rows["Oklar 1"][3]
+    assert rows["Delvis 2"][4].splitlines() == [
+        "2029-12-01",
+        "2 byggnader saknar gällande frist.",
+    ]
+    assert "Finns 2 gånger i registret" in rows["Dubbel 3"][0]
+    warning = page.inner_text("#registerWarning")
+    assert "p9 (ett intyg anger ett annat projekt)" in warning
+    page.close()

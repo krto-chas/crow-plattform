@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from dataclasses import replace
 from pathlib import Path
 from typing import Any
 
@@ -17,7 +18,7 @@ from crow_ovk_module.ovk_property_register_surface import (
     ovk_property_register_router,
 )
 from crow_ovk_module.plugin import CrowOvkModulePlugin
-from crow_ovk_workflow import OvkWorkflowRepository
+from crow_ovk_workflow import OvkWorkflowRecord, OvkWorkflowRepository
 from crow_workbench.shell import create_app
 
 
@@ -81,6 +82,8 @@ def test_register_lists_properties_from_all_projects(tmp_path: Path) -> None:
         "antal_besiktningar": 0,
         "senast_utfardat": None,
         "nasta_besiktning": None,
+        "byggnader_utan_frist": 1,
+        "intyg_oklart": False,
         "forekomster": 1,
     }
 
@@ -120,9 +123,11 @@ def test_register_shows_inspections_and_the_current_certificate(tmp_path: Path) 
     assert item["senast_utfardat"] == "2026-12-02"
     assert intyg.next_inspection.due_date is not None
     assert item["nasta_besiktning"] == intyg.next_inspection.due_date.isoformat()
+    assert item["byggnader_utan_frist"] == 0
+    assert item["intyg_oklart"] is False
 
 
-def test_certificate_without_valid_manifest_is_not_counted(tmp_path: Path) -> None:
+def test_certificate_without_valid_manifest_is_flagged_not_dropped(tmp_path: Path) -> None:
     _property(tmp_path)
     issued = _record("ovk-utfardad", ready=True)
     OvkWorkflowRepository(tmp_path).save(issued)
@@ -134,6 +139,76 @@ def test_certificate_without_valid_manifest_is_not_counted(tmp_path: Path) -> No
     assert item["antal_besiktningar"] == 1
     assert item["senast_utfardat"] is None
     assert item["nasta_besiktning"] is None
+    # Intyget finns på disk: raden får inte se ut som en obesiktad fastighet.
+    assert item["intyg_oklart"] is True
+
+
+def _in_building(record: OvkWorkflowRecord, building_id: str) -> OvkWorkflowRecord:
+    inspection = record.inspection
+    return replace(
+        record,
+        inspection=replace(
+            inspection, ovk_object=replace(inspection.ovk_object, building_id=building_id)
+        ),
+    )
+
+
+def test_deadline_of_one_building_does_not_speak_for_the_whole_property(
+    tmp_path: Path,
+) -> None:
+    FastighetRepository(tmp_path).save(
+        Fastighet(
+            fastighet_id="object-1",
+            project_id="p1",
+            fastighetsbeteckning="Lärkan 4",
+            byggnader=(
+                Byggnad(byggnad_id="building-1", internt_namn="Hus A"),
+                Byggnad(byggnad_id="building-2", internt_namn="Hus B"),
+                Byggnad(byggnad_id="building-3", internt_namn="Hus C"),
+            ),
+        )
+    )
+    workflows = OvkWorkflowRepository(tmp_path)
+    approved = _record("ovk-a", ready=True)
+    failed = _in_building(_record("ovk-b", deficient=True), "building-2")
+    workflows.save(approved)
+    workflows.save(failed)
+    passed = _issue(tmp_path, approved, "intyg-a")
+    assert _issue(tmp_path, failed, "intyg-b").next_inspection.due_date is None
+
+    item = _body(tmp_path)["fastigheter"][0]
+
+    assert passed.next_inspection.due_date is not None
+    assert item["nasta_besiktning"] == passed.next_inspection.due_date.isoformat()
+    # Hus B är underkänt och Hus C är aldrig besiktat.
+    assert item["byggnader_utan_frist"] == 2
+
+
+def test_certificate_claiming_another_project_withholds_the_project(tmp_path: Path) -> None:
+    _property(tmp_path)
+    issued = _record("ovk-utfardad", ready=True)
+    OvkWorkflowRepository(tmp_path).save(issued)
+    _issue(tmp_path, issued)
+    path = tmp_path / "projects" / "p1" / "ovk-intyg" / "intyg-1.json"
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    payload["project_id"] = "p2"
+    path.write_text(json.dumps(payload), encoding="utf-8")
+
+    body = _body(tmp_path)
+
+    assert body["fastigheter"] == []
+    assert body["ej_lasbara"] == [{"project_id": "p1", "orsak": "intyg"}]
+
+
+def test_property_stored_under_another_name_withholds_the_project(tmp_path: Path) -> None:
+    _property(tmp_path)
+    directory = tmp_path / "projects" / "p1" / "fastighet"
+    (directory / "object-1.json").rename(directory / "annat-namn.json")
+
+    body = _body(tmp_path)
+
+    assert body["fastigheter"] == []
+    assert body["ej_lasbara"] == [{"project_id": "p1", "orsak": "identitet"}]
 
 
 def test_unreadable_project_is_reported_not_hidden(tmp_path: Path) -> None:
