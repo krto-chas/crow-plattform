@@ -18,6 +18,7 @@ from typing import Any
 
 import pytest
 import uvicorn
+from crow_ovk_fastighet import Adress, Byggnad, Fastighet, FastighetRepository
 from pytest import MonkeyPatch
 from test_ovk_field_browser import _free_port, browser  # noqa: F401
 from test_ovk_overview_surface import _DONE, _issue, _record, _snapshot
@@ -384,5 +385,146 @@ def test_resizing_switches_between_phone_home_and_desktop_queue(
     page.set_viewport_size(_PHONE)
     page.wait_for_selector("#fieldPrepared:not([hidden]) .field-card")
     assert page.is_hidden("#overview")
+    assert errors == []
+    page.close()
+
+
+@pytest.fixture
+def register_url(tmp_path: Path, monkeypatch: MonkeyPatch) -> Iterator[str]:
+    """Två fastigheter i var sitt Workbench-projekt, den ena med besiktningar."""
+    for project_id, name in (("p1", "Kv. Lärkan"), ("p2", "Kv. Örnen")):
+        create_project(tmp_path / "projects" / project_id, name, project_id)
+    repository = FastighetRepository(tmp_path)
+    repository.save(
+        Fastighet(
+            fastighet_id="object-1",
+            project_id="p1",
+            fastighetsbeteckning="Lärkan 4",
+            byggnadens_adress=Adress(gata="Storgatan 1", postnr="185 31", ort="Vaxholm"),
+            byggnadsagare_namn="Brf Lärkan",
+            byggnader=(Byggnad(byggnad_id="building-1", internt_namn="Hus A"),),
+        )
+    )
+    repository.save(
+        Fastighet(
+            fastighet_id="object-2",
+            project_id="p2",
+            fastighetsbeteckning="Örnen 1",
+            byggnadens_adress=Adress(gata="Bergsvägen 3", postnr="183 30", ort="Täby"),
+            byggnadsagare_namn="<b>Örnen Fastigheter</b>",
+        )
+    )
+    issued = _record("ovk-utfardad", ready=True)
+    OvkWorkflowRepository(tmp_path).save(issued)
+    _issue(tmp_path, issued)
+    monkeypatch.setenv("CROW_MODE", "local")
+    monkeypatch.setenv("CROW_CUSTOMER_ID", "acme")
+    monkeypatch.delenv("CROW_AUTH_MODE", raising=False)
+    _write_entitlements(tmp_path)
+    port = _free_port()
+    server = uvicorn.Server(
+        uvicorn.Config(create_app(tmp_path), host="127.0.0.1", port=port, log_level="error")
+    )
+    thread = threading.Thread(target=server.run, daemon=True)
+    thread.start()
+    deadline = time.monotonic() + 15
+    while not server.started:
+        if time.monotonic() > deadline:
+            pytest.fail("testservern startade inte")
+        time.sleep(0.05)
+    try:
+        yield f"http://127.0.0.1:{port}"
+    finally:
+        server.should_exit = True
+        thread.join(timeout=10)
+
+
+def _register_rows(page: Any) -> list[list[str]]:
+    result: list[list[str]] = page.eval_on_selector_all(
+        "#registerItems tr",
+        "rows => rows.map(row => [...row.cells].slice(0, 5).map(c => c.innerText.trim()))",
+    )
+    return result
+
+
+def test_property_register_lists_all_properties(register_url: str, browser: Any) -> None:  # noqa: F811
+    page, errors, _ = _open(browser, register_url + "/ovk/fastighet", _DESKTOP)
+    page.wait_for_selector("#registerItems tr")
+
+    rows = _register_rows(page)
+    assert [row[0].splitlines()[0] for row in rows] == ["Lärkan 4", "Örnen 1"]
+    assert rows[0][0].splitlines()[1] == "Storgatan 1, 185 31 Vaxholm"
+    assert rows[0][1] == "Brf Lärkan"
+    assert rows[0][2].splitlines() == ["1", "Hus A"]
+    assert rows[0][3].splitlines() == ["2026-12-02", "1 besiktning"]
+    assert rows[0][4] != "—"
+    # En fastighet utan byggnader och besiktningar påstår ingenting.
+    assert rows[1][2] == "—"
+    assert rows[1][3] == "Ingen besiktning"
+    assert rows[1][4] == "—"
+    # Namn från registret visas som text.
+    assert rows[1][1] == "<b>Örnen Fastigheter</b>"
+    assert page.inner_text("#registerStatus") == "Visar 2 fastigheter."
+    assert page.inner_text("#ovkNav a[aria-current=page]") == "Kunder och fastigheter"
+    assert page.locator("#ovkNav > *").count() == 8
+    assert errors == []
+    page.close()
+
+
+def test_property_register_search_and_open(register_url: str, browser: Any) -> None:  # noqa: F811
+    page, errors, _ = _open(browser, register_url + "/ovk/fastighet", _DESKTOP)
+    page.wait_for_selector("#registerItems tr")
+
+    page.fill("#registerSearch", "täby")
+    assert [row[0].splitlines()[0] for row in _register_rows(page)] == ["Örnen 1"]
+    assert page.inner_text("#registerStatus") == "Visar 1 av 2 fastigheter."
+    page.fill("#registerSearch", "finns inte")
+    assert page.inner_text("#registerEmpty") == "Inga fastigheter matchar sökningen."
+    page.fill("#registerSearch", "")
+
+    page.locator("#registerItems tr", has_text="Lärkan 4").locator("button").click()
+    page.wait_for_function("() => document.getElementById('beteckning').value === 'Lärkan 4'")
+    assert page.input_value("#project") == "p1"
+    assert page.input_value("#fastighetList") == "object-1"
+    assert page.input_value("#agare") == "Brf Lärkan"
+    assert errors == []
+    page.close()
+
+
+def test_new_inspection_from_the_register_selects_the_property(
+    register_url: str,
+    browser: Any,  # noqa: F811
+) -> None:
+    page, errors, _ = _open(browser, register_url + "/ovk/fastighet", _DESKTOP)
+    page.wait_for_selector("#registerItems tr")
+
+    page.locator("#registerItems tr", has_text="Lärkan 4").locator("a.button").click()
+    page.wait_for_function(
+        "() => document.getElementById('selectedPropertyTitle')?.textContent === 'Lärkan 4'"
+    )
+
+    assert "/ovk/besiktning" in page.url
+    assert page.is_visible("#draftForm")
+    assert page.is_hidden("#propertySearchForm")
+    assert page.input_value("#draftProject") == "p1"
+    assert page.input_value("#draftProperty") == "object-1"
+    assert page.input_value("#draftBuilding") == "building-1"
+    assert errors == []
+    page.close()
+
+
+def test_unknown_property_in_the_link_falls_back_to_search(
+    register_url: str,
+    browser: Any,  # noqa: F811
+) -> None:
+    url = register_url + "/ovk/besiktning?new=1&project_id=p1&fastighet_id=finns-inte"
+    page, errors, _ = _open(browser, url, _DESKTOP)
+    page.wait_for_function(
+        "() => document.getElementById('propertySearchStatus')"
+        ".textContent.startsWith('Fastigheten kunde')"
+    )
+
+    assert page.is_visible("#propertySearchForm")
+    assert page.is_hidden("#draftForm")
     assert errors == []
     page.close()

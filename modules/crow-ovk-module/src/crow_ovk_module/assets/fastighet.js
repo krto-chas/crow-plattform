@@ -61,7 +61,7 @@ $('saveFastighet').onclick=async()=>{if(!inventoryCanLeave())return;if(!$('betec
   if(!project){$('status').className='status warn';$('status').textContent='Välj projekt eller ange fastighetsbeteckning.';return}
   let id=$('fastighetId').value.trim();if(!id){id=slugify($('beteckning').value);$('fastighetId').value=id}
   try{const saved=await jsonFetch('/api/ovk/projects/'+enc(project)+'/fastighet/'+enc(id),{method:'PUT',headers:{'content-type':'application/json'},body:JSON.stringify(buildFastighet())});
-  $('status').className='status';$('status').textContent='Fastigheten sparad.';await loadFastighetList();if($('project').value===project){$('fastighetList').value=id;inventoryReset(saved.fastighet)}}catch(error){$('status').className='status warn';$('status').textContent='Kunde inte spara: '+errText(error)}};
+  $('status').className='status';$('status').textContent='Fastigheten sparad.';await loadFastighetList();window.ovkProperties?.load();if($('project').value===project){$('fastighetList').value=id;inventoryReset(saved.fastighet)}}catch(error){$('status').className='status warn';$('status').textContent='Kunde inte spara: '+errText(error)}};
 
 async function loadPersons(){try{const data=await jsonFetch('/api/ovk/registry/besiktningsman');const items=data.besiktningsman||[];
   $('personList').innerHTML=items.length?items.map(item=>'<div class="item" data-id="'+esc(item.besiktningsman_id)+'">'+esc(item.namn)+' <span class="pill">'+esc(item.behorighet)+'</span> <span class="muted">'+esc(item.certifieringsorgan)+' · '+esc(item.certnummer)+(item.giltig_till?' · t.o.m. '+esc(item.giltig_till):'')+'</span></div>').join(''):'<p class="muted">Inga registrerade ännu.</p>';
@@ -423,4 +423,18 @@ $('templateApply').onclick=()=>{
   }catch(error){clearTemplatePreview();$('templateStatus').textContent=errText(error)}
 };
 window.addEventListener('beforeunload',event=>{if(inventoryDirty||inventoryBusy){event.preventDefault();event.returnValue=''}});
+// Öppnar en fastighet från registret i formuläret nedan, genom samma väg som
+// när den väljs i listorna, så att skydden mot osparade ändringar gäller.
+async function openRegisteredProperty(project,id){
+  if(!inventoryCanLeave())return;
+  $('project').value=project;
+  if($('project').value!==project){$('status').className='status warn';$('status').textContent='Fastighetens projekt finns inte i projektlistan.';return}
+  inventoryReset();await loadFastighetList();
+  $('fastighetList').value=id;
+  if($('fastighetList').value!==id){$('status').className='status warn';$('status').textContent='Fastigheten kunde inte hittas i projektet.';return}
+  await $('fastighetList').onchange();
+  $('editorSelection').scrollIntoView({block:'start'});
+}
+window.ovkShell?.mount();
+if(window.ovkProperties){ovkProperties.init({onOpen:openRegisteredProperty});ovkProperties.load()}else $('registerStatus').textContent='Registret kunde inte laddas. Ladda om sidan.';
 renderByggnader();loadProjects();loadPersons();

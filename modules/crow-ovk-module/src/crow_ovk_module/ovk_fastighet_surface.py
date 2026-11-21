@@ -72,6 +72,14 @@ def ovk_fastighet_router(data_root: Path) -> APIRouter:
             headers=_NO_CACHE,
         )
 
+    @router.get("/ovk/fastigheter.js", response_model=None)
+    def property_register_script() -> Response:
+        return Response(
+            _asset_text("desktop-properties.js"),
+            media_type="application/javascript",
+            headers=_NO_CACHE,
+        )
+
     @router.put("/api/ovk/projects/{project_id}/fastighet/{fastighet_id}", response_model=None)
     async def save_fastighet(
         project_id: str, fastighet_id: str, request: Request
