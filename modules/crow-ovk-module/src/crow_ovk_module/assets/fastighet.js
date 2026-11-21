@@ -434,13 +434,16 @@ async function openRegisteredProperty(project,id){
   // den förra fastigheten under ett nytt projekt och sparas dit.
   if(![...$('project').options].some(option=>option.value===project)){warn('Fastighetens projekt finns inte i projektlistan.');return}
   if(!inventoryCanLeave())return;
-  if(hasFormContent()&&$('fastighetId').value.trim()!==id&&!confirm('Formuläret innehåller uppgifter. Ersätt dem med den valda fastigheten?'))return;
+  if(hasFormContent()&&($('fastighetId').value.trim()!==id||$('project').value!==project)&&!confirm('Formuläret innehåller uppgifter. Ersätt dem med den valda fastigheten?'))return;
   let data;
   try{data=await jsonFetch('/api/ovk/projects/'+enc(project)+'/fastighet/'+enc(id))}catch(error){if(revision===registerOpenRevision)warn(errText(error));return}
   if(revision!==registerOpenRevision)return;
-  $('project').value=project;inventoryReset();await loadFastighetList();
+  // Projekt och formulär byts i samma steg, utan väntan emellan, så att ett
+  // senare klick aldrig kan lämna det nya projektet med den förra fastigheten.
+  $('project').value=project;fillFastighet(data);inventoryReset(data);
+  await loadFastighetList();
   if(revision!==registerOpenRevision)return;
-  $('fastighetList').value=id;fillFastighet(data);inventoryReset(data);
+  $('fastighetList').value=id;
   $('editorSelection').scrollIntoView({block:'start'});
 }
 window.ovkShell?.mount();
