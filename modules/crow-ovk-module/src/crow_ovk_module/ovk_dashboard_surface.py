@@ -9,7 +9,7 @@ from typing import Any
 from crow_ovk_legacy import preview_legacy_file
 from crow_ovk_legacy.models import LegacyImportPreview
 from fastapi import APIRouter, HTTPException
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, Response
 
 _SAFE_PROJECT_ID = re.compile(r"^[a-z0-9][a-z0-9_-]{0,119}$")
 _SAFE_CHECKSUM = re.compile(r"^[0-9a-f]{64}$")
@@ -20,11 +20,16 @@ def ovk_dashboard_router(data_root: Path) -> APIRouter:
 
     @router.get("/ovk", response_class=HTMLResponse)
     def dashboard_page() -> str:
-        return (
-            resources.files("crow_ovk_module")
-            .joinpath("assets", "dashboard.html")
-            .read_text(encoding="utf-8")
-        )
+        return _asset_text("dashboard.html")
+
+    @router.get("/ovk/skal.js", response_class=Response)
+    def desktop_shell_script() -> Response:
+        """Gemensam navigation för skrivbordsarbetsplatsens sidor."""
+        return _script_response("desktop-shell.js")
+
+    @router.get("/ovk/oversikt.js", response_class=Response)
+    def desktop_overview_script() -> Response:
+        return _script_response("desktop-overview.js")
 
     @router.get(
         "/api/ovk/projects/{project_id}/legacy-assets/{checksum}/preview",
@@ -65,6 +70,19 @@ def ovk_dashboard_router(data_root: Path) -> APIRouter:
         return _preview_payload(preview)
 
     return router
+
+
+def _asset_text(name: str) -> str:
+    return resources.files("crow_ovk_module").joinpath("assets", name).read_text(encoding="utf-8")
+
+
+def _script_response(name: str) -> Response:
+    # no-cache: skripten följer sidan, som inte heller cachas mellan driftsättningar.
+    return Response(
+        _asset_text(name),
+        media_type="text/javascript; charset=utf-8",
+        headers={"Cache-Control": "no-cache"},
+    )
 
 
 def _project_id(value: str) -> str:
