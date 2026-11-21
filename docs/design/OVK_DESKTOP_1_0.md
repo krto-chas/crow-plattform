@@ -38,17 +38,21 @@ Projektverktyg, import av äldre protokoll och tidrapportering finns kvar men li
 
 Kund och fastighet → byggnad och system → planerat uppdrag → tilldelning → fältarbete → synk → granskning → eventuell komplettering → godkänt underlag → utfärdande med underskrift → leverans → bevakning → eventuell ombesiktning.
 
-Visningsstatusar enligt roadmapen: Planerad, Pågående, Att granska, Leveransklar, Levererad, Åtgärder öppna, Ombesiktning. De härleds ur befintliga uppgifter och lagras inte som ett eget tillstånd:
+Visningsstatusarna utgår från roadmapen. De härleds ur befintliga uppgifter och lagras inte som ett eget tillstånd. Går underlaget inte att läsa, eller hänger det inte ihop, redovisas uppdraget som oläsbart i stället för att få en status.
 
 | Status | Härleds ur |
 |---|---|
-| Planerad | `planning` finns, ingen ögonblicksbild |
-| Pågående | ögonblicksbild finns, fältarbetet inte avslutat |
-| Att granska | fältarbetet avslutat, underlaget inte godkänt |
-| Leveransklar | godkänd granskning för aktuell revision, inget intyg |
-| Levererad | intyg utfärdat och leverans registrerad |
-| Åtgärder öppna | utfärdat med anmärkningar som kräver åtgärd |
-| Ombesiktning | öppet ombesiktningsärende |
+| Ej planerad | post utan planering och utan fältdata |
+| Planerad | planering finns, ingen ögonblicksbild |
+| Pågående | ögonblicksbild finns, fältarbetet inte avslutat, posten inte klar att utfärda |
+| Att granska | fältarbetet avslutat men posten inte klar att utfärda; eller posten klar att utfärda men fältarbetet inte markerat som avslutat |
+| Leveransklar | posten protokollklar och protokollkällan svarar mot fältets ögonblicksbild; fältarbetet avslutat eller ingen fältdata; inget intyg |
+| Utfärdande avbrutet | utfärdandemanifest finns utan intyg |
+| Utfärdad | ett intyg med ställningen gällande |
+| Åtgärder öppna | utfärdat med brister och inget ombesiktningsärende |
+| Ombesiktning | senaste ombesiktningsärendet är öppet |
+
+Levererad tillkommer när leveranser registreras (D8); till dess är Utfärdad sista steget. Godkänd granskning för aktuell revision kontrolleras vid utfärdandet och vägs in i Leveransklar när granskningsarbetsplatsen byggs (D7).
 
 Besiktningsresultat, täckning, synkstatus och leveransstatus visas var för sig.
 
