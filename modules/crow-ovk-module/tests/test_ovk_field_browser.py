@@ -2406,3 +2406,144 @@ def test_keys_are_numbered_in_reception_order_and_returned_top_down(
     assert errors == []
     _validated_payload(page.evaluate("() => payload()"))
     context.close()
+
+
+_CONTRAST_AUDIT = """() => {
+  const parse = value => {
+    const m = /rgba?\\(([^)]+)\\)/.exec(value);
+    if (!m) return null;
+    const p = m[1].split(',').map(Number);
+    return {r: p[0], g: p[1], b: p[2], a: p.length > 3 ? p[3] : 1};
+  };
+  const over = (top, under) => ({
+    r: top.r * top.a + under.r * (1 - top.a), g: top.g * top.a + under.g * (1 - top.a),
+    b: top.b * top.a + under.b * (1 - top.a), a: 1});
+  const lum = c => { const f = v => { v /= 255;
+    return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); };
+    return 0.2126 * f(c.r) + 0.7152 * f(c.g) + 0.0722 * f(c.b); };
+  const background = node => {
+    const layers = [];
+    for (let at = node; at; at = at.parentElement) {
+      const c = parse(getComputedStyle(at).backgroundColor);
+      if (c && c.a > 0) { layers.push(c); if (c.a >= 1) break; }
+    }
+    let result = parse(getComputedStyle(document.documentElement).backgroundColor) ||
+      {r: 255, g: 255, b: 255, a: 1};
+    if (result.a < 1) result = {r: 255, g: 255, b: 255, a: 1};
+    for (const layer of layers.reverse()) result = over(layer, result);
+    return result;
+  };
+  const failures = [];
+  const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+  const seen = new Set();
+  for (let text = walker.nextNode(); text; text = walker.nextNode()) {
+    const node = text.parentElement;
+    if (!node || seen.has(node) || !text.textContent.trim()) continue;
+    seen.add(node);
+    if (['SCRIPT', 'STYLE', 'OPTION'].includes(node.tagName)) continue;
+    const box = node.getBoundingClientRect();
+    const style = getComputedStyle(node);
+    if (!box.width || !box.height || style.visibility === 'hidden') continue;
+    if (node.closest('[hidden]') || node.closest('[disabled]')) continue;
+    const bg = background(node);
+    const fg = over(parse(style.color), bg);
+    const [a, b] = [lum(fg), lum(bg)].sort((x, y) => y - x);
+    const ratio = (a + 0.05) / (b + 0.05);
+    const size = parseFloat(style.fontSize);
+    const large = size >= 24 || (size >= 18.66 && Number(style.fontWeight) >= 700);
+    if (ratio < (large ? 3 : 4.5))
+      failures.push(node.tagName + '#' + node.id + '.' + node.className + ' "' +
+        text.textContent.trim().slice(0, 30) + '" ' + ratio.toFixed(2));
+  }
+  return failures;
+}"""
+
+
+@pytest.mark.parametrize("scheme", ["light", "dark"])
+def test_both_themes_keep_text_readable(field_url: str, browser: Any, scheme: str) -> None:
+    context = browser.new_context(
+        viewport={"width": 375, "height": 667},
+        is_mobile=True,
+        has_touch=True,
+        color_scheme=scheme,
+    )
+    page = context.new_page()
+    errors: list[str] = []
+    page.on("pageerror", lambda error: errors.append(str(error)))
+    page.goto(field_url)
+    page.wait_for_function("typeof state === 'object' && typeof payload === 'function'")
+    page.wait_for_function("document.getElementById('footDone').textContent === 'Starta rondering'")
+
+    def audit(where: str) -> None:
+        failures = page.evaluate(_CONTRAST_AUDIT)
+        assert failures == [], f"{scheme} / {where}: {failures}"
+
+    def paper() -> float:
+        value: float = page.evaluate(
+            """() => { const m = /rgba?\\(([^)]+)\\)/.exec(
+                getComputedStyle(document.documentElement).backgroundColor);
+              const [r, g, b] = m[1].split(',').map(Number); return (r + g + b) / 3; }"""
+        )
+        return value
+
+    # Temat följer telefonens inställning.
+    assert (paper() < 60) is (scheme == "dark")
+    page.click("#ovkStartMore > summary")
+    audit("start")
+    page.fill("#inspection", f"tematest-{scheme}")
+    page.fill("#inspector", "Test Testsson")
+    page.select_option("#systemType", "F")
+    page.fill("#unitSeries", "1101-1103")
+    page.click("#footDone")
+    page.wait_for_function("document.querySelector('.view.on').id === 'viewRond'")
+    page.evaluate(
+        """() => { const [a, b] = state.units;
+          a.status = 'ua'; a.checked_at = new Date().toISOString();
+          b.status = 'bom'; b.bom_at = new Date().toISOString(); b.revisit_required = true;
+          renderRond(); }"""
+    )
+    audit("rondering")
+    page.click("#ovkKeyToggle")
+    page.locator("#ovkKeyList button:text-is('Ta emot')").nth(1).click()
+    audit("nycklar")
+    page.click("#ovkKeyToggle")
+    page.click("#ovkFinishOpen")
+    page.wait_for_selector("#ovkFinishView")
+    audit("sammanställning")
+    page.click("#ovkFinishView [data-finish-close]")
+    page.click("#footDone")
+    page.wait_for_function("document.getElementById('ovkWizard').dataset.step === 'room'")
+    audit("rumsval")
+    page.click("#ovkWizard [data-room='Badrum']")
+    page.wait_for_function("document.getElementById('ovkWizard').dataset.step === 'don'")
+    page.click("[aria-label='Öka Frånluftsdon']")
+    page.wait_for_function("state.measurements.length === 1")
+    audit("don")
+    page.click("#footDone")
+    page.wait_for_function("document.getElementById('ovkWizard').dataset.step === 'clean'")
+    audit("fråga")
+    for _ in range(6):
+        if "nycklar" in (page.text_content("#ovkStepTitle") or ""):
+            break
+        page.click("#footBack")
+        page.wait_for_timeout(150)
+    page.wait_for_selector("#unitAccessBtn", state="visible")
+    audit("enhetskort")
+    page.click("#unitAccessBtn")
+    page.wait_for_selector("#ovkSheet")
+    audit("blad")
+    page.click("#ovkSheet [data-sheet-cancel]")
+
+    # Valet på startsidan går före telefonens inställning och finns kvar efter omladdning.
+    other = "light" if scheme == "dark" else "dark"
+    page.evaluate("() => { view('viewStart'); }")
+    page.click("#ovkNewInspection")
+    page.select_option("#ovkTheme", other)
+    assert (paper() < 60) is (other == "dark")
+    audit("start, valt tema")
+    page.reload()
+    page.wait_for_function("typeof state === 'object' && typeof payload === 'function'")
+    assert page.evaluate("() => document.documentElement.dataset.theme") == other
+    assert (paper() < 60) is (other == "dark")
+    assert errors == []
+    context.close()
