@@ -2,7 +2,7 @@
 
 Status: produktkrav och genomförandeplan, inte implementeringsbevis.
 Datum: 2026-11-21. Underlag: kodläsning av `main` @ `330f0d4`; inga tester eller webbläsare kördes för inventeringen.
-Kompletterar [OVK-roadmapen](../OVK_PRODUCT_ROADMAP_1_0.md) och [property-first](OVK_PROPERTY_FIRST.md). Besluten finns i [ADR-013](../adr/ADR-013-ovk-desktop-workspace.md). Befintliga releasegrindar gäller.
+Konkretiserar [masterprompten för Desktop 1.0](../modules/crow-ovk/DESKTOP_MASTERPROMPT_1_0.md) och [backend-gapet med första pass](../modules/crow-ovk/DESKTOP_BACKEND_GAP_AND_PASS_1.md). Kompletterar [OVK-roadmapen](../OVK_PRODUCT_ROADMAP_1_0.md) och [property-first](OVK_PROPERTY_FIRST.md). Besluten finns i [ADR-013](../adr/ADR-013-ovk-desktop-workspace.md). Befintliga releasegrindar gäller.
 
 ## Mål
 
@@ -44,9 +44,9 @@ Visningsstatusarna utgår från roadmapen. De härleds ur befintliga uppgifter o
 |---|---|
 | Ej planerad | post utan planering och utan fältdata |
 | Planerad | planering finns, ingen ögonblicksbild |
-| Pågående | ögonblicksbild finns, fältarbetet inte avslutat, posten inte klar att utfärda |
-| Att granska | fältarbetet avslutat men posten inte klar att utfärda; eller posten klar att utfärda men fältarbetet inte markerat som avslutat |
-| Leveransklar | posten protokollklar och protokollkällan svarar mot fältets ögonblicksbild; fältarbetet avslutat eller ingen fältdata; inget intyg |
+| Pågående | ögonblicksbild finns, fältarbetet inte klarmarkerat, posten inte klar att utfärda |
+| Att granska | fältarbetet klarmarkerat men posten inte klar att utfärda |
+| Leveransklar | posten protokollklar och protokollkällan svarar mot fältets ögonblicksbild; inget intyg. Saknas klarmarkering i fält visas en upplysning |
 | Utfärdande avbrutet | utfärdandemanifest finns utan intyg |
 | Utfärdad | ett intyg med ställningen gällande |
 | Åtgärder öppna | utfärdat med brister och inget ombesiktningsärende |

@@ -49,6 +49,8 @@
 - Ingen regression i befintliga fält-/offline-/mediatester.
 - PR visar faktisk CI-status och manuell testplan; ingen merge utan godkännande.
 
+**Beslut 2026-11-21:** kundisolering mellan organisationer tas enligt roadmapens R8 och ingår inte i Pass 1. Kriterierna ovan om annan kunds uppdrag och två kunder med liknande fastighetsbeteckning prövas då. Till dess körs plattformen för en organisation, och nya desktoprutter hämtar sina projekt genom en gemensam omfångsfunktion (ADR-013).
+
 ## Backbone-arbete – bara där det behövs
 1. Behåll generiska identitets-, tenant- och auktorisationskontrakt i Core, OVK-roller i OVK.
 2. Inför inte nya centrala lagrings- eller dokumenttjänster förrän en konkret OVK-konsument kräver det.

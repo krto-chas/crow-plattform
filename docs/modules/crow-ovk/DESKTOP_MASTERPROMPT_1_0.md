@@ -21,7 +21,7 @@ Stöd både ensam besiktningsman och större organisation med flera användare. 
 ## UX och användarytor
 Desktop är initialt en responsiv, desktopanpassad webbyta på befintlig plattform; native-paketering kräver separat beslut. Luftig, skandinavisk design med befintliga CROW-tokens, tydlig vänsternavigation och tillgänglighet enligt WCAG 2.2 AA som mål.
 
-Navigation: **Översikt, Uppdrag, Fastigheter, Dokument/Import, Bevakning, Inställningar**. Granskning, åtgärder och ombesiktningar nås också från relevant uppdrag. Primärhandling: **Ny OVK**.
+Navigation, åtta arbetsytor (beslut 2026-11-21): **Översikt och arbetskö, Uppdrag och planering, Kunder och fastigheter, Besiktningar och uppföljning, Granskning, Protokoll/intyg/bilagor, Bevakning och ombesiktningar, Administration och inställningar**. Granskning, åtgärder och ombesiktningar nås också från relevant uppdrag. Primärhandling: **Ny OVK**. Arbetsflöde, saknade kontrakt och leveransordning finns i [OVK Desktop 1.0](../../design/OVK_DESKTOP_1_0.md); besluten i [ADR-013](../../adr/ADR-013-ovk-desktop-workspace.md).
 
 Översikten visar endast verkliga uppdrag och verifierad status: planerade, pågående, att granska, öppna åtgärder, synkfel och nästa steg. Visa sökning, filtrering, fastighetsbeteckning, adress, ansvarig, system, datum, täckning och status. Hantera tomlägen, fel och laddning utan mockdata.
 
