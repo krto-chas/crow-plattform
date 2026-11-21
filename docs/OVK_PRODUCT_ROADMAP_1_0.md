@@ -181,3 +181,13 @@ Starta OVK-R1 med inventering av befintlig dashboard, uppdrags-/fastighetsmodell
 ### Prioriteringsbeslut efter PR #174
 
 Beständiga mätpunkter är införda i byggnadsregistret. Nästa R1-del är lägenhetsmallar med suffixregler (XX01, XX02 osv.), förhandsgranskning och unika instans-ID:n. Därefter prioriteras uppföljning av tidigare anmärkningar, komplett fältflöde, synk-/integritetsgrindar, protokollbrygga, dokumentpaket och verkliga piloter enligt R1–R6. CAD Light och driftkort är uttryckligen uppskjutna till 2.0. Ändra inte befintliga releasegrindar för att tidigarelägga dessa funktioner.
+
+### Desktop 1.0 (beslut 2026-11-21)
+
+Skrivbordsarbetsplatsen byggs nu, parallellt med fälttesterna. Arbetsflöde, saknade kontrakt och leveransordning D1–D10 finns i [OVK Desktop 1.0](design/OVK_DESKTOP_1_0.md); besluten i [ADR-013](adr/ADR-013-ovk-desktop-workspace.md).
+
+- Navigationen i avsnitt 3 utökas till åtta arbetsytor enligt designdokumentet.
+- Kundisolering ligger kvar i R8. Nya desktoprutter hämtar sina projekt genom en gemensam omfångsfunktion så att R8 kan läggas till utan att rutterna skrivs om.
+- Ett uppdrag som delas mellan flera besiktningsmän är en besiktning med ett protokoll. Synk per del byggs efter solopiloten.
+- Besiktningsmannen skriver alltid under och skickar. Granskaren godkänner underlaget.
+- Releasegrindarna R1–R6 är oförändrade. D-stegen är arbetsordning för desktop, inte nya grindar.
