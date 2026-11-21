@@ -52,6 +52,8 @@ Visningsstatusarna utgår från roadmapen. De härleds ur befintliga uppgifter o
 | Åtgärder öppna | utfärdat med brister och inget ombesiktningsärende |
 | Ombesiktning | senaste ombesiktningsärendet är öppet |
 
+Utfärdande kräver inte att fältarbetet är klarmarkerat i fältappen (beslut 2026-11-21). Målet är att det klarmarkeras i fält när arbetet är klart; saknas markeringen visas det som en upplysning, inte som ett hinder.
+
 Levererad tillkommer när leveranser registreras (D8); till dess är Utfärdad sista steget. Godkänd granskning för aktuell revision kontrolleras vid utfärdandet och vägs in i Leveransklar när granskningsarbetsplatsen byggs (D7).
 
 Besiktningsresultat, täckning, synkstatus och leveransstatus visas var för sig.
