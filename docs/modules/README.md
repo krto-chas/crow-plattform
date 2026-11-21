@@ -13,6 +13,7 @@ Detta är den gemensamma ingången för planerade och befintliga verksamhetsmodu
 - Dokumentera först; implementera inte automatiskt bara för att en idé har registrerats.
 
 ## Moduler
+- [CROW GRC](crow-grc/README.md) – planerad fristående modul för styrning, risker, compliance och evidens.
 - [CROW Security](crow-security/README.md) – planerad säkerhetsmodul, inklusive Edge och nätverksinventering.
 
 ## Föreslagen statusvokabulär
