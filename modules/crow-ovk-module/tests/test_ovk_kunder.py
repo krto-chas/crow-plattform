@@ -43,7 +43,7 @@ def _create(client: TestClient, kund_id: str = "kund-1", **fields: Any) -> dict[
     return body
 
 
-def test_customer_is_created_listed_and_read_back(tmp_path: Path, monkeypatch: MonkeyPatch) -> None:
+def test_kund_is_created_listed_and_read_back(tmp_path: Path, monkeypatch: MonkeyPatch) -> None:
     monkeypatch.setenv("CROW_USER_ID", "stoffe")
     client = _client(tmp_path)
 
@@ -72,7 +72,7 @@ def test_customer_is_created_listed_and_read_back(tmp_path: Path, monkeypatch: M
     }
 
 
-def test_customers_are_listed_by_name(tmp_path: Path) -> None:
+def test_kunder_are_listed_by_name(tmp_path: Path) -> None:
     client = _client(tmp_path)
     _create(client, "kund-b", namn="örnen Fastigheter")
     _create(client, "kund-a", namn="Brf Lärkan")
@@ -137,9 +137,11 @@ def test_concurrent_edit_does_not_overwrite_silently(tmp_path: Path) -> None:
         ("kund-1", {"namn": "Brf Lärkan", "postadress": {"gata": "x" * 201}}),
         ("kund-1", {"namn": "Brf Lärkan", "postadress": {"ort": None, "gata": 5}}),
         ("kund.1", {"namn": "Brf Lärkan"}),
+        (" kund-1", {"namn": "Brf Lärkan"}),
+        ("kund-1", {"namn": "Brf Lärkan", "postadress": {"gata": "rad 1\nrad 2"}}),
     ],
 )
-def test_invalid_customer_is_refused_and_not_stored(
+def test_invalid_kund_is_refused_and_not_stored(
     tmp_path: Path, kund_id: str, payload: dict[str, Any]
 ) -> None:
     response = _client(tmp_path).put(f"/api/ovk/kunder/{kund_id}", json=payload, headers=_NEW)
@@ -151,9 +153,7 @@ def test_invalid_customer_is_refused_and_not_stored(
     )
 
 
-def test_client_cannot_set_who_changed_the_customer(
-    tmp_path: Path, monkeypatch: MonkeyPatch
-) -> None:
+def test_client_cannot_set_who_changed_the_kund(tmp_path: Path, monkeypatch: MonkeyPatch) -> None:
     monkeypatch.setenv("CROW_USER_ID", "stoffe")
     created = _create(_client(tmp_path), updated_by="någon annan", updated_at="1999-01-01")
 
@@ -161,14 +161,14 @@ def test_client_cannot_set_who_changed_the_customer(
     assert not created["updated_at"].startswith("1999")
 
 
-def test_unknown_customer_is_not_found(tmp_path: Path) -> None:
+def test_unknown_kund_is_not_found(tmp_path: Path) -> None:
     response = _client(tmp_path).get("/api/ovk/kunder/kund-9")
 
     assert response.status_code == 404
     assert response.json() == {"detail": {"code": "KUND_NOT_FOUND"}}
 
 
-def test_property_can_point_at_a_registered_customer_only(tmp_path: Path) -> None:
+def test_property_can_point_at_a_registered_kund_only(tmp_path: Path) -> None:
     client = _client(tmp_path)
     payload = {"fastighetsbeteckning": "Lärkan 4", "kund_id": "kund-1"}
 
@@ -184,7 +184,7 @@ def test_property_can_point_at_a_registered_customer_only(tmp_path: Path) -> Non
     assert client.get("/api/ovk/kunder").json()["kunder"][0]["antal_fastigheter"] == 1
 
 
-def test_client_unaware_of_customers_does_not_remove_the_link(tmp_path: Path) -> None:
+def test_client_unaware_of_kunder_does_not_remove_the_link(tmp_path: Path) -> None:
     client = _client(tmp_path)
     _create(client)
     client.put(_FASTIGHET, json={"fastighetsbeteckning": "Lärkan 4", "kund_id": "kund-1"})
@@ -200,7 +200,7 @@ def test_client_unaware_of_customers_does_not_remove_the_link(tmp_path: Path) ->
     assert FastighetRepository(tmp_path).load("p1", "object-1").kund_id is None
 
 
-def test_property_without_customer_serializes_as_before() -> None:
+def test_property_without_kund_serializes_as_before() -> None:
     plain = Fastighet(fastighet_id="object-1", project_id="p1", fastighetsbeteckning="Lärkan 4")
     assert "kund_id" not in fastighet_to_payload(plain)
     assert fastighet_from_payload(fastighet_to_payload(plain)) == plain
@@ -219,7 +219,7 @@ def test_property_without_customer_serializes_as_before() -> None:
         )
 
 
-def test_property_register_shows_the_customer(tmp_path: Path) -> None:
+def test_property_register_shows_the_kund(tmp_path: Path) -> None:
     client = _client(tmp_path)
     _create(client)
     client.put(_FASTIGHET, json={"fastighetsbeteckning": "Lärkan 4", "kund_id": "kund-1"})
@@ -249,7 +249,7 @@ def test_property_count_is_withheld_when_a_project_cannot_be_read(tmp_path: Path
     assert body["kunder"][0]["antal_fastigheter"] is None
 
 
-def test_one_unreadable_customer_does_not_hide_the_others(tmp_path: Path) -> None:
+def test_one_unreadable_kund_does_not_hide_the_others(tmp_path: Path) -> None:
     client = _client(tmp_path)
     created = _create(client)
     registry = tmp_path / "registry" / "kund"
@@ -300,7 +300,7 @@ def test_unreadable_previous_property_can_still_be_overwritten(tmp_path: Path) -
     assert FastighetRepository(tmp_path).load("p1", "object-1").kund_id is None
 
 
-def test_shell_refuses_customer_routes_without_an_ovk_licence(
+def test_shell_refuses_kund_routes_without_an_ovk_licence(
     tmp_path: Path, monkeypatch: MonkeyPatch
 ) -> None:
     monkeypatch.setenv("CROW_MODE", "local")
@@ -315,7 +315,7 @@ def test_shell_refuses_customer_routes_without_an_ovk_licence(
     assert not (tmp_path / "registry" / "kund").exists()
 
 
-def test_customer_routes_require_a_session_in_session_mode(
+def test_kund_routes_require_a_session_in_session_mode(
     tmp_path: Path, monkeypatch: MonkeyPatch
 ) -> None:
     client = _client(tmp_path)
@@ -329,14 +329,14 @@ def test_customer_routes_require_a_session_in_session_mode(
     assert KundRepository(tmp_path).load("kund-1").namn == "Brf Lärkan"
 
 
-def test_customer_model_names_the_ordering_party() -> None:
+def test_kund_model_names_the_ordering_party() -> None:
     kund = Kund(kund_id="kund-1", namn="Brf Lärkan")
     assert kund.updated_by is None
     with pytest.raises(ValueError, match="namn"):
         Kund(kund_id="kund-1", namn="")
 
 
-def test_property_page_carries_the_customer_panel(tmp_path: Path) -> None:
+def test_property_page_carries_the_kund_panel(tmp_path: Path) -> None:
     client = _client(tmp_path)
     page = client.get("/ovk/fastighet").text
 

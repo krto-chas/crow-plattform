@@ -345,15 +345,23 @@ def _kund_adress(payload: dict[str, object], key: str) -> Adress:
         postnr=_kund_text(value, "postnr"),
         ort=_kund_text(value, "ort"),
     )
-    if any(len(part) > _KUND_TEXT_LIMIT for part in (adress.gata, adress.postnr, adress.ort)):
-        raise ValueError(f"{key} is too long")
+    for part in (adress.gata, adress.postnr, adress.ort):
+        if len(part) > _KUND_TEXT_LIMIT:
+            raise ValueError(f"{key} is too long")
+        if any(ord(char) < 32 for char in part):
+            raise ValueError(f"{key} must be single lines")
     return adress
 
 
 def kund_from_payload(payload: dict[str, object]) -> Kund:
     updated_by = payload.get("updated_by")
+    kund_id = payload.get("kund_id")
+    if not isinstance(kund_id, str):
+        raise ValueError("kund_id must be a string")
     return Kund(
-        kund_id=_kund_text(payload, "kund_id"),
+        # Id:t klipps inte: det ska stämma tecken för tecken med adressen och
+        # filnamnet, och ett id med blanktecken avvisas av valideringen.
+        kund_id=kund_id,
         namn=_kund_text(payload, "namn"),
         kontaktperson=_kund_text(payload, "kontaktperson"),
         telefon=_kund_text(payload, "telefon"),

@@ -654,7 +654,7 @@ def test_register_marks_unclear_certificates_and_partial_deadlines(
     page.close()
 
 
-def test_customer_is_registered_linked_to_a_property_and_shown_in_the_register(
+def test_kund_is_registered_linked_to_a_property_and_shown_in_the_register(
     register_url: str,
     browser: Any,  # noqa: F811
 ) -> None:
@@ -702,7 +702,7 @@ def test_customer_is_registered_linked_to_a_property_and_shown_in_the_register(
     page.close()
 
 
-def test_customer_changed_elsewhere_is_not_overwritten(
+def test_kund_changed_elsewhere_is_not_overwritten(
     register_url: str,
     browser: Any,  # noqa: F811
 ) -> None:
