@@ -124,3 +124,65 @@ def test_rebuilt_draft_makes_an_open_form_stale(
 
     assert stale.status_code == 409
     assert client.get(url).json() == built.json()
+
+
+def test_restored_draft_makes_an_open_form_stale(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from test_ovk_draft_archive import BASE, SAVED, _decide, _prepared
+
+    client, headers = _prepared(tmp_path, monkeypatch)
+    url = "/api/ovk/projects/p1/inspections/ovk-utkast"
+    assert client.post(f"{BASE}/protokoll-utkast", headers=headers, json={}).status_code == 200
+    _decide(tmp_path)
+    saved = client.post(
+        f"{BASE}/protokoll-utkast", headers=headers, json={"confirm_replace": True}
+    ).json()["sparat_utkast"]
+    # Formuläret öppnas på det nybyggda utkastet, och sedan återställs det sparade.
+    opened = client.get(url)
+    assert client.post(f"{SAVED}/{saved}/aterstall").status_code == 200
+    restored = client.get(url)
+    assert restored.headers[HEADER] != opened.headers[HEADER]
+
+    stale = client.put(
+        url, json=opened.json(), headers={"X-OVK-Base-Revision": opened.headers[HEADER]}
+    )
+
+    assert stale.status_code == 409
+    assert stale.json()["detail"] == {"code": "OVK_RECORD_REVISION_CONFLICT"}
+    assert client.get(url).json() == restored.json()
+
+
+def test_issued_inspection_answers_with_the_issuance_lock_not_a_revision_code(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    client: TestClient = _client(tmp_path, monkeypatch)
+    revision = client.put(URL, json=_workflow_payload()).headers[HEADER]
+    stored = client.get(URL).json()
+    manifest = tmp_path / "projects" / "p1" / "ovk-issuance-manifest" / "ovk-001.json"
+    manifest.parent.mkdir(parents=True)
+    manifest.write_text("{}", encoding="utf-8")
+
+    for headers in ({}, {"X-OVK-Base-Revision": revision}, {"X-OVK-Base-Revision": "fel"}):
+        refused = client.put(URL, json=_named("Efter utfärdande"), headers=headers)
+
+        assert refused.status_code == 409
+        assert refused.json()["detail"]["code"] == "OVK_ISSUANCE_RECOVERY_REQUIRED"
+    assert client.get(URL).json() == stored
+
+
+def test_save_without_revision_cannot_put_back_older_content(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    client: TestClient = _client(tmp_path, monkeypatch)
+    first = client.put(URL, json=_workflow_payload())
+    changed = client.put(
+        URL, json=_named("Nytt namn"), headers={"X-OVK-Base-Revision": first.headers[HEADER]}
+    )
+    assert changed.status_code == 200
+
+    # Det ursprungliga innehållet är inte "oförändrat" längre.
+    back = client.put(URL, json=_workflow_payload())
+
+    assert back.status_code == 428
+    assert client.get(URL).json()["inspection"]["object"]["name"] == "Nytt namn"

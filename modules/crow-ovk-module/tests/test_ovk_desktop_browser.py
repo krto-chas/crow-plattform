@@ -1242,17 +1242,23 @@ def test_inspection_form_does_not_overwrite_what_changed_meanwhile(
         "() => document.getElementById('status').textContent.startsWith('Inget sparades.')"
     )
     assert "har ändrats sedan du öppnade den" in page.inner_text("#status")
+    # Beskedet pekar på knappen som finns på sidan.
+    assert page.inner_text("#reload") in page.inner_text("#status")
     stored = page.evaluate("url => fetch(url, {cache: 'no-store'}).then(r => r.json())", url)
     assert stored["inspection"]["object"]["name"] == "Ändrad på annat håll"
 
     # Efter omladdning utgår formuläret från det som gäller nu och går att spara.
     page.click("#reload")
     page.wait_for_function("() => document.getElementById('name').value === 'Ändrad på annat håll'")
-    page.click("#save")
-    page.wait_for_function(
-        "() => !document.getElementById('status').textContent.startsWith('Inget sparades.')"
-        " && !document.getElementById('status').textContent.startsWith('Laddar')"
-    )
+    with page.expect_response(lambda r: r.request.method == "PUT" and r.url.endswith(url)) as put:
+        page.click("#save")
+    assert put.value.status == 200
+    page.wait_for_function("() => document.getElementById('status').textContent.includes('sparad')")
     assert "Kunde inte spara" not in page.inner_text("#status")
+    assert "Inget sparades" not in page.inner_text("#status")
+    # Formuläret utgår nu från det nya läget och kan sparas igen utan krock.
+    with page.expect_response(lambda r: r.request.method == "PUT" and r.url.endswith(url)) as again:
+        page.click("#save")
+    assert again.value.status == 200
     assert errors == []
     page.close()

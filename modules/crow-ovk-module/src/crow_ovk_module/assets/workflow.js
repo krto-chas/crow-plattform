@@ -3,25 +3,24 @@ const enc = encodeURIComponent;
 let loadedRecord = null;
 let requestedInspection = new URLSearchParams(location.search).get('inspection_id') || '';
 
-// Postens revision följer med svaret när en besiktning läses eller sparas.
-let lastRevision = null;
-async function api(url, options = {}) {
+async function apiResponse(url, options = {}) {
   const response = await fetch(url, options);
   const data = await response.json().catch(() => ({}));
-  lastRevision = response.headers.get('X-OVK-Record-Revision');
   if (!response.ok) {
     const error = new Error(JSON.stringify(data.detail || data));
     error.code = data.detail && typeof data.detail === 'object' ? data.detail.code : null;
     throw error;
   }
-  return data;
+  // Postens revision följer med svaret när en besiktning läses eller sparas.
+  return {data, revision: response.headers.get('X-OVK-Record-Revision')};
 }
+async function api(url, options = {}) { return (await apiResponse(url, options)).data; }
 // Vilken sparad besiktning formuläret utgår från, och dess revision. Hela posten
 // skrivs vid varje sparning, så servern kräver att sparningen utgår från det
 // som ligger där nu.
 let loadedBase = null;
-function rememberRecord(projectId, inspectionId) {
-  loadedBase = lastRevision ? {projectId, inspectionId, revision: lastRevision} : null;
+function rememberRecord(projectId, inspectionId, revision) {
+  loadedBase = revision ? {projectId, inspectionId, revision} : null;
 }
 
 function split(line) { return line.split('|').map(value => value.trim()); }
@@ -158,8 +157,8 @@ function clearInspection() {
 async function loadInspection(projectId, inspectionId) {
   $('status').className = 'status';
   $('status').textContent = 'Laddar sparad besiktning…';
-  const record = await api('/api/ovk/projects/' + enc(projectId) + '/inspections/' + enc(inspectionId));
-  rememberRecord(projectId, inspectionId);
+  const {data: record, revision} = await apiResponse('/api/ovk/projects/' + enc(projectId) + '/inspections/' + enc(inspectionId), {cache: 'no-store'});
+  rememberRecord(projectId, inspectionId, revision);
   render(record);
   $('saved').value = inspectionId;
 }
@@ -201,12 +200,12 @@ $('save').onclick = async () => {
   if (!projectId || !inspectionId) { $('status').className = 'status warn'; $('status').textContent = 'Projekt och besiktnings-ID krävs.'; return; }
   try {
     const based = loadedBase && loadedBase.projectId === projectId && loadedBase.inspectionId === inspectionId;
-    const record = await api('/api/ovk/projects/' + enc(projectId) + '/inspections/' + enc(inspectionId), {
+    const {data: record, revision} = await apiResponse('/api/ovk/projects/' + enc(projectId) + '/inspections/' + enc(inspectionId), {
       method: 'PUT',
       headers: {'content-type': 'application/json', ...(based ? {'X-OVK-Base-Revision': loadedBase.revision} : {})},
       body: JSON.stringify(build())
     });
-    rememberRecord(projectId, inspectionId);
+    rememberRecord(projectId, inspectionId, revision);
     render(record);
     const data = await api('/api/ovk/projects/' + enc(projectId) + '/inspections');
     $('saved').innerHTML = savedInspectionOptions(data.inspections || []);
@@ -214,7 +213,7 @@ $('save').onclick = async () => {
   } catch (error) {
     $('status').className = 'status warn';
     $('status').textContent = error.code === 'OVK_RECORD_REVISION_CONFLICT'
-      ? 'Inget sparades. Besiktningen har ändrats sedan du öppnade den, till exempel av ett nytt protokollutkast eller i en annan flik. Välj "Ladda om" för att hämta det som gäller nu, och gör sedan om dina ändringar.'
+      ? 'Inget sparades. Besiktningen har ändrats sedan du öppnade den, till exempel av ett nytt protokollutkast eller i en annan flik. Välj "Ladda sparad" för att hämta det som gäller nu, och gör sedan om dina ändringar.'
       : error.code === 'OVK_RECORD_REVISION_REQUIRED'
         ? 'Inget sparades. Det finns redan en besiktning med det här ID:t. Öppna den i listan över sparade besiktningar om det är den du vill ändra.'
         : 'Kunde inte spara: ' + error.message;
@@ -334,7 +333,16 @@ async function createDraft(event) {
     await api('/api/ovk/projects/'+enc(project)+'/inspections/'+enc(draftId),{method:'PUT',headers:{'content-type':'application/json'},body:JSON.stringify(payload)});
     location.assign((matchMedia('(max-width:900px)').matches?'/ovk/falt?':'/ovk/besiktning?')+contextUrl(project,draftId));
   } catch(error) {
-    $('draftStatus').textContent = 'Kunde inte spara utkast: '+error.message;
+    if (error.code === 'OVK_RECORD_REVISION_REQUIRED') {
+      // Ett tidigare försök sparades fast svaret aldrig kom fram. Utkastet finns
+      // redan; det ska öppnas och ändras där, inte skapas en gång till.
+      const link = document.createElement('a');
+      link.href = (matchMedia('(max-width:900px)').matches?'/ovk/falt?':'/ovk/besiktning?')+contextUrl(project,draftId);
+      link.textContent = 'Öppna utkastet';
+      $('draftStatus').replaceChildren('Utkastet skapades redan vid ett tidigare försök. Gör ändringarna i det. ', link);
+    } else {
+      $('draftStatus').textContent = 'Kunde inte spara utkast: '+error.message;
+    }
     $('draftFields').disabled = false;
   }
 }
