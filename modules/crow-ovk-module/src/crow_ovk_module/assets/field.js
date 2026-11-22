@@ -179,6 +179,7 @@ function renderRoundUnits(){
     portSelect.replaceChildren(...options.map(port=>new Option(portLabel(port)+' ('+portUnits(port).length+')',port)),new Option('+ Ny port…','__new'));
     portSelect.value=activePort();
     portSelect.closest('div').hidden=!options.length;
+    portSelect.closest('.round-toolbar').classList.toggle('with-ports',options.length>0);
     if($('addPort'))$('addPort').hidden=options.length>0;
   }
   const rows=visibleRoundUnits($('unitSearch')?.value||'',$('unitFilter')?.value||'all',floorSelect?.value||'');

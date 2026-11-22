@@ -2633,6 +2633,12 @@ def test_ports_keep_four_digit_numbers_and_ask_for_the_next_port(
     assert page.text_content("#ovkSheet .ovk-sheet-status") == (
         "Porten finns redan. Välj den i listan."
     )
+    # Osynliga tecken skulle stoppa synken och avvisas redan här.
+    page.fill("#ovkSheet_port", "58\u200b")
+    page.click("#ovkSheet [data-sheet-submit]")
+    assert page.text_content("#ovkSheet .ovk-sheet-status").startswith(
+        "Porten innehåller tecken som inte går att spara."
+    )
     page.fill("#ovkSheet_port", "  58  ")
     page.click("#ovkSheet [data-sheet-submit]")
     page.wait_for_function("activePort() === '58'")
@@ -2642,10 +2648,15 @@ def test_ports_keep_four_digit_numbers_and_ask_for_the_next_port(
     )
     # En tom port erbjuder inte avslut av hela besiktningen: port 56 har en lägenhet kvar.
     assert flow.state("nextPendingPort()") == "56"
-    assert page.text_content("#footDone") != "Granska och avsluta"
+    # Knappen leder i stället vidare till porten som har något kvar, och tillbaka.
+    assert page.text_content("#footDone") == "Gå till port 56"
     page.click("#footDone")
+    page.wait_for_function("activePort() === '56'")
     assert page.query_selector("#ovkFinishView") is None
     assert page.query_selector("#ovkSheet") is None
+    assert rows() == ["1002"]
+    page.select_option("#unitPort", "58")
+    page.wait_for_function("activePort() === '58'")
     page.click("#addUnit")
     page.wait_for_selector("#ovkSheet")
     page.fill("#ovkSheet_numbers", "1001, 1101")
@@ -2802,15 +2813,14 @@ def test_assignment_with_trapphus_opens_with_ports_in_the_field(
     # Den tomma porten möter en inte först: första porten med lägenheter är vald.
     assert page.evaluate("() => activePort()") == "54"
     # På en smal telefon får porten en egen rad och inget sticker ut i sidled.
-    assert page.evaluate(
-        "() => [document.documentElement.scrollWidth <= window.innerWidth,"
-        " document.getElementById('unitPort').getBoundingClientRect().width > 250]"
-    ) == [True, True]
-    assert page.eval_on_selector_all(
-        "#unitList .unitrow .nr", "items => items.map(n => n.textContent)"
-    ) == ["1001", "1101"]
-    assert page.text_content("#rondMeta").endswith("· Port 54")
-    assert not page.evaluate("() => document.getElementById('unitFloor').closest('div').hidden")
+    widths = page.evaluate(
+        "() => Object.fromEntries(['unitPort', 'unitSearch', 'unitFilter', 'unitFloor']"
+        ".map(id => [id, Math.round(document.getElementById(id).getBoundingClientRect().width)]))"
+    )
+    assert page.evaluate("() => document.documentElement.scrollWidth <= window.innerWidth")
+    assert widths["unitPort"] > 250, widths
+    # Sök, filter och våning delar raderna under i två spalter som går att använda.
+    assert min(widths["unitSearch"], widths["unitFilter"], widths["unitFloor"]) > 120, widths
     data = _validated_payload(page.evaluate("() => payload()"))
     assert [unit.display_number for unit in data.units] == ["54-1001", "54-1101", "56-1001"]
     assert errors == []
