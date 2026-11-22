@@ -219,7 +219,7 @@ _DEFAULTS: dict[str, object] = {
         ({}, "ej_planerad"),
         ({"planned": True}, "planerad"),
         ({"planned": True, "has_snapshot": True}, "pagaende"),
-        ({"has_snapshot": True, "ready_to_issue": True}, "att_granska"),
+        ({"has_snapshot": True, "ready_to_issue": True}, "leveransklar"),
         ({"has_snapshot": True, "field_completed": True}, "att_granska"),
         ({"has_snapshot": True, "field_completed": True, "ready_to_issue": True}, "leveransklar"),
         ({"ready_to_issue": True}, "leveransklar"),
@@ -297,7 +297,7 @@ def test_leveransklar_requires_a_current_protocol_source(tmp_path: Path) -> None
     assert item["nasta_steg"]["text"] == "Granska"
 
 
-def test_protocol_ready_record_without_completed_field_work_goes_to_review(
+def test_protocol_ready_record_is_leveransklar_without_field_completion_mark(
     tmp_path: Path,
 ) -> None:
     record = _record("ovk-1", ready=True)
@@ -307,8 +307,10 @@ def test_protocol_ready_record_without_completed_field_work_goes_to_review(
 
     item = _by_id(tmp_path)["ovk-1"]
 
-    assert item["status"] == "att_granska"
-    assert item["nasta_steg"]["text"] == "Granska"
+    assert item["status"] == "leveransklar"
+    assert item["nasta_steg"]["text"] == "Utfärda intyg"
+    assert item["falt"]["synkad"] is True
+    assert item["falt"]["avslutat"] is None
 
 
 def test_overview_shows_business_names_and_next_step(tmp_path: Path) -> None:

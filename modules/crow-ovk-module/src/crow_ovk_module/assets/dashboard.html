@@ -26,11 +26,15 @@
       .projectbar input{min-width:0;width:100%}.projectbar details>div>div:first-child{flex-wrap:wrap}
     }
     @media(min-width:901px){.desktop-tools>summary{display:none}.desktop-tools:not([open])> :not(summary){display:revert}}
+    .ovk-nav-pending{display:block;padding:12px;color:#8fa9a8;cursor:default}.ovk-nav-pending small{font-size:11px;letter-spacing:.06em;text-transform:uppercase;border:1px solid #426064;border-radius:999px;padding:1px 7px;margin-left:4px}
+    .queue{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:14px;margin-top:18px}.ovk-queue-card{text-align:left;font:inherit;color:inherit;cursor:pointer}.ovk-queue-card strong{display:block;font-size:28px;margin-top:8px}.ovk-queue-card[aria-pressed=true]{border-color:#237663;box-shadow:inset 0 0 0 1px #237663}.ovk-queue-card:focus-visible{outline:3px solid #368fbc;outline-offset:3px}
+    .ovk-table-wrap{overflow-x:auto}.ovk-table{width:100%;border-collapse:collapse;margin-top:12px}.ovk-table th{text-align:left;font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:#607080;font-weight:600;padding:10px 12px;border-bottom:1px solid #dfe5ea}.ovk-table td{padding:14px 12px;border-bottom:1px solid #e6eaee;vertical-align:top}.ovk-table tr:last-child td{border-bottom:0}.ovk-hint{display:block;font-size:13px;margin-top:6px;max-width:26ch}.ovk-table .button,.ovk-table td:nth-child(3){white-space:nowrap}
+    #overviewWarning ul{margin:8px 0 0;padding-left:20px}
   </style>
 </head>
 <body>
 <div class="shell">
-  <aside><div class="brand"><strong>OVK</strong><small>CROW Plattform</small></div><nav><a href="/app">Projekt</a><a class="active" href="/ovk">OVK</a><a href="/logout">Logga ut</a></nav><nav aria-label="OVK-navigation"><a class="active" aria-current="page" href="/ovk">Översikt</a><a href="#overview">Uppdrag</a><a href="/ovk/fastighet">Fastigheter</a><a href="#imports">Dokument &amp; import</a><a id="watchNav" href="/ovk/bevakning">Bevakning</a></nav></aside>
+  <aside><div class="brand"><strong>OVK</strong><small>CROW Plattform</small></div><nav><a href="/app">Projekt</a><a class="active" href="/ovk">OVK</a><a href="/logout">Logga ut</a></nav><nav aria-label="OVK-navigation" id="ovkNav"><a class="active" aria-current="page" href="/ovk">Översikt och arbetskö</a><a href="/ovk/besiktning">Uppdrag och planering</a><a href="/ovk/fastighet">Kunder och fastigheter</a><a href="/ovk/intyg">Protokoll, intyg och bilagor</a><a href="/ovk/bevakning">Bevakning och ombesiktningar</a></nav></aside>
   <main>
     <section class="field-home" aria-labelledby="fieldHomeTitle">
       <header class="field-brand"><strong>CROW OVK</strong><a href="/logout">Logga ut</a></header>
@@ -46,22 +50,23 @@
       <button type="button" class="button secondary" id="fieldRefresh">Uppdatera uppdrag</button>
     </section>
     <div class="desktop-heading">
-    <div class="eyebrow">OVK</div>
-    <div class="heading"><h1>OVK-arbetsyta</h1><a id="newInspection" class="button" href="/ovk/besiktning?new=1">+ Ny OVK</a></div>
-    <p class="muted">Se alla tillgängliga OVK-besiktningar. Välj projekt längre ned för dokument och projektverktyg.</p>
+    <div class="eyebrow">OVK-arbetsyta</div>
+    <div class="heading"><h1>Översikt</h1><a id="newInspection" class="button" href="/ovk/besiktning?new=1">+ Ny OVK</a></div>
+    <p class="muted">Dina uppdrag och vad som är nästa steg.</p>
 
     </div>
     <section id="overview" class="desktop-overview" aria-labelledby="overviewTitle">
-      <div class="heading"><h2 id="overviewTitle">Alla OVK-uppdrag</h2><button type="button" class="button secondary" id="refreshOverview">Uppdatera</button></div>
-      <div class="grid">
-        <article class="card metric"><span class="muted">Sparade besiktningar</span><strong id="allCount">—</strong></article>
-        <article class="card metric"><span class="muted">Protokollklara</span><strong id="allReady">—</strong></article>
-        <article class="card metric"><span class="muted">Ej protokollklara</span><strong id="allPending">—</strong></article>
-      </div>
+      <div class="heading"><h2 id="overviewTitle">Arbetskö</h2><button type="button" class="button secondary" id="refreshOverview">Uppdatera</button></div>
+      <div id="queue" class="queue" role="group" aria-label="Uppdrag per status"></div>
       <article class="panel" style="margin-top:18px">
-        <div class="toolbar"><input id="overviewSearch" type="search" aria-label="Sök alla uppdrag" placeholder="Sök fastighet, projekt eller besiktning"><select id="overviewFilter" aria-label="Filtrera alla uppdrag"><option value="all">Alla</option><option value="ready">Protokollklara</option><option value="pending">Ej protokollklara</option></select></div>
+        <div class="toolbar"><input id="overviewSearch" type="search" aria-label="Sök uppdrag" placeholder="Sök fastighet, adress eller besiktningsman"><select id="overviewFilter" aria-label="Filtrera på status"><option value="">Alla statusar</option></select></div>
         <div id="overviewStatus" role="status" aria-live="polite" class="muted">Laddar uppdrag…</div>
-        <div id="overviewItems"></div>
+        <div id="overviewWarning" class="status warn" role="alert" hidden></div>
+        <div class="ovk-table-wrap"><table id="overviewTable" class="ovk-table" aria-labelledby="overviewTitle" hidden>
+          <thead><tr><th scope="col">Fastighet</th><th scope="col">Besiktningsman</th><th scope="col">Planerat</th><th scope="col">System</th><th scope="col">Status</th><th scope="col">Nästa steg</th></tr></thead>
+          <tbody id="overviewItems"></tbody>
+        </table></div>
+        <div id="overviewEmpty" class="empty" hidden></div>
       </article>
     </section>
     <details class="desktop-tools" id="desktopTools" open><summary>Projektverktyg och dokument</summary>
@@ -173,26 +178,18 @@
     </details>
   </main>
 </div>
+<script src="/ovk/skal.js"></script>
+<script src="/ovk/oversikt.js"></script>
 <script>
 const $=id=>document.getElementById(id);
 const esc=value=>String(value??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
 const enc=encodeURIComponent;
-let overviewRows=[];let overviewRevision=0;let overviewLoaded=false;let projects=[];let currentInspections=[];let loadRevision=0;let projectLoaded=false;
+let projectsReady=false;let overviewRows=[];let overviewRevision=0;let overviewLoaded=false;let projects=[];let currentInspections=[];let loadRevision=0;let projectLoaded=false;
 
 async function api(url){const r=await fetch(url);const data=await r.json().catch(()=>({}));if(!r.ok)throw new Error(typeof data.detail==='string'?data.detail:JSON.stringify(data.detail||data));return data;}
 function checksum(asset){return String(asset.checksum_sha256||'').toLowerCase();}
 function legacyCandidate(asset){const name=String(asset.filename||'').toLowerCase();return name.endsWith('.pdf')||name.endsWith('.xlsx');}
 
-function renderOverview(){
-  if(!overviewLoaded)return;
-  const search=$('overviewSearch').value.trim().toLocaleLowerCase('sv');
-  const filter=$('overviewFilter').value;
-  const rows=overviewRows.filter(({project,item})=>(filter==='all'||(filter==='ready'?item.protocol_ready:!item.protocol_ready))&&[project.project_name,project.name,project.project_id,item.object_name,item.inspection_id].some(value=>String(value||'').toLocaleLowerCase('sv').includes(search)));
-  $('overviewItems').innerHTML=rows.length?rows.map(({project,item})=>{
-    const q='?project_id='+enc(project.project_id)+'&inspection_id='+enc(item.inspection_id);
-    return `<div class="item"><div class="item-head"><div><strong>${esc(item.object_name||item.inspection_id)}</strong><br><span class="muted">${esc(project.project_name||project.name||project.project_id)} · ${esc(item.inspection_id)}</span></div><div><span class="pill">${item.protocol_ready?'Protokollklart':'Ej protokollklart'}</span><span class="pill">${esc(item.conclusion||'')}</span></div></div><div class="actions"><a class="button" href="/ovk/besiktning${q}">Öppna besiktning</a><button type="button" class="button secondary" data-project="${esc(project.project_id)}">Projektverktyg</button></div></div>`;
-  }).join(''):'<div class="empty">Inga besiktningar matchar urvalet.</div>';
-}
 async function renderFieldHome(rows, revision, projectFailures){
   const prepared=[], ongoing=[];
   let failures=projectFailures;
@@ -234,8 +231,6 @@ async function loadOverview(){
   overviewLoaded=false;overviewRows=[];
   $('fieldHomeStatus').textContent='Laddar uppdrag…';
   for(const id of ['fieldOngoing','fieldPrepared'])$(id).hidden=true;
-  for(const id of ['allCount','allReady','allPending'])$(id).textContent='—';
-  $('overviewItems').textContent='';$('overviewStatus').textContent='Laddar uppdrag…';
   const rows=[];let failed=0;
   // Bound concurrency to avoid a request burst for large project lists.
   for(let i=0;i<projects.length;i+=5){
@@ -250,10 +245,6 @@ async function loadOverview(){
   }
   if(revision!==overviewRevision)return;
   overviewRows=rows;overviewLoaded=true;
-  const ready=rows.filter(({item})=>item.protocol_ready).length;
-  if(!failed){$('allCount').textContent=rows.length;$('allReady').textContent=ready;$('allPending').textContent=rows.length-ready;}
-  $('overviewStatus').textContent=failed?('Ofullständig översikt: '+failed+' av '+projects.length+' projekt kunde inte läsas. Totalsiffror visas inte. Försök igen med Uppdatera.'):('Visar besiktningar från '+projects.length+' projekt.');
-  renderOverview();
   if(matchMedia('(max-width:900px)').matches)await renderFieldHome(rows,revision,failed);
 }
 function renderActions(projectId){
@@ -282,7 +273,7 @@ async function loadProject(){
   $('inspections').textContent='Laddar…';$('imports').textContent='Laddar…';
   $('status').className='status';$('status').textContent='Laddar projektets OVK-data…';renderActions(projectId);
   $('newInspection').href='/ovk/besiktning?new=1&project_id='+enc(projectId);$('newInspection').removeAttribute('aria-disabled');
-  $('watchNav').href='/ovk/bevakning?project_id='+enc(projectId);
+  window.ovkShell?.setProject(projectId);
   $('pbProject').value=projectId;$('pbInspection').value='';$('pbResult').textContent='';
   try{
     const [inspections,imports]=await Promise.all([api('/api/ovk/projects/'+enc(projectId)+'/inspections'),api('/api/projects/'+enc(projectId)+'/imports')]);
@@ -293,25 +284,27 @@ async function loadProject(){
 async function init(){
   try{
     const modules=await api('/api/me/modules');if(!(modules.modules||[]).some(m=>m.id==='ovk'))throw new Error('OVK ingår inte i licensen.');
-    projects=await api('/api/projects');
+    projects=await api('/api/projects');projectsReady=true;
     const requested=new URLSearchParams(location.search).get('project_id');
     $('project').innerHTML=projects.length?projects.map(p=>`<option value="${esc(p.project_id)}">${esc(p.project_name||p.name||p.project_id)}</option>`).join(''):'<option value="">Inga projekt</option>';
     if(requested&&projects.some(p=>p.project_id===requested))$('project').value=requested;
     $('project').addEventListener('change',loadProject);
-    await Promise.all([loadOverview(),projects.length?loadProject():Promise.resolve()]);if(!projects.length){$('status').textContent='Skapa ett projekt i Workbench först.';$('inspectionCount').textContent='0';$('readyCount').textContent='0';$('importCount').textContent='0';$('legacyCount').textContent='0';}
+    await Promise.all([startOverview(),projects.length?loadProject():Promise.resolve()]);if(!projects.length){$('status').textContent='Skapa ett projekt i Workbench först.';$('inspectionCount').textContent='0';$('readyCount').textContent='0';$('importCount').textContent='0';$('legacyCount').textContent='0';}
   }catch(error){$('status').className='status warn';$('status').textContent='OVK kunde inte starta: '+error.message;$('fieldHomeStatus').textContent='Uppdrag kunde inte laddas. Kontrollera anslutningen och försök igen.';}
 }
 $('inspectionSearch').addEventListener('input',()=>{if(projectLoaded)renderInspections($('project').value,{inspections:currentInspections})});
 $('inspectionFilter').addEventListener('change',()=>renderInspections($('project').value,{inspections:currentInspections}));
-$('overviewSearch').addEventListener('input',renderOverview);
-$('overviewFilter').addEventListener('change',renderOverview);
-$('refreshOverview').addEventListener('click',()=>{if(projects.length)loadOverview();});
-$('overviewItems').addEventListener('click',event=>{const button=event.target.closest('button[data-project]');if(!button||!projects.some(p=>p.project_id===button.dataset.project))return;$('project').value=button.dataset.project;loadProject();$('project').focus();});
 const mobileView=matchMedia('(max-width:900px)');
-function updateLayout(){ $('desktopTools').open=!mobileView.matches; if(mobileView.matches&&overviewLoaded)loadOverview(); }
+// Mobilens startsida och skrivbordets arbetskö har var sin datakälla; bara den som syns laddas.
+// Saknas översiktens skript (laddfel) ska mobilens startsida ändå fungera.
+function startOverview(){ return mobileView.matches||!window.ovkOverview?loadOverview():ovkOverview.load(); }
+// Ladda inte förrän init har hämtat projekten och godkänt licensen.
+function updateLayout(){ $('desktopTools').open=!mobileView.matches; if(projectsReady)startOverview(); }
 mobileView.addEventListener('change',updateLayout);
 $('desktopTools').open=!mobileView.matches;
 $('fieldRefresh').addEventListener('click',()=>{if(overviewLoaded)loadOverview();else location.reload();});
+window.ovkShell?.mount();
+if(window.ovkOverview)ovkOverview.init();else $('overviewStatus').textContent='Översikten kunde inte laddas. Ladda om sidan.';
 init();
 </script>
 </body>

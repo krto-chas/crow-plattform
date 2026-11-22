@@ -35,7 +35,7 @@ def test_dashboard_is_operational_project_surface(tmp_path: Path) -> None:
     response = _client(tmp_path).get("/ovk")
 
     assert response.status_code == 200
-    assert "OVK-arbetsyta" in response.text
+    assert "<h1>Översikt</h1>" in response.text
     assert "OVK-besiktningar" in response.text
     assert "Projektfiler" in response.text
     assert "/api/projects/" in response.text
@@ -44,14 +44,71 @@ def test_dashboard_is_operational_project_surface(tmp_path: Path) -> None:
     assert 'id="inspectionSearch"' in response.text
     assert 'id="inspectionFilter"' in response.text
     assert 'id="readyCount"' in response.text
-    assert "/ovk/bevakning" in response.text
-    assert 'id="overviewItems"' in response.text
-    assert 'id="overviewSearch"' in response.text
-    assert 'id="overviewFilter"' in response.text
-    assert 'id="allCount"' in response.text
-    assert 'id="allReady"' in response.text
-    assert 'id="allPending"' in response.text
-    assert "Totalsiffror visas inte" in response.text
+
+
+def test_overview_is_a_work_queue_fed_by_the_assignment_route(tmp_path: Path) -> None:
+    client = _client(tmp_path)
+    page = client.get("/ovk").text
+
+    for element in (
+        'id="queue"',
+        'id="overviewSearch"',
+        'id="overviewFilter"',
+        'id="overviewStatus"',
+        'id="overviewWarning"',
+        'id="overviewItems"',
+        'id="overviewEmpty"',
+        'id="refreshOverview"',
+    ):
+        assert element in page
+    assert page.index('<script src="/ovk/skal.js">') < page.index("ovkShell?.mount()")
+    assert page.index('<script src="/ovk/oversikt.js">') < page.index("ovkOverview.init()")
+
+    script = client.get("/ovk/oversikt.js")
+    assert script.status_code == 200
+    assert script.headers["content-type"].startswith("text/javascript")
+    assert "/api/ovk/uppdrag" in script.text
+    # Den gamla översikten hämtade besiktningar projekt för projekt i webbläsaren.
+    assert "/inspections" not in script.text
+    assert "innerHTML" not in script.text
+
+
+def test_desktop_overview_and_mobile_home_load_separately(tmp_path: Path) -> None:
+    page = _client(tmp_path).get("/ovk").text
+
+    assert (
+        "return mobileView.matches||!window.ovkOverview?loadOverview():ovkOverview.load();" in page
+    )
+    # Byte av fönsterbredd laddar inget förrän init har hämtat projekten.
+    assert "if(projectsReady)startOverview();" in page
+    # Mobilens startsida behåller sin egen väg och sina element.
+    for element in ('id="fieldHomeStatus"', 'id="fieldOngoing"', 'id="fieldPrepared"'):
+        assert element in page
+    assert "renderFieldHome(rows,revision,failed)" in page
+
+
+def test_shell_navigation_has_the_eight_workspaces(tmp_path: Path) -> None:
+    client = _client(tmp_path)
+    page = client.get("/ovk").text
+    script = client.get("/ovk/skal.js")
+
+    # Kärnan ersätter sidans första <nav> med plattformens moduler; OVK:s
+    # navigation måste därför vara en egen, andra <nav>.
+    assert page.index("<nav>") < page.index('<nav aria-label="OVK-navigation" id="ovkNav">')
+    assert script.status_code == 200
+    labels = [
+        "Översikt och arbetskö",
+        "Uppdrag och planering",
+        "Kunder och fastigheter",
+        "Besiktningar och uppföljning",
+        "Granskning",
+        "Protokoll, intyg och bilagor",
+        "Bevakning och ombesiktningar",
+        "Administration och inställningar",
+    ]
+    positions = [script.text.index(f"text: '{label}'") for label in labels]
+    assert positions == sorted(positions)
+    assert script.text.count("{ id: '") == len(labels)
 
 
 def test_workbench_import_can_be_previewed_without_reupload(tmp_path: Path) -> None:
