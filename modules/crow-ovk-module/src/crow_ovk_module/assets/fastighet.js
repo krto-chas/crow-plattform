@@ -249,9 +249,11 @@ $('inventorySave').onclick=async()=>{
   const trapphusNames=(inventory.trapphus||[]).map(t=>String(t.namn||'').trim().replace(/\s+/g,' ').toLowerCase());
   if(trapphusNames.some(n=>!n)){inventoryMessage('Ange namn på varje trapphus.',true);return}
   if(new Set(trapphusNames).size!==trapphusNames.length){inventoryMessage('Två trapphus har samma namn. Ge dem olika namn.',true);return}
-  const placed=new Set(),loose=new Set(inventory.units.filter(u=>!unitScope(u)).map(u=>unitDisplayNumber(u).toLowerCase()));
+  // Samma jämförelse som servern: blanktecken och skiftläge skiljer inte nummer åt.
+  const numberKey=value=>String(value).trim().replace(/\s+/g,' ').toLowerCase();
+  const placed=new Set(),loose=new Set(inventory.units.filter(u=>!unitScope(u)).map(u=>numberKey(unitDisplayNumber(u))));
   for(const unit of inventory.units.filter(u=>unitScope(u))){
-    const shown=unitDisplayNumber(unit),key=shown.toLowerCase();
+    const shown=unitDisplayNumber(unit),key=numberKey(shown);
     if(placed.has(key)||loose.has(key)){inventoryMessage('Numret '+shown+' finns två gånger. Lägenhetsnummer ska vara unika i sitt trapphus.',true);return}
     placed.add(key);
   }
@@ -485,7 +487,7 @@ $('templatePreview').onclick=()=>{
     for(const u of targets){
       const p=document.createElement('p');
       const detail=u.rooms.map(room=>room.name+(room.measurement_points.length?' ('+room.measurement_points.map(point=>point.label+' · '+(inventory.systems.find(s=>s.system_id===point.system_id)?.label||point.system_id)+' · '+(point.designed_value??'saknar projekterat värde')+(point.designed_value!=null?' l/s':'')).join('; ')+')':'')).join(', ');
-      p.textContent=(u.unit_id?'Komplettera ':'Skapa ')+u.number+' ← mall '+u.source+' · '+detail;
+      p.textContent=(u.unit_id?'Komplettera ':'Skapa ')+unitDisplayNumber({number:u.number,trapphus_id:templatePreview.trapphus})+' ← mall '+u.source+' · '+detail;
       $('templateResult').append(p);
     }
     if(skipped.length){const p=document.createElement('p');p.textContent='Lämnas oförändrade: '+skipped.join(', ');$('templateResult').append(p)}

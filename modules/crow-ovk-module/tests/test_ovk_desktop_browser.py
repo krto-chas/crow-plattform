@@ -862,7 +862,7 @@ def test_trapphus_is_registered_and_groups_the_units(
     page.select_option("select[aria-label='Mall från lägenhet']", label="A <b>-1001")
     page.click("#templatePreview")
     assert page.inner_text("#templateStatus").startswith("1 nya · 0 tomma kompletteras")
-    assert page.inner_text("#templateResult p").startswith("Skapa 1001 ← mall A <b>-1001")
+    assert page.inner_text("#templateResult p").startswith("Skapa B-1001 ← mall A <b>-1001")
     page.check("#templateConfirmSystems")
     page.click("#templateApply")
     assert page.inner_text("#inventoryStatus") == "Osparade ändringar."

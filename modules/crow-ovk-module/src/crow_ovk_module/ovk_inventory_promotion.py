@@ -24,7 +24,15 @@ def plan_inventory_promotion(
     inventory: dict[str, Any],
     snapshot: dict[str, Any],
     assignments: dict[str, str],
+    frozen: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
+    """Föreslå tillägg i registret ur ett synkat fältunderlag.
+
+    ``frozen`` är strukturen som besiktningen frös. Fältets nummer skrevs med
+    de trapphusnamn som gällde då, så det är dem numren tolkas med; registrets
+    nuvarande namn används bara när besiktningen saknar fryst struktur.
+    """
+
     result = deepcopy(inventory)
     additions: list[dict[str, str]] = []
     conflicts: list[str] = []
@@ -49,6 +57,12 @@ def plan_inventory_promotion(
     # Fältet bär visade nummer ("54-1101") för enheter i trapphus; registret
     # lagrar numret i trapphuset och en hänvisning.
     names = trapphus_names(inventory)
+    frozen_names = trapphus_names(frozen) if frozen is not None else names
+    frozen_numbers = {
+        row["unit_id"]: str(row.get("number", "")).strip()
+        for row in (frozen or {}).get("units", [])
+        if isinstance(row, dict) and isinstance(row.get("unit_id"), str)
+    }
 
     def safe_id(value: str) -> bool:
         return bool(re.fullmatch(r"[A-Za-z0-9_-]+", value))
@@ -77,22 +91,34 @@ def plan_inventory_promotion(
         if not safe_id(unit_id) or not number or numbers[normalized(number)] != 1:
             conflicts.append(f"Enhet {label}: ogiltigt ID eller tvetydigt nummer.")
             continue
+        unit = units.get(unit_id)
+        if unit is not None:
+            # Identiteten är enhetens ID. Numret får vara det som visas nu, det
+            # som besiktningen frös (trapphuset kan ha bytt namn sedan dess)
+            # eller numret utan trapphusnamn (enheten fick trapphus efteråt).
+            accepted = {display_number(unit, names), unit["number"], frozen_numbers.get(unit_id)}
+            if number not in accepted or unit["kind"] != kind:
+                conflicts.append(f"Enhet {label}: befintligt ID har annan beteckning eller typ.")
+                continue
+            trapphus_id, local_number = unit.get("trapphus_id"), unit["number"]
+        else:
+            trapphus_id, local_number = split_display_number(number, frozen_names)
+            if trapphus_id is not None and trapphus_id not in names:
+                conflicts.append(f"Enhet {label}: trapphuset finns inte längre i registret.")
+                continue
         if any(
             other["unit_id"] != unit_id
-            and normalized(display_number(other, names)) == normalized(number)
+            and (
+                (other.get("trapphus_id") if other.get("trapphus_id") in names else None)
+                == trapphus_id
+                and normalized(other["number"]) == normalized(local_number)
+                or normalized(display_number(other, names)) == normalized(number)
+            )
             for other in units.values()
         ):
             conflicts.append(f"Enhet {label}: numret finns med annat ID.")
             continue
-        unit = units.get(unit_id)
-        if unit is not None:
-            # En besiktning som skapades innan enheten fick sitt trapphus bär
-            # numret utan trapphusnamn; identiteten är enhetens ID.
-            if number not in {display_number(unit, names), unit["number"]} or unit["kind"] != kind:
-                conflicts.append(f"Enhet {label}: befintligt ID har annan beteckning eller typ.")
-                continue
-        else:
-            trapphus_id, local_number = split_display_number(number, names)
+        if unit is None:
             unit = {"unit_id": unit_id, "number": local_number, "kind": kind, "rooms": []}
             if trapphus_id is not None:
                 unit["trapphus_id"] = trapphus_id

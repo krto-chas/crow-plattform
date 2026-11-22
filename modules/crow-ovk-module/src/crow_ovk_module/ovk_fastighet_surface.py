@@ -249,7 +249,14 @@ def ovk_fastighet_router(data_root: Path) -> APIRouter:
                 for point_id, system_id in assignments.items()
             ):
                 raise ValueError("Unknown measurement point or inventory system.")
-            plan = plan_inventory_promotion(inventory, snapshot, assignments)
+            frozen = (
+                json.loads(record.building_structure_json)
+                if record.building_structure_json is not None
+                else None
+            )
+            plan = plan_inventory_promotion(
+                inventory, snapshot, assignments, frozen if isinstance(frozen, dict) else None
+            )
             plan["structure"] = _validate_structure(plan["structure"])
         except (KeyError, TypeError, ValueError) as exc:
             raise HTTPException(
