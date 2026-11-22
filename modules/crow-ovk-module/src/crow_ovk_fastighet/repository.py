@@ -8,10 +8,13 @@ from pathlib import Path
 from .models import (
     Besiktningsman,
     Fastighet,
+    Kund,
     besiktningsman_from_payload,
     besiktningsman_to_payload,
     fastighet_from_payload,
     fastighet_to_payload,
+    kund_from_payload,
+    kund_to_payload,
 )
 
 _ALLOWED_ID_CHARS = set("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_")
@@ -86,3 +89,29 @@ class BesiktningsmanRepository:
     def _path(self, besiktningsman_id: str) -> Path:
         _safe_identifier(besiktningsman_id, "besiktningsman_id")
         return self.root / "registry" / "besiktningsman" / f"{besiktningsman_id}.json"
+
+
+class KundRepository:
+    """Organisationens kundregister, inte projektbundet."""
+
+    def __init__(self, root: Path) -> None:
+        self.root = root
+
+    def save(self, kund: Kund) -> Path:
+        return _write_json(self._path(kund.kund_id), kund_to_payload(kund))
+
+    def load(self, kund_id: str) -> Kund:
+        return kund_from_payload(_read_json(self._path(kund_id)))
+
+    def exists(self, kund_id: str) -> bool:
+        return self._path(kund_id).is_file()
+
+    def list(self) -> tuple[Kund, ...]:
+        directory = self.root / "registry" / "kund"
+        if not directory.exists():
+            return ()
+        return tuple(self.load(path.stem) for path in sorted(directory.glob("*.json")))
+
+    def _path(self, kund_id: str) -> Path:
+        _safe_identifier(kund_id, "kund_id")
+        return self.root / "registry" / "kund" / f"{kund_id}.json"

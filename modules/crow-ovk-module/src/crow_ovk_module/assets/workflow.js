@@ -508,6 +508,22 @@ async function initDraft(projects, requestedProject) {
   $('draftFields').disabled=false;
   $('propertySearchFields').disabled=false;
   $('draftStatus').textContent = registry.besiktningsman?.length ? 'Sök fastigheten för att börja.' : 'Ingen besiktningsman registrerad. Registrera en besiktningsman innan besiktningen kan sparas.';
+  await openRequestedProperty(projects, requestedProject);
+}
+// Fastighetsregistret länkar hit med en utpekad fastighet. Den väljs då direkt,
+// på samma sätt som när användaren bekräftar en sökträff.
+async function openRequestedProperty(projects, requestedProject) {
+  const propertyId = new URLSearchParams(location.search).get('fastighet_id');
+  if (!propertyId) return;
+  const project = projects.find(item => item.project_id === requestedProject);
+  if (!project) { $('propertySearchStatus').textContent = 'Fastigheten kunde inte öppnas. Sök den i stället.'; return; }
+  try {
+    const property = await api('/api/ovk/projects/'+enc(project.project_id)+'/fastighet/'+enc(propertyId), {cache:'no-store'});
+    if (property.project_id !== project.project_id || property.fastighet_id !== propertyId || typeof property.fastighetsbeteckning !== 'string') throw new Error('Ogiltig fastighet.');
+    chooseProperty(project, property);
+  } catch (error) {
+    $('propertySearchStatus').textContent = 'Fastigheten kunde inte öppnas. Sök den i stället.';
+  }
 }
 async function init() {
   try {

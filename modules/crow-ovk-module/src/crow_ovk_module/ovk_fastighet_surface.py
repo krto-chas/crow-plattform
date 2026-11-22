@@ -19,6 +19,7 @@ from typing import Any
 from crow_ovk_fastighet import (
     BesiktningsmanRepository,
     FastighetRepository,
+    KundRepository,
     besiktningsman_from_payload,
     besiktningsman_to_payload,
     fastighet_from_payload,
@@ -59,6 +60,7 @@ def ovk_fastighet_router(data_root: Path) -> APIRouter:
     router = APIRouter()
     fastighet_repository = FastighetRepository(data_root)
     besiktningsman_repository = BesiktningsmanRepository(data_root)
+    kund_repository = KundRepository(data_root)
 
     @router.get("/ovk/fastighet", response_class=HTMLResponse)
     def fastighet_page() -> HTMLResponse:
@@ -72,6 +74,22 @@ def ovk_fastighet_router(data_root: Path) -> APIRouter:
             headers=_NO_CACHE,
         )
 
+    @router.get("/ovk/kunder.js", response_model=None)
+    def kund_register_script() -> Response:
+        return Response(
+            _asset_text("desktop-kunder.js"),
+            media_type="application/javascript",
+            headers=_NO_CACHE,
+        )
+
+    @router.get("/ovk/fastigheter.js", response_model=None)
+    def property_register_script() -> Response:
+        return Response(
+            _asset_text("desktop-properties.js"),
+            media_type="application/javascript",
+            headers=_NO_CACHE,
+        )
+
     @router.put("/api/ovk/projects/{project_id}/fastighet/{fastighet_id}", response_model=None)
     async def save_fastighet(
         project_id: str, fastighet_id: str, request: Request
@@ -81,7 +99,19 @@ def ovk_fastighet_router(data_root: Path) -> APIRouter:
         payload["fastighet_id"] = fastighet_id
         payload["updated_at"] = datetime.now(UTC).isoformat()
         try:
+            if "kund_id" not in payload:
+                # En klient som inte känner till kundkopplingen (flödet för ny
+                # besiktning, äldre formulär) ska inte ta bort den genom att spara
+                # fastigheten. En oläsbar tidigare post hindrar inte att den skrivs över.
+                try:
+                    previous = fastighet_repository.load(project_id, fastighet_id)
+                except (FileNotFoundError, ValueError):
+                    previous = None
+                if previous is not None and previous.kund_id is not None:
+                    payload["kund_id"] = previous.kund_id
             fastighet = fastighet_from_payload(payload)
+            if fastighet.kund_id is not None and not kund_repository.exists(fastighet.kund_id):
+                raise HTTPException(status_code=422, detail={"code": "KUND_NOT_FOUND"})
             fastighet_repository.save(fastighet)
         except ValueError as exc:
             raise HTTPException(
