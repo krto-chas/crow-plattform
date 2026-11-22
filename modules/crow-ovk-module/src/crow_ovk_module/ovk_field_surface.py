@@ -334,6 +334,7 @@ def _field_data_from_payload(payload: dict[str, Any]) -> FieldInspectionData:
             system_type=_optional_str(item.get("system_type")),
             access=_strict_str(item.get("access"), "access"),
             revisit_required=_strict_bool(item.get("revisit_required"), "revisit_required"),
+            port=_strict_str(item.get("port"), "port"),
         )
         for item in _dict_items(payload.get("units", []), "units")
     )
@@ -601,6 +602,7 @@ def _field_data_to_payload(data: FieldInspectionData) -> dict[str, Any]:
                 # Utelämnas när de inte används, så att äldre snapshots serialiseras oförändrat.
                 **({"access": item.access} if item.access else {}),
                 **({"revisit_required": True} if item.revisit_required else {}),
+                **({"port": item.port} if item.port else {}),
             }
             for item in data.units
         ],

@@ -20,7 +20,6 @@ from crow_ovk_workflow import (
 )
 
 from .ovk_issuance_lock import inspection_mutation_guard
-from .ovk_trapphus import structure_for_inspection
 
 
 def ovk_workflow_router(data_root: Path) -> APIRouter:
@@ -159,13 +158,8 @@ def ovk_workflow_router(data_root: Path) -> APIRouter:
                     raise ValueError("selected system does not match registered building system")
                 record = replace(
                     record,
-                    # Enheter i trapphus fryses med visat nummer ("54-1101"),
-                    # så att fältappen och protokollet skiljer trapphusen åt.
                     building_structure_json=json.dumps(
-                        structure_for_inspection(structure),
-                        ensure_ascii=False,
-                        sort_keys=True,
-                        separators=(",", ":"),
+                        structure, ensure_ascii=False, sort_keys=True, separators=(",", ":")
                     ),
                 )
             repository.save(record)

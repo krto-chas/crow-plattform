@@ -15,7 +15,7 @@ function isCommercial(){const unit=activeUnit();return unit ? unit.kind==='premi
 function roomPresets(){return isCommercial()?ROOMS_COMMERCIAL:ROOMS}
 const DEFAULT_STATE = () => ({project_id: 'adhoc', inspection_id: '', inspector: '', system_type: 'F', object_type: 'flerbostadshus', assignment_name: '',
   previous_inspection_id: null, historical_findings: [], historical_measurements: [], historical_checkpoints: [], historical_space_photos: [], history_unavailable:false, units: [], rooms: [], findings: [], finding_followups: [], photos: [],
-  measurements: [], window_vents: [], visual_checks: [], field_progress: {}, master_key: null, field_work_completed_at: null, field_work_note: '', technical_spaces: [], checkpoints: [], dirty: false, last_sync: null,
+  measurements: [], window_vents: [], visual_checks: [], field_progress: {}, ports: [], active_port: null, master_key: null, field_work_completed_at: null, field_work_note: '', technical_spaces: [], checkpoints: [], dirty: false, last_sync: null,
   activeUnitId: null, activeRoomId: null, activeFindingId: null, activeSpaceId: null, defects: [], checklists: {}});
 let state = DEFAULT_STATE();
 
@@ -26,7 +26,7 @@ async function dbGetAll(store){const db=await openDb();const values=await new Pr
 
 function payload(){return {inspection_id:state.inspection_id,object_type:state.object_type,
   // Tillträde och återbesök skickas bara när de är satta, så att äldre snapshots inte ändras.
-  units:state.units.map(({unit_id,number,kind,label,status,checked_at,bom_at,bom_note,key,system_type,access,revisit_required})=>({unit_id,number,kind,label,status,checked_at,bom_at,bom_note,key,system_type:system_type||null,...(access?{access}:{}),...(revisit_required?{revisit_required:true}:{})})),
+  units:state.units.map(({unit_id,number,kind,label,status,checked_at,bom_at,bom_note,key,system_type,access,revisit_required,port})=>({unit_id,number,kind,label,status,checked_at,bom_at,bom_note,key,system_type:system_type||null,...(access?{access}:{}),...(revisit_required?{revisit_required:true}:{}),...(port?{port}:{})})),
   rooms:state.rooms,
   findings:state.findings.map(({unit_number,room_name,...item})=>item),
   finding_followups:state.finding_followups,
@@ -41,7 +41,7 @@ function payload(){return {inspection_id:state.inspection_id,object_type:state.o
   checkpoints:state.checkpoints}}
 // En färdigmarkerad enhet ska alltid spegla sina anmärkningar: servern avvisar UA med anmärkning.
 function reconcileUnitStatuses(){for(const unit of state.units){if(unit.status==='ua'||unit.status==='anmarkning')unit.status=unitRemarks(unit.unit_id).length?'anmarkning':'ua'}}
-async function writeDraft(dirty){if(!state.inspection_id||!state.project_id)return;reconcileUnitStatuses();state.dirty=dirty;await dbPut(DRAFT_STORE,{...payload(),project_id:state.project_id,inspector:state.inspector,system_type:state.system_type,assignment_name:state.assignment_name,previous_inspection_id:state.previous_inspection_id,historical_findings:state.historical_findings,historical_measurements:state.historical_measurements,history_unavailable:state.history_unavailable||false,historical_checkpoints:state.historical_checkpoints,historical_space_photos:state.historical_space_photos,field_progress:state.field_progress,findings:state.findings,dirty:state.dirty,last_sync:state.last_sync,updated_at:now()})}
+async function writeDraft(dirty){if(!state.inspection_id||!state.project_id)return;reconcileUnitStatuses();state.dirty=dirty;await dbPut(DRAFT_STORE,{...payload(),project_id:state.project_id,inspector:state.inspector,system_type:state.system_type,assignment_name:state.assignment_name,previous_inspection_id:state.previous_inspection_id,historical_findings:state.historical_findings,historical_measurements:state.historical_measurements,history_unavailable:state.history_unavailable||false,historical_checkpoints:state.historical_checkpoints,historical_space_photos:state.historical_space_photos,field_progress:state.field_progress,ports:state.ports,active_port:state.active_port,findings:state.findings,dirty:state.dirty,last_sync:state.last_sync,updated_at:now()})}
 async function persist(){await writeDraft(true);$('draftStatus').textContent='Lokalt sparad · '+new Date().toLocaleTimeString()}
 
 function ensureProject(id){if(!id)return;if(![...$('project').options].some(o=>o.value===id)){const option=document.createElement('option');option.value=id;option.textContent=id;$('project').appendChild(option)}}
@@ -56,7 +56,7 @@ function isFtx(){const sys=unitSystem(activeUnit());return sys==='FT'||sys==='FT
 
 /* ---------- serie & lista ---------- */
 function parseSeries(text){const numbers=[];for(const part of text.split(',').map(item=>item.trim()).filter(Boolean)){const range=part.match(/^(\d{1,6})\s*-\s*(\d{1,6})$/);if(range){const start=parseInt(range[1],10),end=parseInt(range[2],10);if(end<start||end-start>500)throw new Error('Ogiltigt intervall: '+part);for(let value=start;value<=end;value++)numbers.push(String(value).padStart(range[1].length,'0'))}else if(/^\d{1,6}$/.test(part)){numbers.push(part)}else{throw new Error('Ogiltigt nummer: '+part)}}return [...new Set(numbers)]}
-function generateUnits(){const text=$('unitSeries').value.trim();if(!text){$('draftStatus').textContent='Ange en nummerserie först.';return}let numbers;try{numbers=parseSeries(text)}catch(error){$('draftStatus').className='status warn';$('draftStatus').textContent=String(error.message||error);return}const existing=new Set(state.units.map(item=>item.number));let added=0;for(const number of numbers){if(existing.has(number))continue;state.units.push({unit_id:uid('unit'),inspection_id:state.inspection_id||$('inspection').value.trim(),number,kind:'apartment',label:'',status:'ej_paborjad',checked_at:null,bom_at:null,bom_note:'',key:null,system_type:null});added+=1}$('draftStatus').className='status pass';$('draftStatus').textContent=added+' enheter tillagda · totalt '+state.units.length}
+function generateUnits(){const text=$('unitSeries').value.trim();if(!text){$('draftStatus').textContent='Ange en nummerserie först.';return}let numbers;try{numbers=parseSeries(text)}catch(error){$('draftStatus').className='status warn';$('draftStatus').textContent=String(error.message||error);return}const port=activePort();const existing=new Set(portUnits(port).map(item=>item.number));let added=0;for(const number of numbers){if(existing.has(number))continue;state.units.push({unit_id:uid('unit'),inspection_id:state.inspection_id||$('inspection').value.trim(),number,kind:'apartment',label:'',status:'ej_paborjad',checked_at:null,bom_at:null,bom_note:'',key:null,system_type:null,...(port?{port}:{})});existing.add(number);added+=1}$('draftStatus').className='status pass';$('draftStatus').textContent=added+' enheter tillagda · totalt '+state.units.length}
 
 function validFlowValue(value){
   if(value==null)return false;
@@ -66,13 +66,48 @@ function validFlowValue(value){
 function measuredPoint(point){return point.measurable!==false&&validFlowValue(point.measured_value)}
 function pendingPoint(point){return point.measurable!==false&&!measuredPoint(point)}
 function checkedUnit(unit){return unit.status==='ua'||unit.status==='anmarkning'}
-function roundCounts(){
-  return {total:state.units.length,checked:state.units.filter(checkedUnit).length,pending:state.units.filter(u=>u.status==='ej_paborjad').length,bom:state.units.filter(u=>u.status==='bom').length,measured:state.measurements.filter(measuredPoint).length,pendingMeasurements:state.measurements.filter(pendingPoint).length};
+/* ---------- portar ----------
+   En byggnad med flera portar har samma lägenhetsnummer i varje port. Porten
+   anges på ett ställe; ronderingen visar och går igenom en port i taget, och
+   numren är fortsatt fyrsiffriga. Utan portar är allt som förut. */
+function cleanPort(value){return String(value??'').trim().replace(/\s+/g,' ').slice(0,100)}
+function unitPort(unit){return cleanPort(unit?.port)}
+function portList(){
+  const ports=[];
+  for(const port of [...(state.ports||[]),...state.units.map(unitPort)]){const name=cleanPort(port);if(name&&!ports.includes(name))ports.push(name)}
+  return ports;
 }
+function portsInUse(){return portList().length>0}
+// Valbara portar: enheter utan port bildar en egen grupp så länge de finns.
+function portOptions(){const ports=portList();return ports.length&&state.units.some(unit=>!unitPort(unit))?[...ports,'']:ports}
+function activePort(){const options=portOptions();return !options.length?'':options.includes(state.active_port)?state.active_port:options[0]}
+function portUnits(port=activePort()){return portsInUse()?state.units.filter(unit=>unitPort(unit)===port):state.units}
+// Numret som i protokollet: "54-1101" i port 54.
+function unitNumberText(unit){const port=unitPort(unit);return port?port+'-'+unit.number:String(unit.number)}
+function roundCounts(){
+  const units=portUnits(),ids=new Set(units.map(unit=>unit.unit_id)),points=state.measurements.filter(point=>ids.has(point.unit_id));
+  return {total:units.length,checked:units.filter(checkedUnit).length,pending:units.filter(u=>u.status==='ej_paborjad').length,bom:units.filter(u=>u.status==='bom').length,measured:points.filter(measuredPoint).length,pendingMeasurements:points.filter(pendingPoint).length};
+}
+// Nästa enhet söks i den aktuella porten; bytet av port är ett eget, uttalat val.
 function nextPendingUnit(afterId=null){
-  const index=state.units.findIndex(u=>u.unit_id===afterId);
-  const ordered=index<0?state.units:[...state.units.slice(index+1),...state.units.slice(0,index)];
+  const units=portUnits();
+  const index=units.findIndex(u=>u.unit_id===afterId);
+  const ordered=index<0?units:[...units.slice(index+1),...units.slice(0,index)];
   return ordered.find(u=>u.status==='ej_paborjad')||null;
+}
+function nextPendingPort(){const current=activePort(),options=portOptions(),start=options.indexOf(current);
+  return [...options.slice(start+1),...options.slice(0,Math.max(start,0))].find(port=>port!==current&&portUnits(port).some(u=>u.status==='ej_paborjad'))??null}
+function portLabel(port){return port?'Port '+port:'Utan port'}
+// Vilken port som visas är inte besiktningsdata: utkastet sparas utan att märkas som ändrat.
+async function choosePort(port){state.active_port=port;if($('unitFloor'))$('unitFloor').value='';renderRond();await writeDraft(state.dirty)}
+async function addPort(){
+  const answer=await askSheet({title:'Ny port',note:'Ange portens nummer eller namn. Lägenheterna behåller sina fyrsiffriga nummer och skrivs 54-1101 i protokollet.',fields:[{id:'port',label:'Port',required:true,placeholder:'T.ex. 54',maxLength:100}],submitLabel:'Lägg till port',
+    validate:values=>portList().some(port=>port.toLocaleLowerCase('sv')===cleanPort(values.port).toLocaleLowerCase('sv'))?'Porten finns redan. Välj den i listan.':''});
+  if(!answer)return false;
+  const port=cleanPort(answer.port);if(!port)return false;
+  state.ports=[...(state.ports||[]),port];
+  await choosePort(port);
+  return true;
 }
 // Framdrift härleds ur faktiskt genomförda moment och lagras inte: resultat (UA/anmärkning)
 // och tillträde (BOM) ligger kvar i enhetens status.
@@ -120,7 +155,7 @@ function unitFloor(unit){const match=unit.kind==='premises'?null:/^(\d{2})\d{2}$
 function visibleRoundUnits(search='',filter='all',floor=''){
   const query=search.trim().toLocaleLowerCase('sv');
   const accepts=UNIT_FILTERS[filter]||UNIT_FILTERS.all;
-  return state.units.filter(unit=>{
+  return portUnits().filter(unit=>{
     const match=accepts(unitProgress(unit),unit)&&(!floor||unitFloor(unit)===floor);
     return match&&[unit.number,unit.label,unit.kind==='premises'?'Lokal':'Lägenhet'].some(v=>String(v||'').toLocaleLowerCase('sv').includes(query));
   });
@@ -128,13 +163,21 @@ function visibleRoundUnits(search='',filter='all',floor=''){
 function renderRoundUnits(){
   const floorSelect=$('unitFloor');
   if(floorSelect){
-    const floors=[...new Set(state.units.map(unitFloor).filter(Boolean))].sort();
+    const floors=[...new Set(portUnits().map(unitFloor).filter(Boolean))].sort();
     // Ett dolt filter får aldrig fortsätta gälla: med färre än två plan nollställs valet.
     const chosen=floors.length>1&&floors.includes(floorSelect.value)?floorSelect.value:'';
     floorSelect.replaceChildren(new Option('Alla våningar',''),...floors.map(floor=>new Option('Plan '+floor+' ('+floor+'xx)',floor)));
     floorSelect.value=chosen;
     // Filtret visas först när det finns mer än ett våningsplan att välja mellan.
     floorSelect.closest('div').hidden=floors.length<2;
+  }
+  const portSelect=$('unitPort');
+  if(portSelect){
+    const options=portOptions();
+    portSelect.replaceChildren(...options.map(port=>new Option(portLabel(port)+' ('+portUnits(port).length+')',port)),new Option('+ Ny port…','__new'));
+    portSelect.value=activePort();
+    portSelect.closest('div').hidden=!options.length;
+    if($('addPort'))$('addPort').hidden=options.length>0;
   }
   const rows=visibleRoundUnits($('unitSearch')?.value||'',$('unitFilter')?.value||'all',floorSelect?.value||'');
   const list=$('unitList');list.replaceChildren();
@@ -153,22 +196,22 @@ function renderRoundUnits(){
   }
   if($('unitEmpty')){
     $('unitEmpty').hidden=rows.length>0;
-    $('unitEmpty').textContent=state.units.length?'Inga enheter matchar sökningen eller filtret.':'Inga enheter ännu. Lägg till lägenheter eller lokaler.';
+    $('unitEmpty').textContent=portUnits().length?'Inga enheter matchar sökningen eller filtret.':portsInUse()?'Inga enheter i '+portLabel(activePort()).toLocaleLowerCase('sv')+' ännu. Lägg till lägenheter eller lokaler.':'Inga enheter ännu. Lägg till lägenheter eller lokaler.';
   }
 }
 function renderRond(){
   const counts=roundCounts();
-  $('rondMeta').textContent=(state.assignment_name||state.inspection_id)+' · '+state.system_type;
+  $('rondMeta').textContent=(state.assignment_name||state.inspection_id)+' · '+state.system_type+(portsInUse()?' · '+portLabel(activePort()):'');
   $('cDone').textContent=counts.checked;$('cTotal').textContent=counts.total;
-  $('cAnm').textContent=state.units.filter(u=>u.status==='anmarkning').length;
+  $('cAnm').textContent=portUnits().filter(u=>u.status==='anmarkning').length;
   $('cBom').textContent=counts.bom;$('cMeas').textContent=counts.measured;
-  $('rondbar').replaceChildren(...state.units.map(unit=>{const segment=document.createElement('i');segment.className=unit.status;return segment}));
+  $('rondbar').replaceChildren(...portUnits().map(unit=>{const segment=document.createElement('i');segment.className=unit.status;return segment}));
   // Antalen står redan på raden ovanför: här visas bara det som kräver åtgärd.
   if($('roundSummary'))$('roundSummary').textContent=counts.pendingMeasurements?counts.pendingMeasurements+(counts.pendingMeasurements===1?' mätpunkt':' mätpunkter')+' utan giltigt värde':'';
   if($('continueUnit')){
     const next=nextPendingUnit();
     $('continueUnit').hidden=!next;
-    $('continueUnit').textContent=next?'Fortsätt med '+(next.kind==='premises'?'lokal ':'lgh ')+(next.kind==='premises'&&next.label?next.label:next.number):'Fortsätt med nästa enhet';
+    $('continueUnit').textContent=next?'Fortsätt med '+(next.kind==='premises'?'lokal ':'lgh ')+(next.kind==='premises'&&next.label?next.label:unitNumberText(next)):'Fortsätt med nästa enhet';
     $('continueUnit').onclick=()=>{const target=nextPendingUnit();if(target)openUnit(target.unit_id)};
   }
   renderRoundUnits();renderSpaces();
@@ -185,7 +228,7 @@ function openUnit(unitId){
   const rooms=unitRooms();
   const pending=rooms.find(room=>state.measurements.some(point=>point.unit_id===unitId&&point.room_id===room.room_id&&pendingPoint(point)));
   state.activeRoomId=(pending||rooms[0])?.room_id||null;
-  $('unitNr').textContent=unit.kind==='premises'&&unit.label?unit.label:unit.number;$('unitKindLabel').textContent=unit.kind==='premises'?'Lokal':'Lägenhet';
+  $('unitNr').textContent=unit.kind==='premises'&&unit.label?unit.label:unitNumberText(unit);$('unitKindLabel').textContent=unit.kind==='premises'?'Lokal':'Lägenhet';
   $('photoStatus').className='status';$('photoStatus').textContent='Välj eller registrera en anmärkning innan du tar foto.';
   renderUnit();view('viewUnit');window.scrollTo(0,0);$('unitNr').focus({preventScroll:true});
 }
@@ -805,6 +848,8 @@ async function finishCurrentUnit(){
     const next=nextPendingUnit(unit.unit_id);
     if(next){openUnit(next.unit_id);return}
     renderRond();view('viewRond');
+    // Portens sista enhet är gjord: fråga om nästa port eller avslut.
+    if(window.ovkPortDone)void window.ovkPortDone();
     $('syncStatus').className='status';
     $('syncStatus').textContent='Inga ej färdigmarkerade enheter kvar. Kontrollera BOM, mätpunkter och teknikutrymmen innan protokollet färdigställs. Synka när du har nät.';
   }finally{finishingUnit=false;$('footDone').disabled=false;$('footBack').disabled=false}
@@ -829,7 +874,7 @@ function fillInspectors(persons){if(!persons||!persons.length)return;$('inspecto
 async function prefillObjectType(){if(state.inspection_id||state.units.length)return;const projectId=$('project').value;if(!projectId||!navigator.onLine)return;try{const response=await fetch('/api/ovk/projects/'+encodeURIComponent(projectId)+'/fastighet');if(!response.ok)return;const data=await response.json();const first=(data.fastigheter||[])[0];if(first&&first.fastighetstyp){$('objectType').value=first.fastighetstyp;state.object_type=first.fastighetstyp}}catch(_){/* offline */}}
 async function loadHistory(){$('history').innerHTML='<option value="">Välj via uppdragsplaneringen</option>';$('history').disabled=true;$('restore').disabled=true;$('historyStatus').textContent='Tidigare besiktning väljs i uppdragsplaneringen. Historik hämtas automatiskt för planerade uppdrag.'}
 async function restoreFromServer(){$('historyStatus').textContent='Öppna ett planerat uppdrag för att återställa projektbundet underlag.'}
-async function restoreLatest(requested=null){const drafts=await dbGetAll(DRAFT_STORE);if(!drafts.length)return false;drafts.sort((a,b)=>String(b.updated_at).localeCompare(String(a.updated_at)));const draft=requested?drafts.find(item=>item.inspection_id===requested.inspection_id&&item.project_id===requested.project_id):drafts[0];if(!draft)return false;Object.assign(state,DEFAULT_STATE(),{project_id:draft.project_id||'adhoc',inspection_id:draft.inspection_id||'',inspector:draft.inspector||'',system_type:draft.system_type||'F',object_type:draft.object_type||'flerbostadshus',assignment_name:draft.assignment_name||'',previous_inspection_id:draft.previous_inspection_id||null,historical_findings:draft.historical_findings||[],historical_measurements:draft.historical_measurements||[],history_unavailable:Boolean(draft.history_unavailable),historical_checkpoints:draft.historical_checkpoints||[],historical_space_photos:draft.historical_space_photos||[],units:draft.units||[],rooms:draft.rooms||[],findings:draft.findings||[],finding_followups:draft.finding_followups||[],photos:draft.photos||[],measurements:draft.measurements||[],window_vents:draft.window_vents||[],master_key:draft.master_key||null,field_work_completed_at:draft.field_work_completed_at||null,field_work_note:draft.field_work_note||'',visual_checks:draft.visual_checks||[],field_progress:draft.field_progress||{},technical_spaces:draft.technical_spaces||[],checkpoints:draft.checkpoints||[],dirty:Boolean(draft.dirty),last_sync:draft.last_sync||null,defects:state.defects,checklists:state.checklists});$('inspection').value=state.inspection_id;$('inspector').value=state.inspector;$('systemType').value=state.system_type;$('objectType').value=state.object_type;ensureProject(state.project_id);$('project').value=state.project_id;$('draftStatus').textContent='Återställd lokal session · '+(state.assignment_name||state.inspection_id);if(state.assignment_name||state.units.length||state.technical_spaces.length){renderRond();view('viewRond')}return true}
+async function restoreLatest(requested=null){const drafts=await dbGetAll(DRAFT_STORE);if(!drafts.length)return false;drafts.sort((a,b)=>String(b.updated_at).localeCompare(String(a.updated_at)));const draft=requested?drafts.find(item=>item.inspection_id===requested.inspection_id&&item.project_id===requested.project_id):drafts[0];if(!draft)return false;Object.assign(state,DEFAULT_STATE(),{project_id:draft.project_id||'adhoc',inspection_id:draft.inspection_id||'',inspector:draft.inspector||'',system_type:draft.system_type||'F',object_type:draft.object_type||'flerbostadshus',assignment_name:draft.assignment_name||'',previous_inspection_id:draft.previous_inspection_id||null,historical_findings:draft.historical_findings||[],historical_measurements:draft.historical_measurements||[],history_unavailable:Boolean(draft.history_unavailable),historical_checkpoints:draft.historical_checkpoints||[],historical_space_photos:draft.historical_space_photos||[],units:draft.units||[],rooms:draft.rooms||[],findings:draft.findings||[],finding_followups:draft.finding_followups||[],photos:draft.photos||[],measurements:draft.measurements||[],window_vents:draft.window_vents||[],master_key:draft.master_key||null,field_work_completed_at:draft.field_work_completed_at||null,field_work_note:draft.field_work_note||'',visual_checks:draft.visual_checks||[],field_progress:draft.field_progress||{},ports:Array.isArray(draft.ports)?draft.ports.filter(item=>typeof item==='string'&&item):[],active_port:typeof draft.active_port==='string'?draft.active_port:null,technical_spaces:draft.technical_spaces||[],checkpoints:draft.checkpoints||[],dirty:Boolean(draft.dirty),last_sync:draft.last_sync||null,defects:state.defects,checklists:state.checklists});$('inspection').value=state.inspection_id;$('inspector').value=state.inspector;$('systemType').value=state.system_type;$('objectType').value=state.object_type;ensureProject(state.project_id);$('project').value=state.project_id;$('draftStatus').textContent='Återställd lokal session · '+(state.assignment_name||state.inspection_id);if(state.assignment_name||state.units.length||state.technical_spaces.length){renderRond();view('viewRond')}return true}
 async function syncContext(){const response=await fetch(fieldEndpoint('context',state.project_id,state.inspection_id),{method:'PUT',headers:{'content-type':'application/json'},body:JSON.stringify({project_id:state.project_id,inspector:state.inspector,previous_inspection_id:state.previous_inspection_id,system_type:state.system_type})});const data=await response.json();if(!response.ok)throw new Error(JSON.stringify(data));return data}
 async function syncSnapshot(){const response=await fetch(fieldEndpoint('sync',state.project_id,state.inspection_id),{method:'PUT',headers:{'content-type':'application/json','X-OVK-Base-Revision':state.last_sync||'new'},body:JSON.stringify(payload())});const data=await response.json();if(!response.ok)throw new Error(JSON.stringify(data));state.last_sync=data.snapshot_sha256;return data}
 async function syncPendingMedia(){let uploaded=0;for(const photo of state.photos.filter(item=>item.sync_status!=='synced')){const media=await dbGet(MEDIA_STORE,mediaKey(state.project_id,state.inspection_id,photo.photo_id));if(!media||!media.blob||media.sha256!==photo.sha256)throw new Error('Saknar matchande lokal mediablob för '+photo.photo_id);const response=await fetch(fieldEndpoint('media',state.project_id,state.inspection_id)+'/'+encodeURIComponent(photo.photo_id),{method:'PUT',headers:{'content-type':photo.mime_type,'X-OVK-Base-Revision':state.last_sync},body:media.blob});const receipt=await response.json();if(!response.ok)throw new Error(JSON.stringify(receipt));photo.sync_status='synced';state.last_sync=receipt.snapshot_sha256;media.media_id=receipt.media_id;media.evidence_id=receipt.evidence_id;media.synced_at=now();await dbPut(MEDIA_STORE,media);uploaded+=1}return uploaded}
@@ -886,11 +931,15 @@ async function prefillPlannedUnits(record,projectId,inspectionId,person,property
   if(!Array.isArray(structure.units)||!Array.isArray(structure.systems)||!Array.isArray(structure.technical_spaces))throw new Error('Ogiltig byggnadsstruktur i uppdraget.');
   const draft={...DEFAULT_STATE(),...await plannedHistory(record,projectId,inspectionId),project_id:projectId,inspection_id:inspectionId,inspector:person.namn,object_type:property.fastighetstyp,assignment_name:record.inspection.object.name,system_type:systemType,dirty:true,updated_at:now()};
   const ids=new Set(),roomIds=new Set(),pointIds=new Set();
+  // Kontorets trapphus blir portar: enheten bär portens namn, numret är oförändrat.
+  const ports=new Map();
+  for(const item of Array.isArray(structure.trapphus)?structure.trapphus:[]){const name=cleanPort(item?.namn);if(typeof item?.trapphus_id==='string'&&name)ports.set(item.trapphus_id,name)}
+  draft.ports=[...new Set(ports.values())];
   const selectedSystems=new Set(record.inspection.systems.map(s=>s.system_id));
   for(const unit of structure.units){
     if(!/^[A-Za-z0-9_-]+$/.test(unit.unit_id)||ids.has(unit.unit_id)||!['apartment','premises'].includes(unit.kind)||!Array.isArray(unit.rooms))throw new Error('Ogiltig enhet i uppdragets struktur.');
     ids.add(unit.unit_id);
-    draft.units.push({unit_id:unit.unit_id,inspection_id:inspectionId,number:unit.number,kind:unit.kind,label:'',status:'ej_paborjad',checked_at:null,bom_at:null,bom_note:'',key:null,system_type:null});
+    draft.units.push({unit_id:unit.unit_id,inspection_id:inspectionId,number:unit.number,kind:unit.kind,label:'',status:'ej_paborjad',checked_at:null,bom_at:null,bom_note:'',key:null,system_type:null,...(ports.has(unit.trapphus_id)?{port:ports.get(unit.trapphus_id)}:{})});
     for(const room of unit.rooms){
       if(!/^[A-Za-z0-9_-]+$/.test(room.room_id)||roomIds.has(room.room_id)||typeof room.name!=='string'||!room.name.trim())throw new Error('Ogiltigt rum i uppdragets struktur.');
       roomIds.add(room.room_id);

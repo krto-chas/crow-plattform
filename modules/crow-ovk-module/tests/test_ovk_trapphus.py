@@ -17,15 +17,11 @@ from test_ovk_workflow import _client as _workbench_client
 from test_ovk_workflow import _workflow_payload
 
 from crow_ovk import OvkObject, VentilationSystemRef
+from crow_ovk_field import FieldUnit, UnitKind
 from crow_ovk_module.ovk_fastighet_surface import _validate_structure, ovk_fastighet_router
 from crow_ovk_module.ovk_field_surface import ovk_field_router
 from crow_ovk_module.ovk_inventory_promotion import plan_inventory_promotion
-from crow_ovk_module.ovk_trapphus import (
-    display_number,
-    split_display_number,
-    structure_for_inspection,
-    trapphus_names,
-)
+from crow_ovk_module.ovk_trapphus import display_number, trapphus_names
 from crow_ovk_workflow import OvkWorkflowRepository, build_record
 
 PROPERTY_URL = "/api/ovk/projects/p1/fastighet/f1"
@@ -335,17 +331,18 @@ def test_inspection_freezes_a_structure_with_trapphus_and_readers_still_work(
     assert client.put(url, json=payload).status_code == 200
 
     frozen = client.get(url).json()
-    # Enheten fryses med visat nummer; registret behåller numret i trapphuset.
+    # Strukturen fryses som den står i registret: numret är oförändrat, och
+    # trapphuset följer med som egen uppgift som fältappen gör till port.
     expected = deepcopy(structure)
-    expected["units"][0]["number"] = "A-1203"
     assert frozen["building_structure"] == expected
-    assert client.get(structure_url).json()["units"][0]["number"] == "1203"
     # Det fältappen läser ur den frysta strukturen finns kvar som förut:
     # tre listor, och på enheten id, nummer, typ och rum.
     assert {"units", "systems", "technical_spaces"} <= set(frozen["building_structure"])
     unit = frozen["building_structure"]["units"][0]
-    assert (unit["unit_id"], unit["number"], unit["kind"]) == ("u1", "A-1203", "apartment")
+    assert (unit["unit_id"], unit["number"], unit["kind"]) == ("u1", "1203", "apartment")
     assert unit["rooms"] == [{"room_id": "r1", "name": "Kök"}]
+    assert unit["trapphus_id"] == "t-a"
+    assert frozen["building_structure"]["trapphus"][0]["namn"] == "A"
     # Posten med frysta trapphus går att spara om (checksumman stämmer), och
     # ändringar i registret efteråt når inte den redan skapade besiktningen.
     assert client.put(url, json=frozen).status_code == 200
@@ -417,102 +414,78 @@ def test_duplicate_numbers_without_trapphus_are_stored_as_before(tmp_path: Path)
     assert client.put(URL, json=structure).status_code == 200
 
 
-def test_shown_number_is_composed_and_read_back() -> None:
-    names = {"t-54": "54", "t-5": "5", "t-up": "Uppgång 2"}
+def test_shown_number_puts_the_trapphus_first() -> None:
+    names = trapphus_names({"trapphus": [{"trapphus_id": "t-54", "namn": " 54 "}, "skräp"]})
 
+    assert names == {"t-54": "54"}
     assert display_number({"number": " 1101 ", "trapphus_id": "t-54"}, names) == "54-1101"
     assert display_number({"number": "1101"}, names) == "1101"
     assert display_number({"number": "1101", "trapphus_id": "okant"}, names) == "1101"
-    assert split_display_number("54-1101", names) == ("t-54", "1101")
-    assert split_display_number("5-1101", names) == ("t-5", "1101")
-    assert split_display_number("uppgång 2-1101", names) == ("t-up", "1101")
-    # Utan träff, eller utan nummer efter namnet, hör numret inte till något trapphus.
-    assert split_display_number("1101", names) == (None, "1101")
-    assert split_display_number("56-1101", names) == (None, "56-1101")
-    assert split_display_number("54-", names) == (None, "54-")
-    assert split_display_number("541101", names) == (None, "541101")
-    # Längsta namnet vinner.
-    assert split_display_number("5-4-1", {"a": "5", "b": "5-4"}) == ("b", "1")
+    assert trapphus_names(None) == {}
+    assert trapphus_names({"trapphus": "fel"}) == {}
 
 
-def test_structure_for_inspection_leaves_the_register_untouched() -> None:
-    structure = _validate_structure(_structure())
-    before = deepcopy(structure)
-
-    frozen = structure_for_inspection(structure)
-
-    assert structure == before
-    assert [unit["number"] for unit in frozen["units"]] == ["A-1001", "B-1002", "0901"]
-    assert frozen["trapphus"] == structure["trapphus"]
-    assert trapphus_names(frozen) == {"t-a": "A", "t-b": "B"}
-    # Utan trapphus lämnas strukturen precis som den är.
-    plain = {"units": [{"unit_id": "u", "number": "1", "kind": "apartment"}], "systems": []}
-    assert structure_for_inspection(plain) is plain
-    assert structure_for_inspection({"trapphus": "fel", "units": []}) == {
-        "trapphus": "fel",
-        "units": [],
-    }
+def test_field_unit_shows_the_port_before_the_number() -> None:
+    assert FieldUnit("u1", "ovk-1", "1101", port="54").display_number == "54-1101"
+    assert FieldUnit("u1", "ovk-1", "1101").display_number == "1101"
+    # En namngiven lokal visas med sitt namn, med eller utan port.
+    named = FieldUnit("u2", "ovk-1", "0901", kind=UnitKind.PREMISES, label="Frisör", port="54")
+    assert named.display_number == "Frisör"
+    for port in (" 54", "54  A", "x" * 101, "5\u00074"):
+        with pytest.raises(ValueError, match="port"):
+            FieldUnit("u1", "ovk-1", "1101", port=port)
 
 
-def test_promotion_reads_shown_numbers_from_the_field() -> None:
+def _field_client(tmp_path: Path) -> TestClient:
+    app = FastAPI()
+    app.include_router(ovk_fastighet_router(tmp_path))
+    app.include_router(ovk_field_router(tmp_path))
+    return TestClient(app)
+
+
+def test_field_sync_keeps_the_port_and_old_snapshots_are_unchanged(tmp_path: Path) -> None:
+    client = _field_client(tmp_path)
+    OvkWorkflowRepository(tmp_path).save(
+        build_record(
+            inspection_id="ovk-1",
+            ovk_object=OvkObject("f1", "p1", "hus-a", "Eken 1:1"),
+            systems=(VentilationSystemRef("LB01", "F", "LB01"),),
+        )
+    )
+    sync = "/api/ovk/projects/p1/field/ovk-1/sync"
+    units = [
+        {"unit_id": "u1", "number": "1101", "kind": "apartment", "port": "54"},
+        {"unit_id": "u2", "number": "1101", "kind": "apartment", "port": "56"},
+        {"unit_id": "u3", "number": "1201", "kind": "apartment"},
+    ]
+
+    saved = client.put(sync, json={"inspection_id": "ovk-1", "units": units})
+
+    assert saved.status_code == 200, saved.text
+    stored = client.get(sync).json()["payload"]["units"]
+    assert [unit.get("port") for unit in stored] == ["54", "56", None]
+    # En enhet utan port får ingen nyckel alls, som före portar fanns.
+    assert "port" not in stored[2]
+    for bad in (7, " 54", "x" * 101):
+        refused = client.put(
+            sync, json={"inspection_id": "ovk-1", "units": [{**units[0], "port": bad}]}
+        )
+        assert refused.status_code == 422, bad
+
+
+def test_promotion_places_field_units_by_their_port() -> None:
     inventory = _validate_structure(_structure())
     snapshot = {
         "units": [
-            # Känd enhet med visat nummer, som besiktningen frös den.
-            {"unit_id": "u1", "number": "A-1001", "kind": "apartment"},
-            # Känd enhet från en besiktning som skapades före trapphuset.
-            {"unit_id": "u2", "number": "1002", "kind": "apartment"},
-            # Ny i fält, skriven med port: hamnar i trapphus B.
-            {"unit_id": "u7", "number": "B-1101", "kind": "apartment"},
-            # Samma nummer som u2 men i trapphus A är en annan lägenhet.
-            {"unit_id": "u8", "number": "A-1002", "kind": "apartment"},
-            # Visat nummer som redan hör till u1.
-            {"unit_id": "u9", "number": "a-1001", "kind": "apartment"},
-            # Okänd port: läggs in utan trapphus, med numret som det skrevs.
-            {"unit_id": "u10", "number": "56-1101", "kind": "apartment"},
+            # Känd enhet; registret avgör vilket trapphus den hör till.
+            {"unit_id": "u1", "number": "1001", "kind": "apartment", "port": "A"},
+            # Ny i fält i port B.
+            {"unit_id": "u7", "number": "1101", "kind": "apartment", "port": "b"},
+            # Samma nummer som u2 (i B) men i port A är en annan lägenhet.
+            {"unit_id": "u8", "number": "1002", "kind": "apartment", "port": "A"},
+            # Utan port: läggs in utan trapphus.
+            {"unit_id": "u10", "number": "1301", "kind": "apartment"},
         ],
-        "rooms": [],
-        "measurements": [],
-    }
-
-    plan = plan_inventory_promotion(deepcopy(inventory), snapshot, {})
-
-    by_id = {unit["unit_id"]: unit for unit in plan["structure"]["units"]}
-    assert by_id["u1"] == inventory["units"][0]
-    assert by_id["u2"] == inventory["units"][1]
-    assert (by_id["u7"]["number"], by_id["u7"]["trapphus_id"]) == ("1101", "t-b")
-    assert (by_id["u8"]["number"], by_id["u8"]["trapphus_id"]) == ("1002", "t-a")
-    assert "u9" not in by_id
-    assert by_id["u10"]["number"] == "56-1101"
-    assert "trapphus_id" not in by_id["u10"]
-    # Två fältenheter delar det visade numret A-1001 (oavsett skiftläge) och
-    # lämnas därför båda; u1 finns redan och ändras inte.
-    assert [c for c in plan["conflicts"] if "tvetydigt nummer" in c] == [
-        "Enhet A-1001: ogiltigt ID eller tvetydigt nummer.",
-        "Enhet a-1001: ogiltigt ID eller tvetydigt nummer.",
-    ]
-    assert sorted(item["id"] for item in plan["additions"]) == ["u10", "u7", "u8"]
-    assert _validate_structure(plan["structure"]) == plan["structure"]
-
-
-def test_promotion_refuses_a_shown_number_that_belongs_to_another_unit() -> None:
-    inventory = _validate_structure(_structure())
-    snapshot = {
-        "units": [{"unit_id": "u9", "number": "A-1001", "kind": "apartment"}],
-        "rooms": [],
-        "measurements": [],
-    }
-
-    plan = plan_inventory_promotion(deepcopy(inventory), snapshot, {})
-
-    assert plan["additions"] == []
-    assert plan["conflicts"] == ["Enhet A-1001: numret finns med annat ID."]
-
-
-def test_known_unit_with_shown_number_gets_its_new_room() -> None:
-    inventory = _validate_structure(_structure())
-    snapshot = {
-        "units": [{"unit_id": "u1", "number": "A-1001", "kind": "apartment"}],
         "rooms": [{"room_id": "r1", "unit_id": "u1", "name": "Kök"}],
         "measurements": [],
     }
@@ -520,21 +493,102 @@ def test_known_unit_with_shown_number_gets_its_new_room() -> None:
     plan = plan_inventory_promotion(deepcopy(inventory), snapshot, {})
 
     assert plan["conflicts"] == []
-    assert plan["additions"] == [{"kind": "room", "id": "r1", "label": "A-1001 / Kök"}]
-    unit = plan["structure"]["units"][0]
-    assert (unit["number"], unit["trapphus_id"]) == ("1001", "t-a")
-    assert unit["rooms"] == [{"room_id": "r1", "name": "Kök"}]
+    by_id = {unit["unit_id"]: unit for unit in plan["structure"]["units"]}
+    assert by_id["u1"]["rooms"] == [{"room_id": "r1", "name": "Kök"}]
+    assert (by_id["u7"]["number"], by_id["u7"]["trapphus_id"]) == ("1101", "t-b")
+    assert (by_id["u8"]["number"], by_id["u8"]["trapphus_id"]) == ("1002", "t-a")
+    assert "trapphus_id" not in by_id["u10"]
+    assert plan["structure"]["trapphus"] == inventory["trapphus"]
+    assert [(item["kind"], item["label"]) for item in plan["additions"]] == [
+        ("room", "A-1001 / Kök"),
+        ("unit", "b-1101"),
+        ("unit", "A-1002"),
+        ("unit", "1301"),
+    ]
+    assert _validate_structure(plan["structure"]) == plan["structure"]
 
 
-def test_renamed_trapphus_is_read_with_the_names_the_inspection_froze() -> None:
-    frozen = structure_for_inspection(_validate_structure(_structure()))
+def test_promotion_refuses_a_number_already_in_the_port_and_ambiguous_field_numbers() -> None:
+    inventory = _validate_structure(_structure())
+    snapshot = {
+        "units": [
+            # 1001 finns redan i trapphus A med annat ID.
+            {"unit_id": "u9", "number": "1001", "kind": "apartment", "port": "A"},
+            # Två fältenheter med samma nummer i samma port.
+            {"unit_id": "u11", "number": "1401", "kind": "apartment", "port": "B"},
+            {"unit_id": "u12", "number": "1401", "kind": "apartment", "port": "b"},
+            # Samma nummer i två olika portar är inte tvetydigt.
+            {"unit_id": "u13", "number": "1501", "kind": "apartment", "port": "A"},
+            {"unit_id": "u14", "number": "1501", "kind": "apartment", "port": "B"},
+        ],
+        "rooms": [],
+        "measurements": [],
+    }
+
+    plan = plan_inventory_promotion(deepcopy(inventory), snapshot, {})
+
+    assert plan["conflicts"] == [
+        "Enhet A-1001: numret finns med annat ID.",
+        "Enhet B-1401: ogiltigt ID eller tvetydigt nummer.",
+        "Enhet b-1401: ogiltigt ID eller tvetydigt nummer.",
+    ]
+    assert sorted(item["id"] for item in plan["additions"]) == ["u13", "u14"]
+
+
+def test_port_added_in_the_field_is_proposed_as_a_new_trapphus() -> None:
+    inventory = _validate_structure(_structure())
+    snapshot = {
+        "units": [
+            {"unit_id": "u20", "number": "1001", "kind": "apartment", "port": "56"},
+            {"unit_id": "u21", "number": "1002", "kind": "apartment", "port": " 56 "},
+        ],
+        "rooms": [],
+        "measurements": [],
+    }
+
+    plan = plan_inventory_promotion(deepcopy(inventory), snapshot, {})
+    again = plan_inventory_promotion(deepcopy(inventory), snapshot, {})
+
+    added = plan["structure"]["trapphus"][2]
+    assert (added["namn"], added["adress"]) == ("56", "")
+    assert added["trapphus_id"].startswith("trapphus-")
+    # Samma förslag varje gång, så att en granskad förhandsvisning går att tillämpa.
+    assert again["structure"] == plan["structure"]
+    assert [(item["kind"], item["label"]) for item in plan["additions"]] == [
+        ("trapphus", "Port 56"),
+        ("unit", "56-1001"),
+        ("unit", "56-1002"),
+    ]
+    assert {
+        unit["trapphus_id"]
+        for unit in plan["structure"]["units"]
+        if unit["unit_id"] in {"u20", "u21"}
+    } == {added["trapphus_id"]}
+    assert _validate_structure(plan["structure"]) == plan["structure"]
+    # Ett trapphus föreslås inte om ingen av portens enheter förs över.
+    blocked = {
+        "units": [
+            {"unit_id": "u30", "number": "1", "kind": "apartment", "port": "58"},
+            {"unit_id": "u31", "number": "1", "kind": "apartment", "port": "58"},
+        ],
+        "rooms": [],
+        "measurements": [],
+    }
+    assert "trapphus" not in {
+        item["kind"]
+        for item in plan_inventory_promotion(deepcopy(inventory), blocked, {})["additions"]
+    }
+
+
+def test_renamed_trapphus_is_found_through_the_names_the_inspection_froze() -> None:
+    frozen = _validate_structure(_structure())
     renamed = _structure()
     renamed["trapphus"][0]["namn"] = "54"
     inventory = _validate_structure(renamed)
     snapshot = {
         "units": [
-            {"unit_id": "u1", "number": "A-1001", "kind": "apartment"},
-            {"unit_id": "u7", "number": "A-1101", "kind": "apartment"},
+            {"unit_id": "u1", "number": "1001", "kind": "apartment", "port": "A"},
+            {"unit_id": "u7", "number": "1101", "kind": "apartment", "port": "A"},
         ],
         "rooms": [{"room_id": "r1", "unit_id": "u1", "name": "Kök"}],
         "measurements": [],
@@ -542,26 +596,24 @@ def test_renamed_trapphus_is_read_with_the_names_the_inspection_froze() -> None:
 
     plan = plan_inventory_promotion(deepcopy(inventory), snapshot, {}, frozen)
 
-    # Den kända enheten godtas med numret från frysningen, och den nya hamnar
-    # i samma trapphus fast det nu heter 54.
+    # Den nya enheten hamnar i samma trapphus, fast det nu heter 54, och inget
+    # nytt trapphus föreslås.
     assert plan["conflicts"] == []
     by_id = {unit["unit_id"]: unit for unit in plan["structure"]["units"]}
     assert by_id["u1"]["rooms"] == [{"room_id": "r1", "name": "Kök"}]
     assert (by_id["u7"]["number"], by_id["u7"]["trapphus_id"]) == ("1101", "t-a")
+    assert [item["namn"] for item in plan["structure"]["trapphus"]] == ["54", "B"]
     assert _validate_structure(plan["structure"]) == plan["structure"]
-    # Utan den frysta strukturen känns det gamla namnet inte igen.
-    without = plan_inventory_promotion(deepcopy(inventory), snapshot, {})
-    assert "Enhet A-1001: befintligt ID har annan beteckning eller typ." in without["conflicts"]
 
 
 def test_unit_in_a_removed_trapphus_is_left_out_not_added_loose() -> None:
-    frozen = structure_for_inspection(_validate_structure(_structure()))
+    frozen = _validate_structure(_structure())
     reduced = _structure()
     del reduced["trapphus"][1]
     del reduced["units"][1]
     inventory = _validate_structure(reduced)
     snapshot = {
-        "units": [{"unit_id": "u7", "number": "B-1101", "kind": "apartment"}],
+        "units": [{"unit_id": "u7", "number": "1101", "kind": "apartment", "port": "B"}],
         "rooms": [],
         "measurements": [],
     }
@@ -572,7 +624,7 @@ def test_unit_in_a_removed_trapphus_is_left_out_not_added_loose() -> None:
     assert plan["conflicts"] == ["Enhet B-1101: trapphuset finns inte längre i registret."]
 
 
-def test_frozen_inspection_synced_from_field_is_promoted_through_the_routes(
+def test_frozen_inspection_synced_from_field_is_promoted_and_shown_with_port(
     tmp_path: Path,
     monkeypatch: MonkeyPatch,
 ) -> None:
@@ -603,7 +655,7 @@ def test_frozen_inspection_synced_from_field_is_promoted_through_the_routes(
         == 200
     )
     structure: dict[str, Any] = {
-        "trapphus": [{"trapphus_id": "t-a", "namn": "A", "adress": ""}],
+        "trapphus": [{"trapphus_id": "t-a", "namn": "54", "adress": ""}],
         "units": [
             {
                 "unit_id": "u1",
@@ -625,13 +677,17 @@ def test_frozen_inspection_synced_from_field_is_promoted_through_the_routes(
     }
     assert client.put("/api/ovk/projects/p1/inspections/ovk-001", json=payload).status_code == 200
     # Trapphuset byter namn efter att besiktningen skapats.
-    structure["trapphus"][0]["namn"] = "54"
+    structure["trapphus"][0]["namn"] = "54A"
     assert client.put(structure_url, json=structure).status_code == 200
     synced = client.put(
         "/api/ovk/projects/p1/field/ovk-001/sync",
         json={
             "inspection_id": "ovk-001",
-            "units": [{"unit_id": "u1", "number": "A-1203", "kind": "apartment"}],
+            "units": [
+                {"unit_id": "u1", "number": "1203", "kind": "apartment", "port": "54"},
+                {"unit_id": "u2", "number": "1204", "kind": "apartment", "port": "54"},
+                {"unit_id": "u3", "number": "1203", "kind": "apartment", "port": "56"},
+            ],
             "rooms": [{"room_id": "r1", "unit_id": "u1", "name": "Kök"}],
             "measurements": [],
         },
@@ -643,12 +699,20 @@ def test_frozen_inspection_synced_from_field_is_promoted_through_the_routes(
 
     assert plan.status_code == 200, plan.text
     assert plan.json()["conflicts"] == []
-    assert plan.json()["additions"] == [{"kind": "room", "id": "r1", "label": "A-1203 / Kök"}]
+    assert [(item["kind"], item["label"]) for item in plan.json()["additions"]] == [
+        ("room", "54-1203 / Kök"),
+        ("unit", "54-1204"),
+        ("trapphus", "Port 56"),
+        ("unit", "56-1203"),
+    ]
     applied = client.post(
         promotion + "/apply",
         json={"assignments": {}, "preview_token": plan.json()["preview_token"], "confirmed": True},
     )
     assert applied.status_code == 200, applied.text
-    unit = client.get(structure_url).json()["units"][0]
-    assert (unit["number"], unit["trapphus_id"]) == ("1203", "t-a")
-    assert unit["rooms"] == [{"room_id": "r1", "name": "Kök"}]
+    after = client.get(structure_url).json()
+    assert [item["namn"] for item in after["trapphus"]] == ["54A", "56"]
+    by_id = {unit["unit_id"]: unit for unit in after["units"]}
+    assert by_id["u1"]["rooms"] == [{"room_id": "r1", "name": "Kök"}]
+    assert by_id["u2"]["trapphus_id"] == "t-a"
+    assert by_id["u3"]["trapphus_id"] == after["trapphus"][1]["trapphus_id"]

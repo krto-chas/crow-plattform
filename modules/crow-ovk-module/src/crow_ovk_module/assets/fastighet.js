@@ -103,7 +103,7 @@ function inventoryInput(parent,label,value,change,options=null){
 function trapphusLabel(item){const namn=String(item.namn||'').trim(),adress=String(item.adress||'').trim();return (namn||'(namn saknas)')+(adress?' – '+adress:'')}
 function unitTrapphus(unit){return (inventory?.trapphus||[]).find(t=>t.trapphus_id===unit.trapphus_id)||null}
 function unitScope(unit){return unitTrapphus(unit)?.trapphus_id||''}
-// Numret som det visas i fältappen och protokollet: "54-1101" i trapphus 54.
+// Numret som det skrivs i protokollet: "54-1101" i trapphus 54.
 function unitDisplayNumber(unit){const t=unitTrapphus(unit),namn=String(t?.namn||'').trim(),number=String(unit.number??'').trim();return namn?namn+'-'+number:number}
 function inventoryCard(parent){const card=document.createElement('div');card.className='bygg';parent.append(card);return card}
 function inventoryRemove(items,item){if(!confirm('Ta bort posten från byggnadsregistret?'))return;items.splice(items.indexOf(item),1);inventoryChanged();renderInventory()}
@@ -186,7 +186,7 @@ function renderInventory(){
     },[['apartment','Lägenhet'],['premises','Lokal']]);
     kindInput.setAttribute('aria-label','Enhetstyp');
     const shown=document.createElement('p');shown.className='muted';
-    const showNumber=()=>{const number=String(unit.number??'').trim();shown.hidden=!unitTrapphus(unit)||!number;shown.textContent='Visas som '+unitDisplayNumber(unit)+' i fältappen och protokollet.'};
+    const showNumber=()=>{const number=String(unit.number??'').trim();shown.hidden=!unitTrapphus(unit)||!number;shown.textContent='Skrivs '+unitDisplayNumber(unit)+' i protokollet.'};
     inventoryInput(card,unit.kind==='premises'?'Permanent lokalnummer':'Lägenhetsnummer',unit.number,v=>{unit.number=v;showNumber()});
     card.append(shown);shownNumbers.push(showNumber);
     if(unit.kind==='premises'){
@@ -308,7 +308,7 @@ function renderPromotion(plan){
   const parent=$('promotionResult');parent.replaceChildren();
   const heading=(label)=>{const h=document.createElement('h4');h.textContent=label;parent.append(h)};
   heading('Föreslagna tillägg ('+plan.additions.length+')');
-  for(const item of plan.additions)promotionLine(parent,({unit:'Enhet',room:'Rum',point:'Don'}[item.kind]||'Post')+' · '+item.label);
+  for(const item of plan.additions)promotionLine(parent,({trapphus:'Nytt trapphus',unit:'Enhet',room:'Rum',point:'Don'}[item.kind]||'Post')+' · '+item.label);
   if(plan.conflicts.length){heading('Lämnas oförändrade');for(const conflict of plan.conflicts)promotionLine(parent,conflict)}
   if(plan.unresolved.length){
     heading('Don som behöver systemkoppling');

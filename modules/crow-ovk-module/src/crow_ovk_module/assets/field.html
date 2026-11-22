@@ -363,10 +363,11 @@
       <p id="ovkFieldWorkNote" class="room-progress" role="status" aria-live="polite"></p>
       <p id="roundSummary" class="room-progress" role="status" aria-live="polite"></p>
       <button class="btn" id="continueUnit" hidden>Fortsätt med nästa enhet</button>
-      <div class="round-toolbar"><div><label for="unitSearch">Sök</label><input id="unitSearch" type="search" placeholder="T.ex. 1201" aria-label="Sök lägenhet eller lokal"></div><div><label for="unitFilter">Visa</label><select id="unitFilter"><option value="all">Alla</option><option value="pending">Återstående</option><option value="not_started">Ej påbörjade</option><option value="ongoing">Pågående</option><option value="measure_left">Mätning återstår</option><option value="checked">Färdigbesiktigade</option><option value="bom">Ej tillgängliga (BOM)</option><option value="revisit">Återbesök krävs</option></select></div><div hidden><label for="unitFloor">Våning</label><select id="unitFloor"><option value="">Alla våningar</option></select></div></div>
+      <div class="round-toolbar"><div hidden><label for="unitPort">Port</label><select id="unitPort" aria-label="Välj port"></select></div><div><label for="unitSearch">Sök</label><input id="unitSearch" type="search" placeholder="T.ex. 1201" aria-label="Sök lägenhet eller lokal"></div><div><label for="unitFilter">Visa</label><select id="unitFilter"><option value="all">Alla</option><option value="pending">Återstående</option><option value="not_started">Ej påbörjade</option><option value="ongoing">Pågående</option><option value="measure_left">Mätning återstår</option><option value="checked">Färdigbesiktigade</option><option value="bom">Ej tillgängliga (BOM)</option><option value="revisit">Återbesök krävs</option></select></div><div hidden><label for="unitFloor">Våning</label><select id="unitFloor"><option value="">Alla våningar</option></select></div></div>
       <div id="unitList"></div>
       <p id="unitEmpty" class="room-progress" hidden></p>
       <button class="btn ghost" id="addUnit">+ Lägg till enhet</button>
+      <button type="button" class="ovk-wz-link" id="addPort">Ange port (flera portar med samma lägenhetsnummer)</button>
     </div>
     <div class="card">
       <div class="eyebrow">Allmänna delar · <span id="spaceMeta">0 utrymmen</span></div><h2 class="section-heading">Teknikutrymmen</h2>
@@ -1462,11 +1463,11 @@
     const step=STEP[phase];
     cards.forEach((card,index)=>{const active=index===step;card.classList.toggle('ovk-step-active',active);card.setAttribute('aria-hidden',String(!active));if('inert' in card)card.inert=!active});
     const title=premises&&phase==='measure'?'Mätning i rummet':premises&&phase==='visual'?'Rum för rum':phase==='measure'?'Varv 2 · Flödesmätning':phase==='visual'?'Varv 1 · Visuell kontroll':phase==='review'?'Slutkontroll':(premises?'Lokal och nycklar':'Lägenhet och nycklar');
-    const unitName=!unit?'':premises?(unit.label||unit.number):'Lgh '+unit.number;
+    const unitName=!unit?'':premises?(unit.label||unit.number):'Lgh '+unitNumberText(unit);
     $id('ovkStepTitle').textContent=(unitName?unitName+' · ':'')+title;
     $id('ovkReviewHeading').textContent='Överblick'+(unitName?' · '+unitName:'');
     const next=unit?nextPendingUnit(unit.unit_id):null;
-    const nextLabel=!next?'Klar – till listan':'Klar – nästa '+(next.kind==='premises'?'lokal':'lägenhet')+' ('+(next.kind==='premises'&&next.label?next.label:next.number)+')';
+    const nextLabel=!next?'Klar – till listan':'Klar – nästa '+(next.kind==='premises'?'lokal':'lägenhet')+' ('+(next.kind==='premises'&&next.label?next.label:unitNumberText(next))+')';
     $id('ovkStepCount').textContent=phase==='review'?'Klart för granskning':phase==='setup'?'Förberedelse':!rooms.length?'Inga rum':phase==='measure'&&measureIndex>=0?'Rum '+(measureIndex+1)+' av '+measured.length:room?'Rum '+(roomIndex+1)+' av '+rooms.length:rooms.length+' rum · välj nästa';
     $id('ovkStepFill').style.width=(phase==='review'?100:phase==='measure'?50+50*(Math.max(0,measureIndex)+1)/Math.max(1,measured.length):phase==='visual'?50*(roomIndex+1)/Math.max(1,rooms.length):0)+'%';
     $id('footBack').textContent=phase==='setup'?'Till listan':'Tillbaka';
@@ -1651,7 +1652,7 @@
   // klara) från det som bara ska uppmärksammas. Enheter utan tillträde hindrar inte
   // avslut, men då ska omfattning och begränsningar skrivas in. Protokollet skapas
   // senare och på kontorssidan; här sätts bara att fältarbetet är avslutat.
-  const fwUnit=unit=>unit.kind==='premises'?(unit.label||'Lokal '+unit.number):'Lgh '+unit.number;
+  const fwUnit=unit=>unit.kind==='premises'?(unit.label||'Lokal '+unit.number):'Lgh '+unitNumberText(unit);
   const fwStamp=value=>{const date=new Date(value);return Number.isNaN(date.getTime())?'':date.toLocaleString('sv-SE',{dateStyle:'short',timeStyle:'short'})};
   function finishFacts(){
     const by=key=>state.units.filter(unit=>key.includes(unitProgress(unit)));
@@ -1760,13 +1761,15 @@
   // Ronderingsvyn: nästa enhet ligger i sidfoten, synk bredvid.
   const footSync=$id('footSync');
   const footInner=$id('footDone').parentElement;
-  const roundUnitLabel=unit=>unit.kind==='premises'?(unit.label||'lokal '+unit.number):'lgh '+unit.number;
+  const roundUnitLabel=unit=>unit.kind==='premises'?(unit.label||'lokal '+unit.number):'lgh '+unitNumberText(unit);
   function roundFooter(name){
     const next=name==='viewRond'?nextPendingUnit():null;
     // När inget återstår är nästa steg att granska och avsluta; därefter att synka.
     const finish=name==='viewRond'&&!next&&state.units.length>0&&!state.field_work_completed_at;
     footSync.hidden=!(next||finish);footInner.classList.toggle('three',Boolean(next||finish));
     if(next){$id('footDone').textContent='Fortsätt · '+roundUnitLabel(next);$id('footBack').textContent='Start'}
+    // Med portar är porten klar först; valet att gå vidare eller avsluta görs i nästa steg.
+    else if(finish&&portDone()){$id('footDone').textContent=portLabel(activePort())+' klar';$id('footBack').textContent='Start'}
     else if(finish){$id('footDone').textContent='Granska och avsluta';$id('footBack').textContent='Start'}
     // På startsidan leder vänsterknappen tillbaka till OVK-modulens översikt.
     if(name==='viewStart'){
@@ -1775,6 +1778,29 @@
       if(latest)$id('footDone').textContent='Fortsätt · '+draftName(latest);
     }
   }
+  // Porten är klar när den har enheter och ingen av dem väntar på att påbörjas.
+  function portDone(){return portsInUse()&&portUnits().length>0&&!nextPendingUnit()}
+  let portSheetOpen=false;
+  async function showPortDone(){
+    if(portSheetOpen||!portDone()||state.field_work_completed_at)return;
+    portSheetOpen=true;
+    try{
+      const upcoming=nextPendingPort();
+      const answer=await askSheet({title:portLabel(activePort())+' är klar',note:upcoming===null?'Ingen annan port har enheter kvar att påbörja.':'Gå vidare till nästa port eller avsluta besiktningen.',
+        choices:[...(upcoming===null?[]:[['next',upcoming?'Gå till port '+upcoming:'Gå till enheter utan port',true]]),['new','Ny port',upcoming===null],['finish','Granska och avsluta']],cancelLabel:'Stanna i porten',stack:true});
+      if(!answer)return;
+      if(answer.choice==='next')await choosePort(upcoming);
+      else if(answer.choice==='new')await addPort();
+      else if(answer.choice==='finish')showFinish();
+    }finally{portSheetOpen=false}
+  }
+  window.ovkPortDone=showPortDone;
+  $id('unitPort').addEventListener('change',async()=>{
+    const select=$id('unitPort');
+    if(select.value==='__new'){select.value=activePort();await addPort();return}
+    await choosePort(select.value);
+  });
+  $id('addPort').addEventListener('click',()=>{void addPort()});
   const originalFootBack=$id('footBack').onclick;
   $id('footBack').onclick=function(event){
     if(document.querySelector('.view.on').id==='viewStart'){location.assign('/ovk');return undefined}
@@ -1784,7 +1810,7 @@
   const originalFootDone=$id('footDone').onclick;
   $id('footDone').onclick=function(event){
     if(document.querySelector('.view.on').id==='viewRond'){const next=nextPendingUnit();if(next){openUnit(next.unit_id);return undefined}
-      if(state.units.length&&!state.field_work_completed_at){showFinish();return undefined}}
+      if(state.units.length&&!state.field_work_completed_at){if(portDone())void showPortDone();else showFinish();return undefined}}
     if(document.querySelector('.view.on').id==='viewStart'&&startCollapsed()&&draftList[0]){void openDraft(draftList[0]);return undefined}
     return originalFootDone.call(this,event);
   };
@@ -1797,7 +1823,7 @@
   // ── Färdigbesiktigad enhet: varna innan den öppnas ───────────────────
   // Listan får aldrig tyst öppna en färdig enhet för ändring. Visningen är en ren
   // läsvy byggd ur utkastet; den ändrar ingenting.
-  const unitName=unit=>(unit.kind==='premises'?'Lokal ':'Lägenhet ')+(unit.kind==='premises'&&unit.label?unit.label:unit.number);
+  const unitName=unit=>(unit.kind==='premises'?'Lokal ':'Lägenhet ')+(unit.kind==='premises'&&unit.label?unit.label:unitNumberText(unit));
   const CLASS_LABEL={0:'Upplysning',1:'Bör åtgärdas',2:'Väsentlig brist'};
   function unitResultText(unit){
     const remarks=unitRemarks(unit.unit_id).length;
@@ -1920,7 +1946,7 @@
   let armed='';
   function entries(){
     const list=[{id:'master',name:'Huvudnyckel',get:()=>state.master_key,ensure:()=>state.master_key=state.master_key||blank()}];
-    for(const unit of state.units)list.push({id:unit.unit_id,unit,name:(unit.kind==='premises'?(unit.label||'Lokal '+unit.number):'Lgh '+unit.number)+(keyTagText(unit.key)?' · '+keyTagText(unit.key):''),get:()=>unit.key,ensure:()=>unit.key=unit.key||blank()});
+    for(const unit of state.units)list.push({id:unit.unit_id,unit,name:(unit.kind==='premises'?(unit.label||'Lokal '+unit.number):'Lgh '+unitNumberText(unit))+(keyTagText(unit.key)?' · '+keyTagText(unit.key):''),get:()=>unit.key,ensure:()=>unit.key=unit.key||blank()});
     return list;
   }
   function receive(entry){const key=entry.ensure();key.state='';if(entry.unit)assignKeyTag(key);key.received=true;key.received_at=now();key.returned=false;key.returned_at=null;key.returned_method=''}
@@ -2003,7 +2029,7 @@
       const value=Number(values.tag);
       if(!/^\d{1,3}$/.test(values.tag)||value<1||value>KEY_TAG_MAX)return 'Numret ska vara ett heltal från 1 till '+KEY_TAG_MAX+'.';
       const taken=state.units.find(unit=>unit!==entry.unit&&unit.key&&unit.key.tag===value);
-      return taken?'Nr '+value+' används redan av '+(taken.kind==='premises'?(taken.label||'lokal '+taken.number):'lgh '+taken.number)+'.':'';
+      return taken?'Nr '+value+' används redan av '+(taken.kind==='premises'?(taken.label||'lokal '+taken.number):'lgh '+unitNumberText(taken))+'.':'';
     };
     const answer=await askSheet({title:'Nyckelns nummer',note:entry.name.split(' · ')[0]+'. Numret på brickan du fäst på nyckeln.',fields:[{id:'tag',label:'Nummer',value:String(key.tag||''),required:true,inputMode:'numeric',maxLength:3}],submitLabel:'Spara nummer',validate:check});
     if(!answer)return;
@@ -2029,7 +2055,7 @@
   // ── Dagsavslut ───────────────────────────────────────────────────────
   // Det som måste vara omhändertaget innan man lämnar huset: nycklar som är ute eller
   // saknas, enheter som kräver återbesök och enheter utan tillgång. Ren läsvy.
-  const unitLabel=unit=>unit.kind==='premises'?(unit.label||'Lokal '+unit.number):'Lgh '+unit.number;
+  const unitLabel=unit=>unit.kind==='premises'?(unit.label||'Lokal '+unit.number):'Lgh '+unitNumberText(unit);
   function dayEndSections(){
     const all=entries();
     return [

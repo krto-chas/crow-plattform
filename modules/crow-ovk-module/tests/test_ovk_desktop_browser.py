@@ -842,10 +842,10 @@ def test_trapphus_is_registered_and_groups_the_units(
         "() => document.getElementById('inventoryStatus').textContent"
         " === 'Byggnadsstruktur sparad.'"
     )
-    # Numret visas med trapphusets namn framför, som i fältappen och protokollet.
+    # Under numret står hur det skrivs i protokollet, med trapphusets namn framför.
     assert (
         page.locator("#inventoryUnits .trapphus-group").first.locator("p.muted").first.inner_text()
-        == "Visas som A <b>-1001 i fältappen och protokollet."
+        == "Skrivs A <b>-1001 i protokollet."
     )
     # Samma nummer får finnas i ett annat trapphus, men inte två gånger i samma.
     page.select_option("#bulkTrapphus", label="B")

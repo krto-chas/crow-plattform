@@ -2547,3 +2547,228 @@ def test_both_themes_keep_text_readable(field_url: str, browser: Any, scheme: st
     assert (paper() < 60) is (other == "dark")
     assert errors == []
     context.close()
+
+
+def test_ports_keep_four_digit_numbers_and_ask_for_the_next_port(
+    field_url: str, browser: Any
+) -> None:
+    context = browser.new_context(
+        viewport={"width": 390, "height": 844}, is_mobile=True, has_touch=True
+    )
+    flow = _Flow(context.new_page())
+    page = flow.page
+    dialogs: list[str] = []
+    _record_dialogs(page, dialogs)
+    flow.start(field_url)
+
+    def port_options() -> list[str]:
+        result: list[str] = page.eval_on_selector_all(
+            "#unitPort option", "items => items.map(o => o.textContent)"
+        )
+        return result
+
+    def rows() -> list[str]:
+        result: list[str] = page.eval_on_selector_all(
+            "#unitList .unitrow .nr", "items => items.map(n => n.textContent)"
+        )
+        return result
+
+    # Utan portar är ronderingen som förut: inget portval, bara en länk för att ange port.
+    page.evaluate("() => renderRond()")
+    assert page.evaluate("() => document.getElementById('unitPort').closest('div').hidden")
+    assert not page.evaluate("() => document.getElementById('addPort').hidden")
+    assert flow.state("portsInUse()") is False
+    assert "port" not in flow.state("payload().units[0]")
+
+    # Första lägenheten går till slutkontroll. Lägenheterna läggs i var sin port,
+    # som när uppdraget kommer från kontoret med trapphus.
+    flow.room("Hall")
+    flow.next("remark")
+    flow.answer("Nej, inget att anmärka", "done")
+    page.click("#footDone")
+    page.wait_for_function(
+        "document.getElementById('ovkStepTitle').textContent.includes('Slutkontroll')"
+    )
+    page.evaluate(
+        """() => { state.units[0].port = '54'; state.units[1].port = '56';
+                   state.ports = ['54', '56']; state.active_port = '54';
+                   updateFooter('viewUnit'); }"""
+    )
+    assert page.text_content("#ovkStepTitle").startswith("Lgh 54-1001")
+    # Nästa lägenhet söks bara i porten: 1002 ligger i port 56.
+    assert page.text_content("#footDone") == "Klar – till listan"
+
+    # Portens sista lägenhet klarmarkeras: frågan om nästa port kommer direkt.
+    page.click("#footDone")
+    page.wait_for_selector("#ovkSheet")
+    assert page.text_content("#ovkSheetTitle") == "Port 54 är klar"
+    assert page.eval_on_selector_all(
+        "#ovkSheet [data-sheet-choice]", "items => items.map(b => b.textContent)"
+    ) == ["Gå till port 56", "Ny port", "Granska och avsluta"]
+    assert flow.state("state.units[0].status") == "ua"
+    page.click("#ovkSheet [data-sheet-choice='next']")
+    page.wait_for_function("activePort() === '56'")
+    assert rows() == ["1002"]
+    assert page.text_content("#rondMeta").endswith("· Port 56")
+    assert port_options() == ["Port 54 (1)", "Port 56 (1)", "+ Ny port…"]
+    assert page.evaluate("() => document.getElementById('addPort').hidden")
+    assert page.text_content("#cTotal") == "1"
+    assert page.text_content("#footDone") == "Fortsätt · lgh 56-1002"
+
+    # Tillbaka i den klara porten erbjuder sidfoten samma fråga igen.
+    page.select_option("#unitPort", "54")
+    page.wait_for_function("activePort() === '54'")
+    assert rows() == ["1001"]
+    assert page.text_content("#footDone") == "Port 54 klar"
+    page.click("#footDone")
+    page.wait_for_selector("#ovkSheet")
+    page.click("#ovkSheet [data-sheet-cancel]")
+    assert flow.state("activePort()") == "54"
+
+    # En ny port anges på ett ställe. Samma fyrsiffriga nummer får finnas där.
+    page.select_option("#unitPort", "__new")
+    page.wait_for_selector("#ovkSheet")
+    page.fill("#ovkSheet_port", "54")
+    page.click("#ovkSheet [data-sheet-submit]")
+    assert page.text_content("#ovkSheet .ovk-sheet-status") == (
+        "Porten finns redan. Välj den i listan."
+    )
+    page.fill("#ovkSheet_port", "  58  ")
+    page.click("#ovkSheet [data-sheet-submit]")
+    page.wait_for_function("activePort() === '58'")
+    assert rows() == []
+    assert page.text_content("#unitEmpty") == (
+        "Inga enheter i port 58 ännu. Lägg till lägenheter eller lokaler."
+    )
+    page.click("#addUnit")
+    page.wait_for_selector("#ovkSheet")
+    page.fill("#ovkSheet_numbers", "1001, 1101")
+    page.click("#ovkSheet [data-sheet-submit]")
+    page.wait_for_function("document.querySelectorAll('#unitList .unitrow').length === 2")
+    assert rows() == ["1001", "1101"]
+    assert page.text_content("#unitAddStatus") == "2 enhet(er) tillagda i port 58: 1001, 1101"
+    # Våningsfiltret läser fortfarande våningen ur de fyrsiffriga numren.
+    assert not page.evaluate("() => document.getElementById('unitFloor').closest('div').hidden")
+    # Samma nummer en gång till i samma port läggs inte till.
+    page.click("#addUnit")
+    page.wait_for_selector("#ovkSheet")
+    page.fill("#ovkSheet_numbers", "1001")
+    page.click("#ovkSheet [data-sheet-submit]")
+    page.wait_for_function(
+        "document.getElementById('unitAddStatus').textContent"
+        " === 'Alla angivna enheter finns redan.'"
+    )
+    assert flow.state("state.units.length") == 4
+
+    # Porten följer med enheten i synken och godtas av servern.
+    data = _validated_payload(flow.state("payload()"))
+    assert [(unit.port, unit.number) for unit in data.units] == [
+        ("54", "1001"),
+        ("56", "1002"),
+        ("58", "1001"),
+        ("58", "1101"),
+    ]
+    assert [unit.display_number for unit in data.units] == [
+        "54-1001",
+        "56-1002",
+        "58-1001",
+        "58-1101",
+    ]
+
+    # Portarna och den valda porten finns kvar efter omladdning.
+    _reload_after_save(page)
+    page.wait_for_function("typeof state === 'object' && state.units.length === 4")
+    page.wait_for_function("document.querySelector('.view.on').id === 'viewRond'")
+    assert flow.state("activePort()") == "58"
+    assert port_options() == ["Port 54 (1)", "Port 56 (1)", "Port 58 (2)", "+ Ny port…"]
+    assert rows() == ["1001", "1101"]
+    assert flow.errors == []
+    assert dialogs == []
+    context.close()
+
+
+def test_assignment_with_trapphus_opens_with_ports_in_the_field(
+    field_url: str, browser: Any
+) -> None:
+    import httpx
+    from test_ovk_workflow import _workflow_payload
+
+    root = field_url.removesuffix("/ovk/falt")
+    api = httpx.Client(base_url=root)
+    property_url = "/api/ovk/projects/p1/fastighet/object-1"
+    assert (
+        api.put(
+            property_url,
+            json={
+                "fastighetsbeteckning": "Björken 12",
+                "byggnader": [{"byggnad_id": "building-1", "internt_namn": "Hus A"}],
+            },
+        ).status_code
+        == 200
+    )
+    assert (
+        api.put(
+            "/api/ovk/registry/besiktningsman/person-1",
+            json={
+                "namn": "Test Kontrollant",
+                "behorighet": "K",
+                "certifieringsorgan": "Test",
+                "certnummer": "123",
+                "giltig_till": "2030-12-31",
+            },
+        ).status_code
+        == 200
+    )
+    structure = {
+        "trapphus": [
+            {"trapphus_id": "t-54", "namn": "54", "adress": "Storgatan 54"},
+            {"trapphus_id": "t-56", "namn": "56", "adress": "Storgatan 56"},
+        ],
+        "units": [
+            {"unit_id": "u1", "number": "1001", "kind": "apartment", "trapphus_id": "t-54"},
+            {"unit_id": "u2", "number": "1101", "kind": "apartment", "trapphus_id": "t-54"},
+            {"unit_id": "u3", "number": "1001", "kind": "apartment", "trapphus_id": "t-56"},
+        ],
+        "systems": [{"system_id": "FTX01", "system_type": "FTX", "label": "LB01"}],
+        "technical_spaces": [],
+    }
+    assert api.put(property_url + "/byggnad/building-1/struktur", json=structure).status_code == 200
+    payload = _workflow_payload()
+    payload["planning"] = {
+        "inspector_id": "person-1",
+        "planned_date": "2027-01-15",
+        "inspection_type": "aterkommande",
+    }
+    assert api.put("/api/ovk/projects/p1/inspections/ovk-001", json=payload).status_code == 200
+
+    context = browser.new_context(
+        viewport={"width": 390, "height": 844}, is_mobile=True, has_touch=True
+    )
+    page = context.new_page()
+    errors: list[str] = []
+    page.on("pageerror", lambda error: errors.append(str(error)))
+    page.goto(field_url + "?project_id=p1&inspection_id=ovk-001")
+    page.wait_for_function("typeof state === 'object' && state.units.length === 3", timeout=20000)
+    page.wait_for_function("document.querySelector('.view.on').id === 'viewRond'")
+
+    # Kontorets trapphus är portar; lägenheterna har kvar sina fyrsiffriga nummer.
+    assert page.evaluate("() => state.units.map(unit => [unit.port, unit.number])") == [
+        ["54", "1001"],
+        ["54", "1101"],
+        ["56", "1001"],
+    ]
+    assert page.eval_on_selector_all("#unitPort option", "o => o.map(x => x.textContent)") == [
+        "Port 54 (2)",
+        "Port 56 (1)",
+        "+ Ny port…",
+    ]
+    assert page.eval_on_selector_all(
+        "#unitList .unitrow .nr", "items => items.map(n => n.textContent)"
+    ) == ["1001", "1101"]
+    assert page.text_content("#rondMeta").endswith("· Port 54")
+    assert not page.evaluate("() => document.getElementById('unitFloor').closest('div').hidden")
+    data = _validated_payload(page.evaluate("() => payload()"))
+    assert [unit.display_number for unit in data.units] == ["54-1001", "54-1101", "56-1001"]
+    assert errors == []
+    context.close()
+    api.close()
