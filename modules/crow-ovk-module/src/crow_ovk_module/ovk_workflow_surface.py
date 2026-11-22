@@ -4,11 +4,12 @@ from __future__ import annotations
 import json
 import re
 from dataclasses import replace
+from hashlib import sha256
 from pathlib import Path
 from typing import Any
 
 from crow_ovk_fastighet import BesiktningsmanRepository, FastighetRepository
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from fastapi.responses import HTMLResponse
 
 from crow_ovk_workflow import (
@@ -20,6 +21,54 @@ from crow_ovk_workflow import (
 )
 
 from .ovk_issuance_lock import inspection_mutation_guard
+
+REVISION_HEADER = "X-OVK-Record-Revision"
+
+
+def _content(record: OvkWorkflowRecord) -> dict[str, Any]:
+    payload = record_to_payload(record)
+    # Tidsstämpeln sätts vid varje sparning och hör inte till innehållet.
+    payload.pop("updated_at", None)
+    return payload
+
+
+def record_revision(record: OvkWorkflowRecord) -> str:
+    """Postens revision: checksumman över dess sparade innehåll."""
+
+    canonical = json.dumps(
+        record_to_payload(record), ensure_ascii=False, sort_keys=True, separators=(",", ":")
+    )
+    return sha256(canonical.encode("utf-8")).hexdigest()
+
+
+def _require_base_revision(
+    base: str | None, previous: OvkWorkflowRecord | None, record: OvkWorkflowRecord
+) -> None:
+    """Avvisa en sparning som inte utgår från postens nuvarande innehåll.
+
+    Hela posten skrivs vid varje sparning. Utan kontrollen skriver en flik med
+    gammalt innehåll tyst över det någon annan har sparat, eller ett nybyggt
+    eller återställt utkast.
+    """
+
+    if previous is None:
+        if base is not None:
+            # Klienten utgick från en post som inte längre finns.
+            raise HTTPException(status_code=409, detail={"code": "OVK_RECORD_REVISION_CONFLICT"})
+        return
+    if base is None:
+        # Ett upprepat försök med samma innehåll, t.ex. efter ett tappat svar
+        # när posten skapades, ändrar ingenting och släpps igenom.
+        unchanged = replace(
+            record,
+            planning=record.planning or previous.planning,
+            building_structure_json=previous.building_structure_json,
+        )
+        if _content(unchanged) == _content(previous):
+            return
+        raise HTTPException(status_code=428, detail={"code": "OVK_RECORD_REVISION_REQUIRED"})
+    if base != record_revision(previous):
+        raise HTTPException(status_code=409, detail={"code": "OVK_RECORD_REVISION_CONFLICT"})
 
 
 def ovk_workflow_router(data_root: Path) -> APIRouter:
@@ -60,8 +109,10 @@ def ovk_workflow_router(data_root: Path) -> APIRouter:
         "/api/ovk/projects/{project_id}/inspections/{inspection_id}",
         response_model=None,
     )
-    def get_inspection(project_id: str, inspection_id: str) -> dict[str, Any]:
-        return record_to_payload(_load(repository, project_id, inspection_id))
+    def get_inspection(project_id: str, inspection_id: str, response: Response) -> dict[str, Any]:
+        record = _load(repository, project_id, inspection_id)
+        response.headers[REVISION_HEADER] = record_revision(record)
+        return record_to_payload(record)
 
     @router.put(
         "/api/ovk/projects/{project_id}/inspections/{inspection_id}",
@@ -71,6 +122,7 @@ def ovk_workflow_router(data_root: Path) -> APIRouter:
         project_id: str,
         inspection_id: str,
         request: Request,
+        response: Response,
     ) -> dict[str, Any]:
         payload: Any = await request.json()
         if not isinstance(payload, dict):
@@ -96,6 +148,7 @@ def ovk_workflow_router(data_root: Path) -> APIRouter:
                 previous = repository.load(project_id, inspection_id)
             except FileNotFoundError:
                 previous = None
+            _require_base_revision(request.headers.get("X-OVK-Base-Revision"), previous, record)
             if previous is not None and candidate.get("planning") is None:
                 record = replace(record, planning=previous.planning)
             if record.planning is not None:
@@ -168,6 +221,9 @@ def ovk_workflow_router(data_root: Path) -> APIRouter:
                 status_code=422,
                 detail={"code": "INVALID_OVK_WORKFLOW", "message": str(exc)},
             ) from exc
+        response.headers[REVISION_HEADER] = record_revision(
+            repository.load(project_id, inspection_id)
+        )
         return record_to_payload(record)
 
     @router.get(

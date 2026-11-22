@@ -139,6 +139,11 @@ def _client(tmp_path: Path, monkeypatch: MonkeyPatch) -> TestClient:
     return TestClient(create_app(tmp_path))
 
 
+def _based_on(client: TestClient, url: str) -> dict[str, str]:
+    """Sparningen utgår från postens nuvarande revision, som en klient som nyss läst den."""
+    return {"X-OVK-Base-Revision": client.get(url).headers["X-OVK-Record-Revision"]}
+
+
 def _workflow_payload(
     *,
     status: str = "pass",
@@ -383,10 +388,10 @@ def test_planning_validates_registry_and_survives_legacy_save(
     assert client.put(url, json=_workflow_payload()).status_code == 200
     assert client.get(url).json()["planning"] == planning
     payload["planning"] = {**planning, "planned_date": "2031-01-01"}
-    assert client.put(url, json=payload).status_code == 422
+    assert client.put(url, json=payload, headers=_based_on(client, url)).status_code == 422
     assert client.get(url).json()["planning"] == planning
     payload["planning"] = {**planning, "inspector_id": "missing"}
-    assert client.put(url, json=payload).status_code == 422
+    assert client.put(url, json=payload, headers=_based_on(client, url)).status_code == 422
     assert client.get(url).json()["planning"] == planning
 
 
@@ -433,7 +438,7 @@ def test_recurring_reference_is_scoped_and_preserved(
     assert client.put(url, json=payload).status_code == 200
     assert client.get(url).json()["planning"] == planning
     payload["planning"] = {**planning, "previous_inspection_id": "missing"}
-    assert client.put(url, json=payload).status_code == 422
+    assert client.put(url, json=payload, headers=_based_on(client, url)).status_code == 422
     payload["planning"] = {**planning, "previous_inspection_id": "ovk-003"}
     assert client.put(root + "/inspections/ovk-003", json=payload).status_code == 422
     assert client.get(url).json()["planning"] == planning
@@ -763,7 +768,9 @@ def test_property_first_field_inventory_promotion_and_recurring_inspection(
             "role": "besiktningsman",
         },
     }
-    finalized = client.put(first_workflow, json=completed)
+    finalized = client.put(
+        first_workflow, json=completed, headers=_based_on(client, first_workflow)
+    )
     assert finalized.status_code == 200, finalized.text
     assert finalized.json()["protocol_ready"] is True
     assert finalized.json()["building_structure"] == empty_structure

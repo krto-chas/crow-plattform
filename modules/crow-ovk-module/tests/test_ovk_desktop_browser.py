@@ -1210,3 +1210,49 @@ def test_trapphus_is_registered_and_groups_the_units(
     ]
     assert errors == []
     page.close()
+
+
+def test_inspection_form_does_not_overwrite_what_changed_meanwhile(
+    base_url: str,
+    browser: Any,  # noqa: F811
+) -> None:
+    url = "/api/ovk/projects/p1/inspections/ovk-planerad"
+    page, errors, _ = _open(
+        browser, base_url + "/ovk/besiktning?project_id=p1&inspection_id=ovk-planerad", _DESKTOP
+    )
+    page.wait_for_function("() => document.getElementById('saved').value === 'ovk-planerad'")
+
+    # Posten ändras på annat håll medan formuläret står öppet.
+    changed = page.evaluate(
+        """async url => {
+          const read = await fetch(url, {cache: 'no-store'});
+          const record = await read.json();
+          record.inspection.object.name = 'Ändrad på annat håll';
+          const saved = await fetch(url, {method: 'PUT',
+            headers: {'content-type': 'application/json',
+                      'X-OVK-Base-Revision': read.headers.get('X-OVK-Record-Revision')},
+            body: JSON.stringify(record)});
+          return saved.status;
+        }""",
+        url,
+    )
+    assert changed == 200
+    page.click("#save")
+    page.wait_for_function(
+        "() => document.getElementById('status').textContent.startsWith('Inget sparades.')"
+    )
+    assert "har ändrats sedan du öppnade den" in page.inner_text("#status")
+    stored = page.evaluate("url => fetch(url, {cache: 'no-store'}).then(r => r.json())", url)
+    assert stored["inspection"]["object"]["name"] == "Ändrad på annat håll"
+
+    # Efter omladdning utgår formuläret från det som gäller nu och går att spara.
+    page.click("#reload")
+    page.wait_for_function("() => document.getElementById('name').value === 'Ändrad på annat håll'")
+    page.click("#save")
+    page.wait_for_function(
+        "() => !document.getElementById('status').textContent.startsWith('Inget sparades.')"
+        " && !document.getElementById('status').textContent.startsWith('Laddar')"
+    )
+    assert "Kunde inte spara" not in page.inner_text("#status")
+    assert errors == []
+    page.close()
