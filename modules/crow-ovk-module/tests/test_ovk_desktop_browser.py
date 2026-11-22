@@ -771,8 +771,15 @@ def test_protocol_draft_is_built_from_a_chosen_inspection_with_aligned_columns(
     assert page.query_selector("#pbProject") is None
     assert page.eval_on_selector("#pbInspection", "s => s.tagName") == "SELECT"
     labels = page.eval_on_selector_all("#pbInspection option", "o => o.map(x => x.textContent)")
+    # Bara planerade besiktningar som inte är protokollklara erbjuds; ett nytt
+    # utkast ersätter det förra, så protokollklara och utfärdade byggs inte om härifrån.
     assert labels[0] == "Välj besiktning…"
-    assert len(labels) == 7
+    assert page.eval_on_selector_all("#pbInspection option", "o => o.map(x => x.value)") == [
+        "",
+        "ovk-granska",
+        "ovk-pagaende",
+        "ovk-planerad",
+    ]
     page.click(".projectbar details > summary")
     page.click("#pbBuild")
     assert page.inner_text("#pbResult") == "Välj en besiktning."
@@ -795,21 +802,27 @@ def test_protocol_draft_is_built_from_a_chosen_inspection_with_aligned_columns(
     page.wait_for_selector("#pbResult .review-table", timeout=3000)
     page.click("#pbResult details > summary")
 
-    # Varje rubrik står rakt över sina värden: samma justering och samma kant.
+    # Varje rubrik står rakt över sina värden. Textens egen kant mäts, inte
+    # cellens: vänsterkanten i textkolumner och högerkanten i talkolumner.
     columns = page.eval_on_selector_all(
         "#pbResult .review-table",
         """tables => tables.flatMap(table => [...table.tHead.rows[0].cells].map((th, index) => {
-          const td = table.tBodies[0].rows[0].cells[index];
-          const a = th.getBoundingClientRect(), b = td.getBoundingClientRect();
-          return {label: th.textContent, same: getComputedStyle(th).textAlign
-                    === getComputedStyle(td).textAlign,
-                  align: getComputedStyle(td).textAlign,
-                  left: Math.abs(a.left - b.left), right: Math.abs(a.right - b.right)};
+          const edge = cell => { const range = document.createRange();
+            range.selectNodeContents(cell); return range.getBoundingClientRect(); };
+          const align = getComputedStyle(th).textAlign, head = edge(th);
+          const offsets = [...table.tBodies[0].rows].map(row => {
+            const cell = row.cells[index], text = edge(cell);
+            return {same: getComputedStyle(cell).textAlign === align,
+                    off: Math.abs(align === 'right' ? head.right - text.right
+                                                    : head.left - text.left)};
+          });
+          return {label: th.textContent, align, same: offsets.every(o => o.same),
+                  off: Math.max(...offsets.map(o => o.off))};
         }))""",
     )
     assert len(columns) == 24
     assert all(column["same"] for column in columns), columns
-    assert all(column["left"] < 1 and column["right"] < 1 for column in columns), columns
+    assert [c for c in columns if c["off"] >= 1] == []
     assert {c["label"] for c in columns if c["align"] == "right"} == {
         "Proj. summa",
         "Uppm. summa",
@@ -819,24 +832,124 @@ def test_protocol_draft_is_built_from_a_chosen_inspection_with_aligned_columns(
         "Uppm.",
         "Avvikelse (absolut)",
     }
+    assert {c["align"] for c in columns} == {"left", "right"}
     assert errors == []
     page.close()
 
 
-def test_protocol_draft_explains_missing_field_data(
+def _answer(status: int, body: str) -> Any:
+    def fulfill(route: Any) -> None:
+        route.fulfill(status=status, content_type="application/json", body=body)
+
+    return fulfill
+
+
+def test_protocol_draft_explains_what_is_wrong_in_swedish(
     base_url: str,
     browser: Any,  # noqa: F811
 ) -> None:
     page, errors, _ = _open(browser, base_url + "/ovk", _DESKTOP)
     page.wait_for_function("() => document.querySelectorAll('#pbInspection option').length > 1")
     page.click(".projectbar details > summary")
-    page.select_option("#pbInspection", "ovk-klar")
-    page.click("#pbBuild")
-    page.wait_for_function(
-        "() => document.getElementById('pbResult').textContent.startsWith('Utkastet')"
-    )
-    assert page.inner_text("#pbResult") == (
-        "Utkastet kunde inte byggas: Besiktningen har inget synkat fältunderlag ännu."
-    )
+
+    def build() -> str:
+        page.click("#pbBuild")
+        page.wait_for_function(
+            "() => document.getElementById('pbResult').textContent.startsWith('Utkastet')"
+            " && !document.getElementById('pbBuild').disabled"
+        )
+        text: str = page.inner_text("#pbResult")
+        return text.removeprefix("Utkastet kunde inte byggas: ")
+
+    # Utan synkat fältunderlag.
+    page.select_option("#pbInspection", "ovk-planerad")
+    assert build() == "Besiktningen har inget synkat fältunderlag ännu."
+
+    # Serverns besked om utkastet, i de former det kommer.
+    answers: list[tuple[int, str, str]] = [
+        (
+            409,
+            json.dumps({"detail": {"code": "OVK_INSPECTION_ISSUED"}}),
+            "Intyg är redan utfärdat för besiktningen, så utkastet kan inte byggas om.",
+        ),
+        (
+            422,
+            json.dumps({"detail": "Planned workflow required"}),
+            "Besiktningen är inte planerad i det här projektet. Ange besiktningsman och datum"
+            " på besiktningen först.",
+        ),
+        (
+            422,
+            json.dumps({"detail": {"code": "INVALID_FIELD_DATA", "message": "<b>unit</b> x"}}),
+            "Fältunderlaget är inte fullständigt. Serverns besked: <b>unit</b> x",
+        ),
+        (
+            422,
+            json.dumps({"detail": "Something new"}),
+            "Servern avvisade begäran. Serverns besked: Something new",
+        ),
+        (500, "Internal Server Error", "Servern svarade med ett fel som inte gick att läsa."),
+    ]
+    page.select_option("#pbInspection", "ovk-pagaende")
+    for status, body, expected in answers:
+        page.unroute("**/protokoll-utkast")
+        page.route("**/protokoll-utkast", _answer(status, body))
+        assert build() == expected
+    # Beskedet visas som text, aldrig som HTML.
+    assert page.query_selector("#pbResult b") is None
+    assert errors == []
+    page.close()
+
+
+def test_protocol_draft_list_handles_duplicates_and_empty_projects(
+    base_url: str,
+    browser: Any,  # noqa: F811
+) -> None:
+    page, errors, _ = _open(browser, base_url + "/ovk", _DESKTOP)
+    page.wait_for_function("() => document.querySelectorAll('#pbInspection option').length > 1")
+
+    def fill(items: str) -> list[list[str]]:
+        result: list[list[str]] = page.evaluate(
+            f"""() => {{ fillDraftInspections({items});
+              const select = document.getElementById('pbInspection');
+              return [[...select.options].map(o => o.textContent), [select.value],
+                      [select, document.getElementById('pbBuild')].map(e => String(e.disabled))];
+            }}"""
+        )
+        return result
+
+    plan = "planning: {planned_date: '2027-01-15'}"
+    # Samma namn och datum skiljs åt med id; senaste datum först; protokollklara utelämnas.
+    assert fill(
+        f"""[{{inspection_id: 'a', object_name: 'Hus A', {plan}}},
+             {{inspection_id: 'b', object_name: 'Hus A', {plan}}},
+             {{inspection_id: 'c', object_name: 'Hus B', planning: {{planned_date: '2027-03-01'}}}},
+             {{inspection_id: 'd', object_name: 'Hus C', {plan}, protocol_ready: true}},
+             {{inspection_id: 'e', object_name: 'Hus D'}}]"""
+    ) == [
+        [
+            "Välj besiktning…",
+            "Hus B · 2027-03-01",
+            "Hus A · 2027-01-15 · a",
+            "Hus A · 2027-01-15 · b",
+        ],
+        [""],
+        ["false", "false"],
+    ]
+    # En enda besiktning är förvald.
+    assert fill(f"[{{inspection_id: 'a', object_name: 'Hus A', {plan}}}]") == [
+        ["Välj besiktning…", "Hus A · 2027-01-15"],
+        ["a"],
+        ["false", "false"],
+    ]
+    # Utan något att bygga är både listan och knappen avstängda.
+    assert fill("[]") == [["Inga besiktningar väntar på utkast"], [""], ["true", "true"]]
+    assert fill("null") == [["Laddar besiktningar…"], [""], ["true", "true"]]
+
+    # Vid projektbyte laddas listan om och ett tidigare resultat tas bort.
+    page.evaluate("() => { document.getElementById('pbResult').textContent = 'gammalt'; }")
+    page.evaluate("() => loadProject()")
+    page.wait_for_function("() => document.querySelectorAll('#pbInspection option').length === 4")
+    assert page.inner_text("#pbResult") == ""
     assert errors == []
     page.close()
