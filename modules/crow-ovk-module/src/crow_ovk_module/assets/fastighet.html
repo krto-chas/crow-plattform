@@ -47,8 +47,10 @@
         <h3 id="kundFormTitle">Ny kund</h3>
         <div class="row">
           <div><label for="kundNamn">Namn *</label><input id="kundNamn" required maxlength="200"></div>
+          <div><label for="kundOrganisationsnummer">Organisationsnummer</label><input id="kundOrganisationsnummer" inputmode="numeric" autocomplete="off" maxlength="13" placeholder="NNNNNN-NNNN" aria-describedby="kundOrgnrHelp"></div>
           <div><label for="kundKontaktperson">Kontaktperson</label><input id="kundKontaktperson" maxlength="200"></div>
         </div>
+        <p id="kundOrgnrHelp" class="muted">Organisationsnummer är frivilligt. För enskild firma är det ett personnummer.</p>
         <div class="row">
           <div><label for="kundTelefon">Telefon</label><input id="kundTelefon" type="tel" maxlength="200"></div>
           <div><label for="kundEpost">E-post</label><input id="kundEpost" type="email" maxlength="200"></div>

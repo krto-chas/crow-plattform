@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 from typing import Any
 
@@ -361,3 +362,68 @@ def test_property_page_carries_the_kund_panel(tmp_path: Path) -> None:
     assert "window.ovkKunder?.loaded()?{kund_id:$('kund').value||null}:{}" in app_script
     # ADR-013: beställaren heter kund i identifierare, inte customer.
     assert "customer" not in script.text.lower()
+
+
+@pytest.mark.parametrize(
+    "written",
+    ["212000-0142", "2120000142", " 212000 0142 ", "162120000142"],
+)
+def test_organisationsnummer_is_optional_and_stored_in_one_form(
+    tmp_path: Path, written: str
+) -> None:
+    client = _client(tmp_path)
+
+    created = _create(client, organisationsnummer=written)
+
+    assert created["organisationsnummer"] == "212000-0142"
+    assert client.get("/api/ovk/kunder/kund-1").json()["organisationsnummer"] == "212000-0142"
+
+
+@pytest.mark.parametrize(
+    "written",
+    ["212000-0143", "12345", "212000-01420", "abc", "２１２０００-０１４２", 2120000142],
+)
+def test_wrong_organisationsnummer_is_refused(tmp_path: Path, written: Any) -> None:
+    response = _client(tmp_path).put(
+        "/api/ovk/kunder/kund-1",
+        json={"namn": "Brf Lärkan", "organisationsnummer": written},
+        headers=_NEW,
+    )
+
+    assert response.status_code == 422
+    assert response.json()["detail"]["code"] == "INVALID_KUND"
+    assert not KundRepository(tmp_path).exists("kund-1")
+
+
+def test_kund_without_organisationsnummer_is_stored_as_before(tmp_path: Path) -> None:
+    client = _client(tmp_path)
+
+    created = _create(client, organisationsnummer="")
+
+    assert "organisationsnummer" not in created
+    stored = json.loads((tmp_path / "registry" / "kund" / "kund-1.json").read_text("utf-8"))
+    assert "organisationsnummer" not in stored
+    # Numret kan läggas till och tas bort igen utan att annat ändras.
+    added = client.put(
+        "/api/ovk/kunder/kund-1",
+        json={"namn": "Brf Lärkan", "organisationsnummer": "212000-0142"},
+        headers={"X-OVK-Base-Revision": created["revision"]},
+    ).json()
+    assert added["organisationsnummer"] == "212000-0142"
+    removed = client.put(
+        "/api/ovk/kunder/kund-1",
+        json={"namn": "Brf Lärkan"},
+        headers={"X-OVK-Base-Revision": added["revision"]},
+    ).json()
+    assert "organisationsnummer" not in removed
+
+
+def test_organisationsnummer_message_names_the_field(tmp_path: Path) -> None:
+    response = _client(tmp_path).put(
+        "/api/ovk/kunder/kund-1",
+        json={"namn": "Brf Lärkan", "organisationsnummer": "212000-0143"},
+        headers=_NEW,
+    )
+
+    assert "organisationsnummer" in response.json()["detail"]["message"]
+    assert Kund(kund_id="kund-1", namn="Brf Lärkan").organisationsnummer == ""

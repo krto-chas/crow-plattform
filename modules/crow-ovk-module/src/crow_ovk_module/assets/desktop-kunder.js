@@ -4,7 +4,7 @@
   'use strict';
 
   const $ = id => document.getElementById(id);
-  const FIELDS = ['Namn', 'Kontaktperson', 'Telefon', 'Epost', 'Referens'];
+  const FIELDS = ['Namn', 'Organisationsnummer', 'Kontaktperson', 'Telefon', 'Epost', 'Referens'];
   const ADDRESSES = { postadress: 'kundPost', faktureringsadress: 'kundFaktura' };
   let kunder = null;
   let editing = null;
@@ -138,7 +138,9 @@
         return;
       }
       if (response.status === 422) {
-        note.textContent = 'Uppgifterna kunde inte sparas. Kontrollera namn och e-postadress.';
+        note.textContent = String(body.detail && body.detail.message).includes('organisationsnummer')
+          ? 'Organisationsnumret stämmer inte. Kontrollera siffrorna, eller lämna fältet tomt.'
+          : 'Uppgifterna kunde inte sparas. Kontrollera namn och e-postadress.';
         return;
       }
       if (!response.ok) throw new Error(String(response.status));

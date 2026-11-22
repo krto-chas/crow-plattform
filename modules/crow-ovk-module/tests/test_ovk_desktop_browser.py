@@ -740,3 +740,30 @@ def test_kund_changed_elsewhere_is_not_overwritten(
     assert stored["telefon"] == "08-1"
     assert errors == []
     page.close()
+
+
+def test_organisationsnummer_is_checked_and_kept_on_the_kund(
+    register_url: str,
+    browser: Any,  # noqa: F811
+) -> None:
+    page, errors, _ = _open(browser, register_url + "/ovk/fastighet", _DESKTOP)
+    page.wait_for_selector("#registerItems tr")
+    page.click("#kundNew")
+    page.fill("#kundNamn", "Brf Lärkan")
+    page.fill("#kundOrganisationsnummer", "2120000143")
+    page.click("#kundSave")
+    page.wait_for_function(
+        "() => document.getElementById('kundFormStatus')"
+        ".textContent.startsWith('Organisationsnumret stämmer inte')"
+    )
+    assert page.is_visible("#kundForm")
+    assert page.locator("#kundItems tr").count() == 0
+
+    page.fill("#kundOrganisationsnummer", "2120000142")
+    page.click("#kundSave")
+    page.wait_for_selector("#kundItems tr")
+    page.click("#kundItems tr button")
+
+    assert page.input_value("#kundOrganisationsnummer") == "212000-0142"
+    assert errors == []
+    page.close()

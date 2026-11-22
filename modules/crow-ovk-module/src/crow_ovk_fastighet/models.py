@@ -85,6 +85,37 @@ _KUND_ID = re.compile(r"^[A-Za-z0-9_-]{1,120}$")
 _KUND_TEXT_LIMIT = 200
 
 
+def normalize_organisationsnummer(value: str) -> str:
+    """Skriv ett organisationsnummer som NNNNNN-NNNN.
+
+    Godtar tio siffror med eller utan bindestreck, och tolv siffror där de två
+    första är sekel (personnummer för enskild firma). Tomt förblir tomt. Annat
+    lämnas orört, så att valideringen kan avvisa det.
+    """
+    text = value.strip()
+    digits = text.replace("-", "").replace(" ", "")
+    if not text:
+        return ""
+    if not digits.isascii() or not digits.isdigit():
+        return text
+    if len(digits) == 12 and digits[:2] in {"16", "18", "19", "20"}:
+        digits = digits[2:]
+    if len(digits) != 10:
+        return text
+    return f"{digits[:6]}-{digits[6:]}"
+
+
+def is_organisationsnummer(value: str) -> bool:
+    """Sant för NNNNNN-NNNN med riktig kontrollsiffra (Luhn)."""
+    if not re.fullmatch(r"[0-9]{6}-[0-9]{4}", value):
+        return False
+    total = 0
+    for index, char in enumerate(value.replace("-", "")):
+        digit = int(char) * (2 if index % 2 == 0 else 1)
+        total += digit - 9 if digit > 9 else digit
+    return total % 10 == 0
+
+
 @dataclass(frozen=True, slots=True)
 class Kund:
     """Den som besiktningen görs åt: beställaren eller fastighetsägaren.
@@ -103,8 +134,13 @@ class Kund:
     referens: str = ""
     updated_at: str = ""
     updated_by: str | None = None
+    # Organisationsnummer i formen NNNNNN-NNNN, eller tomt. Frivilligt. För
+    # enskild firma är det ett personnummer och ska hanteras som personuppgift.
+    organisationsnummer: str = ""
 
     def __post_init__(self) -> None:
+        if self.organisationsnummer and not is_organisationsnummer(self.organisationsnummer):
+            raise ValueError("organisationsnummer is not valid")
         if not _KUND_ID.fullmatch(self.kund_id):
             raise ValueError("invalid kund_id")
         if not self.namn.strip():
@@ -319,6 +355,8 @@ def kund_to_payload(kund: Kund) -> dict[str, object]:
         "postadress": _adress_to_payload(kund.postadress),
         "faktureringsadress": _adress_to_payload(kund.faktureringsadress),
         "referens": kund.referens,
+        # Utelämnas när det saknas, så att äldre kundposter behåller sin revision.
+        **({"organisationsnummer": kund.organisationsnummer} if kund.organisationsnummer else {}),
         "updated_at": kund.updated_at,
         "updated_by": kund.updated_by,
     }
@@ -369,6 +407,9 @@ def kund_from_payload(payload: dict[str, object]) -> Kund:
         postadress=_kund_adress(payload, "postadress"),
         faktureringsadress=_kund_adress(payload, "faktureringsadress"),
         referens=_kund_text(payload, "referens"),
+        organisationsnummer=normalize_organisationsnummer(
+            _kund_text(payload, "organisationsnummer")
+        ),
         updated_at=_kund_text(payload, "updated_at"),
         updated_by=updated_by if isinstance(updated_by, str) and updated_by else None,
     )
