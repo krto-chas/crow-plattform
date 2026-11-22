@@ -238,3 +238,54 @@ def test_protokoll_utkast_endpoint_builds_record_from_snapshot(
     )
     assert rebuilt.status_code == 200, rebuilt.text
     assert client.post(preview_url, json={}).status_code == 422
+
+
+def test_same_number_in_two_ports_is_written_with_the_port_first() -> None:
+    units = (
+        FieldUnit(unit_id="u1", inspection_id="ovk-b", number="1201", port="10"),
+        FieldUnit(unit_id="u2", inspection_id="ovk-b", number="1201", port="9"),
+        FieldUnit(unit_id="u3", inspection_id="ovk-b", number="1101", port="9"),
+        FieldUnit(unit_id="u4", inspection_id="ovk-b", number="1501"),
+    )
+    rooms = tuple(
+        FieldRoom(room_id=f"r{index}", unit_id=unit.unit_id, name="Badrum")
+        for index, unit in enumerate(units, start=1)
+    )
+    data = FieldInspectionData(
+        inspection_id="ovk-b",
+        units=units,
+        rooms=rooms,
+        findings=tuple(
+            _finding(f"f{index}", unit.unit_id, f"r{index}", 1)
+            for index, unit in enumerate(units, start=1)
+        ),
+    )
+
+    row = build_protokoll_utkast(data).anmarkningar[0]
+
+    # Lägenheter utan port först, sedan port för port i nummerordning (9 före 10).
+    assert row.unit_numbers == ("1501", "9-1101", "9-1201", "10-1201")
+    assert row.text == "Smutsigt frånluftsdon – Badrum: 1501, 9-1101, 9-1201, 10-1201"
+
+
+def test_unit_numbers_with_unusual_digits_do_not_break_the_protocol() -> None:
+    # "5²" och "①" är siffror för isdigit() men inte tal för int().
+    units = (
+        FieldUnit(unit_id="u1", inspection_id="ovk-b", number="1201", port="5²"),
+        FieldUnit(unit_id="u2", inspection_id="ovk-b", number="①"),
+        FieldUnit(unit_id="u3", inspection_id="ovk-b", number="12"),
+    )
+    data = FieldInspectionData(
+        inspection_id="ovk-b",
+        units=units,
+        rooms=tuple(
+            FieldRoom(room_id=f"r{index}", unit_id=unit.unit_id, name="Badrum")
+            for index, unit in enumerate(units, start=1)
+        ),
+        findings=tuple(
+            _finding(f"f{index}", unit.unit_id, f"r{index}", 1)
+            for index, unit in enumerate(units, start=1)
+        ),
+    )
+
+    assert build_protokoll_utkast(data).anmarkningar[0].unit_numbers == ("12", "5²-1201", "①")

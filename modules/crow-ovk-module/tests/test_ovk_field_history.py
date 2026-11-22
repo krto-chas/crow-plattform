@@ -249,3 +249,24 @@ def test_scoped_history_never_falls_back_to_global_data(tmp_path: Path) -> None:
         assert result.status_code == 200, result.text
     assert client.get(f"{first}/ovk-2025/media/photo-old/content").content == b"first"
     assert client.get(f"{second}/ovk-2025/media/photo-old/content").content == b"second"
+
+
+def test_historical_finding_carries_the_port_before_the_number(tmp_path: Path) -> None:
+    client = _client(tmp_path)
+    payload = _payload(b"old-photo")
+    cast(list[dict[str, object]], payload["units"])[0]["port"] = "54"
+    assert (
+        client.put(
+            "/api/ovk/field/context/ovk-2025",
+            json={"project_id": "property-a", "inspector": "Inspector"},
+        ).status_code
+        == 200
+    )
+    assert client.put("/api/ovk/field/sync/ovk-2025", json=payload).status_code == 200
+
+    data = client.get("/api/ovk/field/history/ovk-2025").json()
+
+    # Samma beteckning som i protokollet; numret i sig är oförändrat.
+    assert data["historical_findings"][0]["unit_number"] == "54-1203"
+    assert data["structure"]["units"][0]["number"] == "1203"
+    assert data["structure"]["units"][0]["port"] == "54"
