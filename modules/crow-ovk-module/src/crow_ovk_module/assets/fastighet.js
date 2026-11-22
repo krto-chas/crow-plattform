@@ -134,6 +134,11 @@ function renderInventory(){
   };
   const unitCount=key=>inventory.units.filter(u=>(inventory.trapphus.some(t=>t.trapphus_id===u.trapphus_id)?u.trapphus_id:'')===key).length;
   const updateHeadings=()=>{
+    // Namn och adress skrivs utan omritning; rubriker och val följer med.
+    for(const select of [$('bulkTrapphus'),...$('inventoryUnits').querySelectorAll('select[data-trapphus-unit]')])for(const option of select.options){
+      const named=inventory.trapphus.find(t=>t.trapphus_id===option.value);
+      if(named)option.textContent=trapphusLabel(named);
+    }
     for(const [key,heading] of headings){
       const item=inventory.trapphus.find(t=>t.trapphus_id===key),count=unitCount(key);
       heading.textContent=(item?'Trapphus '+trapphusLabel(item):'Utan trapphus')+' · '+count+(count===1?' enhet':' enheter');
@@ -153,8 +158,14 @@ function renderInventory(){
     const known=inventory.trapphus.some(t=>t.trapphus_id===unit.trapphus_id);
     const card=inventoryCard(unitGroup(known?unit.trapphus_id:''));
     if(inventory.trapphus.length){
-      const select=inventoryInput(card,'Trapphus',known?unit.trapphus_id:'',v=>{if(v)unit.trapphus_id=v;else delete unit.trapphus_id;renderInventory()},trapphusOptions);
-      select.setAttribute('aria-label','Trapphus för enheten');
+      // Kortet flyttas till det nya trapphusets grupp. Fokus följer med, så att
+      // valet går att göra med tangentbordet.
+      const select=inventoryInput(card,'Trapphus',known?unit.trapphus_id:'',v=>{
+        if(v)unit.trapphus_id=v;else delete unit.trapphus_id;
+        renderInventory();
+        for(const other of $('inventoryUnits').querySelectorAll('select[data-trapphus-unit]'))if(other.dataset.trapphusUnit===unit.unit_id)other.focus();
+      },trapphusOptions);
+      select.setAttribute('aria-label','Trapphus för enheten');select.dataset.trapphusUnit=unit.unit_id;
     }
     const kindInput=inventoryInput(card,'Typ',unit.kind,v=>{
       unit.kind=v;

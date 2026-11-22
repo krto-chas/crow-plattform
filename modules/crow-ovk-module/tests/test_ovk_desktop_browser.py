@@ -793,6 +793,12 @@ def test_trapphus_is_registered_and_groups_the_units(
     page.fill("#inventoryTrapphus .bygg:nth-child(1) label:nth-of-type(2) input", "Storgatan 1A")
     page.click("#inventoryAddTrapphus")
     page.fill("#inventoryTrapphus .bygg:nth-child(2) label:nth-of-type(1) input", "B")
+    # Namnet skrivs utan omritning; valen ska ändå visa det direkt.
+    assert page.eval_on_selector_all("#bulkTrapphus option", "o => o.map(x => x.textContent)") == [
+        "Inget trapphus",
+        "A <b> – Storgatan 1A",
+        "B",
+    ]
 
     # Massregistrering lägger lägenheterna i valt trapphus.
     page.eval_on_selector("#bulkPanel", "d => { d.open = true }")
@@ -816,6 +822,12 @@ def test_trapphus_is_registered_and_groups_the_units(
     loose = page.locator("#inventoryUnits .trapphus-group").nth(2)
     loose.locator("input").first.fill("1101")
     loose.locator("select[aria-label='Trapphus för enheten']").select_option(label="B")
+    # Kortet flyttas till trapphus B, och fokus följer med väljaren dit.
+    assert page.evaluate(
+        "() => [document.activeElement.getAttribute('aria-label'),"
+        " document.activeElement.selectedOptions[0].textContent,"
+        " document.activeElement.closest('.trapphus-group').querySelector('h4').textContent]"
+    ) == ["Trapphus för enheten", "B", "Trapphus B · 1 enhet"]
     assert page.eval_on_selector_all(
         "#inventoryUnits .trapphus-group h4", "items => items.map(h => h.textContent)"
     ) == ["Trapphus A <b> – Storgatan 1A · 2 enheter", "Trapphus B · 1 enhet"]
