@@ -66,7 +66,12 @@ def test_kund_is_created_listed_and_read_back(tmp_path: Path, monkeypatch: Monke
     assert client.get("/api/ovk/kunder/kund-1").json() == created
     listed = client.get("/api/ovk/kunder").json()
     assert listed == {
-        "kunder": [{**created, "antal_fastigheter": 0}],
+        "kunder": [
+            {
+                **{key: value for key, value in created.items() if key != "revision"},
+                "antal_fastigheter": 0,
+            }
+        ],
         "ej_lasbara": [],
         "antal_fastigheter_kant": True,
         "fullstandig": True,
@@ -462,8 +467,11 @@ def test_organisationsnummer_is_only_given_for_a_single_kund(tmp_path: Path) -> 
     assert "212000" not in register.text
     single = client.get("/api/ovk/kunder/kund-1").json()
     assert single["organisationsnummer"] == "212000-0142"
-    # Listans revision är hela postens, så att den kan användas för att spara.
-    assert listed.json()["kunder"][0]["revision"] == single["revision"]
+    # Revisionen är en checksumma över hela posten. Med den och listans övriga
+    # fält kunde numret räknas fram, så den lämnas inte heller i listan.
+    assert "revision" not in listed.json()["kunder"][0]
+    assert single["revision"] not in listed.text
+    assert single["revision"] == kund_revision(KundRepository(tmp_path).load("kund-1"))
 
 
 def test_samordningsnummer_is_accepted_as_organisationsnummer() -> None:

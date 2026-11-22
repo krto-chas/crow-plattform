@@ -44,12 +44,15 @@ def _public(kund: Kund) -> dict[str, Any]:
 
 
 def _listed(kund: Kund) -> dict[str, Any]:
-    """Kunden som den visas i listan: utan organisationsnummer.
+    """Kunden som den visas i listan: utan organisationsnummer och revision.
 
     Numret är för enskild firma ett personnummer. Det lämnas bara när en enskild
-    kund hämtas, inte för alla kunder varje gång listan läses.
+    kund hämtas, inte för alla kunder varje gång listan läses. Revisionen är en
+    checksumma över hela posten, numret inräknat, och övriga fält står i listan:
+    med den kunde numret räknas fram. Den lämnas därför också bara för en
+    enskild kund.
     """
-    entry = _public(kund)
+    entry = kund_to_payload(kund)
     entry.pop("organisationsnummer", None)
     return entry
 

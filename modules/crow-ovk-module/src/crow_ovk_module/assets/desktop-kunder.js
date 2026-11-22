@@ -116,6 +116,8 @@
   }
 
   function closeForm() {
+    // En pågående hämtning ska inte öppna formuläret igen efter Avbryt.
+    openRevision += 1;
     editing = null;
     $('kundForm').hidden = true;
   }

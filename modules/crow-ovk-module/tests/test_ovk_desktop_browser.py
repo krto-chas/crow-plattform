@@ -719,7 +719,7 @@ def test_kund_changed_elsewhere_is_not_overwritten(
     changed = page.evaluate(
         """async () => {
           const list = await (await fetch('/api/ovk/kunder')).json();
-          const kund = list.kunder[0];
+          const kund = await (await fetch('/api/ovk/kunder/' + list.kunder[0].kund_id)).json();
           const response = await fetch('/api/ovk/kunder/' + kund.kund_id, {
             method: 'PUT',
             headers: {'content-type': 'application/json', 'X-OVK-Base-Revision': kund.revision},
