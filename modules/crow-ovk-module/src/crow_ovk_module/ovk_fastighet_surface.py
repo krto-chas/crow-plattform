@@ -33,6 +33,7 @@ from crow_ovk_workflow.repository import OvkWorkflowRepository
 
 from .ovk_field_surface import _FieldSyncRepository, _validated_payload
 from .ovk_inventory_promotion import inventory_revision, plan_inventory_promotion
+from .ovk_trapphus import display_number, normalized
 
 _NO_CACHE = {"Cache-Control": "no-cache"}
 
@@ -248,7 +249,14 @@ def ovk_fastighet_router(data_root: Path) -> APIRouter:
                 for point_id, system_id in assignments.items()
             ):
                 raise ValueError("Unknown measurement point or inventory system.")
-            plan = plan_inventory_promotion(inventory, snapshot, assignments)
+            frozen = (
+                json.loads(record.building_structure_json)
+                if record.building_structure_json is not None
+                else None
+            )
+            plan = plan_inventory_promotion(
+                inventory, snapshot, assignments, frozen if isinstance(frozen, dict) else None
+            )
             plan["structure"] = _validate_structure(plan["structure"])
         except (KeyError, TypeError, ValueError) as exc:
             raise HTTPException(
@@ -372,6 +380,9 @@ def ovk_fastighet_router(data_root: Path) -> APIRouter:
     return router
 
 
+_TRAPPHUS_LIMIT = 200
+
+
 def _promotion_assignments(payload: dict[str, Any]) -> dict[str, str]:
     assignments = payload.get("assignments", {})
     if not isinstance(assignments, dict) or not all(
@@ -444,6 +455,31 @@ def _validate_structure(payload: dict[str, Any]) -> dict[str, Any]:
             {"system_id": system_id, "system_type": kind, "label": required(row, "label")}
         )
 
+    # Trapphus är en egen lista i byggnaden. Enheterna pekar på sitt trapphus,
+    # och enhetslistan förblir platt så att den frysta besiktningsstrukturen och
+    # fältappen läser den som förut.
+    trapphus_ids: set[str] = set()
+    trapphus_names: set[str] = set()
+    trapphus: list[dict[str, str]] = []
+    trapphus_rows = rows(payload.get("trapphus", []), "trapphus")
+    if len(trapphus_rows) > _TRAPPHUS_LIMIT:
+        raise ValueError(f"at most {_TRAPPHUS_LIMIT} trapphus per building")
+    for row in trapphus_rows:
+        trapphus_id = identifier(row, "trapphus_id", trapphus_ids)
+        namn = " ".join(required(row, "namn").split())
+        adress = row.get("adress", "")
+        if not isinstance(adress, str):
+            raise ValueError("trapphus adress must be a string")
+        adress = " ".join(adress.split())
+        if len(trapphus_id) > 120 or len(namn) > 100 or len(adress) > 200:
+            raise ValueError("trapphus value is too long")
+        if not (namn.isprintable() and adress.isprintable()):
+            raise ValueError("trapphus value contains control characters")
+        if namn.casefold() in trapphus_names:
+            raise ValueError(f"duplicate trapphus namn: {namn}")
+        trapphus_names.add(namn.casefold())
+        trapphus.append({"trapphus_id": trapphus_id, "namn": namn, "adress": adress})
+
     unit_ids: set[str] = set()
     room_ids: set[str] = set()
     point_ids: set[str] = set()
@@ -502,7 +538,33 @@ def _validate_structure(payload: dict[str, Any]) -> dict[str, Any]:
                 raise ValueError("premises name is required when display_mode is name")
             unit["label"] = label.strip()
             unit["display_mode"] = mode
+        # Utelämnas utan trapphus, så att äldre strukturer normaliseras oförändrat.
+        if row.get("trapphus_id") is not None:
+            trapphus_ref = row["trapphus_id"]
+            if not isinstance(trapphus_ref, str) or trapphus_ref not in trapphus_ids:
+                raise ValueError("unit references unknown trapphus")
+            unit["trapphus_id"] = trapphus_ref
         units.append(unit)
+
+    # Samma nummer får finnas i två trapphus, men inte två gånger i samma, och
+    # det visade numret ("54-1101") får inte gå att förväxla med ett annat.
+    # Reglerna gäller bara där trapphus används; äldre strukturer berörs inte.
+    names = {item["trapphus_id"]: item["namn"] for item in trapphus}
+    shown: set[str] = set()
+    placed: set[tuple[str, str]] = set()
+    loose = {normalized(str(row["number"])) for row in units if "trapphus_id" not in row}
+    for row in units:
+        if "trapphus_id" not in row:
+            continue
+        number = str(row["number"])
+        place = (str(row["trapphus_id"]), normalized(number))
+        if place in placed:
+            raise ValueError(f"duplicate unit number in trapphus: {number}")
+        placed.add(place)
+        label = display_number(row, names)
+        if normalized(label) in shown or normalized(label) in loose:
+            raise ValueError(f"ambiguous unit number: {label}")
+        shown.add(normalized(label))
 
     space_ids: set[str] = set()
     spaces: list[dict[str, str]] = []
@@ -530,4 +592,7 @@ def _validate_structure(payload: dict[str, Any]) -> dict[str, Any]:
                 "location": location.strip(),
             }
         )
-    return {"units": units, "systems": systems, "technical_spaces": spaces}
+    result: dict[str, Any] = {"units": units, "systems": systems, "technical_spaces": spaces}
+    if trapphus:
+        result["trapphus"] = trapphus
+    return result

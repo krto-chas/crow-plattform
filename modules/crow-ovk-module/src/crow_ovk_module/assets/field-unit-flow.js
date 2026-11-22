@@ -20,7 +20,7 @@ function renderUnitPreview() {
     return;
   }
   preview.className = 'status pass';
-  const apartments = state.units.filter(item => item.kind === 'apartment').map(item => item.number);
+  const apartments = state.units.filter(item => item.kind === 'apartment').map(unitNumberText);
   const premises = state.units.filter(item => item.kind === 'premises').map(item => item.label || item.number);
   const parts = [];
   if (apartments.length) parts.push('Lägenheter: ' + apartments.join(', '));
@@ -83,7 +83,8 @@ async function addNamedPremises() {
     bom_at: null,
     bom_note: '',
     key: null,
-    system_type: null
+    system_type: null,
+    ...(activePort() ? { port: activePort() } : {})
   };
   state.units.push(unit);
   await persist();
@@ -104,7 +105,9 @@ async function addFieldUnit(kind) {
   const text = answer.numbers;
   let numbers;
   try { numbers = parseSeries(text); } catch (error) { unitAddStatus(String(error.message || error), true); return; }
-  const existing = new Set(state.units.map(item => item.number));
+  // Numret ska vara unikt i sin port; samma nummer får finnas i en annan.
+  const port = activePort();
+  const existing = new Set(portUnits(port).map(item => item.number));
   const added = [];
   let firstUnit = null;
   for (const number of numbers) {
@@ -120,7 +123,8 @@ async function addFieldUnit(kind) {
       bom_at: null,
       bom_note: '',
       key: null,
-      system_type: null
+      system_type: null,
+      ...(port ? { port } : {})
     };
     state.units.push(unit);
     existing.add(number);
@@ -133,7 +137,7 @@ async function addFieldUnit(kind) {
   }
   await persist();
   renderRond();
-  unitAddStatus(added.length + ' enhet(er) tillagda: ' + added.join(', '));
+  unitAddStatus(added.length + ' enhet(er) tillagda' + (port ? ' i port ' + port : '') + ': ' + added.join(', '));
   if (added.length === 1 && firstUnit) openUnit(firstUnit.unit_id);
 }
 

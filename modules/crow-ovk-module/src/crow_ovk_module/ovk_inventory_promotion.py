@@ -12,6 +12,8 @@ from copy import deepcopy
 from hashlib import sha256
 from typing import Any
 
+from .ovk_trapphus import trapphus_names
+
 
 def inventory_revision(value: dict[str, Any]) -> str:
     canonical = json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
@@ -22,7 +24,16 @@ def plan_inventory_promotion(
     inventory: dict[str, Any],
     snapshot: dict[str, Any],
     assignments: dict[str, str],
+    frozen: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
+    """Föreslå tillägg i registret ur ett synkat fältunderlag.
+
+    ``frozen`` är strukturen som besiktningen frös. Fältets enheter bär portens
+    namn som det hette då, så porten söks först bland de frysta trapphusen och
+    följer deras ID till registret; ett namnbyte efteråt bryter inte kopplingen.
+    En port som fältet lagt till föreslås som nytt trapphus.
+    """
+
     result = deepcopy(inventory)
     additions: list[dict[str, str]] = []
     conflicts: list[str] = []
@@ -44,6 +55,18 @@ def plan_inventory_promotion(
     def normalized(value: str) -> str:
         return " ".join(value.split()).casefold()
 
+    names = trapphus_names(inventory)
+    current_ids = {normalized(namn): identity for identity, namn in names.items()}
+    frozen_ids = {normalized(namn): identity for identity, namn in trapphus_names(frozen).items()}
+
+    def scope(row: dict[str, Any]) -> str | None:
+        identity = row.get("trapphus_id")
+        return identity if identity in names else None
+
+    def port_of(row: dict[str, Any]) -> str:
+        value = row.get("port")
+        return " ".join(value.split()) if isinstance(value, str) else ""
+
     def safe_id(value: str) -> bool:
         return bool(re.fullmatch(r"[A-Za-z0-9_-]+", value))
 
@@ -53,10 +76,10 @@ def plan_inventory_promotion(
     field_units = snapshot.get("units", [])
     field_rooms = snapshot.get("rooms", [])
     field_points = snapshot.get("measurements", [])
-    numbers: dict[str, int] = {}
+    numbers: dict[tuple[str, str], int] = {}
     for row in field_units:
-        number = normalized(row["number"])
-        numbers[number] = numbers.get(number, 0) + 1
+        place = (normalized(port_of(row)), normalized(row["number"]))
+        numbers[place] = numbers.get(place, 0) + 1
     for point in field_points:
         if not any(
             room["room_id"] == point.get("room_id") and room["unit_id"] == point["unit_id"]
@@ -67,23 +90,67 @@ def plan_inventory_promotion(
         unit_id = source["unit_id"]
         number = source["number"].strip()
         kind = source["kind"]
-        label = number
-        if not safe_id(unit_id) or not number or numbers[normalized(number)] != 1:
+        port = port_of(source)
+        label = f"{port}-{number}" if port else number
+        place = (normalized(port), normalized(number))
+        if not safe_id(unit_id) or not number or numbers[place] != 1:
             conflicts.append(f"Enhet {label}: ogiltigt ID eller tvetydigt nummer.")
             continue
-        if any(
-            other["unit_id"] != unit_id and normalized(other["number"]) == normalized(number)
+        unit = units.get(unit_id)
+        new_trapphus: dict[str, str] | None = None
+        if unit is not None:
+            # Identiteten är enhetens ID; registret avgör vilket trapphus den hör till.
+            if unit["number"] != number or unit["kind"] != kind:
+                conflicts.append(f"Enhet {label}: befintligt ID har annan beteckning eller typ.")
+                continue
+            trapphus_id = scope(unit)
+        elif not port:
+            trapphus_id = None
+            # I ett hus med trapphus går en ny enhet utan port inte att placera
+            # säkert när numret redan finns i ett trapphus.
+            if any(
+                scope(other) is not None and normalized(other["number"]) == normalized(number)
+                for other in units.values()
+            ):
+                conflicts.append(
+                    f"Enhet {label}: numret finns i ett trapphus men enheten saknar port."
+                )
+                continue
+        else:
+            frozen_id = frozen_ids.get(normalized(port))
+            trapphus_id = frozen_id if frozen_id in names else current_ids.get(normalized(port))
+            if trapphus_id is None and frozen_id is not None:
+                conflicts.append(f"Enhet {label}: trapphuset finns inte längre i registret.")
+                continue
+            if trapphus_id is None:
+                # Porten lades till i fält: föreslås som nytt trapphus.
+                digest = sha256(normalized(port).encode("utf-8")).hexdigest()[:24]
+                trapphus_id = f"trapphus-{digest}"
+                # Ett tidigare fältskapat trapphus kan ha bytt namn och bär då samma ID.
+                taken = {row["trapphus_id"] for row in result.get("trapphus", [])}
+                suffix = 2
+                while trapphus_id in taken:
+                    trapphus_id = f"trapphus-{digest}-{suffix}"
+                    suffix += 1
+                new_trapphus = {"trapphus_id": trapphus_id, "namn": port, "adress": ""}
+        # Samma nummer får finnas i flera trapphus, men inte två gånger i samma.
+        if new_trapphus is None and any(
+            other["unit_id"] != unit_id
+            and scope(other) == trapphus_id
+            and normalized(other["number"]) == normalized(number)
             for other in units.values()
         ):
             conflicts.append(f"Enhet {label}: numret finns med annat ID.")
             continue
-        unit = units.get(unit_id)
-        if unit is not None:
-            if unit["number"] != number or unit["kind"] != kind:
-                conflicts.append(f"Enhet {label}: befintligt ID har annan beteckning eller typ.")
-                continue
-        else:
+        if unit is None:
+            if new_trapphus is not None:
+                result.setdefault("trapphus", []).append(new_trapphus)
+                names[new_trapphus["trapphus_id"]] = port
+                current_ids[normalized(port)] = new_trapphus["trapphus_id"]
+                add("trapphus", new_trapphus["trapphus_id"], f"Port {port}")
             unit = {"unit_id": unit_id, "number": number, "kind": kind, "rooms": []}
+            if trapphus_id is not None:
+                unit["trapphus_id"] = trapphus_id
             result["units"].append(unit)
             units[unit_id] = unit
             add("unit", unit_id, label)

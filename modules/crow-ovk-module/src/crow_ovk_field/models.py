@@ -118,6 +118,11 @@ class FieldUnit:
     """Tillträdessätt: boende öppnade, enhetens nyckel, huvudnyckel eller öppet."""
     revisit_required: bool = False
     """Besiktningsmannen har angett att enheten kräver återbesök."""
+    port: str = ""
+    """Port eller trapphus som enheten ligger i, t.ex. "54". Tom = ingen.
+
+    Lägenhetsnumret är unikt i sin port; samma nummer får finnas i flera.
+    """
 
     def __post_init__(self) -> None:
         if self.access not in _UNIT_ACCESS:
@@ -130,6 +135,10 @@ class FieldUnit:
             raise ValueError("inspection_id must not be empty")
         if not self.number.strip():
             raise ValueError("unit number must not be empty")
+        if not isinstance(self.port, str) or self.port != " ".join(self.port.split()):
+            raise ValueError("unit port must be a normalized string")
+        if len(self.port) > 100 or not self.port.isprintable():
+            raise ValueError("unit port is too long or contains control characters")
         if self.system_type is not None and self.system_type not in _UNIT_SYSTEM_TYPES:
             raise ValueError(
                 f"unit system_type {self.system_type!r} must be one of {_UNIT_SYSTEM_TYPES}"
@@ -147,11 +156,14 @@ class FieldUnit:
         """Beteckning i protokoll och listor.
 
         Namngivna lokaler har ett internt löpnummer som inte säger läsaren
-        något; där visas lokalens namn. Lägenheter visas alltid med nummer.
+        något; där visas lokalens namn. Lägenheter visas alltid med nummer,
+        med porten framför när enheten ligger i en port.
         """
         if self.kind is UnitKind.PREMISES and self.label.strip():
             return self.label.strip()
-        return self.number
+        # Med port skrivs numret "54-1101", så att samma nummer i två portar
+        # går att skilja åt.
+        return f"{self.port}-{self.number}" if self.port else self.number
 
 
 @dataclass(frozen=True, slots=True)
