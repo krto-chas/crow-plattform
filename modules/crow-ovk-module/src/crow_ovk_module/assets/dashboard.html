@@ -23,11 +23,12 @@
       .field-card strong{display:block;font-size:18px;margin-bottom:6px}.field-card span{display:block;color:#526475;font-size:14px;line-height:1.5}
       .field-card:focus-visible,.field-brand a:focus-visible{outline:3px solid #416c89;outline-offset:3px}
       .desktop-tools{margin-top:32px}.desktop-tools>summary{cursor:pointer;padding:14px 0;font-weight:600;color:#416c89}
-      .projectbar input{min-width:0;width:100%}.projectbar details>div>div:first-child{flex-wrap:wrap}
+      .projectbar input{min-width:0;width:100%}.projectbar .draft-row{flex-wrap:wrap}
     }
     @media(min-width:901px){.desktop-tools>summary{display:none}.desktop-tools:not([open])> :not(summary){display:revert}}
     .ovk-nav-pending{display:block;padding:12px;color:#8fa9a8;cursor:default}.ovk-nav-pending small{font-size:11px;letter-spacing:.06em;text-transform:uppercase;border:1px solid #426064;border-radius:999px;padding:1px 7px;margin-left:4px}
     .queue{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:14px;margin-top:18px}.ovk-queue-card{text-align:left;font:inherit;color:inherit;cursor:pointer}.ovk-queue-card strong{display:block;font-size:28px;margin-top:8px}.ovk-queue-card[aria-pressed=true]{border-color:#237663;box-shadow:inset 0 0 0 1px #237663}.ovk-queue-card:focus-visible{outline:3px solid #368fbc;outline-offset:3px}
+    .review-table-wrap{overflow-x:auto;margin-top:8px}.review-table{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums}.review-table th{text-align:left;font-size:12px;letter-spacing:.04em;text-transform:uppercase;color:#607080;font-weight:600;padding:8px 12px;border-bottom:1px solid #dfe5ea;white-space:nowrap}.review-table td{text-align:left;padding:8px 12px;border-bottom:1px solid #eef2f5;vertical-align:top}.review-table th.num,.review-table td.num{text-align:right}.review-table tbody tr:last-child td{border-bottom:0}
     .ovk-table-wrap{overflow-x:auto}.ovk-table{width:100%;border-collapse:collapse;margin-top:12px}.ovk-table th{text-align:left;font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:#607080;font-weight:600;padding:10px 12px;border-bottom:1px solid #dfe5ea}.ovk-table td{padding:14px 12px;border-bottom:1px solid #e6eaee;vertical-align:top}.ovk-table tr:last-child td{border-bottom:0}.ovk-hint{display:block;font-size:13px;margin-top:6px;max-width:26ch}.ovk-table .button,.ovk-table td:nth-child(3){white-space:nowrap}
     #overviewWarning ul{margin:8px 0 0;padding-left:20px}
   </style>
@@ -75,11 +76,12 @@
       <div><label for="project">Projekt</label><select id="project"><option value="">Laddar projekt…</option></select></div>
       <a class="button secondary" href="/workbench">Öppna Workbench</a> <a class="button secondary" href="/ovk/fastighet">Fastighet &amp; besiktningsmän</a>
       <details><summary>Protokollutkast från fältdata (befintligt verktyg)</summary><div style="margin-top:14px">
-        <div style="display:flex;gap:8px;margin-top:4px">
-          <input id="pbProject" placeholder="projekt-id" style="flex:1;padding:8px;border:1px solid #cbd4dc;border-radius:6px">
-          <input id="pbInspection" placeholder="besiktnings-id" style="flex:1;padding:8px;border:1px solid #cbd4dc;border-radius:6px">
-          <button class="button" id="pbBuild" type="button">Bygg utkast</button>
+        <label for="pbInspection">Besiktning i valt projekt</label>
+        <div class="draft-row" style="display:flex;gap:8px;margin-top:4px">
+          <select id="pbInspection" style="flex:1;min-width:0" disabled><option value="">Laddar besiktningar…</option></select>
+          <button class="button" id="pbBuild" type="button" style="margin-top:0" disabled>Bygg utkast</button>
         </div>
+        <p class="muted" style="margin:6px 0 0;font-size:13px">Listan visar planerade besiktningar som inte är protokollklara. Ett nytt utkast ersätter det förra för samma besiktning.</p>
         <div id="pbResult" role="status" style="margin-top:8px;font-size:13px"></div>
       </div></details>
       <script>
@@ -91,48 +93,81 @@
         const statuses={pending:'Ej mätt',measured:'Uppmätt',not_measurable:'Ej mätbar'};
         const value=v=>v==null?'—':String(v).replace('.',',');
         const percent=v=>v==null?'—':value(v)+' %';
-        function table(headers,rows){
-          const wrap=document.createElement('div');wrap.style.overflowX='auto';
-          const table=document.createElement('table');table.style.width='100%';
+        function table(headers,rows,numeric=[]){
+          // Rubrik och värde ställs lika i varje kolumn: text till vänster, tal till höger.
+          const wrap=document.createElement('div');wrap.className='review-table-wrap';
+          const table=document.createElement('table');table.className='review-table';
           const head=table.createTHead().insertRow();
-          for(const label of headers){const th=document.createElement('th');th.scope='col';th.textContent=label;head.append(th)}
+          headers.forEach((label,index)=>{const th=document.createElement('th');th.scope='col';th.textContent=label;if(numeric.includes(index))th.className='num';head.append(th)});
           const body=table.createTBody();
-          for(const row of rows){const tr=body.insertRow();for(const cell of row){const td=tr.insertCell();td.textContent=String(cell??'—');td.style.padding='6px';td.style.textAlign='left'}}
+          for(const row of rows){const tr=body.insertRow();row.forEach((cell,index)=>{const td=tr.insertCell();td.textContent=String(cell===''?'—':cell??'—');if(numeric.includes(index))td.className='num'})}
           wrap.append(table);return wrap;
         }
         const summary=row=>[row.system_id??'System ej angivet',directions[row.direction]??row.direction,row.unit_of_measure,value(row.designed_sum),value(row.measured_sum),row.measured_count+'/'+row.point_count,row.comparison_complete?'Komplett':'Ofullständig',percent(row.deviation_percent)];
         const headers=['System','Flödestyp','Enhet','Proj. summa','Uppm. summa','Mätta don','Jämförelse','Avvikelse'];
         if(!flow.groups.length){const empty=document.createElement('p');empty.textContent='Inga registrerade mätpunkter.';section.append(empty);return section}
-        section.append(table(headers,flow.system_totals.map(summary)));
+        const summaryNumbers=[3,4,5,7];
+        section.append(table(headers,flow.system_totals.map(summary),summaryNumbers));
         for(const group of flow.groups){
           const details=document.createElement('details');details.style.marginTop='12px';
           const title=document.createElement('summary');title.textContent=group.unit_number+' · '+(group.system_id??'System ej angivet')+' · '+(directions[group.direction]??group.direction)+' · '+group.measured_count+'/'+group.point_count+' mätta';details.append(title);
-          details.append(table(headers,[summary(group)]));
-          details.append(table(['Rum','Don','Proj.','Uppm.','Avvikelse (absolut)','Status','Orsak','Anmärkning'],group.points.map(point=>[point.room_name??point.room_id,point.point_label,value(point.designed_value),value(point.measured_value),value(point.deviation),statuses[point.status]??point.status,point.reason,point.finding_id])));
+          details.append(table(headers,[summary(group)],summaryNumbers));
+          details.append(table(['Rum','Don','Proj.','Uppm.','Avvikelse (absolut)','Status','Orsak','Anmärkning'],group.points.map(point=>[point.room_name??point.room_id,point.point_label,value(point.designed_value),value(point.measured_value),value(point.deviation),statuses[point.status]??point.status,point.reason,point.finding_id]),[2,3,4]));
           section.append(details);
         }
         return section;
       }
+      // Serverns besked översätts till vad som behöver göras. Okända besked
+      // visas som de är, efter en svensk inledning.
+      function draftError(detail){
+        const known={
+          'Planned workflow required':'Besiktningen är inte planerad i det här projektet. Ange besiktningsman och datum på besiktningen först.',
+          'Scoped field data unavailable':'Besiktningen har inget synkat fältunderlag ännu.',
+          'Verified field context required':'Fältappens uppgifter om besiktningen saknas eller stämmer inte. Öppna besiktningen i fältappen och synka igen.',
+          'Field predecessor mismatch':'Fältappen och besiktningen pekar på olika föregående besiktningar. Öppna besiktningen i fältappen på nytt och synka.',
+          'Field system mismatch':'Systemtypen i fältappen finns inte bland besiktningens system. Rätta systemtypen i fältappen och synka.',
+          'Field measurement system mismatch':'En mätpunkt i fältunderlaget hör till ett system som inte ingår i besiktningen. Rätta mätpunktens system i fältappen och synka.',
+          'Field revision mismatch':'Fältunderlaget ändrades medan utkastet byggdes. Försök igen.',
+          'Field inspection mismatch':'Fältunderlaget hör till en annan besiktning. Öppna rätt besiktning i fältappen och synka.',
+          'Unverified field photo':'Ett foto i fältunderlaget är inte verifierat. Synka fältappen igen.',
+          OVK_INSPECTION_ISSUED:'Intyg är redan utfärdat för besiktningen, så utkastet kan inte byggas om.',
+          OVK_ISSUANCE_RECOVERY_REQUIRED:'Ett utfärdande av besiktningen avbröts och måste slutföras innan utkastet kan byggas.',
+          OVK_FIELD_SNAPSHOT_NOT_FOUND:'Besiktningen har inget synkat fältunderlag ännu.',
+          OVK_INSPECTION_NOT_FOUND:'Besiktningen finns inte längre i projektet. Ladda om sidan.',
+          OVK_MIGRATION_REQUIRED:'Besiktningens fältunderlag är i ett äldre format och måste flyttas över innan utkast kan byggas.',
+          OVK_FIELD_PROJECT_CONFLICT:'Fältunderlaget hör till ett annat projekt.'
+        };
+        const code=typeof detail==='string'?detail:detail&&typeof detail==='object'?detail.code:null;
+        if(code&&Object.hasOwn(known,code))return known[code];
+        const raw=typeof detail==='string'?detail:detail&&typeof detail==='object'?(detail.message||detail.code):'';
+        if(code==='INVALID_FIELD_DATA')return 'Fältunderlaget är inte fullständigt. Serverns besked: '+(raw||code);
+        return raw?'Servern avvisade begäran. Serverns besked: '+raw:'Servern svarade med ett fel som inte gick att läsa.';
+      }
+      // Ett svar som inte är JSON (t.ex. ett serverfel) ska inte bli ett tekniskt felmeddelande.
+      async function draftJson(response){try{return await response.json()}catch(_){return null}}
       let pbRequest=0;
-      for(const id of ['pbProject','pbInspection'])document.getElementById(id).addEventListener('input',()=>{pbRequest++;document.getElementById('pbResult').replaceChildren()});
+      document.getElementById('pbInspection').addEventListener('change',()=>{pbRequest++;document.getElementById('pbResult').replaceChildren()});
       document.getElementById('pbBuild').onclick=async()=>{
-        const project=document.getElementById('pbProject').value.trim();
-        const inspection=document.getElementById('pbInspection').value.trim().toLowerCase();
+        const project=document.getElementById('project').value;
+        const inspection=document.getElementById('pbInspection').value;
         const out=document.getElementById('pbResult');
         const revision=loadRevision, requestId=++pbRequest;
-        if(!project||!inspection){out.textContent='Ange projekt-id och besiktnings-id.';return}
+        if(!project||!inspection){out.textContent='Välj en besiktning.';return}
         out.textContent='Bygger…';
+        // Ett bygge i taget: varje bygge skriver besiktningens utkast.
+        const button=document.getElementById('pbBuild');button.disabled=true;
         try{
           const base='/api/ovk/projects/'+encodeURIComponent(project)+'/field/'+encodeURIComponent(inspection);
           const snapshot=await fetch(base+'/sync',{cache:'no-store'});
-          if(!snapshot.ok)throw new Error('Projektbundet fältunderlag saknas.');
-          const field=await snapshot.json();
-          if(field.project_id!==project||field.inspection_id!==inspection||!field.snapshot_sha256)throw new Error('Fältidentiteten stämmer inte.');
+          const field=await draftJson(snapshot);
+          if(!snapshot.ok)throw new Error(draftError(field?.detail));
+          if(!field)throw new Error('Servern svarade med ett fel som inte gick att läsa.');
+          if(field.project_id!==project||field.inspection_id!==inspection||!field.snapshot_sha256)throw new Error('Fältunderlaget hör inte till den valda besiktningen.');
           if(revision!==loadRevision||requestId!==pbRequest)return;
           const response=await fetch(base+'/protokoll-utkast',{method:'POST',headers:{'content-type':'application/json','X-OVK-Base-Revision':field.snapshot_sha256},body:'{}'});
-          const data=await response.json();
+          const data=await draftJson(response);
           if(revision!==loadRevision||requestId!==pbRequest)return;
-          if(!response.ok){out.textContent=(data.detail&&(data.detail.code+' · '+(data.detail.message||'')))||'Fel';return}
+          if(!response.ok||!data){out.textContent='Utkastet kunde inte byggas: '+draftError(data?.detail);return}
           const utkast=data.utkast;
           const rows=[...utkast.anmarkningar,...utkast.upplysningar];
           out.innerHTML='<strong>Resultat: '+esc(utkast.besiktningsresultat.replaceAll('_',' '))+'</strong><br>'+
@@ -150,7 +185,8 @@
             }
             out.append(section);
           }
-        }catch(error){if(revision===loadRevision&&requestId===pbRequest)out.textContent='Fel: '+error}
+        }catch(error){if(revision===loadRevision&&requestId===pbRequest)out.textContent='Utkastet kunde inte byggas: '+(error.message||error)}
+        finally{button.disabled=document.getElementById('pbInspection').disabled}
       };
       </script>
     </section>
@@ -266,6 +302,22 @@ function renderImports(projectId,items){
   $('imports').innerHTML=items.length?items.map(asset=>{const sha=checksum(asset);const candidate=legacyCandidate(asset)&&sha.length===64;return `<div class="item"><div class="item-head"><div><strong>${esc(asset.filename||'fil')}</strong><br><span class="muted">${esc(asset.format_id||asset.media_type||'okänd typ')}</span></div><span class="pill">${esc(String(asset.size_bytes??''))} byte</span></div><div class="actions">${sha?`<a class="button secondary" target="_blank" href="/api/projects/${enc(projectId)}/imports/${enc(sha)}/file">Öppna fil</a>`:''}${candidate?`<a class="button" href="/ovk/legacy?project_id=${enc(projectId)}&checksum=${enc(sha)}">Granska som äldre OVK</a>`:''}</div></div>`}).join(''):'<div class="empty">Projektet har inga importerade filer ännu.</div>';
 }
 
+// Besiktningen väljs med namn och datum; interna id:n behöver inte kopieras in.
+// Bara planerade besiktningar som inte är protokollklara erbjuds: ett nytt utkast
+// ersätter besiktningens förra, och en protokollklar eller utfärdad ska inte byggas om härifrån.
+function fillDraftInspections(items,emptyText='Inga besiktningar väntar på utkast'){
+  const select=$('pbInspection'),button=$('pbBuild');
+  if(items===null){select.replaceChildren(new Option('Laddar besiktningar…',''));select.disabled=true;button.disabled=true;return}
+  const open=items.filter(item=>item.planning&&!item.protocol_ready)
+    .sort((a,b)=>String(b.planning.planned_date||'').localeCompare(String(a.planning.planned_date||''))||String(a.object_name||'').localeCompare(String(b.object_name||''),'sv'));
+  const label=item=>[item.object_name||'Besiktning',item.planning.planned_date].filter(Boolean).join(' · ');
+  const counts=new Map();for(const item of open)counts.set(label(item),(counts.get(label(item))||0)+1);
+  // Två besiktningar med samma namn och datum skiljs åt med sitt id.
+  const options=open.map(item=>new Option(counts.get(label(item))>1?label(item)+' · '+item.inspection_id:label(item),item.inspection_id));
+  select.replaceChildren(new Option(open.length?'Välj besiktning…':emptyText,''),...options);
+  select.disabled=!open.length;button.disabled=!open.length;
+  if(open.length===1)select.value=open[0].inspection_id;
+}
 async function loadProject(){
   const projectId=$('project').value;if(!projectId)return;
   const revision=++loadRevision;
@@ -274,11 +326,11 @@ async function loadProject(){
   $('status').className='status';$('status').textContent='Laddar projektets OVK-data…';renderActions(projectId);
   $('newInspection').href='/ovk/besiktning?new=1&project_id='+enc(projectId);$('newInspection').removeAttribute('aria-disabled');
   window.ovkShell?.setProject(projectId);
-  $('pbProject').value=projectId;$('pbInspection').value='';$('pbResult').textContent='';
+  pbRequest++;fillDraftInspections(null);$('pbResult').textContent='';
   try{
     const [inspections,imports]=await Promise.all([api('/api/ovk/projects/'+enc(projectId)+'/inspections'),api('/api/projects/'+enc(projectId)+'/imports')]);
-    if(revision!==loadRevision)return;projectLoaded=true;renderInspections(projectId,inspections);renderImports(projectId,imports);$('status').textContent='Projektdata laddad.';
-  }catch(error){if(revision!==loadRevision)return;$('inspections').textContent='Besiktningar kunde inte laddas.';$('imports').textContent='Projektfiler kunde inte laddas.';$('status').className='status warn';$('status').textContent='Kunde inte läsa projektdata: '+error.message;}
+    if(revision!==loadRevision)return;projectLoaded=true;renderInspections(projectId,inspections);fillDraftInspections(inspections.inspections||[]);renderImports(projectId,imports);$('status').textContent='Projektdata laddad.';
+  }catch(error){if(revision!==loadRevision)return;fillDraftInspections([],'Besiktningar kunde inte laddas');$('inspections').textContent='Besiktningar kunde inte laddas.';$('imports').textContent='Projektfiler kunde inte laddas.';$('status').className='status warn';$('status').textContent='Kunde inte läsa projektdata: '+error.message;}
 }
 
 async function init(){
@@ -289,8 +341,8 @@ async function init(){
     $('project').innerHTML=projects.length?projects.map(p=>`<option value="${esc(p.project_id)}">${esc(p.project_name||p.name||p.project_id)}</option>`).join(''):'<option value="">Inga projekt</option>';
     if(requested&&projects.some(p=>p.project_id===requested))$('project').value=requested;
     $('project').addEventListener('change',loadProject);
-    await Promise.all([startOverview(),projects.length?loadProject():Promise.resolve()]);if(!projects.length){$('status').textContent='Skapa ett projekt i Workbench först.';$('inspectionCount').textContent='0';$('readyCount').textContent='0';$('importCount').textContent='0';$('legacyCount').textContent='0';}
-  }catch(error){$('status').className='status warn';$('status').textContent='OVK kunde inte starta: '+error.message;$('fieldHomeStatus').textContent='Uppdrag kunde inte laddas. Kontrollera anslutningen och försök igen.';}
+    await Promise.all([startOverview(),projects.length?loadProject():Promise.resolve()]);if(!projects.length){fillDraftInspections([],'Inga projekt');$('status').textContent='Skapa ett projekt i Workbench först.';$('inspectionCount').textContent='0';$('readyCount').textContent='0';$('importCount').textContent='0';$('legacyCount').textContent='0';}
+  }catch(error){if($('pbInspection').disabled)fillDraftInspections([],'Besiktningar kunde inte laddas');$('status').className='status warn';$('status').textContent='OVK kunde inte starta: '+error.message;$('fieldHomeStatus').textContent='Uppdrag kunde inte laddas. Kontrollera anslutningen och försök igen.';}
 }
 $('inspectionSearch').addEventListener('input',()=>{if(projectLoaded)renderInspections($('project').value,{inspections:currentInspections})});
 $('inspectionFilter').addEventListener('change',()=>renderInspections($('project').value,{inspections:currentInspections}));
