@@ -834,37 +834,6 @@ def test_protocol_draft_is_built_from_a_chosen_inspection_with_aligned_columns(
         "Avvikelse (absolut)",
     }
     assert {c["align"] for c in columns} == {"left", "right"}
-
-    assert errors == []
-    page.close()
-
-
-def test_organisationsnummer_is_checked_and_kept_on_the_kund(
-    register_url: str,
-    browser: Any,  # noqa: F811
-) -> None:
-    page, errors, _ = _open(browser, register_url + "/ovk/fastighet", _DESKTOP)
-    page.wait_for_selector("#registerItems tr")
-    page.click("#kundNew")
-    page.fill("#kundNamn", "Brf Lärkan")
-    page.fill("#kundOrganisationsnummer", "2120000143")
-    page.click("#kundSave")
-    page.wait_for_function(
-        "() => document.getElementById('kundFormStatus')"
-        ".textContent.startsWith('Organisationsnumret stämmer inte')"
-    )
-    assert page.is_visible("#kundForm")
-    assert page.locator("#kundItems tr").count() == 0
-
-    page.fill("#kundOrganisationsnummer", "2120000142")
-    page.click("#kundSave")
-    page.wait_for_selector("#kundItems tr")
-    page.click("#kundItems tr button")
-    # Kunden hämtas när formuläret öppnas; numret finns inte i listan.
-    page.wait_for_function(
-        "() => document.getElementById('kundOrganisationsnummer').value === '212000-0142'"
-    )
-    assert page.is_visible("#kundForm")
     assert errors == []
     page.close()
 
@@ -983,7 +952,148 @@ def test_protocol_draft_list_handles_duplicates_and_empty_projects(
     page.evaluate("() => loadProject()")
     page.wait_for_function("() => document.querySelectorAll('#pbInspection option').length === 4")
     assert page.inner_text("#pbResult") == ""
+    assert errors == []
+    page.close()
 
+
+def test_changed_draft_is_saved_before_it_is_replaced_and_can_be_restored(
+    data_root: Path,
+    base_url: str,
+    browser: Any,  # noqa: F811
+) -> None:
+    from dataclasses import replace
+
+    from crow_ovk_workflow import ReviewStatus
+    from crow_ovk_workflow.models import OvkReviewDecision
+
+    workflows = OvkWorkflowRepository(data_root)
+    record = workflows.load("p1", "ovk-planerad")
+    assert record.planning is not None
+    context = data_root / "projects" / "p1" / "ovk-field" / "ovk-planerad" / "context.json"
+    context.parent.mkdir(parents=True, exist_ok=True)
+    context.write_text(
+        json.dumps(
+            {
+                "inspection_id": "ovk-planerad",
+                "project_id": "p1",
+                "inspector_id": record.planning.inspector_id,
+                "previous_inspection_id": record.planning.previous_inspection_id,
+                "system_type": record.inspection.systems[0].system_type,
+            }
+        ),
+        encoding="utf-8",
+    )
+    page, errors, _ = _open(browser, base_url + "/ovk", _DESKTOP)
+    page.wait_for_function("() => document.querySelectorAll('#pbInspection option').length > 1")
+    page.click(".projectbar details > summary")
+    assert (
+        page.evaluate(
+            """() => fetch('/api/ovk/projects/p1/field/ovk-planerad/sync', {
+              method: 'PUT', headers: {'content-type': 'application/json'},
+              body: JSON.stringify({inspection_id: 'ovk-planerad',
+                units: [{unit_id: 'u1', number: '1701', kind: 'apartment'}],
+                rooms: [{room_id: 'r1', unit_id: 'u1', name: 'WC'}],
+                measurements: [
+                  {measurement_id: 'm1', unit_id: 'u1', room_id: 'r1',
+                   point_type: 'franluftsdon', point_label: 'WC 1', designed_value: '20',
+                   measured_value: '15', measurable: true, unit_of_measure: 'l/s'}]})
+            }).then(r => r.status)"""
+        )
+        == 200
+    )
+
+    def build() -> None:
+        page.click("#pbBuild")
+        page.wait_for_function(
+            "() => document.getElementById('pbResult').textContent !== 'Bygger…'"
+            " && !document.getElementById('pbBuild').disabled"
+        )
+
+    # Första bygget och ett bygge på ett orört utkast frågar inte.
+    page.select_option("#pbInspection", "ovk-planerad")
+    build()
+    page.wait_for_selector("#pbResult .review-table")
+    build()
+    page.wait_for_selector("#pbResult .review-table")
+    assert page.query_selector("#pbConfirm") is None
+    assert page.query_selector("#pbSaved") is None
+
+    # Ett granskningsbeslut läggs på utkastet. Nu frågar verktyget först.
+    built = workflows.load("p1", "ovk-planerad")
+    decision = OvkReviewDecision(
+        observation_id="o1",
+        source_text="WC 1",
+        evidence_ref="m1",
+        reason="needs_review",
+        status=ReviewStatus.ACCEPTED,
+        reviewer="Stoffe",
+        note="kontrollerad",
+    )
+    workflows.save(replace(built, review=(decision,)))
+    build()
+    page.wait_for_selector("#pbConfirm")
+    assert page.inner_text("#pbConfirmTitle") == (
+        "Besiktningen har redan ett utkast som har ändrats."
+    )
+    assert "1 granskningsbeslut" in page.inner_text("#pbConfirm")
+    assert "sparas undan först och går att återställa" in page.inner_text("#pbConfirm")
+    # Det ofarliga valet är förvalt, och Escape avbryter utan att något ändras.
+    assert page.evaluate("() => document.activeElement.id") == "pbConfirmNo"
+    page.keyboard.press("Escape")
+    assert page.inner_text("#pbResult") == "Inget ändrades."
+    assert workflows.load("p1", "ovk-planerad").review == (decision,)
+
+    # Efter bekräftelse sparas utkastet undan och ett nytt byggs.
+    build()
+    page.click("#pbConfirmYes")
+    page.wait_for_selector("#pbSaved [data-saved-draft]")
+    assert page.inner_text("#pbSavedNote") == (
+        "Det tidigare utkastet är sparat undan och går att återställa under Sparade utkast."
+    )
+    assert workflows.load("p1", "ovk-planerad").review == ()
+    assert page.locator("#pbSaved .saved-draft").count() == 1
+    assert "1 granskningsbeslut" in page.inner_text("#pbSaved .saved-draft")
+
+    # Det sparade utkastet tas tillbaka, och det syns också när besiktningen väljs igen.
+    page.once("dialog", lambda dialog: dialog.accept())
+    page.click("#pbSaved [data-saved-draft]")
+    page.wait_for_function(
+        "() => document.getElementById('pbResult').textContent.includes('är återställt.')"
+    )
+    assert workflows.load("p1", "ovk-planerad").review == (decision,)
+    page.select_option("#pbInspection", "ovk-granska")
+    page.select_option("#pbInspection", "ovk-planerad")
+    page.wait_for_selector("#pbSaved [data-saved-draft]")
+    assert errors == []
+    page.close()
+
+
+def test_organisationsnummer_is_checked_and_kept_on_the_kund(
+    register_url: str,
+    browser: Any,  # noqa: F811
+) -> None:
+    page, errors, _ = _open(browser, register_url + "/ovk/fastighet", _DESKTOP)
+    page.wait_for_selector("#registerItems tr")
+    page.click("#kundNew")
+    page.fill("#kundNamn", "Brf Lärkan")
+    page.fill("#kundOrganisationsnummer", "2120000143")
+    page.click("#kundSave")
+    page.wait_for_function(
+        "() => document.getElementById('kundFormStatus')"
+        ".textContent.startsWith('Organisationsnumret stämmer inte')"
+    )
+    assert page.is_visible("#kundForm")
+    assert page.locator("#kundItems tr").count() == 0
+
+    page.fill("#kundOrganisationsnummer", "2120000142")
+    page.click("#kundSave")
+    page.wait_for_selector("#kundItems tr")
+    page.click("#kundItems tr button")
+    # Kunden hämtas när formuläret öppnas; numret finns inte i listan.
+    page.wait_for_function(
+        "() => document.getElementById('kundOrganisationsnummer').value === '212000-0142'"
+    )
+    assert page.is_visible("#kundForm")
     assert errors == []
     page.close()
 

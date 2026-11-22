@@ -116,3 +116,9 @@ Varje punkt är ett eget arbete. Ingen ny backend där en befintlig rutt räcker
 | D10 | Delade uppdrag (kontrakt 15) | Två besiktningsmän, ett protokoll, ingen överskrivning |
 
 Varje steg levereras i små PR:ar med acceptanskriterier och tester. Fältappen ändras bara när ett kontrakt kräver det.
+
+## Protokollutkast som ersätts
+
+Ett nytt protokollutkast från fältdata ersätter besiktningens post. Har posten ändrats sedan den senast byggdes (granskningsbeslut, täckning, inmatade uppgifter) svarar `POST …/protokoll-utkast` 409 `OVK_DRAFT_REPLACE_CONFIRMATION_REQUIRED` tills begäran bär `confirm_replace: true`. Posten sparas då undan först, under `projects/{projekt}/ovk-utkast-sparade/{besiktning}/`, och går att ta tillbaka med `POST …/protokoll-utkast/sparade/{id}/aterstall`. Återställningen sparar på samma sätt undan det den ersätter och behåller besiktningens nuvarande planering. Återställningen behåller också besiktningens nuvarande objekt och system. De tjugo senaste kopiorna per besiktning behålls, även efter utfärdande; de innehåller hela posten och följer projektets säkerhetskopiering. Ett orört, byggt utkast och en nyplanerad post ersätts utan fråga.
+
+En återställd kopia som byggdes från äldre fältunderlag stämmer inte med protokollkällan. Den går att läsa, men ett nytt utkast måste byggas innan intyg kan utfärdas; svaret anger det i `protokollkalla_aktuell`. Rutterna för sparade utkast löser projektet genom omfångsfunktionen (ADR-013 punkt 3). Att `PUT …/inspections/{id}` skriver över posten utan revisionskontroll är inte åtgärdat här (kontrakt 8).
