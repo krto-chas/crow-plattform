@@ -366,7 +366,14 @@ def test_property_page_carries_the_kund_panel(tmp_path: Path) -> None:
 
 @pytest.mark.parametrize(
     "written",
-    ["212000-0142", "2120000142", " 212000 0142 ", "162120000142"],
+    [
+        "212000-0142",
+        "2120000142",
+        " 212000 0142 ",
+        "162120000142",
+        "16212000-0142",
+        "212000\u00a00142",
+    ],
 )
 def test_organisationsnummer_is_optional_and_stored_in_one_form(
     tmp_path: Path, written: str
@@ -381,7 +388,19 @@ def test_organisationsnummer_is_optional_and_stored_in_one_form(
 
 @pytest.mark.parametrize(
     "written",
-    ["212000-0143", "12345", "212000-01420", "abc", "２１２０００-０１４２", 2120000142],
+    [
+        "212000-0143",
+        "12345",
+        "212000-01420",
+        "abc",
+        "２１２０００-０１４２",
+        2120000142,
+        "000000-0000",
+        "2-1-2-0-0-0-0-1-4-2",
+        "--2120000142",
+        "121212+1212",
+        "172120000142",
+    ],
 )
 def test_wrong_organisationsnummer_is_refused(tmp_path: Path, written: Any) -> None:
     response = _client(tmp_path).put(
@@ -427,3 +446,26 @@ def test_organisationsnummer_message_names_the_field(tmp_path: Path) -> None:
 
     assert "organisationsnummer" in response.json()["detail"]["message"]
     assert Kund(kund_id="kund-1", namn="Brf Lärkan").organisationsnummer == ""
+
+
+def test_organisationsnummer_is_only_given_for_a_single_kund(tmp_path: Path) -> None:
+    client = _client(tmp_path)
+    _create(client, organisationsnummer="212000-0142")
+    client.put(_FASTIGHET, json={"fastighetsbeteckning": "Lärkan 4", "kund_id": "kund-1"})
+
+    listed = client.get("/api/ovk/kunder")
+    register = client.get("/api/ovk/fastigheter")
+
+    # För enskild firma är numret ett personnummer: det följer inte med i listor.
+    assert "organisationsnummer" not in listed.json()["kunder"][0]
+    assert "212000" not in listed.text
+    assert "212000" not in register.text
+    single = client.get("/api/ovk/kunder/kund-1").json()
+    assert single["organisationsnummer"] == "212000-0142"
+    # Listans revision är hela postens, så att den kan användas för att spara.
+    assert listed.json()["kunder"][0]["revision"] == single["revision"]
+
+
+def test_samordningsnummer_is_accepted_as_organisationsnummer() -> None:
+    # Dag + 60 i ett samordningsnummer; kontrollsiffran räknas på samma sätt.
+    assert Kund(kund_id="kund-1", namn="Firma", organisationsnummer="701063-2391")

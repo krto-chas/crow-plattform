@@ -88,26 +88,25 @@ _KUND_TEXT_LIMIT = 200
 def normalize_organisationsnummer(value: str) -> str:
     """Skriv ett organisationsnummer som NNNNNN-NNNN.
 
-    Godtar tio siffror med eller utan bindestreck, och tolv siffror där de två
-    första är sekel (personnummer för enskild firma). Tomt förblir tomt. Annat
-    lämnas orört, så att valideringen kan avvisa det.
+    Godtar tio siffror, eller tolv där de två första är sekel (16, 18, 19, 20),
+    med valfritt bindestreck eller blanktecken före de fyra sista. Tomt förblir
+    tomt. Annat lämnas orört, så att valideringen kan avvisa det.
+
+    Seklet lagras inte. Ett personnummer skrivet med plustecken (person över
+    hundra år) godtas därför inte; det är en känd begränsning.
     """
-    text = value.strip()
-    digits = text.replace("-", "").replace(" ", "")
+    text = "".join(value.split())
     if not text:
         return ""
-    if not digits.isascii() or not digits.isdigit():
-        return text
-    if len(digits) == 12 and digits[:2] in {"16", "18", "19", "20"}:
-        digits = digits[2:]
-    if len(digits) != 10:
-        return text
-    return f"{digits[:6]}-{digits[6:]}"
+    match = re.fullmatch(r"(?:16|18|19|20)?([0-9]{6})-?([0-9]{4})", text, re.ASCII)
+    if match is None:
+        return value.strip()
+    return f"{match.group(1)}-{match.group(2)}"
 
 
 def is_organisationsnummer(value: str) -> bool:
-    """Sant för NNNNNN-NNNN med riktig kontrollsiffra (Luhn)."""
-    if not re.fullmatch(r"[0-9]{6}-[0-9]{4}", value):
+    """Sant för NNNNNN-NNNN med riktig kontrollsiffra (Luhn), utom enbart nollor."""
+    if not re.fullmatch(r"[0-9]{6}-[0-9]{4}", value, re.ASCII) or value == "000000-0000":
         return False
     total = 0
     for index, char in enumerate(value.replace("-", "")):

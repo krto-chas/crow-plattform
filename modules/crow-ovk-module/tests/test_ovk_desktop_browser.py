@@ -714,6 +714,7 @@ def test_kund_changed_elsewhere_is_not_overwritten(
     page.wait_for_selector("#kundItems tr")
 
     page.click("#kundItems tr button")
+    page.wait_for_selector("#kundForm:not([hidden])")
     # Någon annan sparar samma kund medan formuläret är öppet.
     changed = page.evaluate(
         """async () => {
@@ -763,7 +764,10 @@ def test_organisationsnummer_is_checked_and_kept_on_the_kund(
     page.click("#kundSave")
     page.wait_for_selector("#kundItems tr")
     page.click("#kundItems tr button")
-
-    assert page.input_value("#kundOrganisationsnummer") == "212000-0142"
+    # Kunden hämtas när formuläret öppnas; numret finns inte i listan.
+    page.wait_for_function(
+        "() => document.getElementById('kundOrganisationsnummer').value === '212000-0142'"
+    )
+    assert page.is_visible("#kundForm")
     assert errors == []
     page.close()
