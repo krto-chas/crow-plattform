@@ -72,8 +72,15 @@ def _classification_of(severity: FindingSeverity, classification: int | None) ->
     return 0
 
 
-def _unit_sort_key(number: str) -> tuple[int, str]:
-    return (int(number), "") if number.isdigit() else (10**9, number)
+def _unit_sort_key(number: str) -> tuple[int, int, str, int]:
+    """Rena nummer först, sedan port för port ("9-1101" före "10-1001")."""
+
+    if number.isdigit():
+        return (0, 0, "", int(number))
+    port, _, tail = number.rpartition("-")
+    if port and tail.isdigit():
+        return (1, int(port) if port.isdigit() else 10**9, port, int(tail))
+    return (2, 0, number, 0)
 
 
 def _severity_for(classification: int) -> FindingSeverity:

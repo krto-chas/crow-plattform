@@ -175,6 +175,8 @@
     #viewRond #continueUnit{display:none}
     #viewRond .round-toolbar{grid-template-columns:repeat(auto-fit,minmax(0,1fr));gap:8px;margin:10px 0 4px}
     #viewRond .round-toolbar label{font-size:12px;margin:0 0 2px}
+    /* Porten får en egen rad, så att namnet får plats på en smal telefon. */
+    #viewRond .round-toolbar>div:first-child{grid-column:1/-1}
     #viewRond .round-toolbar input,#viewRond .round-toolbar select{padding-left:8px;padding-right:4px;font-size:15px}
     .ovk-key-tag{min-height:44px;padding:4px 12px 4px 0;font-size:13px;text-align:left}
     .ovk-access-row{grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:8px;margin-top:8px}
@@ -1765,7 +1767,7 @@
   function roundFooter(name){
     const next=name==='viewRond'?nextPendingUnit():null;
     // När inget återstår är nästa steg att granska och avsluta; därefter att synka.
-    const finish=name==='viewRond'&&!next&&state.units.length>0&&!state.field_work_completed_at;
+    const finish=name==='viewRond'&&!next&&state.units.length>0&&!state.field_work_completed_at&&roundCanFinish();
     footSync.hidden=!(next||finish);footInner.classList.toggle('three',Boolean(next||finish));
     if(next){$id('footDone').textContent='Fortsätt · '+roundUnitLabel(next);$id('footBack').textContent='Start'}
     // Med portar är porten klar först; valet att gå vidare eller avsluta görs i nästa steg.
@@ -1780,6 +1782,8 @@
   }
   // Porten är klar när den har enheter och ingen av dem väntar på att påbörjas.
   function portDone(){return portsInUse()&&portUnits().length>0&&!nextPendingUnit()}
+  // En tom port får inte erbjuda avslut av hela besiktningen medan andra portar har enheter kvar.
+  function roundCanFinish(){return !portsInUse()||portDone()||nextPendingPort()===null}
   let portSheetOpen=false;
   async function showPortDone(){
     if(portSheetOpen||!portDone()||state.field_work_completed_at)return;
@@ -1787,7 +1791,7 @@
     try{
       const upcoming=nextPendingPort();
       const answer=await askSheet({title:portLabel(activePort())+' är klar',note:upcoming===null?'Ingen annan port har enheter kvar att påbörja.':'Gå vidare till nästa port eller avsluta besiktningen.',
-        choices:[...(upcoming===null?[]:[['next',upcoming?'Gå till port '+upcoming:'Gå till enheter utan port',true]]),['new','Ny port',upcoming===null],['finish','Granska och avsluta']],cancelLabel:'Stanna i porten',stack:true});
+        choices:[...(upcoming===null?[]:[['next',upcoming?'Gå till port '+upcoming:'Gå till enheter utan port',true]]),['new','Ny port'],['finish','Granska och avsluta',upcoming===null]],cancelLabel:'Stanna i porten',stack:true});
       if(!answer)return;
       if(answer.choice==='next')await choosePort(upcoming);
       else if(answer.choice==='new')await addPort();
@@ -1810,7 +1814,7 @@
   const originalFootDone=$id('footDone').onclick;
   $id('footDone').onclick=function(event){
     if(document.querySelector('.view.on').id==='viewRond'){const next=nextPendingUnit();if(next){openUnit(next.unit_id);return undefined}
-      if(state.units.length&&!state.field_work_completed_at){if(portDone())void showPortDone();else showFinish();return undefined}}
+      if(state.units.length&&!state.field_work_completed_at&&roundCanFinish()){if(portDone())void showPortDone();else showFinish();return undefined}}
     if(document.querySelector('.view.on').id==='viewStart'&&startCollapsed()&&draftList[0]){void openDraft(draftList[0]);return undefined}
     return originalFootDone.call(this,event);
   };

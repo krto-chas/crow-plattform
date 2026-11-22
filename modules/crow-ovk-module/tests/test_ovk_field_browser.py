@@ -2640,6 +2640,12 @@ def test_ports_keep_four_digit_numbers_and_ask_for_the_next_port(
     assert page.text_content("#unitEmpty") == (
         "Inga enheter i port 58 ännu. Lägg till lägenheter eller lokaler."
     )
+    # En tom port erbjuder inte avslut av hela besiktningen: port 56 har en lägenhet kvar.
+    assert flow.state("nextPendingPort()") == "56"
+    assert page.text_content("#footDone") != "Granska och avsluta"
+    page.click("#footDone")
+    assert page.query_selector("#ovkFinishView") is None
+    assert page.query_selector("#ovkSheet") is None
     page.click("#addUnit")
     page.wait_for_selector("#ovkSheet")
     page.fill("#ovkSheet_numbers", "1001, 1101")
@@ -2659,6 +2665,13 @@ def test_ports_keep_four_digit_numbers_and_ask_for_the_next_port(
         " === 'Alla angivna enheter finns redan.'"
     )
     assert flow.state("state.units.length") == 4
+
+    # Lägenhetsmallen i fält fungerar med samma nummer i flera portar, och
+    # visar vilken port mallen kommer från.
+    assert flow.state(
+        "fieldTemplateCandidates(state.units.find(u => u.port === '58' && u.number === '1001'))"
+        ".map(unitNumberText)"
+    ) == ["54-1001"]
 
     # Porten följer med enheten i synken och godtas av servern.
     data = _validated_payload(flow.state("payload()"))
@@ -2682,6 +2695,27 @@ def test_ports_keep_four_digit_numbers_and_ask_for_the_next_port(
     assert flow.state("activePort()") == "58"
     assert port_options() == ["Port 54 (1)", "Port 56 (1)", "Port 58 (2)", "+ Ny port…"]
     assert rows() == ["1001", "1101"]
+
+    # Ett utkast från före portarna (utan dessa uppgifter) öppnas som förut.
+    page.evaluate(
+        """async () => {
+          for (const unit of state.units) delete unit.port;
+          state.units.splice(2); state.ports = []; state.active_port = null;
+          await persist();
+          const key = draftKey(state.project_id, state.inspection_id);
+          const draft = await dbGet(DRAFT_STORE, key);
+          delete draft.ports; delete draft.active_port;
+          await dbPut(DRAFT_STORE, draft);
+        }"""
+    )
+    page.reload()
+    page.wait_for_function("typeof state === 'object' && state.units.length === 2")
+    page.wait_for_function("document.querySelector('.view.on').id === 'viewRond'")
+    assert flow.state("[state.ports, state.active_port, portsInUse()]") == [[], None, False]
+    assert rows() == ["1001", "1002"]
+    assert page.evaluate("() => document.getElementById('unitPort').closest('div').hidden")
+    assert not page.text_content("#rondMeta").endswith("Port")
+    assert all("port" not in unit for unit in flow.state("payload().units"))
     assert flow.errors == []
     assert dialogs == []
     context.close()
@@ -2721,6 +2755,8 @@ def test_assignment_with_trapphus_opens_with_ports_in_the_field(
     )
     structure = {
         "trapphus": [
+            # Ett trapphus utan enheter står först i registret.
+            {"trapphus_id": "t-52", "namn": "52", "adress": ""},
             {"trapphus_id": "t-54", "namn": "54", "adress": "Storgatan 54"},
             {"trapphus_id": "t-56", "namn": "56", "adress": "Storgatan 56"},
         ],
@@ -2742,7 +2778,7 @@ def test_assignment_with_trapphus_opens_with_ports_in_the_field(
     assert api.put("/api/ovk/projects/p1/inspections/ovk-001", json=payload).status_code == 200
 
     context = browser.new_context(
-        viewport={"width": 390, "height": 844}, is_mobile=True, has_touch=True
+        viewport={"width": 375, "height": 667}, is_mobile=True, has_touch=True
     )
     page = context.new_page()
     errors: list[str] = []
@@ -2758,10 +2794,18 @@ def test_assignment_with_trapphus_opens_with_ports_in_the_field(
         ["56", "1001"],
     ]
     assert page.eval_on_selector_all("#unitPort option", "o => o.map(x => x.textContent)") == [
+        "Port 52 (0)",
         "Port 54 (2)",
         "Port 56 (1)",
         "+ Ny port…",
     ]
+    # Den tomma porten möter en inte först: första porten med lägenheter är vald.
+    assert page.evaluate("() => activePort()") == "54"
+    # På en smal telefon får porten en egen rad och inget sticker ut i sidled.
+    assert page.evaluate(
+        "() => [document.documentElement.scrollWidth <= window.innerWidth,"
+        " document.getElementById('unitPort').getBoundingClientRect().width > 250]"
+    ) == [True, True]
     assert page.eval_on_selector_all(
         "#unitList .unitrow .nr", "items => items.map(n => n.textContent)"
     ) == ["1001", "1101"]

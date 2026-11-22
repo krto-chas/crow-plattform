@@ -716,3 +716,45 @@ def test_frozen_inspection_synced_from_field_is_promoted_and_shown_with_port(
     assert by_id["u1"]["rooms"] == [{"room_id": "r1", "name": "Kök"}]
     assert by_id["u2"]["trapphus_id"] == "t-a"
     assert by_id["u3"]["trapphus_id"] == after["trapphus"][1]["trapphus_id"]
+
+
+def test_new_unit_without_port_is_not_added_beside_the_same_number_in_a_trapphus() -> None:
+    inventory = _validate_structure(_structure())
+    snapshot = {
+        "units": [
+            # 1001 finns i trapphus A; utan port går enheten inte att placera.
+            {"unit_id": "u40", "number": "1001", "kind": "apartment"},
+            # 1301 finns inte i något trapphus och läggs in utan.
+            {"unit_id": "u41", "number": "1301", "kind": "apartment"},
+        ],
+        "rooms": [],
+        "measurements": [],
+    }
+
+    plan = plan_inventory_promotion(deepcopy(inventory), snapshot, {})
+
+    assert plan["conflicts"] == ["Enhet 1001: numret finns i ett trapphus men enheten saknar port."]
+    assert [item["id"] for item in plan["additions"]] == ["u41"]
+
+
+def test_proposed_trapphus_gets_a_free_id_when_an_earlier_one_was_renamed() -> None:
+    snapshot = {
+        "units": [{"unit_id": "u20", "number": "1001", "kind": "apartment", "port": "56"}],
+        "rooms": [],
+        "measurements": [],
+    }
+    first = plan_inventory_promotion(_validate_structure(_structure()), snapshot, {})["structure"]
+    # Det fältskapade trapphuset byter namn på kontoret; porten 56 anges sedan i fält igen.
+    first["trapphus"][2]["namn"] = "56A"
+    again = {
+        "units": [{"unit_id": "u21", "number": "1001", "kind": "apartment", "port": "56"}],
+        "rooms": [],
+        "measurements": [],
+    }
+
+    plan = plan_inventory_promotion(_validate_structure(first), again, {})
+
+    ids = [item["trapphus_id"] for item in plan["structure"]["trapphus"]]
+    assert len(set(ids)) == 4
+    assert [item["namn"] for item in plan["structure"]["trapphus"]] == ["A", "B", "56A", "56"]
+    assert _validate_structure(plan["structure"]) == plan["structure"]

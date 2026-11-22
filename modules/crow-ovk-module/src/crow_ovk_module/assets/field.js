@@ -80,7 +80,8 @@ function portList(){
 function portsInUse(){return portList().length>0}
 // Valbara portar: enheter utan port bildar en egen grupp så länge de finns.
 function portOptions(){const ports=portList();return ports.length&&state.units.some(unit=>!unitPort(unit))?[...ports,'']:ports}
-function activePort(){const options=portOptions();return !options.length?'':options.includes(state.active_port)?state.active_port:options[0]}
+// Utan eget val visas första porten som har enheter, så att en tom port inte möter en först.
+function activePort(){const options=portOptions();return !options.length?'':options.includes(state.active_port)?state.active_port:(options.find(port=>state.units.some(unit=>unitPort(unit)===port))??options[0])}
 function portUnits(port=activePort()){return portsInUse()?state.units.filter(unit=>unitPort(unit)===port):state.units}
 // Numret som i protokollet: "54-1101" i port 54.
 function unitNumberText(unit){const port=unitPort(unit);return port?port+'-'+unit.number:String(unit.number)}
@@ -102,7 +103,8 @@ function portLabel(port){return port?'Port '+port:'Utan port'}
 async function choosePort(port){state.active_port=port;if($('unitFloor'))$('unitFloor').value='';renderRond();await writeDraft(state.dirty)}
 async function addPort(){
   const answer=await askSheet({title:'Ny port',note:'Ange portens nummer eller namn. Lägenheterna behåller sina fyrsiffriga nummer och skrivs 54-1101 i protokollet.',fields:[{id:'port',label:'Port',required:true,placeholder:'T.ex. 54',maxLength:100}],submitLabel:'Lägg till port',
-    validate:values=>portList().some(port=>port.toLocaleLowerCase('sv')===cleanPort(values.port).toLocaleLowerCase('sv'))?'Porten finns redan. Välj den i listan.':''});
+    // Samma regel som servern: osynliga tecken och styrtecken skulle stoppa synken.
+    validate:values=>/[\p{C}\p{Zl}\p{Zp}]/u.test(values.port)?'Porten innehåller tecken som inte går att spara. Skriv den med bokstäver och siffror.':portList().some(port=>port.toLocaleLowerCase('sv')===cleanPort(values.port).toLocaleLowerCase('sv'))?'Porten finns redan. Välj den i listan.':''});
   if(!answer)return false;
   const port=cleanPort(answer.port);if(!port)return false;
   state.ports=[...(state.ports||[]),port];
@@ -249,7 +251,8 @@ function fieldTemplatePlan(sourceId,targetId){
   const target=state.units.find(u=>u.unit_id===targetId);
   if(!fieldTemplateEligible(target)||!source||source===target||source.status==='bom'||apartmentSuffix(source)!==apartmentSuffix(target)||unitSystem(source)!==unitSystem(target))throw new Error('Lägenheterna är inte lämpliga för denna mall.');
   for(const unit of [source,target]){
-    if(state.units.filter(u=>String(u.number).trim()===String(unit.number).trim()).length!==1)throw new Error('Lägenhetsnumret är inte entydigt.');
+    // Numret ska vara entydigt i sin port; samma nummer får finnas i en annan.
+    if(state.units.filter(u=>unitPort(u)===unitPort(unit)&&String(u.number).trim()===String(unit.number).trim()).length!==1)throw new Error('Lägenhetsnumret är inte entydigt.');
   }
   const sourceRooms=state.rooms.filter(r=>r.unit_id===sourceId);
   const sourcePoints=state.measurements.filter(p=>p.unit_id===sourceId);
@@ -298,7 +301,7 @@ function renderFieldTemplate(){
   preview.replaceChildren();source.replaceChildren();confirmation.checked=false;apply.disabled=true;
   apply.onclick=null;source.onchange=null;confirmation.onchange=null;
   if(!candidates.length)return;
-  for(const candidate of candidates)source.add(new Option(candidate.number+' · '+unitSystem(candidate),candidate.unit_id));
+  for(const candidate of candidates)source.add(new Option(unitNumberText(candidate)+' · '+unitSystem(candidate),candidate.unit_id));
   source.value=candidates[0].unit_id;
   function renderPreview(){
     confirmation.checked=false;apply.disabled=true;preview.replaceChildren();
@@ -851,7 +854,7 @@ async function finishCurrentUnit(){
     // Portens sista enhet är gjord: fråga om nästa port eller avslut.
     if(window.ovkPortDone)void window.ovkPortDone();
     $('syncStatus').className='status';
-    $('syncStatus').textContent='Inga ej färdigmarkerade enheter kvar. Kontrollera BOM, mätpunkter och teknikutrymmen innan protokollet färdigställs. Synka när du har nät.';
+    $('syncStatus').textContent=portsInUse()&&nextPendingPort()!==null?portLabel(activePort())+' är klar. Andra portar har enheter kvar.':'Inga ej färdigmarkerade enheter kvar. Kontrollera BOM, mätpunkter och teknikutrymmen innan protokollet färdigställs. Synka när du har nät.';
   }finally{finishingUnit=false;$('footDone').disabled=false;$('footBack').disabled=false}
 }
 $('footDone').onclick=async()=>{

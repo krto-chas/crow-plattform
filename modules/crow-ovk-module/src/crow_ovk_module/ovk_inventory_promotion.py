@@ -106,6 +106,16 @@ def plan_inventory_promotion(
             trapphus_id = scope(unit)
         elif not port:
             trapphus_id = None
+            # I ett hus med trapphus går en ny enhet utan port inte att placera
+            # säkert när numret redan finns i ett trapphus.
+            if any(
+                scope(other) is not None and normalized(other["number"]) == normalized(number)
+                for other in units.values()
+            ):
+                conflicts.append(
+                    f"Enhet {label}: numret finns i ett trapphus men enheten saknar port."
+                )
+                continue
         else:
             frozen_id = frozen_ids.get(normalized(port))
             trapphus_id = frozen_id if frozen_id in names else current_ids.get(normalized(port))
@@ -116,6 +126,12 @@ def plan_inventory_promotion(
                 # Porten lades till i fält: föreslås som nytt trapphus.
                 digest = sha256(normalized(port).encode("utf-8")).hexdigest()[:24]
                 trapphus_id = f"trapphus-{digest}"
+                # Ett tidigare fältskapat trapphus kan ha bytt namn och bär då samma ID.
+                taken = {row["trapphus_id"] for row in result.get("trapphus", [])}
+                suffix = 2
+                while trapphus_id in taken:
+                    trapphus_id = f"trapphus-{digest}-{suffix}"
+                    suffix += 1
                 new_trapphus = {"trapphus_id": trapphus_id, "namn": port, "adress": ""}
         # Samma nummer får finnas i flera trapphus, men inte två gånger i samma.
         if new_trapphus is None and any(
