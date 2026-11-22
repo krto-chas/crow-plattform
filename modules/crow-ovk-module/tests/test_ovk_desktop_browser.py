@@ -714,11 +714,12 @@ def test_kund_changed_elsewhere_is_not_overwritten(
     page.wait_for_selector("#kundItems tr")
 
     page.click("#kundItems tr button")
+    page.wait_for_selector("#kundForm:not([hidden])")
     # Någon annan sparar samma kund medan formuläret är öppet.
     changed = page.evaluate(
         """async () => {
           const list = await (await fetch('/api/ovk/kunder')).json();
-          const kund = list.kunder[0];
+          const kund = await (await fetch('/api/ovk/kunder/' + list.kunder[0].kund_id)).json();
           const response = await fetch('/api/ovk/kunder/' + kund.kund_id, {
             method: 'PUT',
             headers: {'content-type': 'application/json', 'X-OVK-Base-Revision': kund.revision},
@@ -738,5 +739,35 @@ def test_kund_changed_elsewhere_is_not_overwritten(
     assert page.is_visible("#kundForm")
     stored = page.evaluate("async () => (await (await fetch('/api/ovk/kunder')).json()).kunder[0]")
     assert stored["telefon"] == "08-1"
+    assert errors == []
+    page.close()
+
+
+def test_organisationsnummer_is_checked_and_kept_on_the_kund(
+    register_url: str,
+    browser: Any,  # noqa: F811
+) -> None:
+    page, errors, _ = _open(browser, register_url + "/ovk/fastighet", _DESKTOP)
+    page.wait_for_selector("#registerItems tr")
+    page.click("#kundNew")
+    page.fill("#kundNamn", "Brf Lärkan")
+    page.fill("#kundOrganisationsnummer", "2120000143")
+    page.click("#kundSave")
+    page.wait_for_function(
+        "() => document.getElementById('kundFormStatus')"
+        ".textContent.startsWith('Organisationsnumret stämmer inte')"
+    )
+    assert page.is_visible("#kundForm")
+    assert page.locator("#kundItems tr").count() == 0
+
+    page.fill("#kundOrganisationsnummer", "2120000142")
+    page.click("#kundSave")
+    page.wait_for_selector("#kundItems tr")
+    page.click("#kundItems tr button")
+    # Kunden hämtas när formuläret öppnas; numret finns inte i listan.
+    page.wait_for_function(
+        "() => document.getElementById('kundOrganisationsnummer').value === '212000-0142'"
+    )
+    assert page.is_visible("#kundForm")
     assert errors == []
     page.close()

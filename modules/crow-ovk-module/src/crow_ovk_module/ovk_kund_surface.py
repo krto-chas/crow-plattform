@@ -43,6 +43,20 @@ def _public(kund: Kund) -> dict[str, Any]:
     return {**kund_to_payload(kund), "revision": kund_revision(kund)}
 
 
+def _listed(kund: Kund) -> dict[str, Any]:
+    """Kunden som den visas i listan: utan organisationsnummer och revision.
+
+    Numret är för enskild firma ett personnummer. Det lämnas bara när en enskild
+    kund hämtas, inte för alla kunder varje gång listan läses. Revisionen är en
+    checksumma över hela posten, numret inräknat, och övriga fält står i listan:
+    med den kunde numret räknas fram. Den lämnas därför också bara för en
+    enskild kund.
+    """
+    entry = kund_to_payload(kund)
+    entry.pop("organisationsnummer", None)
+    return entry
+
+
 def ovk_kund_router(data_root: Path) -> APIRouter:
     router = APIRouter()
     kunder = KundRepository(data_root)
@@ -91,7 +105,7 @@ def ovk_kund_router(data_root: Path) -> APIRouter:
         return {
             "kunder": [
                 {
-                    **_public(kund),
+                    **_listed(kund),
                     "antal_fastigheter": counts.get(kund.kund_id, 0) if counted else None,
                 }
                 for kund in sorted(items, key=lambda item: (item.namn.casefold(), item.kund_id))

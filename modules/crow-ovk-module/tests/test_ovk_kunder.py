@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 from typing import Any
 
@@ -65,7 +66,12 @@ def test_kund_is_created_listed_and_read_back(tmp_path: Path, monkeypatch: Monke
     assert client.get("/api/ovk/kunder/kund-1").json() == created
     listed = client.get("/api/ovk/kunder").json()
     assert listed == {
-        "kunder": [{**created, "antal_fastigheter": 0}],
+        "kunder": [
+            {
+                **{key: value for key, value in created.items() if key != "revision"},
+                "antal_fastigheter": 0,
+            }
+        ],
         "ej_lasbara": [],
         "antal_fastigheter_kant": True,
         "fullstandig": True,
@@ -361,3 +367,113 @@ def test_property_page_carries_the_kund_panel(tmp_path: Path) -> None:
     assert "window.ovkKunder?.loaded()?{kund_id:$('kund').value||null}:{}" in app_script
     # ADR-013: beställaren heter kund i identifierare, inte customer.
     assert "customer" not in script.text.lower()
+
+
+@pytest.mark.parametrize(
+    "written",
+    [
+        "212000-0142",
+        "2120000142",
+        " 212000 0142 ",
+        "162120000142",
+        "16212000-0142",
+        "212000\u00a00142",
+    ],
+)
+def test_organisationsnummer_is_optional_and_stored_in_one_form(
+    tmp_path: Path, written: str
+) -> None:
+    client = _client(tmp_path)
+
+    created = _create(client, organisationsnummer=written)
+
+    assert created["organisationsnummer"] == "212000-0142"
+    assert client.get("/api/ovk/kunder/kund-1").json()["organisationsnummer"] == "212000-0142"
+
+
+@pytest.mark.parametrize(
+    "written",
+    [
+        "212000-0143",
+        "12345",
+        "212000-01420",
+        "abc",
+        "２１２０００-０１４２",
+        2120000142,
+        "000000-0000",
+        "2-1-2-0-0-0-0-1-4-2",
+        "--2120000142",
+        "121212+1212",
+        "172120000142",
+    ],
+)
+def test_wrong_organisationsnummer_is_refused(tmp_path: Path, written: Any) -> None:
+    response = _client(tmp_path).put(
+        "/api/ovk/kunder/kund-1",
+        json={"namn": "Brf Lärkan", "organisationsnummer": written},
+        headers=_NEW,
+    )
+
+    assert response.status_code == 422
+    assert response.json()["detail"]["code"] == "INVALID_KUND"
+    assert not KundRepository(tmp_path).exists("kund-1")
+
+
+def test_kund_without_organisationsnummer_is_stored_as_before(tmp_path: Path) -> None:
+    client = _client(tmp_path)
+
+    created = _create(client, organisationsnummer="")
+
+    assert "organisationsnummer" not in created
+    stored = json.loads((tmp_path / "registry" / "kund" / "kund-1.json").read_text("utf-8"))
+    assert "organisationsnummer" not in stored
+    # Numret kan läggas till och tas bort igen utan att annat ändras.
+    added = client.put(
+        "/api/ovk/kunder/kund-1",
+        json={"namn": "Brf Lärkan", "organisationsnummer": "212000-0142"},
+        headers={"X-OVK-Base-Revision": created["revision"]},
+    ).json()
+    assert added["organisationsnummer"] == "212000-0142"
+    removed = client.put(
+        "/api/ovk/kunder/kund-1",
+        json={"namn": "Brf Lärkan"},
+        headers={"X-OVK-Base-Revision": added["revision"]},
+    ).json()
+    assert "organisationsnummer" not in removed
+
+
+def test_organisationsnummer_message_names_the_field(tmp_path: Path) -> None:
+    response = _client(tmp_path).put(
+        "/api/ovk/kunder/kund-1",
+        json={"namn": "Brf Lärkan", "organisationsnummer": "212000-0143"},
+        headers=_NEW,
+    )
+
+    assert "organisationsnummer" in response.json()["detail"]["message"]
+    assert Kund(kund_id="kund-1", namn="Brf Lärkan").organisationsnummer == ""
+
+
+def test_organisationsnummer_is_only_given_for_a_single_kund(tmp_path: Path) -> None:
+    client = _client(tmp_path)
+    _create(client, organisationsnummer="212000-0142")
+    client.put(_FASTIGHET, json={"fastighetsbeteckning": "Lärkan 4", "kund_id": "kund-1"})
+
+    listed = client.get("/api/ovk/kunder")
+    register = client.get("/api/ovk/fastigheter")
+
+    # För enskild firma är numret ett personnummer: det följer inte med i listor.
+    assert "organisationsnummer" not in listed.json()["kunder"][0]
+    assert "212000" not in listed.text
+    assert "212000" not in register.text
+    single = client.get("/api/ovk/kunder/kund-1").json()
+    assert single["organisationsnummer"] == "212000-0142"
+    # Revisionen är en checksumma över hela posten. Med den och listans övriga
+    # fält kunde numret räknas fram, så den lämnas inte heller i listan.
+    assert "revision" not in listed.json()["kunder"][0]
+    assert single["revision"] not in listed.text
+    assert single["revision"] == kund_revision(KundRepository(tmp_path).load("kund-1"))
+
+
+def test_samordningsnummer_is_accepted_as_organisationsnummer() -> None:
+    # Dag + 60 i ett samordningsnummer; kontrollsiffran räknas på samma sätt.
+    assert Kund(kund_id="kund-1", namn="Firma", organisationsnummer="701063-2391")

@@ -4,11 +4,12 @@
   'use strict';
 
   const $ = id => document.getElementById(id);
-  const FIELDS = ['Namn', 'Kontaktperson', 'Telefon', 'Epost', 'Referens'];
+  const FIELDS = ['Namn', 'Organisationsnummer', 'Kontaktperson', 'Telefon', 'Epost', 'Referens'];
   const ADDRESSES = { postadress: 'kundPost', faktureringsadress: 'kundFaktura' };
   let kunder = null;
   let editing = null;
   let revision = 0;
+  let openRevision = 0;
   let onChange = null;
   // Bekräftelsen från senaste sparning, visad tills nästa händelse i panelen.
   let saved = '';
@@ -82,7 +83,24 @@
     status([saved].concat(notes).filter(Boolean).join(' '), notes.length > 0);
   }
 
-  function openForm(kund) {
+  // Öppnar formuläret. En befintlig kund hämtas då i sin helhet: listan saknar
+  // organisationsnumret, och revisionen ska vara den som gäller just nu.
+  async function openForm(listed) {
+    let kund = null;
+    if (listed) {
+      const ticket = ++openRevision;
+      try {
+        const response = await fetch('/api/ovk/kunder/' + encodeURIComponent(listed.kund_id), { cache: 'no-store' });
+        if (!response.ok) throw new Error(String(response.status));
+        kund = await response.json();
+      } catch (error) {
+        if (ticket === openRevision) status('Kunden kunde inte öppnas. Kontrollera anslutningen och försök igen.', true);
+        return;
+      }
+      if (ticket !== openRevision) return;
+    } else {
+      openRevision += 1;
+    }
     editing = kund ? { id: kund.kund_id, revision: kund.revision } : { id: newId(), revision: 'new' };
     $('kundFormTitle').textContent = kund ? 'Ändra kund' : 'Ny kund';
     for (const field of FIELDS) $('kund' + field).value = kund ? kund[field.toLowerCase()] || '' : '';
@@ -98,6 +116,8 @@
   }
 
   function closeForm() {
+    // En pågående hämtning ska inte öppna formuläret igen efter Avbryt.
+    openRevision += 1;
     editing = null;
     $('kundForm').hidden = true;
   }
@@ -138,7 +158,9 @@
         return;
       }
       if (response.status === 422) {
-        note.textContent = 'Uppgifterna kunde inte sparas. Kontrollera namn och e-postadress.';
+        note.textContent = String(body.detail && body.detail.message).includes('organisationsnummer')
+          ? 'Organisationsnumret stämmer inte. Kontrollera siffrorna, eller lämna fältet tomt.'
+          : 'Uppgifterna kunde inte sparas. Kontrollera namn och e-postadress.';
         return;
       }
       if (!response.ok) throw new Error(String(response.status));
