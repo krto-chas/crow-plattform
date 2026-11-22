@@ -9,6 +9,7 @@ täckningsförslag, samt sparar ett workflow-record som resten av kedjan
 from __future__ import annotations
 
 import json
+from dataclasses import replace
 from hashlib import sha256
 from pathlib import Path
 from typing import Any
@@ -25,6 +26,14 @@ from crow_ovk_workflow import (
 )
 from crow_ovk_workflow.flow_protocol import build_flow_protocol
 
+from .ovk_draft_archive import (
+    archive,
+    has_unsaved_work,
+    list_archived,
+    load_archived,
+    mark_built,
+)
+from .ovk_draft_archive import summary as draft_summary
 from .ovk_field_surface import (
     _field_data_from_payload,
     _FieldSyncRepository,
@@ -48,6 +57,7 @@ def ovk_protokoll_router(data_root: Path) -> APIRouter:
         project_id: str, inspection_id: str, request: Request
     ) -> dict[str, Any]:
         raw = await request.body()
+        confirmed = False
         if raw:
             try:
                 parsed: Any = json.loads(raw)
@@ -58,6 +68,12 @@ def ovk_protokoll_router(data_root: Path) -> APIRouter:
                     status_code=422,
                     detail={"code": "INVALID_JSON", "message": "payload must be an object"},
                 )
+            if "confirm_replace" in parsed and not isinstance(parsed["confirm_replace"], bool):
+                raise HTTPException(
+                    status_code=422,
+                    detail={"code": "INVALID_JSON", "message": "confirm_replace must be a boolean"},
+                )
+            confirmed = parsed.get("confirm_replace") is True
 
         _validate_identifier(project_id)
         _validate_identifier(inspection_id)
@@ -141,15 +157,30 @@ def ovk_protokoll_router(data_root: Path) -> APIRouter:
             planning=existing.planning,
             review=(),
         )
+        # Posten ersätts. Har den ändrats sedan den senast byggdes ska det
+        # bekräftas, och den sparas undan först så att arbetet går att ta tillbaka.
+        saved_draft: str | None = None
+        if has_unsaved_work(data_root, existing):
+            if not confirmed:
+                raise HTTPException(
+                    status_code=409,
+                    detail={
+                        "code": "OVK_DRAFT_REPLACE_CONFIRMATION_REQUIRED",
+                        "summary": draft_summary(existing),
+                    },
+                )
+            saved_draft = archive(data_root, existing, "ersatt av nytt utkast")
         workflow_repository.save(record)
         record = workflow_repository.load(project_id, inspection_id)
         save_protocol_source(data_root, project_id, inspection_id, record)
+        mark_built(data_root, record)
 
         canonical = json.dumps(
             utkast_to_payload(utkast), ensure_ascii=False, sort_keys=True, separators=(",", ":")
         )
         return {
             "snapshot_sha256": revision,
+            "sparat_utkast": saved_draft,
             "utkast": utkast_to_payload(utkast),
             "utkast_sha256": sha256(canonical.encode("utf-8")).hexdigest(),
             "record": record_to_payload(record),
@@ -179,6 +210,54 @@ def ovk_protokoll_router(data_root: Path) -> APIRouter:
                 "Utkast: täckningsförslaget kräver systemförteckningsbekräftelse "
                 "(STATED) innan protokollet kan färdigställas."
             ),
+        }
+
+    @router.get(
+        "/api/ovk/projects/{project_id}/field/{inspection_id}/protokoll-utkast/sparade",
+        response_model=None,
+    )
+    def list_saved_drafts(project_id: str, inspection_id: str) -> dict[str, Any]:
+        _validate_identifier(project_id)
+        _validate_identifier(inspection_id)
+        return {
+            "project_id": project_id,
+            "inspection_id": inspection_id,
+            "sparade": list_archived(data_root, project_id, inspection_id),
+        }
+
+    @router.post(
+        "/api/ovk/projects/{project_id}/field/{inspection_id}/protokoll-utkast/sparade/"
+        "{archive_id}/aterstall",
+        response_model=None,
+    )
+    def restore_saved_draft(project_id: str, inspection_id: str, archive_id: str) -> dict[str, Any]:
+        _validate_identifier(project_id)
+        _validate_identifier(inspection_id)
+        try:
+            existing = workflow_repository.load(project_id, inspection_id)
+            saved = load_archived(data_root, project_id, inspection_id, archive_id)
+        except FileNotFoundError as exc:
+            raise HTTPException(
+                status_code=404, detail={"code": "OVK_SAVED_DRAFT_NOT_FOUND"}
+            ) from exc
+        except ValueError as exc:
+            raise HTTPException(
+                status_code=409, detail={"code": "OVK_SAVED_DRAFT_UNREADABLE"}
+            ) from exc
+        # Det som ligger i posten nu sparas undan på samma sätt, så att
+        # återställningen själv går att ångra.
+        replaced = (
+            archive(data_root, existing, "ersatt vid återställning")
+            if has_unsaved_work(data_root, existing)
+            else None
+        )
+        # Planeringen är besiktningens nuvarande; den sparade kopian kan vara äldre.
+        workflow_repository.save(replace(saved, planning=existing.planning))
+        record = workflow_repository.load(project_id, inspection_id)
+        return {
+            "aterstallt": archive_id,
+            "sparat_utkast": replaced,
+            "record": record_to_payload(record),
         }
 
     return router

@@ -116,3 +116,7 @@ Varje punkt är ett eget arbete. Ingen ny backend där en befintlig rutt räcker
 | D10 | Delade uppdrag (kontrakt 15) | Två besiktningsmän, ett protokoll, ingen överskrivning |
 
 Varje steg levereras i små PR:ar med acceptanskriterier och tester. Fältappen ändras bara när ett kontrakt kräver det.
+
+## Protokollutkast som ersätts
+
+Ett nytt protokollutkast från fältdata ersätter besiktningens post. Har posten ändrats sedan den senast byggdes (granskningsbeslut, täckning, inmatade uppgifter) svarar `POST …/protokoll-utkast` 409 `OVK_DRAFT_REPLACE_CONFIRMATION_REQUIRED` tills begäran bär `confirm_replace: true`. Posten sparas då undan först, under `projects/{projekt}/ovk-utkast-sparade/{besiktning}/`, och går att ta tillbaka med `POST …/protokoll-utkast/sparade/{id}/aterstall`. Återställningen sparar på samma sätt undan det den ersätter och behåller besiktningens nuvarande planering. De tjugo senaste kopiorna per besiktning behålls. Ett orört, byggt utkast och en nyplanerad post ersätts utan fråga.

@@ -28,6 +28,7 @@
     @media(min-width:901px){.desktop-tools>summary{display:none}.desktop-tools:not([open])> :not(summary){display:revert}}
     .ovk-nav-pending{display:block;padding:12px;color:#8fa9a8;cursor:default}.ovk-nav-pending small{font-size:11px;letter-spacing:.06em;text-transform:uppercase;border:1px solid #426064;border-radius:999px;padding:1px 7px;margin-left:4px}
     .queue{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:14px;margin-top:18px}.ovk-queue-card{text-align:left;font:inherit;color:inherit;cursor:pointer}.ovk-queue-card strong{display:block;font-size:28px;margin-top:8px}.ovk-queue-card[aria-pressed=true]{border-color:#237663;box-shadow:inset 0 0 0 1px #237663}.ovk-queue-card:focus-visible{outline:3px solid #368fbc;outline-offset:3px}
+    .saved-draft{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:6px 0}.saved-draft .button{margin-top:0}#pbConfirm p{margin:8px 0}
     .review-table-wrap{overflow-x:auto;margin-top:8px}.review-table{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums}.review-table th{text-align:left;font-size:12px;letter-spacing:.04em;text-transform:uppercase;color:#607080;font-weight:600;padding:8px 12px;border-bottom:1px solid #dfe5ea;white-space:nowrap}.review-table td{text-align:left;padding:8px 12px;border-bottom:1px solid #eef2f5;vertical-align:top}.review-table th.num,.review-table td.num{text-align:right}.review-table tbody tr:last-child td{border-bottom:0}
     .ovk-table-wrap{overflow-x:auto}.ovk-table{width:100%;border-collapse:collapse;margin-top:12px}.ovk-table th{text-align:left;font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:#607080;font-weight:600;padding:10px 12px;border-bottom:1px solid #dfe5ea}.ovk-table td{padding:14px 12px;border-bottom:1px solid #e6eaee;vertical-align:top}.ovk-table tr:last-child td{border-bottom:0}.ovk-hint{display:block;font-size:13px;margin-top:6px;max-width:26ch}.ovk-table .button,.ovk-table td:nth-child(3){white-space:nowrap}
     #overviewWarning ul{margin:8px 0 0;padding-left:20px}
@@ -146,8 +147,62 @@
       // Ett svar som inte är JSON (t.ex. ett serverfel) ska inte bli ett tekniskt felmeddelande.
       async function draftJson(response){try{return await response.json()}catch(_){return null}}
       let pbRequest=0;
-      document.getElementById('pbInspection').addEventListener('change',()=>{pbRequest++;document.getElementById('pbResult').replaceChildren()});
-      document.getElementById('pbBuild').onclick=async()=>{
+      document.getElementById('pbInspection').addEventListener('change',()=>{pbRequest++;document.getElementById('pbResult').replaceChildren();void showSavedDrafts(document.getElementById('pbResult'))});
+      // Det besiktningen innehåller, i ord, för frågan innan utkastet ersätts.
+      function draftContents(summary){
+        const words=[['granskningsbeslut','granskningsbeslut','granskningsbeslut'],['kontrollpunkter','kontrollpunkt','kontrollpunkter'],['anmarkningar','anmärkning','anmärkningar'],['matningar','mätning','mätningar'],['atgarder','åtgärd','åtgärder']];
+        const parts=words.filter(([key])=>Number(summary?.[key])>0).map(([key,one,many])=>summary[key]+' '+(Number(summary[key])===1?one:many));
+        return parts.length?parts.join(', '):'täckningsuppgifter';
+      }
+      const draftTime=value=>{const date=new Date(value);return Number.isNaN(date.getTime())?String(value):date.toLocaleString('sv-SE',{dateStyle:'short',timeStyle:'short'})};
+      // Ett utkast som har ändrats sedan det byggdes ersätts inte utan fråga.
+      function askDraftReplace(out,summary){
+        out.replaceChildren();
+        const box=document.createElement('div');box.className='status warn';box.id='pbConfirm';box.setAttribute('role','alertdialog');box.setAttribute('aria-labelledby','pbConfirmTitle');
+        const title=document.createElement('strong');title.id='pbConfirmTitle';title.textContent='Besiktningen har redan ett utkast som har ändrats.';
+        const text=document.createElement('p');text.textContent='Det innehåller '+draftContents(summary)+'. Ett nytt utkast från fältdata ersätter det. Det nuvarande sparas undan först och går att återställa.';
+        const yes=document.createElement('button');yes.type='button';yes.className='button';yes.id='pbConfirmYes';yes.textContent='Spara undan och bygg nytt';yes.onclick=()=>buildDraft(true);
+        const no=document.createElement('button');no.type='button';no.className='button secondary';no.id='pbConfirmNo';no.textContent='Avbryt';no.onclick=()=>{pbRequest++;out.textContent='Inget ändrades.';void showSavedDrafts(out)};
+        box.append(title,text,yes,document.createTextNode(' '),no);out.append(box);yes.focus();
+      }
+      // Sparade utkast för vald besiktning, med möjlighet att ta tillbaka ett.
+      async function showSavedDrafts(out){
+        const project=document.getElementById('project').value,inspection=document.getElementById('pbInspection').value;
+        if(!project||!inspection)return;
+        const revision=loadRevision,requestId=pbRequest;
+        const base='/api/ovk/projects/'+encodeURIComponent(project)+'/field/'+encodeURIComponent(inspection)+'/protokoll-utkast/sparade';
+        let data=null;
+        try{const response=await fetch(base,{cache:'no-store'});data=response.ok?await draftJson(response):null}catch(_){data=null}
+        if(revision!==loadRevision||requestId!==pbRequest)return;
+        document.getElementById('pbSaved')?.remove();
+        const section=document.createElement('section');section.id='pbSaved';
+        if(!data||data.project_id!==project||data.inspection_id!==inspection||!Array.isArray(data.sparade)){const note=document.createElement('p');note.className='muted';note.textContent='Sparade utkast kunde inte läsas.';section.append(note);out.append(section);return}
+        if(!data.sparade.length)return;
+        const heading=document.createElement('h3');heading.textContent='Sparade utkast';section.append(heading);
+        for(const item of data.sparade){
+          const row=document.createElement('p');row.className='saved-draft';
+          const label=document.createElement('span');
+          if(item.olasbar){label.textContent='Ett sparat utkast går inte att läsa.';row.append(label);section.append(row);continue}
+          label.textContent=draftTime(item.saved_at)+' · '+draftContents(item.summary)+' ';
+          const restore=document.createElement('button');restore.type='button';restore.className='button secondary';restore.textContent='Återställ';restore.dataset.savedDraft=item.archive_id;
+          restore.onclick=async()=>{
+            if(!confirm('Återställ utkastet från '+draftTime(item.saved_at)+'? Det som ligger på besiktningen nu sparas undan först.'))return;
+            const token=++pbRequest;restore.disabled=true;
+            try{
+              const response=await fetch(base+'/'+encodeURIComponent(item.archive_id)+'/aterstall',{method:'POST'});
+              const result=await draftJson(response);
+              if(token!==pbRequest||revision!==loadRevision)return;
+              if(!response.ok||!result){out.textContent='Utkastet kunde inte återställas: '+draftError(result?.detail);return}
+              out.textContent='Utkastet från '+draftTime(item.saved_at)+' är återställt.'+(result.sparat_utkast?' Det som låg på besiktningen är sparat undan.':'');
+              await showSavedDrafts(out);
+            }catch(error){if(token===pbRequest)out.textContent='Utkastet kunde inte återställas: '+(error.message||error)}
+          };
+          row.append(label,restore);section.append(row);
+        }
+        out.append(section);
+      }
+      document.getElementById('pbBuild').onclick=()=>buildDraft(false);
+      async function buildDraft(confirmed){
         const project=document.getElementById('project').value;
         const inspection=document.getElementById('pbInspection').value;
         const out=document.getElementById('pbResult');
@@ -164,9 +219,10 @@
           if(!field)throw new Error('Servern svarade med ett fel som inte gick att läsa.');
           if(field.project_id!==project||field.inspection_id!==inspection||!field.snapshot_sha256)throw new Error('Fältunderlaget hör inte till den valda besiktningen.');
           if(revision!==loadRevision||requestId!==pbRequest)return;
-          const response=await fetch(base+'/protokoll-utkast',{method:'POST',headers:{'content-type':'application/json','X-OVK-Base-Revision':field.snapshot_sha256},body:'{}'});
+          const response=await fetch(base+'/protokoll-utkast',{method:'POST',headers:{'content-type':'application/json','X-OVK-Base-Revision':field.snapshot_sha256},body:JSON.stringify(confirmed?{confirm_replace:true}:{})});
           const data=await draftJson(response);
           if(revision!==loadRevision||requestId!==pbRequest)return;
+          if(response.status===409&&data?.detail?.code==='OVK_DRAFT_REPLACE_CONFIRMATION_REQUIRED'){askDraftReplace(out,data.detail.summary);return}
           if(!response.ok||!data){out.textContent='Utkastet kunde inte byggas: '+draftError(data?.detail);return}
           const utkast=data.utkast;
           const rows=[...utkast.anmarkningar,...utkast.upplysningar];
@@ -185,6 +241,8 @@
             }
             out.append(section);
           }
+          if(data.sparat_utkast){const note=document.createElement('p');note.id='pbSavedNote';note.className='status';note.textContent='Det tidigare utkastet är sparat undan och går att återställa under Sparade utkast.';out.prepend(note)}
+          await showSavedDrafts(out);
         }catch(error){if(revision===loadRevision&&requestId===pbRequest)out.textContent='Utkastet kunde inte byggas: '+(error.message||error)}
         finally{button.disabled=document.getElementById('pbInspection').disabled}
       };
