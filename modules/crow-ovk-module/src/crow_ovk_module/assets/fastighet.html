@@ -7,7 +7,7 @@
   <style>
     :root{font-family:Inter,system-ui,sans-serif;color:#18212b;background:#f4f6f8}*{box-sizing:border-box}body{margin:0}.shell{display:grid;grid-template-columns:230px 1fr;min-height:100vh}aside{background:#17202a;color:#fff;padding:24px}aside h1{font-size:20px;margin:0 0 28px}nav a{display:block;color:#dce5ed;text-decoration:none;padding:10px 0}nav a.active{font-weight:700;color:#fff}main{padding:32px;max-width:1300px}.eyebrow{font-size:12px;letter-spacing:.12em;color:#687684}.panel{background:#fff;border:1px solid #dfe5ea;border-radius:10px;padding:20px;margin-top:18px}label{display:block;font-size:13px;font-weight:600;margin:10px 0 4px}input,select{width:100%;padding:9px;border:1px solid #cbd4dc;border-radius:6px}.row{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px}.button{display:inline-block;border:0;border-radius:6px;background:#17202a;color:#fff;padding:9px 12px;cursor:pointer;margin-top:12px}.secondary{background:#e8edf1;color:#25313d}.muted{color:#607080}.status{padding:12px;border-radius:6px;background:#eef2f5;margin-top:12px}.warn{background:#fff4cf}.item{border-top:1px solid #e6eaee;padding:10px 0;cursor:pointer}.item:first-child{border-top:0}.pill{display:inline-block;padding:3px 7px;border-radius:999px;background:#eef2f5;font-size:11px;margin-left:6px}.bygg{border:1px dashed #cbd4dc;border-radius:8px;padding:12px;margin-top:10px}.split{display:grid;grid-template-columns:1fr 1fr;gap:18px}@media(max-width:1000px){.shell{grid-template-columns:1fr}aside{display:none}.split{grid-template-columns:1fr}}
     .template-check{display:flex;align-items:flex-start;gap:10px;line-height:1.5;padding:8px 0}.template-check input{width:20px;height:20px;flex:none;margin:0}.template-check input:focus-visible,.button:focus-visible,summary:focus-visible{outline:3px solid #416c89;outline-offset:3px}#templatePanel .button{min-height:44px;border-radius:10px}#templatePanel .button:not(.secondary){background:#416c89}#templatePanel .button:disabled{opacity:.55}#templateResult p{border-bottom:1px solid #e6eaee;padding:8px 0;overflow-wrap:anywhere}
-    #promotionPanel .button{min-height:44px;border-radius:10px}#promotionPanel .button:not(.secondary){background:#416c89}#promotionPanel .button:disabled{opacity:.55}.promotion-results{max-height:440px;overflow:auto;overflow-wrap:anywhere}.promotion-results p{margin:8px 0;border-bottom:1px solid #e6eaee;padding:6px 0}.promotion-results h4{margin:16px 0 8px}.promotion-results select{min-height:44px}
+    #promotionPanel .button{min-height:44px;border-radius:10px}#promotionPanel .button:not(.secondary){background:#416c89}#promotionPanel .button:disabled{opacity:.55}.promotion-results{max-height:440px;overflow:auto;overflow-wrap:anywhere}.promotion-results p{margin:8px 0;border-bottom:1px solid #e6eaee;padding:6px 0}.promotion-results h4{margin:16px 0 8px}.trapphus-group{margin-top:18px}.trapphus-group h4{margin:0;padding-bottom:6px;border-bottom:1px solid #dfe5ea;font-size:15px}.promotion-results select{min-height:44px}
   .ovk-nav{margin-top:20px;padding-top:12px;border-top:1px solid rgba(255,255,255,.18)}.ovk-nav-pending{display:block;padding:10px 0;opacity:.6}.ovk-nav-pending small{font-size:11px;letter-spacing:.06em;text-transform:uppercase;border:1px solid currentColor;border-radius:999px;padding:1px 7px;margin-left:4px}
 .register-head{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}.register-head h2{margin:0}#registerSearch{width:100%;margin:12px 0}.register-wrap{overflow-x:auto}.register-table{width:100%;border-collapse:collapse;margin-top:12px}.register-table th{text-align:left;font-size:12px;letter-spacing:.06em;text-transform:uppercase;font-weight:600;padding:10px 12px;border-bottom:1px solid #dfe5ea}.register-table td{padding:12px;border-bottom:1px solid #e6eaee;vertical-align:top}.register-table tr:last-child td{border-bottom:0}.register-hint{display:block;font-size:13px;margin-top:6px}.register-actions{white-space:nowrap}.register-actions .button{margin-left:6px;text-decoration:none}.kund-form{margin-top:16px;padding-top:16px;border-top:1px solid #e6eaee}.kund-form h3{margin:0 0 12px}.kund-actions{display:flex;gap:8px;margin:12px 0}
 .visually-hidden{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
@@ -47,8 +47,10 @@
         <h3 id="kundFormTitle">Ny kund</h3>
         <div class="row">
           <div><label for="kundNamn">Namn *</label><input id="kundNamn" required maxlength="200"></div>
+          <div><label for="kundOrganisationsnummer">Organisationsnummer</label><input id="kundOrganisationsnummer" inputmode="numeric" autocomplete="off" maxlength="13" placeholder="NNNNNN-NNNN" aria-describedby="kundOrgnrHelp"></div>
           <div><label for="kundKontaktperson">Kontaktperson</label><input id="kundKontaktperson" maxlength="200"></div>
         </div>
+        <p id="kundOrgnrHelp" class="muted">Organisationsnummer är frivilligt. För enskild firma är det ett personnummer.</p>
         <div class="row">
           <div><label for="kundTelefon">Telefon</label><input id="kundTelefon" type="tel" maxlength="200"></div>
           <div><label for="kundEpost">E-post</label><input id="kundEpost" type="email" maxlength="200"></div>
@@ -98,6 +100,10 @@
           <label class="template-check"><input type="checkbox" id="promotionConfirm" disabled> Jag har kontrollerat att föreslagen struktur och systemkopplingar gäller för byggnaden.</label>
           <button type="button" class="button" id="promotionApply" disabled>Spara föreslagen inventering</button>
         </details>
+        <h3>Trapphus</h3>
+        <p class="muted">Lägg in byggnadens trapphus med portnumret som namn, till exempel 54, och välj sedan trapphus på varje lägenhet och lokal. I fältappen blir trapphusen portar att välja mellan, och i protokollet sätts namnet framför numret: lägenhet 1101 i trapphus 54 skrivs 54-1101. Samma lägenhetsnummer får finnas i flera trapphus. Gathus och gårdshus registreras som egna byggnader. Det gäller besiktningar som skapas härefter.</p>
+        <div id="inventoryTrapphus"></div>
+        <button type="button" class="button secondary" id="inventoryAddTrapphus">+ Trapphus</button>
         <h3>Lägenheter och lokaler</h3>
         <details class="bygg" id="bulkPanel">
           <summary>Massregistrera lägenheter</summary>
@@ -108,6 +114,8 @@
             <div><label for="bulkStart">Första lägenhetskod per plan (01–99)</label><input id="bulkStart" type="number" min="1" max="99" step="1" value="1"></div>
             <div><label for="bulkPerFloor">Lägenheter per plan</label><input id="bulkPerFloor" type="number" min="1" max="99" step="1" value="4"></div>
           </div>
+          <label for="bulkTrapphus">Trapphus för de nya lägenheterna</label>
+          <select id="bulkTrapphus" disabled><option value="">Inget trapphus</option></select>
           <label for="bulkRooms">Rumsmall (ett rum per rad)</label>
           <textarea id="bulkRooms" rows="5" style="width:100%">Kök
 Badrum
@@ -124,6 +132,8 @@ Sovrum</textarea>
           <summary>Generera från lägenhetstyper (XX01, XX02…)</summary>
           <p class="muted">Använd en inventerad referenslägenhet för varje typ. Skapa nya lägenheter eller komplettera redan registrerade tomma lägenheter. Individuella inventeringar ändras aldrig.</p>
           <div class="row"><div><label for="templateFloor">Första våningskod</label><input id="templateFloor" type="number" min="0" max="99" value="10"></div><div><label for="templateFloors">Antal våningar</label><input id="templateFloors" type="number" min="1" max="100" value="4"></div></div>
+          <label for="templateTrapphus">Trapphus för mållägenheterna</label>
+          <select id="templateTrapphus" disabled><option value="">Inget trapphus</option></select>
           <div id="templateRules"></div>
           <label class="template-check"><input type="checkbox" id="templateFillEmpty"> Komplettera även befintliga lägenheter utan rum</label>
           <p class="muted">Kontrollera att referenslägenhetens system och projekterade flöden gäller för varje mållägenhet. Suffixet är ett urval, inte bevis på identisk ventilation.</p>

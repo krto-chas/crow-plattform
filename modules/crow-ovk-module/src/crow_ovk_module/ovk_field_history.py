@@ -181,7 +181,10 @@ class _FieldHistoryRepository:
                     "source_inspection_id": inspection_id,
                     "unit_number": next(
                         (
-                            u.get("number")
+                            # Med port framför, som i protokollet.
+                            f"{u['port']}-{u.get('number')}"
+                            if isinstance(u.get("port"), str) and u["port"]
+                            else u.get("number")
                             for u in units
                             if u.get("unit_id") == finding.get("unit_id")
                         ),

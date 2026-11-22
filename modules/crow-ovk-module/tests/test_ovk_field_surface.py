@@ -803,7 +803,9 @@ def test_r2a_round_workspace_controls(tmp_path: Path) -> None:
     assert "function nextPendingUnit(afterId=null)" in script
     assert "function roundCounts()" in script
     assert "function visibleRoundUnits(" in script
-    assert "state.measurements.filter(measuredPoint).length" in script
+    # Räknarna gäller den aktuella porten; utan portar är det alla enheter.
+    assert "points.filter(measuredPoint).length" in script
+    assert "function portUnits(port=activePort())" in script
     assert "function finishCurrentUnit()" in script
     assert "if(finishingUnit)return" in script
     assert "Object.assign(unit,previous)" in script
@@ -814,7 +816,7 @@ def test_r2a_round_workspace_controls(tmp_path: Path) -> None:
     assert "button.setAttribute('aria-pressed',String(selected))" in script
     assert "Mätpunkterna blir kvar som ofullständiga." in script
     assert "Ronderingen är komplett" not in script
-    assert "v38" in client.get("/ovk/falt/sw.js").text
+    assert "v39" in client.get("/ovk/falt/sw.js").text
 
 
 def test_field_apartment_template_controls(tmp_path: Path) -> None:

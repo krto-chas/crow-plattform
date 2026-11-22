@@ -714,11 +714,12 @@ def test_kund_changed_elsewhere_is_not_overwritten(
     page.wait_for_selector("#kundItems tr")
 
     page.click("#kundItems tr button")
+    page.wait_for_selector("#kundForm:not([hidden])")
     # Någon annan sparar samma kund medan formuläret är öppet.
     changed = page.evaluate(
         """async () => {
           const list = await (await fetch('/api/ovk/kunder')).json();
-          const kund = list.kunder[0];
+          const kund = await (await fetch('/api/ovk/kunder/' + list.kunder[0].kund_id)).json();
           const response = await fetch('/api/ovk/kunder/' + kund.kund_id, {
             method: 'PUT',
             headers: {'content-type': 'application/json', 'X-OVK-Base-Revision': kund.revision},
@@ -833,6 +834,37 @@ def test_protocol_draft_is_built_from_a_chosen_inspection_with_aligned_columns(
         "Avvikelse (absolut)",
     }
     assert {c["align"] for c in columns} == {"left", "right"}
+
+    assert errors == []
+    page.close()
+
+
+def test_organisationsnummer_is_checked_and_kept_on_the_kund(
+    register_url: str,
+    browser: Any,  # noqa: F811
+) -> None:
+    page, errors, _ = _open(browser, register_url + "/ovk/fastighet", _DESKTOP)
+    page.wait_for_selector("#registerItems tr")
+    page.click("#kundNew")
+    page.fill("#kundNamn", "Brf Lärkan")
+    page.fill("#kundOrganisationsnummer", "2120000143")
+    page.click("#kundSave")
+    page.wait_for_function(
+        "() => document.getElementById('kundFormStatus')"
+        ".textContent.startsWith('Organisationsnumret stämmer inte')"
+    )
+    assert page.is_visible("#kundForm")
+    assert page.locator("#kundItems tr").count() == 0
+
+    page.fill("#kundOrganisationsnummer", "2120000142")
+    page.click("#kundSave")
+    page.wait_for_selector("#kundItems tr")
+    page.click("#kundItems tr button")
+    # Kunden hämtas när formuläret öppnas; numret finns inte i listan.
+    page.wait_for_function(
+        "() => document.getElementById('kundOrganisationsnummer').value === '212000-0142'"
+    )
+    assert page.is_visible("#kundForm")
     assert errors == []
     page.close()
 
@@ -951,5 +983,120 @@ def test_protocol_draft_list_handles_duplicates_and_empty_projects(
     page.evaluate("() => loadProject()")
     page.wait_for_function("() => document.querySelectorAll('#pbInspection option').length === 4")
     assert page.inner_text("#pbResult") == ""
+
+    assert errors == []
+    page.close()
+
+
+def test_trapphus_is_registered_and_groups_the_units(
+    register_url: str,
+    browser: Any,  # noqa: F811
+) -> None:
+    page, errors, _ = _open(browser, register_url + "/ovk/fastighet", _DESKTOP)
+    page.wait_for_selector("#registerItems tr")
+    page.locator("#registerItems tr", has_text="Lärkan 4").locator("button").click()
+    page.wait_for_function("() => document.getElementById('beteckning').value === 'Lärkan 4'")
+    page.select_option("#inventoryBuilding", label="Hus A")
+    page.wait_for_function("() => !document.getElementById('inventoryFields').disabled")
+    # Utan trapphus finns varken val på enheten eller i massregistreringen.
+    assert page.is_disabled("#bulkTrapphus")
+
+    page.click("#inventoryAddTrapphus")
+    page.click("#inventorySave")
+    assert page.inner_text("#inventoryStatus") == "Ange namn på varje trapphus."
+    page.fill("#inventoryTrapphus .bygg:nth-child(1) label:nth-of-type(1) input", "A <b>")
+    page.fill("#inventoryTrapphus .bygg:nth-child(1) label:nth-of-type(2) input", "Storgatan 1A")
+    page.click("#inventoryAddTrapphus")
+    page.fill("#inventoryTrapphus .bygg:nth-child(2) label:nth-of-type(1) input", "B")
+    # Namnet skrivs utan omritning; valen ska ändå visa det direkt.
+    assert page.eval_on_selector_all("#bulkTrapphus option", "o => o.map(x => x.textContent)") == [
+        "Inget trapphus",
+        "A <b> – Storgatan 1A",
+        "B",
+    ]
+
+    # Massregistrering lägger lägenheterna i valt trapphus.
+    page.eval_on_selector("#bulkPanel", "d => { d.open = true }")
+    page.fill("#bulkFloors", "1")
+    page.fill("#bulkPerFloor", "2")
+    page.select_option("#bulkTrapphus", label="A <b> – Storgatan 1A")
+    page.click("#bulkPreview")
+    assert page.inner_text("#bulkStatus").startswith("Trapphus A <b> – Storgatan 1A · 2 lägenheter")
+    page.click("#bulkApply")
+    page.click("#inventoryAddUnit")
+    headings = page.eval_on_selector_all(
+        "#inventoryUnits .trapphus-group h4", "items => items.map(h => h.textContent)"
+    )
+    assert headings == [
+        "Trapphus A <b> – Storgatan 1A · 2 enheter",
+        "Trapphus B · 0 enheter",
+        "Utan trapphus · 1 enhet",
+    ]
+
+    # Den lösa enheten flyttas till trapphus B och hamnar under den rubriken.
+    loose = page.locator("#inventoryUnits .trapphus-group").nth(2)
+    loose.locator("input").first.fill("1101")
+    loose.locator("select[aria-label='Trapphus för enheten']").select_option(label="B")
+    # Kortet flyttas till trapphus B, och fokus följer med väljaren dit.
+    assert page.evaluate(
+        "() => [document.activeElement.getAttribute('aria-label'),"
+        " document.activeElement.selectedOptions[0].textContent,"
+        " document.activeElement.closest('.trapphus-group').querySelector('h4').textContent]"
+    ) == ["Trapphus för enheten", "B", "Trapphus B · 1 enhet"]
+    assert page.eval_on_selector_all(
+        "#inventoryUnits .trapphus-group h4", "items => items.map(h => h.textContent)"
+    ) == ["Trapphus A <b> – Storgatan 1A · 2 enheter", "Trapphus B · 1 enhet"]
+
+    # Ett trapphus med enheter kan inte tas bort.
+    page.once("dialog", lambda dialog: dialog.accept())
+    page.locator("#inventoryTrapphus .bygg").nth(1).locator("button").click()
+    assert "Flytta först trapphusets lägenheter" in page.inner_text("#inventoryStatus")
+
+    page.click("#inventorySave")
+    page.wait_for_function(
+        "() => document.getElementById('inventoryStatus').textContent"
+        " === 'Byggnadsstruktur sparad.'"
+    )
+    # Under numret står hur det skrivs i protokollet, med trapphusets namn framför.
+    assert (
+        page.locator("#inventoryUnits .trapphus-group").first.locator("p.muted").first.inner_text()
+        == "Skrivs A <b>-1001 i protokollet."
+    )
+    # Samma nummer får finnas i ett annat trapphus, men inte två gånger i samma.
+    page.select_option("#bulkTrapphus", label="B")
+    page.click("#bulkPreview")
+    assert page.inner_text("#bulkStatus").startswith("Trapphus B · 2 lägenheter")
+    page.select_option("#bulkTrapphus", label="A <b> – Storgatan 1A")
+    page.click("#bulkPreview")
+    assert page.inner_text("#bulkStatus") == "Nummer finns redan i trapphuset: 1001, 1002"
+
+    # Mallgeneratorn skapar lägenheten i valt trapphus, med en mall från ett annat.
+    page.eval_on_selector("#templatePanel", "d => { d.open = true }")
+    page.select_option("#templateTrapphus", label="B")
+    page.fill("#templateFloors", "1")
+    page.select_option("select[aria-label='Mall från lägenhet']", label="A <b>-1001")
+    page.click("#templatePreview")
+    assert page.inner_text("#templateStatus").startswith("1 nya · 0 tomma kompletteras")
+    assert page.inner_text("#templateResult p").startswith("Skapa B-1001 ← mall A <b>-1001")
+    page.check("#templateConfirmSystems")
+    page.click("#templateApply")
+    assert page.inner_text("#inventoryStatus") == "Osparade ändringar."
+    page.click("#inventorySave")
+    page.wait_for_function(
+        "() => document.getElementById('inventoryStatus').textContent"
+        " === 'Byggnadsstruktur sparad.'"
+    )
+    stored = page.evaluate(
+        "() => fetch('/api/ovk/projects/p1/fastighet/object-1/byggnad/building-1/struktur',"
+        " {cache: 'no-store'}).then(r => r.json())"
+    )
+    assert [item["namn"] for item in stored["trapphus"]] == ["A <b>", "B"]
+    names = {item["trapphus_id"]: item["namn"] for item in stored["trapphus"]}
+    assert sorted((unit["number"], names[unit["trapphus_id"]]) for unit in stored["units"]) == [
+        ("1001", "A <b>"),
+        ("1001", "B"),
+        ("1002", "A <b>"),
+        ("1101", "B"),
+    ]
     assert errors == []
     page.close()
