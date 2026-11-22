@@ -771,3 +771,75 @@ def test_organisationsnummer_is_checked_and_kept_on_the_kund(
     assert page.is_visible("#kundForm")
     assert errors == []
     page.close()
+
+
+def test_trapphus_is_registered_and_groups_the_units(
+    register_url: str,
+    browser: Any,  # noqa: F811
+) -> None:
+    page, errors, _ = _open(browser, register_url + "/ovk/fastighet", _DESKTOP)
+    page.wait_for_selector("#registerItems tr")
+    page.locator("#registerItems tr", has_text="Lärkan 4").locator("button").click()
+    page.wait_for_function("() => document.getElementById('beteckning').value === 'Lärkan 4'")
+    page.select_option("#inventoryBuilding", label="Hus A")
+    page.wait_for_function("() => !document.getElementById('inventoryFields').disabled")
+    # Utan trapphus finns varken val på enheten eller i massregistreringen.
+    assert page.is_disabled("#bulkTrapphus")
+
+    page.click("#inventoryAddTrapphus")
+    page.click("#inventorySave")
+    assert page.inner_text("#inventoryStatus") == "Ange namn på varje trapphus."
+    page.fill("#inventoryTrapphus .bygg:nth-child(1) label:nth-of-type(1) input", "A <b>")
+    page.fill("#inventoryTrapphus .bygg:nth-child(1) label:nth-of-type(2) input", "Storgatan 1A")
+    page.click("#inventoryAddTrapphus")
+    page.fill("#inventoryTrapphus .bygg:nth-child(2) label:nth-of-type(1) input", "B")
+
+    # Massregistrering lägger lägenheterna i valt trapphus.
+    page.eval_on_selector("#bulkPanel", "d => { d.open = true }")
+    page.fill("#bulkFloors", "1")
+    page.fill("#bulkPerFloor", "2")
+    page.select_option("#bulkTrapphus", label="A <b> – Storgatan 1A")
+    page.click("#bulkPreview")
+    assert page.inner_text("#bulkStatus").startswith("Trapphus A <b> – Storgatan 1A · 2 lägenheter")
+    page.click("#bulkApply")
+    page.click("#inventoryAddUnit")
+    headings = page.eval_on_selector_all(
+        "#inventoryUnits .trapphus-group h4", "items => items.map(h => h.textContent)"
+    )
+    assert headings == [
+        "Trapphus A <b> – Storgatan 1A · 2 enheter",
+        "Trapphus B · 0 enheter",
+        "Utan trapphus · 1 enhet",
+    ]
+
+    # Den lösa enheten flyttas till trapphus B och hamnar under den rubriken.
+    loose = page.locator("#inventoryUnits .trapphus-group").nth(2)
+    loose.locator("input").first.fill("1101")
+    loose.locator("select[aria-label='Trapphus för enheten']").select_option(label="B")
+    assert page.eval_on_selector_all(
+        "#inventoryUnits .trapphus-group h4", "items => items.map(h => h.textContent)"
+    ) == ["Trapphus A <b> – Storgatan 1A · 2 enheter", "Trapphus B · 1 enhet"]
+
+    # Ett trapphus med enheter kan inte tas bort.
+    page.once("dialog", lambda dialog: dialog.accept())
+    page.locator("#inventoryTrapphus .bygg").nth(1).locator("button").click()
+    assert "Flytta först trapphusets lägenheter" in page.inner_text("#inventoryStatus")
+
+    page.click("#inventorySave")
+    page.wait_for_function(
+        "() => document.getElementById('inventoryStatus').textContent"
+        " === 'Byggnadsstruktur sparad.'"
+    )
+    stored = page.evaluate(
+        "() => fetch('/api/ovk/projects/p1/fastighet/object-1/byggnad/building-1/struktur',"
+        " {cache: 'no-store'}).then(r => r.json())"
+    )
+    assert [item["namn"] for item in stored["trapphus"]] == ["A <b>", "B"]
+    names = {item["trapphus_id"]: item["namn"] for item in stored["trapphus"]}
+    assert sorted((unit["number"], names[unit["trapphus_id"]]) for unit in stored["units"]) == [
+        ("1001", "A <b>"),
+        ("1002", "A <b>"),
+        ("1101", "B"),
+    ]
+    assert errors == []
+    page.close()

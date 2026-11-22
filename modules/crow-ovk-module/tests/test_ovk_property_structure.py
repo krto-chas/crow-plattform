@@ -314,3 +314,17 @@ def test_premises_editor_exposes_separate_name_and_number(tmp_path: Path) -> Non
     assert "Permanent lokalnummer" in script.text
     assert "Lokalnamn (fritext)" in script.text
     assert "unit.display_mode" in script.text
+
+
+def test_trapphus_editor_is_served(tmp_path: Path) -> None:
+    app = FastAPI()
+    app.include_router(ovk_fastighet_router(tmp_path))
+    client = TestClient(app)
+    page = client.get("/ovk/fastighet")
+    script = client.get("/ovk/fastighet/app.js")
+    assert 'id="inventoryTrapphus"' in page.text
+    assert 'id="inventoryAddTrapphus"' in page.text
+    assert 'id="bulkTrapphus"' in page.text
+    assert "function trapphusLabel(item)" in script.text
+    assert "delete unit.trapphus_id" in script.text
+    assert "inventory.units.some(u=>u.trapphus_id===item.trapphus_id)" in script.text

@@ -88,7 +88,7 @@ function inventoryReset(property=null){
   if(inventoryContext)for(const b of inventoryContext.buildings)select.add(new Option(b.internt_namn,b.byggnad_id));
   select.disabled=!inventoryContext||!inventoryContext.buildings.length;
   $('inventoryFields').disabled=true;
-  for(const id of ['inventorySystems','inventoryUnits','inventorySpaces'])$(id).replaceChildren();
+  for(const id of ['inventorySystems','inventoryTrapphus','inventoryUnits','inventorySpaces'])$(id).replaceChildren();
   inventoryMessage(property?'Välj byggnad.':'Välj en sparad fastighet.');
 }
 function inventoryUrl(building){return '/api/ovk/projects/'+enc(inventoryContext.project)+'/fastighet/'+enc(inventoryContext.property)+'/byggnad/'+enc(building)+'/struktur'}
@@ -100,12 +100,13 @@ function inventoryInput(parent,label,value,change,options=null){
   if(options)for(const [key,name] of options)input.add(new Option(name,key));
   input.value=value;input.oninput=()=>{change(input.value);inventoryChanged()};wrap.append(input);parent.append(wrap);return input;
 }
+function trapphusLabel(item){const namn=String(item.namn||'').trim(),adress=String(item.adress||'').trim();return (namn||'(namn saknas)')+(adress?' – '+adress:'')}
 function inventoryCard(parent){const card=document.createElement('div');card.className='bygg';parent.append(card);return card}
 function inventoryRemove(items,item){if(!confirm('Ta bort posten från byggnadsregistret?'))return;items.splice(items.indexOf(item),1);inventoryChanged();renderInventory()}
 function renderInventory(){
   renderTemplateRules();
   if(!inventory)return;
-  for(const id of ['inventorySystems','inventoryUnits','inventorySpaces'])$(id).replaceChildren();
+  for(const id of ['inventorySystems','inventoryTrapphus','inventoryUnits','inventorySpaces'])$(id).replaceChildren();
   for(const system of inventory.systems){
     const card=inventoryCard($('inventorySystems'));
     const identity=document.createElement('p');identity.className='muted';identity.textContent='System-ID: '+system.system_id;card.append(identity);
@@ -113,8 +114,48 @@ function renderInventory(){
     inventoryInput(card,'Systemtyp',system.system_type,v=>system.system_type=v,['S','F','FT','FTX','FX'].map(v=>[v,v]));
     card.append(inventoryButton('Ta bort system',()=>{if(inventory.technical_spaces.some(s=>s.system_id===system.system_id)||inventory.units.some(u=>u.rooms.some(r=>(r.measurement_points||[]).some(p=>p.system_id===system.system_id)))){inventoryMessage('Ta först bort eller flytta systemets tekniska utrymmen och mätpunkter.',true);return}inventoryRemove(inventory.systems,system)}));
   }
+  // Trapphus är en egen lista. Enheterna pekar på sitt trapphus; listan i
+  // registret förblir platt och visas här grupperad.
+  if(!Array.isArray(inventory.trapphus))inventory.trapphus=[];
+  const trapphusOptions=[['','Inget trapphus'],...inventory.trapphus.map(t=>[t.trapphus_id,trapphusLabel(t)])];
+  const bulkTrapphus=$('bulkTrapphus'),bulkChosen=bulkTrapphus.value;
+  bulkTrapphus.replaceChildren(...trapphusOptions.map(([key,name])=>new Option(name,key)));
+  bulkTrapphus.value=inventory.trapphus.some(t=>t.trapphus_id===bulkChosen)?bulkChosen:'';
+  bulkTrapphus.disabled=!inventory.trapphus.length;
+  const groups=new Map(),headings=new Map();
+  const unitGroup=key=>{
+    if(!inventory.trapphus.length)return $('inventoryUnits');
+    if(!groups.has(key)){
+      const section=document.createElement('section');section.className='trapphus-group';
+      const heading=document.createElement('h4');section.append(heading);headings.set(key,heading);
+      $('inventoryUnits').append(section);groups.set(key,section);
+    }
+    return groups.get(key);
+  };
+  const unitCount=key=>inventory.units.filter(u=>(inventory.trapphus.some(t=>t.trapphus_id===u.trapphus_id)?u.trapphus_id:'')===key).length;
+  const updateHeadings=()=>{
+    for(const [key,heading] of headings){
+      const item=inventory.trapphus.find(t=>t.trapphus_id===key),count=unitCount(key);
+      heading.textContent=(item?'Trapphus '+trapphusLabel(item):'Utan trapphus')+' · '+count+(count===1?' enhet':' enheter');
+    }
+  };
+  for(const item of inventory.trapphus){
+    const card=inventoryCard($('inventoryTrapphus'));
+    inventoryInput(card,'Trapphusets namn (t.ex. A eller Uppgång 2)',item.namn,v=>{item.namn=v;updateHeadings()});
+    inventoryInput(card,'Adress (gata och nummer)',item.adress||'',v=>{item.adress=v;updateHeadings()});
+    card.append(inventoryButton('Ta bort trapphus',()=>{
+      if(inventory.units.some(u=>u.trapphus_id===item.trapphus_id)){inventoryMessage('Flytta först trapphusets lägenheter och lokaler till ett annat trapphus.',true);return}
+      inventoryRemove(inventory.trapphus,item);
+    }));
+    unitGroup(item.trapphus_id);
+  }
   for(const unit of inventory.units){
-    const card=inventoryCard($('inventoryUnits'));
+    const known=inventory.trapphus.some(t=>t.trapphus_id===unit.trapphus_id);
+    const card=inventoryCard(unitGroup(known?unit.trapphus_id:''));
+    if(inventory.trapphus.length){
+      const select=inventoryInput(card,'Trapphus',known?unit.trapphus_id:'',v=>{if(v)unit.trapphus_id=v;else delete unit.trapphus_id;renderInventory()},trapphusOptions);
+      select.setAttribute('aria-label','Trapphus för enheten');
+    }
     const kindInput=inventoryInput(card,'Typ',unit.kind,v=>{
       unit.kind=v;
       if(v==='premises'){unit.label=unit.label||'';unit.display_mode=unit.display_mode||'number'}
@@ -152,6 +193,7 @@ function renderInventory(){
     card.append(inventoryButton('+ Rum',()=>{unit.rooms.push({room_id:inventoryId('room'),name:''});inventoryChanged();renderInventory()}));
     card.append(inventoryButton('Ta bort enhet',()=>inventoryRemove(inventory.units,unit)));
   }
+  updateHeadings();
   for(const space of inventory.technical_spaces){
     const card=inventoryCard($('inventorySpaces'));
     inventoryInput(card,'Beteckning',space.label,v=>space.label=v);
@@ -166,17 +208,21 @@ $('inventoryBuilding').onchange=async()=>{
   if(!inventoryCanLeave()){select.value=inventoryContext?.building||'';return}
   clearBulkPreview();clearTemplatePreview();resetPromotionSources();inventoryServerRevision=null;const revision=++inventoryRevision;inventory=null;inventoryDirty=false;inventoryContext.building=building;
   $('inventoryFields').disabled=true;
-  for(const id of ['inventorySystems','inventoryUnits','inventorySpaces'])$(id).replaceChildren();
+  for(const id of ['inventorySystems','inventoryTrapphus','inventoryUnits','inventorySpaces'])$(id).replaceChildren();
   if(!building){inventoryMessage('Välj byggnad.');return}
   inventoryMessage('Laddar byggnadsstruktur…');
   try{const data=await inventoryFetch(inventoryUrl(building),{cache:'no-store'});if(revision!==inventoryRevision)return;inventory=data.structure;inventoryServerRevision=data.revision;renderInventory();$('inventoryFields').disabled=false;inventoryMessage('Byggnadsstruktur laddad.');void loadPromotionSources(revision)}
   catch(error){if(revision===inventoryRevision)inventoryMessage(errText(error),true)}
 };
 $('inventoryAddSystem').onclick=()=>{inventory.systems.push({system_id:inventoryId('system'),system_type:'F',label:''});inventoryChanged();renderInventory()};
+$('inventoryAddTrapphus').onclick=()=>{if(!Array.isArray(inventory.trapphus))inventory.trapphus=[];inventory.trapphus.push({trapphus_id:inventoryId('trapphus'),namn:'',adress:''});inventoryChanged();renderInventory()};
 $('inventoryAddUnit').onclick=()=>{inventory.units.push({unit_id:inventoryId('unit'),number:'',kind:'apartment',label:'',display_mode:'number',rooms:[]});inventoryChanged();renderInventory()};
 $('inventoryAddSpace').onclick=()=>{if(!inventory.systems.length){inventoryMessage('Lägg till ett ventilationssystem först.',true);return}inventory.technical_spaces.push({space_id:inventoryId('space'),label:'',kind:'unclassified',location:'',system_id:inventory.systems[0].system_id});inventoryChanged();renderInventory()};
 $('inventorySave').onclick=async()=>{
   if(!inventory||inventoryBusy||!inventoryServerRevision)return;
+  const trapphusNames=(inventory.trapphus||[]).map(t=>String(t.namn||'').trim().replace(/\s+/g,' ').toLowerCase());
+  if(trapphusNames.some(n=>!n)){inventoryMessage('Ange namn på varje trapphus.',true);return}
+  if(new Set(trapphusNames).size!==trapphusNames.length){inventoryMessage('Två trapphus har samma namn. Ge dem olika namn.',true);return}
   const revision=inventoryRevision,url=inventoryUrl(inventoryContext.building);
   inventoryBusy=true;$('inventoryFields').disabled=true;$('inventoryBuilding').disabled=true;
   try{const saved=await inventoryFetch(url,{method:'PUT',headers:{'content-type':'application/json','X-OVK-Inventory-Revision':inventoryServerRevision},body:JSON.stringify(inventory)});if(revision!==inventoryRevision)return;inventory=saved.structure;inventoryServerRevision=saved.revision;inventoryDirty=false;clearPromotionPreview();renderInventory();inventoryMessage('Byggnadsstruktur sparad.')}
@@ -300,15 +346,18 @@ function bulkPlan(){
   const existing=new Set(inventory.units.map(u=>String(u.number).trim()));
   const conflicts=numbers.filter(n=>existing.has(n));
   if(conflicts.length)throw new Error('Nummer finns redan: '+conflicts.slice(0,20).join(', ')+(conflicts.length>20?' …':''));
-  return {numbers,rooms,revision:inventoryRevision};
+  const trapphus=$('bulkTrapphus').value;
+  if(trapphus&&!(inventory.trapphus||[]).some(t=>t.trapphus_id===trapphus))throw new Error('Trapphuset finns inte längre. Välj igen.');
+  return {numbers,rooms,trapphus,revision:inventoryRevision};
 }
-for(const id of ['bulkFloor','bulkFloors','bulkStart','bulkPerFloor','bulkRooms'])$(id).oninput=clearBulkPreview;
+for(const id of ['bulkFloor','bulkFloors','bulkStart','bulkPerFloor','bulkRooms','bulkTrapphus'])$(id).oninput=clearBulkPreview;
 $('bulkPreview').onclick=()=>{
   clearBulkPreview();
   try{
     bulkPreview=bulkPlan();
     const list=document.createElement('p');list.textContent=bulkPreview.numbers.join(', ');$('bulkResult').append(list);
-    $('bulkStatus').textContent=bulkPreview.numbers.length+' lägenheter · '+bulkPreview.numbers.length*bulkPreview.rooms.length+' rum. Rumsmall: '+bulkPreview.rooms.join(', ');
+    const bulkTarget=(inventory.trapphus||[]).find(t=>t.trapphus_id===bulkPreview.trapphus);
+    $('bulkStatus').textContent=(bulkTarget?'Trapphus '+trapphusLabel(bulkTarget)+' · ':'')+bulkPreview.numbers.length+' lägenheter · '+bulkPreview.numbers.length*bulkPreview.rooms.length+' rum. Rumsmall: '+bulkPreview.rooms.join(', ');
     $('bulkApply').disabled=false;
   }catch(error){$('bulkStatus').textContent=errText(error)}
 };
@@ -317,7 +366,7 @@ $('bulkApply').onclick=()=>{
   try{
     const plan=bulkPlan();
     if(plan.revision!==bulkPreview.revision||JSON.stringify(plan)!==JSON.stringify(bulkPreview))throw new Error('Förhandsgranska igen innan du lägger till.');
-    const additions=plan.numbers.map(number=>({unit_id:inventoryId('unit'),number,kind:'apartment',rooms:plan.rooms.map(name=>({room_id:inventoryId('room'),name}))}));
+    const additions=plan.numbers.map(number=>({unit_id:inventoryId('unit'),number,kind:'apartment',...(plan.trapphus?{trapphus_id:plan.trapphus}:{}),rooms:plan.rooms.map(name=>({room_id:inventoryId('room'),name}))}));
     inventory.units.push(...additions);inventoryChanged();renderInventory();
     $('bulkStatus').textContent=additions.length+' lägenheter tillagda. Spara byggnadsstrukturen för att behålla ändringarna.';
   }catch(error){clearBulkPreview();$('bulkStatus').textContent=errText(error)}

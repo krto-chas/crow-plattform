@@ -372,6 +372,9 @@ def ovk_fastighet_router(data_root: Path) -> APIRouter:
     return router
 
 
+_TRAPPHUS_LIMIT = 200
+
+
 def _promotion_assignments(payload: dict[str, Any]) -> dict[str, str]:
     assignments = payload.get("assignments", {})
     if not isinstance(assignments, dict) or not all(
@@ -444,6 +447,31 @@ def _validate_structure(payload: dict[str, Any]) -> dict[str, Any]:
             {"system_id": system_id, "system_type": kind, "label": required(row, "label")}
         )
 
+    # Trapphus är en egen lista i byggnaden. Enheterna pekar på sitt trapphus,
+    # och enhetslistan förblir platt så att den frysta besiktningsstrukturen och
+    # fältappen läser den som förut.
+    trapphus_ids: set[str] = set()
+    trapphus_names: set[str] = set()
+    trapphus: list[dict[str, str]] = []
+    trapphus_rows = rows(payload.get("trapphus", []), "trapphus")
+    if len(trapphus_rows) > _TRAPPHUS_LIMIT:
+        raise ValueError(f"at most {_TRAPPHUS_LIMIT} trapphus per building")
+    for row in trapphus_rows:
+        trapphus_id = identifier(row, "trapphus_id", trapphus_ids)
+        namn = " ".join(required(row, "namn").split())
+        adress = row.get("adress", "")
+        if not isinstance(adress, str):
+            raise ValueError("trapphus adress must be a string")
+        adress = " ".join(adress.split())
+        if len(trapphus_id) > 120 or len(namn) > 100 or len(adress) > 200:
+            raise ValueError("trapphus value is too long")
+        if not (namn.isprintable() and adress.isprintable()):
+            raise ValueError("trapphus value contains control characters")
+        if namn.casefold() in trapphus_names:
+            raise ValueError(f"duplicate trapphus namn: {namn}")
+        trapphus_names.add(namn.casefold())
+        trapphus.append({"trapphus_id": trapphus_id, "namn": namn, "adress": adress})
+
     unit_ids: set[str] = set()
     room_ids: set[str] = set()
     point_ids: set[str] = set()
@@ -502,6 +530,12 @@ def _validate_structure(payload: dict[str, Any]) -> dict[str, Any]:
                 raise ValueError("premises name is required when display_mode is name")
             unit["label"] = label.strip()
             unit["display_mode"] = mode
+        # Utelämnas utan trapphus, så att äldre strukturer normaliseras oförändrat.
+        if row.get("trapphus_id") is not None:
+            trapphus_ref = row["trapphus_id"]
+            if not isinstance(trapphus_ref, str) or trapphus_ref not in trapphus_ids:
+                raise ValueError("unit references unknown trapphus")
+            unit["trapphus_id"] = trapphus_ref
         units.append(unit)
 
     space_ids: set[str] = set()
@@ -530,4 +564,7 @@ def _validate_structure(payload: dict[str, Any]) -> dict[str, Any]:
                 "location": location.strip(),
             }
         )
-    return {"units": units, "systems": systems, "technical_spaces": spaces}
+    result: dict[str, Any] = {"units": units, "systems": systems, "technical_spaces": spaces}
+    if trapphus:
+        result["trapphus"] = trapphus
+    return result
