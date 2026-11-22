@@ -740,3 +740,103 @@ def test_kund_changed_elsewhere_is_not_overwritten(
     assert stored["telefon"] == "08-1"
     assert errors == []
     page.close()
+
+
+def test_protocol_draft_is_built_from_a_chosen_inspection_with_aligned_columns(
+    data_root: Path,
+    base_url: str,
+    browser: Any,  # noqa: F811
+) -> None:
+    # Fältappen lämnar sina uppgifter om besiktningen innan den synkar.
+    context = data_root / "projects" / "p1" / "ovk-field" / "ovk-planerad" / "context.json"
+    context.parent.mkdir(parents=True, exist_ok=True)
+    record = OvkWorkflowRepository(data_root).load("p1", "ovk-planerad")
+    assert record.planning is not None
+    context.write_text(
+        json.dumps(
+            {
+                "inspection_id": "ovk-planerad",
+                "project_id": "p1",
+                "inspector_id": record.planning.inspector_id,
+                "previous_inspection_id": record.planning.previous_inspection_id,
+                "system_type": record.inspection.systems[0].system_type,
+            }
+        ),
+        encoding="utf-8",
+    )
+    page, errors, _ = _open(browser, base_url + "/ovk", _DESKTOP)
+    page.wait_for_function("() => document.querySelectorAll('#pbInspection option').length > 1")
+
+    # Besiktningen väljs i en lista; inga id:n skrivs eller kopieras in.
+    assert page.query_selector("#pbProject") is None
+    assert page.eval_on_selector("#pbInspection", "s => s.tagName") == "SELECT"
+    labels = page.eval_on_selector_all("#pbInspection option", "o => o.map(x => x.textContent)")
+    assert labels[0] == "Välj besiktning…"
+    assert len(labels) == 7
+    page.click(".projectbar details > summary")
+    page.click("#pbBuild")
+    assert page.inner_text("#pbResult") == "Välj en besiktning."
+
+    synced = page.evaluate(
+        """() => fetch('/api/ovk/projects/p1/field/ovk-planerad/sync', {
+          method: 'PUT', headers: {'content-type': 'application/json'},
+          body: JSON.stringify({inspection_id: 'ovk-planerad',
+            units: [{unit_id: 'u1', number: '1701', kind: 'apartment'}],
+            rooms: [{room_id: 'r1', unit_id: 'u1', name: 'WC'}],
+            measurements: [
+              {measurement_id: 'm1', unit_id: 'u1', room_id: 'r1', point_type: 'franluftsdon',
+               point_label: 'WC 1', designed_value: '20', measured_value: '15',
+               measurable: true, unit_of_measure: 'l/s'}]})}).then(r => r.status)"""
+    )
+    assert synced == 200
+    page.select_option("#pbInspection", "ovk-planerad")
+    page.click("#pbBuild")
+    page.wait_for_function("() => document.getElementById('pbResult').textContent !== 'Bygger…'")
+    page.wait_for_selector("#pbResult .review-table", timeout=3000)
+    page.click("#pbResult details > summary")
+
+    # Varje rubrik står rakt över sina värden: samma justering och samma kant.
+    columns = page.eval_on_selector_all(
+        "#pbResult .review-table",
+        """tables => tables.flatMap(table => [...table.tHead.rows[0].cells].map((th, index) => {
+          const td = table.tBodies[0].rows[0].cells[index];
+          const a = th.getBoundingClientRect(), b = td.getBoundingClientRect();
+          return {label: th.textContent, same: getComputedStyle(th).textAlign
+                    === getComputedStyle(td).textAlign,
+                  align: getComputedStyle(td).textAlign,
+                  left: Math.abs(a.left - b.left), right: Math.abs(a.right - b.right)};
+        }))""",
+    )
+    assert len(columns) == 24
+    assert all(column["same"] for column in columns), columns
+    assert all(column["left"] < 1 and column["right"] < 1 for column in columns), columns
+    assert {c["label"] for c in columns if c["align"] == "right"} == {
+        "Proj. summa",
+        "Uppm. summa",
+        "Mätta don",
+        "Avvikelse",
+        "Proj.",
+        "Uppm.",
+        "Avvikelse (absolut)",
+    }
+    assert errors == []
+    page.close()
+
+
+def test_protocol_draft_explains_missing_field_data(
+    base_url: str,
+    browser: Any,  # noqa: F811
+) -> None:
+    page, errors, _ = _open(browser, base_url + "/ovk", _DESKTOP)
+    page.wait_for_function("() => document.querySelectorAll('#pbInspection option').length > 1")
+    page.click(".projectbar details > summary")
+    page.select_option("#pbInspection", "ovk-klar")
+    page.click("#pbBuild")
+    page.wait_for_function(
+        "() => document.getElementById('pbResult').textContent.startsWith('Utkastet')"
+    )
+    assert page.inner_text("#pbResult") == (
+        "Utkastet kunde inte byggas: Besiktningen har inget synkat fältunderlag ännu."
+    )
+    assert errors == []
+    page.close()
