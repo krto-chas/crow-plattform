@@ -33,6 +33,7 @@ from crow_ovk_workflow.repository import OvkWorkflowRepository
 
 from .ovk_field_surface import _FieldSyncRepository, _validated_payload
 from .ovk_inventory_promotion import inventory_revision, plan_inventory_promotion
+from .ovk_trapphus import display_number, normalized
 
 _NO_CACHE = {"Cache-Control": "no-cache"}
 
@@ -537,6 +538,26 @@ def _validate_structure(payload: dict[str, Any]) -> dict[str, Any]:
                 raise ValueError("unit references unknown trapphus")
             unit["trapphus_id"] = trapphus_ref
         units.append(unit)
+
+    # Samma nummer får finnas i två trapphus, men inte två gånger i samma, och
+    # det visade numret ("54-1101") får inte gå att förväxla med ett annat.
+    # Reglerna gäller bara där trapphus används; äldre strukturer berörs inte.
+    names = {item["trapphus_id"]: item["namn"] for item in trapphus}
+    shown: set[str] = set()
+    placed: set[tuple[str, str]] = set()
+    loose = {normalized(str(row["number"])) for row in units if "trapphus_id" not in row}
+    for row in units:
+        if "trapphus_id" not in row:
+            continue
+        number = str(row["number"])
+        place = (str(row["trapphus_id"]), normalized(number))
+        if place in placed:
+            raise ValueError(f"duplicate unit number in trapphus: {number}")
+        placed.add(place)
+        label = display_number(row, names)
+        if normalized(label) in shown or normalized(label) in loose:
+            raise ValueError(f"ambiguous unit number: {label}")
+        shown.add(normalized(label))
 
     space_ids: set[str] = set()
     spaces: list[dict[str, str]] = []

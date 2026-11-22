@@ -12,6 +12,8 @@ from copy import deepcopy
 from hashlib import sha256
 from typing import Any
 
+from .ovk_trapphus import display_number, split_display_number, trapphus_names
+
 
 def inventory_revision(value: dict[str, Any]) -> str:
     canonical = json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
@@ -44,6 +46,10 @@ def plan_inventory_promotion(
     def normalized(value: str) -> str:
         return " ".join(value.split()).casefold()
 
+    # Fältet bär visade nummer ("54-1101") för enheter i trapphus; registret
+    # lagrar numret i trapphuset och en hänvisning.
+    names = trapphus_names(inventory)
+
     def safe_id(value: str) -> bool:
         return bool(re.fullmatch(r"[A-Za-z0-9_-]+", value))
 
@@ -72,18 +78,24 @@ def plan_inventory_promotion(
             conflicts.append(f"Enhet {label}: ogiltigt ID eller tvetydigt nummer.")
             continue
         if any(
-            other["unit_id"] != unit_id and normalized(other["number"]) == normalized(number)
+            other["unit_id"] != unit_id
+            and normalized(display_number(other, names)) == normalized(number)
             for other in units.values()
         ):
             conflicts.append(f"Enhet {label}: numret finns med annat ID.")
             continue
         unit = units.get(unit_id)
         if unit is not None:
-            if unit["number"] != number or unit["kind"] != kind:
+            # En besiktning som skapades innan enheten fick sitt trapphus bär
+            # numret utan trapphusnamn; identiteten är enhetens ID.
+            if number not in {display_number(unit, names), unit["number"]} or unit["kind"] != kind:
                 conflicts.append(f"Enhet {label}: befintligt ID har annan beteckning eller typ.")
                 continue
         else:
-            unit = {"unit_id": unit_id, "number": number, "kind": kind, "rooms": []}
+            trapphus_id, local_number = split_display_number(number, names)
+            unit = {"unit_id": unit_id, "number": local_number, "kind": kind, "rooms": []}
+            if trapphus_id is not None:
+                unit["trapphus_id"] = trapphus_id
             result["units"].append(unit)
             units[unit_id] = unit
             add("unit", unit_id, label)

@@ -842,6 +842,35 @@ def test_trapphus_is_registered_and_groups_the_units(
         "() => document.getElementById('inventoryStatus').textContent"
         " === 'Byggnadsstruktur sparad.'"
     )
+    # Numret visas med trapphusets namn framför, som i fältappen och protokollet.
+    assert (
+        page.locator("#inventoryUnits .trapphus-group").first.locator("p.muted").first.inner_text()
+        == "Visas som A <b>-1001 i fältappen och protokollet."
+    )
+    # Samma nummer får finnas i ett annat trapphus, men inte två gånger i samma.
+    page.select_option("#bulkTrapphus", label="B")
+    page.click("#bulkPreview")
+    assert page.inner_text("#bulkStatus").startswith("Trapphus B · 2 lägenheter")
+    page.select_option("#bulkTrapphus", label="A <b> – Storgatan 1A")
+    page.click("#bulkPreview")
+    assert page.inner_text("#bulkStatus") == "Nummer finns redan i trapphuset: 1001, 1002"
+
+    # Mallgeneratorn skapar lägenheten i valt trapphus, med en mall från ett annat.
+    page.eval_on_selector("#templatePanel", "d => { d.open = true }")
+    page.select_option("#templateTrapphus", label="B")
+    page.fill("#templateFloors", "1")
+    page.select_option("select[aria-label='Mall från lägenhet']", label="A <b>-1001")
+    page.click("#templatePreview")
+    assert page.inner_text("#templateStatus").startswith("1 nya · 0 tomma kompletteras")
+    assert page.inner_text("#templateResult p").startswith("Skapa 1001 ← mall A <b>-1001")
+    page.check("#templateConfirmSystems")
+    page.click("#templateApply")
+    assert page.inner_text("#inventoryStatus") == "Osparade ändringar."
+    page.click("#inventorySave")
+    page.wait_for_function(
+        "() => document.getElementById('inventoryStatus').textContent"
+        " === 'Byggnadsstruktur sparad.'"
+    )
     stored = page.evaluate(
         "() => fetch('/api/ovk/projects/p1/fastighet/object-1/byggnad/building-1/struktur',"
         " {cache: 'no-store'}).then(r => r.json())"
@@ -850,6 +879,7 @@ def test_trapphus_is_registered_and_groups_the_units(
     names = {item["trapphus_id"]: item["namn"] for item in stored["trapphus"]}
     assert sorted((unit["number"], names[unit["trapphus_id"]]) for unit in stored["units"]) == [
         ("1001", "A <b>"),
+        ("1001", "B"),
         ("1002", "A <b>"),
         ("1101", "B"),
     ]

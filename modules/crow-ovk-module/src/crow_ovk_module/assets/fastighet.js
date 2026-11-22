@@ -101,6 +101,10 @@ function inventoryInput(parent,label,value,change,options=null){
   input.value=value;input.oninput=()=>{change(input.value);inventoryChanged()};wrap.append(input);parent.append(wrap);return input;
 }
 function trapphusLabel(item){const namn=String(item.namn||'').trim(),adress=String(item.adress||'').trim();return (namn||'(namn saknas)')+(adress?' – '+adress:'')}
+function unitTrapphus(unit){return (inventory?.trapphus||[]).find(t=>t.trapphus_id===unit.trapphus_id)||null}
+function unitScope(unit){return unitTrapphus(unit)?.trapphus_id||''}
+// Numret som det visas i fältappen och protokollet: "54-1101" i trapphus 54.
+function unitDisplayNumber(unit){const t=unitTrapphus(unit),namn=String(t?.namn||'').trim(),number=String(unit.number??'').trim();return namn?namn+'-'+number:number}
 function inventoryCard(parent){const card=document.createElement('div');card.className='bygg';parent.append(card);return card}
 function inventoryRemove(items,item){if(!confirm('Ta bort posten från byggnadsregistret?'))return;items.splice(items.indexOf(item),1);inventoryChanged();renderInventory()}
 function renderInventory(){
@@ -118,10 +122,13 @@ function renderInventory(){
   // registret förblir platt och visas här grupperad.
   if(!Array.isArray(inventory.trapphus))inventory.trapphus=[];
   const trapphusOptions=[['','Inget trapphus'],...inventory.trapphus.map(t=>[t.trapphus_id,trapphusLabel(t)])];
-  const bulkTrapphus=$('bulkTrapphus'),bulkChosen=bulkTrapphus.value;
-  bulkTrapphus.replaceChildren(...trapphusOptions.map(([key,name])=>new Option(name,key)));
-  bulkTrapphus.value=inventory.trapphus.some(t=>t.trapphus_id===bulkChosen)?bulkChosen:'';
-  bulkTrapphus.disabled=!inventory.trapphus.length;
+  for(const scope of [$('bulkTrapphus'),$('templateTrapphus')]){
+    const chosen=scope.value;
+    scope.replaceChildren(...trapphusOptions.map(([key,name])=>new Option(name,key)));
+    scope.value=inventory.trapphus.some(t=>t.trapphus_id===chosen)?chosen:'';
+    scope.disabled=!inventory.trapphus.length;
+  }
+  const shownNumbers=[];
   const groups=new Map(),headings=new Map();
   const unitGroup=key=>{
     if(!inventory.trapphus.length)return $('inventoryUnits');
@@ -135,7 +142,7 @@ function renderInventory(){
   const unitCount=key=>inventory.units.filter(u=>(inventory.trapphus.some(t=>t.trapphus_id===u.trapphus_id)?u.trapphus_id:'')===key).length;
   const updateHeadings=()=>{
     // Namn och adress skrivs utan omritning; rubriker och val följer med.
-    for(const select of [$('bulkTrapphus'),...$('inventoryUnits').querySelectorAll('select[data-trapphus-unit]')])for(const option of select.options){
+    for(const select of [$('bulkTrapphus'),$('templateTrapphus'),...$('inventoryUnits').querySelectorAll('select[data-trapphus-unit]')])for(const option of select.options){
       const named=inventory.trapphus.find(t=>t.trapphus_id===option.value);
       if(named)option.textContent=trapphusLabel(named);
     }
@@ -143,10 +150,15 @@ function renderInventory(){
       const item=inventory.trapphus.find(t=>t.trapphus_id===key),count=unitCount(key);
       heading.textContent=(item?'Trapphus '+trapphusLabel(item):'Utan trapphus')+' · '+count+(count===1?' enhet':' enheter');
     }
+    for(const update of shownNumbers)update();
+    for(const select of $('templateRules').querySelectorAll('select'))for(const option of select.options){
+      const source=inventory.units.find(u=>u.unit_id===option.value);
+      if(source)option.textContent=unitDisplayNumber(source);
+    }
   };
   for(const item of inventory.trapphus){
     const card=inventoryCard($('inventoryTrapphus'));
-    inventoryInput(card,'Trapphusets namn (t.ex. A eller Uppgång 2)',item.namn,v=>{item.namn=v;updateHeadings()});
+    inventoryInput(card,'Trapphusets namn (portnummer, t.ex. 54)',item.namn,v=>{item.namn=v;updateHeadings()});
     inventoryInput(card,'Adress (gata och nummer)',item.adress||'',v=>{item.adress=v;updateHeadings()});
     card.append(inventoryButton('Ta bort trapphus',()=>{
       if(inventory.units.some(u=>u.trapphus_id===item.trapphus_id)){inventoryMessage('Flytta först trapphusets lägenheter och lokaler till ett annat trapphus.',true);return}
@@ -173,7 +185,10 @@ function renderInventory(){
       renderInventory();
     },[['apartment','Lägenhet'],['premises','Lokal']]);
     kindInput.setAttribute('aria-label','Enhetstyp');
-    inventoryInput(card,unit.kind==='premises'?'Permanent lokalnummer':'Lägenhetsnummer',unit.number,v=>unit.number=v);
+    const shown=document.createElement('p');shown.className='muted';
+    const showNumber=()=>{const number=String(unit.number??'').trim();shown.hidden=!unitTrapphus(unit)||!number;shown.textContent='Visas som '+unitDisplayNumber(unit)+' i fältappen och protokollet.'};
+    inventoryInput(card,unit.kind==='premises'?'Permanent lokalnummer':'Lägenhetsnummer',unit.number,v=>{unit.number=v;showNumber()});
+    card.append(shown);shownNumbers.push(showNumber);
     if(unit.kind==='premises'){
       inventoryInput(card,'Visa lokalen som',unit.display_mode||((unit.label||'').trim()?'name':'number'),v=>{
         unit.display_mode=v;renderInventory();
@@ -234,6 +249,12 @@ $('inventorySave').onclick=async()=>{
   const trapphusNames=(inventory.trapphus||[]).map(t=>String(t.namn||'').trim().replace(/\s+/g,' ').toLowerCase());
   if(trapphusNames.some(n=>!n)){inventoryMessage('Ange namn på varje trapphus.',true);return}
   if(new Set(trapphusNames).size!==trapphusNames.length){inventoryMessage('Två trapphus har samma namn. Ge dem olika namn.',true);return}
+  const placed=new Set(),loose=new Set(inventory.units.filter(u=>!unitScope(u)).map(u=>unitDisplayNumber(u).toLowerCase()));
+  for(const unit of inventory.units.filter(u=>unitScope(u))){
+    const shown=unitDisplayNumber(unit),key=shown.toLowerCase();
+    if(placed.has(key)||loose.has(key)){inventoryMessage('Numret '+shown+' finns två gånger. Lägenhetsnummer ska vara unika i sitt trapphus.',true);return}
+    placed.add(key);
+  }
   const revision=inventoryRevision,url=inventoryUrl(inventoryContext.building);
   inventoryBusy=true;$('inventoryFields').disabled=true;$('inventoryBuilding').disabled=true;
   try{const saved=await inventoryFetch(url,{method:'PUT',headers:{'content-type':'application/json','X-OVK-Inventory-Revision':inventoryServerRevision},body:JSON.stringify(inventory)});if(revision!==inventoryRevision)return;inventory=saved.structure;inventoryServerRevision=saved.revision;inventoryDirty=false;clearPromotionPreview();renderInventory();inventoryMessage('Byggnadsstruktur sparad.')}
@@ -354,11 +375,12 @@ function bulkPlan(){
   if(!rooms.length||rooms.length>30||rooms.some(v=>v.length>100))throw new Error('Ange 1–30 rum med högst 100 tecken per namn.');
   const numbers=[];
   for(let f=floor;f<floor+floors;f++)for(let i=start;i<start+perFloor;i++)numbers.push(String(f).padStart(2,'0')+String(i).padStart(2,'0'));
-  const existing=new Set(inventory.units.map(u=>String(u.number).trim()));
-  const conflicts=numbers.filter(n=>existing.has(n));
-  if(conflicts.length)throw new Error('Nummer finns redan: '+conflicts.slice(0,20).join(', ')+(conflicts.length>20?' …':''));
   const trapphus=$('bulkTrapphus').value;
   if(trapphus&&!(inventory.trapphus||[]).some(t=>t.trapphus_id===trapphus))throw new Error('Trapphuset finns inte längre. Välj igen.');
+  // Samma nummer får finnas i två trapphus, men inte två gånger i samma.
+  const existing=new Set(inventory.units.filter(u=>unitScope(u)===trapphus).map(u=>String(u.number).trim()));
+  const conflicts=numbers.filter(n=>existing.has(n));
+  if(conflicts.length)throw new Error('Nummer finns redan'+(trapphus?' i trapphuset':'')+': '+conflicts.slice(0,20).join(', ')+(conflicts.length>20?' …':''));
   return {numbers,rooms,trapphus,revision:inventoryRevision};
 }
 for(const id of ['bulkFloor','bulkFloors','bulkStart','bulkPerFloor','bulkRooms','bulkTrapphus'])$(id).oninput=clearBulkPreview;
@@ -401,7 +423,7 @@ function renderTemplateRules(){
     suffix.oninput=()=>{rule.suffix=suffix.value;clearTemplatePreview()};
     const select=document.createElement('select');select.setAttribute('aria-label','Mall från lägenhet');
     select.append(new Option('Välj mall från lägenhet…',''));
-    for(const unit of sources)select.append(new Option(unit.number,unit.unit_id));
+    for(const unit of sources)select.append(new Option(unitDisplayNumber(unit),unit.unit_id));
     select.value=rule.source;select.onchange=()=>{rule.source=select.value;clearTemplatePreview()};
     const remove=document.createElement('button');remove.type='button';remove.className='button secondary';remove.textContent='Ta bort regel';
     remove.onclick=()=>{templateRules=templateRules.filter(r=>r!==rule);renderTemplateRules()};
@@ -414,9 +436,12 @@ function templatePlan(){
   if(!Number.isInteger(floor)||!Number.isInteger(floors)||floor<0||floors<1||floor+floors>100||!templateRules.length||floors*templateRules.length>500)throw new Error('Ogiltigt våningsintervall eller antal regler (max 500 lägenheter).');
   const suffixes=new Set(),existing=new Map(),additions=[],completions=[],skipped=[];
   const fillEmpty=$('templateFillEmpty').checked;
-  for(const unit of inventory.units){
+  const trapphus=$('templateTrapphus').value;
+  if(trapphus&&!(inventory.trapphus||[]).some(t=>t.trapphus_id===trapphus))throw new Error('Trapphuset finns inte längre. Välj igen.');
+  // Mållägenheterna söks och skapas i valt trapphus; mallen får ligga var som helst.
+  for(const unit of inventory.units.filter(u=>unitScope(u)===trapphus)){
     const number=String(unit.number).trim();
-    if(existing.has(number))throw new Error('Dubbla enhetsnummer i byggnaden: '+number+'. Rätta numreringen först.');
+    if(existing.has(number))throw new Error((trapphus?'Dubbla enhetsnummer i trapphuset':'Dubbla enhetsnummer i byggnaden')+': '+number+'. Rätta numreringen först.');
     existing.set(number,unit);
   }
   const systems=new Set(inventory.systems.map(s=>s.system_id));
@@ -435,17 +460,17 @@ function templatePlan(){
       if(existing.has(number)){
         const target=existing.get(number);
         if(fillEmpty&&target.kind==='apartment'&&!target.rooms.length){
-          completions.push({unit_id:target.unit_id,number,source:source.number,rooms});
+          completions.push({unit_id:target.unit_id,number,source:unitDisplayNumber(source),rooms});
         }else skipped.push(number);
         continue;
       }
-      additions.push({number,source:source.number,rooms});
+      additions.push({number,source:unitDisplayNumber(source),rooms});
     }
   }
-  return {revision:inventoryRevision,additions,completions,skipped};
+  return {revision:inventoryRevision,trapphus,additions,completions,skipped};
 }
 $('templateAdd').onclick=()=>{templateRules.push({suffix:'',source:''});renderTemplateRules()};
-for(const id of ['templateFloor','templateFloors','templateFillEmpty'])$(id).oninput=clearTemplatePreview;
+for(const id of ['templateFloor','templateFloors','templateFillEmpty','templateTrapphus'])$(id).oninput=clearTemplatePreview;
 $('templateConfirmSystems').onchange=()=>{
   $('templateApply').disabled=!templatePreview||!$('templateConfirmSystems').checked||!(templatePreview.additions.length+templatePreview.completions.length);
 };
@@ -473,7 +498,7 @@ $('templateApply').onclick=()=>{
     const plan=templatePlan();
     if(JSON.stringify(plan)!==JSON.stringify(templatePreview))throw new Error('Underlaget ändrades. Förhandsgranska igen.');
     const copyRooms=rooms=>rooms.map(r=>({room_id:inventoryId('room'),name:r.name,measurement_points:r.measurement_points.map(p=>({...p,point_id:inventoryId('point')}))}));
-    const additions=plan.additions.map(u=>({unit_id:inventoryId('unit'),number:u.number,kind:'apartment',rooms:copyRooms(u.rooms)}));
+    const additions=plan.additions.map(u=>({unit_id:inventoryId('unit'),number:u.number,kind:'apartment',...(plan.trapphus?{trapphus_id:plan.trapphus}:{}),rooms:copyRooms(u.rooms)}));
     const completions=plan.completions.map(u=>{
       const target=inventory.units.find(item=>item.unit_id===u.unit_id&&item.kind==='apartment'&&!item.rooms.length&&String(item.number).trim()===u.number);
       if(!target)throw new Error('Mållägenheten ändrades. Förhandsgranska igen.');

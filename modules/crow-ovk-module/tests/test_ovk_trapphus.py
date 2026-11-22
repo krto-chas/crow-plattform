@@ -20,6 +20,12 @@ from crow_ovk import OvkObject, VentilationSystemRef
 from crow_ovk_module.ovk_fastighet_surface import _validate_structure, ovk_fastighet_router
 from crow_ovk_module.ovk_field_surface import ovk_field_router
 from crow_ovk_module.ovk_inventory_promotion import plan_inventory_promotion
+from crow_ovk_module.ovk_trapphus import (
+    display_number,
+    split_display_number,
+    structure_for_inspection,
+    trapphus_names,
+)
 from crow_ovk_workflow import OvkWorkflowRepository, build_record
 
 PROPERTY_URL = "/api/ovk/projects/p1/fastighet/f1"
@@ -303,7 +309,7 @@ def test_inspection_freezes_a_structure_with_trapphus_and_readers_still_work(
         == 200
     )
     structure_url = "/api/ovk/projects/p1/fastighet/object-1/byggnad/building-1/struktur"
-    structure = {
+    structure: dict[str, Any] = {
         "trapphus": [{"trapphus_id": "t-a", "namn": "A", "adress": "Storgatan 1A"}],
         "units": [
             {
@@ -329,12 +335,16 @@ def test_inspection_freezes_a_structure_with_trapphus_and_readers_still_work(
     assert client.put(url, json=payload).status_code == 200
 
     frozen = client.get(url).json()
-    assert frozen["building_structure"] == structure
+    # Enheten fryses med visat nummer; registret behåller numret i trapphuset.
+    expected = deepcopy(structure)
+    expected["units"][0]["number"] = "A-1203"
+    assert frozen["building_structure"] == expected
+    assert client.get(structure_url).json()["units"][0]["number"] == "1203"
     # Det fältappen läser ur den frysta strukturen finns kvar som förut:
     # tre listor, och på enheten id, nummer, typ och rum.
     assert {"units", "systems", "technical_spaces"} <= set(frozen["building_structure"])
     unit = frozen["building_structure"]["units"][0]
-    assert (unit["unit_id"], unit["number"], unit["kind"]) == ("u1", "1203", "apartment")
+    assert (unit["unit_id"], unit["number"], unit["kind"]) == ("u1", "A-1203", "apartment")
     assert unit["rooms"] == [{"room_id": "r1", "name": "Kök"}]
     # Posten med frysta trapphus går att spara om (checksumman stämmer), och
     # ändringar i registret efteråt når inte den redan skapade besiktningen.
@@ -344,8 +354,156 @@ def test_inspection_freezes_a_structure_with_trapphus_and_readers_still_work(
         == 200
     )
     again = client.get(url).json()
-    assert again["building_structure"] == structure
+    assert again["building_structure"] == expected
     assert again["building_structure_sha256"] == frozen["building_structure_sha256"]
     # Fältappens sida och översikten svarar för uppdraget.
     assert client.get("/api/ovk/projects/p1/inspections").status_code == 200
     assert client.get("/api/ovk/uppdrag").status_code == 200
+
+
+def test_same_number_may_exist_in_two_trapphus_but_not_twice_in_one(tmp_path: Path) -> None:
+    client = _client(tmp_path)
+    structure = _structure()
+    structure["units"][1]["number"] = "1001"
+
+    assert client.put(URL, json=structure).status_code == 200
+
+    structure["units"][1]["trapphus_id"] = "t-a"
+    refused = client.put(URL, json=structure)
+    assert refused.status_code == 422
+    assert "duplicate unit number in trapphus" in refused.json()["detail"]["message"]
+    # Blanktecken och skiftläge skiljer inte två nummer åt.
+    structure["units"][1]["number"] = " 1001 "
+    assert client.put(URL, json=structure).status_code == 422
+
+
+@pytest.mark.parametrize(
+    "change",
+    [
+        # En enhet utan trapphus heter redan som det visade numret.
+        lambda s: s["units"][2].update(number="A-1001"),
+        lambda s: s["units"][2].update(number="a-1001"),
+        # Två trapphus ger samma visade nummer.
+        lambda s: (
+            s["trapphus"][1].update(namn="A-1"),
+            s["units"][0].update(number="1-7"),
+            s["units"][1].update(number="7"),
+        ),
+    ],
+)
+def test_shown_number_must_not_be_ambiguous(tmp_path: Path, change: Any) -> None:
+    client = _client(tmp_path)
+    structure = _structure()
+    change(structure)
+
+    refused = client.put(URL, json=structure)
+
+    assert refused.status_code == 422
+    assert "ambiguous unit number" in refused.json()["detail"]["message"]
+
+
+def test_duplicate_numbers_without_trapphus_are_stored_as_before(tmp_path: Path) -> None:
+    client = _client(tmp_path)
+    structure = {
+        "units": [
+            {"unit_id": "u1", "number": "1001", "kind": "apartment"},
+            {"unit_id": "u2", "number": "1001", "kind": "apartment"},
+        ],
+        "systems": [],
+        "technical_spaces": [],
+    }
+
+    # Ingen ny regel för strukturer som inte använder trapphus.
+    assert client.put(URL, json=structure).status_code == 200
+
+
+def test_shown_number_is_composed_and_read_back() -> None:
+    names = {"t-54": "54", "t-5": "5", "t-up": "Uppgång 2"}
+
+    assert display_number({"number": " 1101 ", "trapphus_id": "t-54"}, names) == "54-1101"
+    assert display_number({"number": "1101"}, names) == "1101"
+    assert display_number({"number": "1101", "trapphus_id": "okant"}, names) == "1101"
+    assert split_display_number("54-1101", names) == ("t-54", "1101")
+    assert split_display_number("5-1101", names) == ("t-5", "1101")
+    assert split_display_number("uppgång 2-1101", names) == ("t-up", "1101")
+    # Utan träff, eller utan nummer efter namnet, hör numret inte till något trapphus.
+    assert split_display_number("1101", names) == (None, "1101")
+    assert split_display_number("56-1101", names) == (None, "56-1101")
+    assert split_display_number("54-", names) == (None, "54-")
+    assert split_display_number("541101", names) == (None, "541101")
+    # Längsta namnet vinner.
+    assert split_display_number("5-4-1", {"a": "5", "b": "5-4"}) == ("b", "1")
+
+
+def test_structure_for_inspection_leaves_the_register_untouched() -> None:
+    structure = _validate_structure(_structure())
+    before = deepcopy(structure)
+
+    frozen = structure_for_inspection(structure)
+
+    assert structure == before
+    assert [unit["number"] for unit in frozen["units"]] == ["A-1001", "B-1002", "0901"]
+    assert frozen["trapphus"] == structure["trapphus"]
+    assert trapphus_names(frozen) == {"t-a": "A", "t-b": "B"}
+    # Utan trapphus lämnas strukturen precis som den är.
+    plain = {"units": [{"unit_id": "u", "number": "1", "kind": "apartment"}], "systems": []}
+    assert structure_for_inspection(plain) is plain
+    assert structure_for_inspection({"trapphus": "fel", "units": []}) == {
+        "trapphus": "fel",
+        "units": [],
+    }
+
+
+def test_promotion_reads_shown_numbers_from_the_field() -> None:
+    inventory = _validate_structure(_structure())
+    snapshot = {
+        "units": [
+            # Känd enhet med visat nummer, som besiktningen frös den.
+            {"unit_id": "u1", "number": "A-1001", "kind": "apartment"},
+            # Känd enhet från en besiktning som skapades före trapphuset.
+            {"unit_id": "u2", "number": "1002", "kind": "apartment"},
+            # Ny i fält, skriven med port: hamnar i trapphus B.
+            {"unit_id": "u7", "number": "B-1101", "kind": "apartment"},
+            # Samma nummer som u2 men i trapphus A är en annan lägenhet.
+            {"unit_id": "u8", "number": "A-1002", "kind": "apartment"},
+            # Visat nummer som redan hör till u1.
+            {"unit_id": "u9", "number": "a-1001", "kind": "apartment"},
+            # Okänd port: läggs in utan trapphus, med numret som det skrevs.
+            {"unit_id": "u10", "number": "56-1101", "kind": "apartment"},
+        ],
+        "rooms": [],
+        "measurements": [],
+    }
+
+    plan = plan_inventory_promotion(deepcopy(inventory), snapshot, {})
+
+    by_id = {unit["unit_id"]: unit for unit in plan["structure"]["units"]}
+    assert by_id["u1"] == inventory["units"][0]
+    assert by_id["u2"] == inventory["units"][1]
+    assert (by_id["u7"]["number"], by_id["u7"]["trapphus_id"]) == ("1101", "t-b")
+    assert (by_id["u8"]["number"], by_id["u8"]["trapphus_id"]) == ("1002", "t-a")
+    assert "u9" not in by_id
+    assert by_id["u10"]["number"] == "56-1101"
+    assert "trapphus_id" not in by_id["u10"]
+    # Två fältenheter delar det visade numret A-1001 (oavsett skiftläge) och
+    # lämnas därför båda; u1 finns redan och ändras inte.
+    assert [c for c in plan["conflicts"] if "tvetydigt nummer" in c] == [
+        "Enhet A-1001: ogiltigt ID eller tvetydigt nummer.",
+        "Enhet a-1001: ogiltigt ID eller tvetydigt nummer.",
+    ]
+    assert sorted(item["id"] for item in plan["additions"]) == ["u10", "u7", "u8"]
+    assert _validate_structure(plan["structure"]) == plan["structure"]
+
+
+def test_promotion_refuses_a_shown_number_that_belongs_to_another_unit() -> None:
+    inventory = _validate_structure(_structure())
+    snapshot = {
+        "units": [{"unit_id": "u9", "number": "A-1001", "kind": "apartment"}],
+        "rooms": [],
+        "measurements": [],
+    }
+
+    plan = plan_inventory_promotion(deepcopy(inventory), snapshot, {})
+
+    assert plan["additions"] == []
+    assert plan["conflicts"] == ["Enhet A-1001: numret finns med annat ID."]

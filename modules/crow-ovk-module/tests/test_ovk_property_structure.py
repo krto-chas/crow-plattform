@@ -195,7 +195,7 @@ def test_apartment_template_completion_requires_preview_and_confirmation(tmp_pat
     assert "item.unit_id===u.unit_id" in script
     assert "target.kind==='apartment'&&!target.rooms.length" in script
     assert "measurement_points:r.measurement_points.map" in script
-    assert "return {revision:inventoryRevision,additions,completions,skipped}" in script
+    assert "return {revision:inventoryRevision,trapphus,additions,completions,skipped}" in script
 
 
 def test_completed_inventory_roundtrip_keeps_existing_unit_identity(tmp_path: Path) -> None:
@@ -327,4 +327,7 @@ def test_trapphus_editor_is_served(tmp_path: Path) -> None:
     assert 'id="bulkTrapphus"' in page.text
     assert "function trapphusLabel(item)" in script.text
     assert "delete unit.trapphus_id" in script.text
+    assert 'id="templateTrapphus"' in page.text
+    assert "function unitDisplayNumber(unit)" in script.text
+    assert "inventory.units.filter(u=>unitScope(u)===trapphus)" in script.text
     assert "inventory.units.some(u=>u.trapphus_id===item.trapphus_id)" in script.text

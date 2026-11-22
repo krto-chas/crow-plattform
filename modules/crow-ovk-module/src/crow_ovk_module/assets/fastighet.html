@@ -101,7 +101,7 @@
           <button type="button" class="button" id="promotionApply" disabled>Spara föreslagen inventering</button>
         </details>
         <h3>Trapphus</h3>
-        <p class="muted">Lägg in byggnadens trapphus och välj sedan trapphus på varje lägenhet och lokal. Gathus och gårdshus registreras som egna byggnader. Lägenhetsnumren ska vara unika i byggnaden.</p>
+        <p class="muted">Lägg in byggnadens trapphus med portnumret som namn, till exempel 54, och välj sedan trapphus på varje lägenhet och lokal. Namnet sätts framför numret i fältappen och protokollet: lägenhet 1101 i trapphus 54 visas som 54-1101. Samma lägenhetsnummer får finnas i flera trapphus. Gathus och gårdshus registreras som egna byggnader. Det gäller besiktningar som skapas härefter.</p>
         <div id="inventoryTrapphus"></div>
         <button type="button" class="button secondary" id="inventoryAddTrapphus">+ Trapphus</button>
         <h3>Lägenheter och lokaler</h3>
@@ -132,6 +132,8 @@ Sovrum</textarea>
           <summary>Generera från lägenhetstyper (XX01, XX02…)</summary>
           <p class="muted">Använd en inventerad referenslägenhet för varje typ. Skapa nya lägenheter eller komplettera redan registrerade tomma lägenheter. Individuella inventeringar ändras aldrig.</p>
           <div class="row"><div><label for="templateFloor">Första våningskod</label><input id="templateFloor" type="number" min="0" max="99" value="10"></div><div><label for="templateFloors">Antal våningar</label><input id="templateFloors" type="number" min="1" max="100" value="4"></div></div>
+          <label for="templateTrapphus">Trapphus för mållägenheterna</label>
+          <select id="templateTrapphus" disabled><option value="">Inget trapphus</option></select>
           <div id="templateRules"></div>
           <label class="template-check"><input type="checkbox" id="templateFillEmpty"> Komplettera även befintliga lägenheter utan rum</label>
           <p class="muted">Kontrollera att referenslägenhetens system och projekterade flöden gäller för varje mållägenhet. Suffixet är ett urval, inte bevis på identisk ventilation.</p>
