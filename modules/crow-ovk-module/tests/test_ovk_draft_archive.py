@@ -67,11 +67,8 @@ def _prepared(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> tuple[TestClie
     return client, {"X-OVK-Base-Revision": synced.json()["snapshot_sha256"]}
 
 
-def _decide(tmp_path: Path, note: str = "Kontrollerad på plats") -> None:
-    """Arbete på utkastet: ett granskningsbeslut läggs på posten."""
-    workflows = OvkWorkflowRepository(tmp_path)
-    record = workflows.load("p1", "ovk-utkast")
-    decision = OvkReviewDecision(
+def _decision(note: str) -> OvkReviewDecision:
+    return OvkReviewDecision(
         observation_id="o1",
         source_text="Skitig ventil i bad",
         evidence_ref="f1",
@@ -80,7 +77,13 @@ def _decide(tmp_path: Path, note: str = "Kontrollerad på plats") -> None:
         reviewer="Stoffe",
         note=note,
     )
-    workflows.save(replace(record, review=(decision,)))
+
+
+def _decide(tmp_path: Path, note: str = "Kontrollerad på plats") -> None:
+    """Arbete på utkastet: ett granskningsbeslut läggs på posten."""
+    workflows = OvkWorkflowRepository(tmp_path)
+    record = workflows.load("p1", "ovk-utkast")
+    workflows.save(replace(record, review=(_decision(note),)))
 
 
 def test_first_build_and_untouched_rebuild_need_no_confirmation(
@@ -163,6 +166,7 @@ def test_confirmed_replace_saves_the_work_first_and_it_can_be_restored(
     assert restored.json() == {
         "aterstallt": archive_id,
         "sparat_utkast": None,
+        "protokollkalla_aktuell": True,
         "record": restored.json()["record"],
     }
     back = workflows.load("p1", "ovk-utkast")
@@ -207,21 +211,44 @@ def test_saved_drafts_are_scoped_validated_and_reported_when_unreadable(
     client, headers = _prepared(tmp_path, monkeypatch)
     assert client.post(f"{BASE}/protokoll-utkast", headers=headers, json={}).status_code == 200
     _decide(tmp_path)
-    record = OvkWorkflowRepository(tmp_path).load("p1", "ovk-utkast")
+    workflows = OvkWorkflowRepository(tmp_path)
+    record = workflows.load("p1", "ovk-utkast")
     archive_id = archive(tmp_path, record, "test")
-    # Samma innehåll sparas en gång.
-    assert archive(tmp_path, record, "test") == archive_id
 
-    for missing in ("20260101T000000Z-000000000000", "..%2F..%2Fovk%2Fovk-utkast", "x"):
+    for missing in ("20260101T000000Z-000000000000", "20260101T000000Z-00000000000g", "a.b"):
         assert client.post(f"{SAVED}/{missing}/aterstall").status_code == 404
+    # Ett annat projekt med en besiktning med samma id når inte kopian.
+    workflows.save(
+        build_record(
+            inspection_id="ovk-utkast",
+            ovk_object=OvkObject("object-1", "p2", "building-1", "Building"),
+            systems=(VentilationSystemRef("FTX01", "FTX", "System FTX01"),),
+            planning=InspectionPlanning("person-1", date.today(), "aterkommande"),
+        )
+    )
     other = "/api/ovk/projects/p2/field/ovk-utkast/protokoll-utkast/sparade"
     assert client.get(other).json()["sparade"] == []
-    assert client.post(f"{other}/{archive_id}/aterstall").status_code == 404
+    refused = client.post(f"{other}/{archive_id}/aterstall")
+    assert (refused.status_code, refused.json()["detail"]["code"]) == (
+        404,
+        "OVK_SAVED_DRAFT_NOT_FOUND",
+    )
+    # Ett projekt som inte finns ger 404 redan i omfångskontrollen (ADR-013 punkt 3).
+    unknown = "/api/ovk/projects/saknas/field/ovk-utkast/protokoll-utkast/sparade"
+    for response in (client.get(unknown), client.post(f"{unknown}/{archive_id}/aterstall")):
+        assert (response.status_code, response.json()["detail"]["code"]) == (
+            404,
+            "OVK_PROJECT_NOT_FOUND",
+        )
 
     # En ändrad kopia återställs inte, och listan säger att den inte går att läsa.
     path = tmp_path / "projects" / "p1" / "ovk-utkast-sparade" / "ovk-utkast" / f"{archive_id}.json"
     path.write_text(path.read_text(encoding="utf-8").replace("Stoffe", "Någon annan"), "utf-8")
-    assert client.post(f"{SAVED}/{archive_id}/aterstall").status_code == 409
+    changed = client.post(f"{SAVED}/{archive_id}/aterstall")
+    assert (changed.status_code, changed.json()["detail"]["code"]) == (
+        409,
+        "OVK_SAVED_DRAFT_UNREADABLE",
+    )
     with pytest.raises(ValueError, match="does not belong"):
         load_archived(tmp_path, "p1", "ovk-utkast", archive_id)
     path.write_text("{", encoding="utf-8")
@@ -229,3 +256,154 @@ def test_saved_drafts_are_scoped_validated_and_reported_when_unreadable(
         {"archive_id": archive_id, "olasbar": True}
     ]
     assert client.post(f"{SAVED}/{archive_id}/aterstall").status_code == 409
+    assert workflows.load("p1", "ovk-utkast") == record
+
+
+def test_a_broken_older_copy_is_not_trusted_and_the_work_is_saved_again(tmp_path: Path) -> None:
+    record = replace(
+        build_record(
+            inspection_id="ovk-utkast",
+            ovk_object=OvkObject("object-1", "p1", "building-1", "Building"),
+            systems=(VentilationSystemRef("FTX01", "FTX", "System FTX01"),),
+        ),
+        review=(_decision("arbete"),),
+    )
+    root = tmp_path / "projects" / "p1" / "ovk-utkast-sparade" / "ovk-utkast"
+    first = archive(tmp_path, record, "test")
+    # Samma innehåll ligger aldrig dubbelt: den nya kopian ersätter den gamla.
+    older = root / f"20200101T000000Z-{first[-12:]}.json"
+    (root / f"{first}.json").rename(older)
+    older.write_text(older.read_text(encoding="utf-8").replace(first, older.stem), encoding="utf-8")
+    second = archive(tmp_path, record, "test")
+    assert [path.stem for path in root.glob("*.json")] == [second]
+    assert load_archived(tmp_path, "p1", "ovk-utkast", second) == record
+
+    # En äldre kopia med samma innehåll som inte går att läsa lämnas kvar,
+    # och arbetet sparas i en ny, läsbar kopia.
+    broken = root / f"20200101T000000Z-{second[-12:]}.json"
+    broken.write_text("{", encoding="utf-8")
+    third = archive(tmp_path, record, "test")
+    assert load_archived(tmp_path, "p1", "ovk-utkast", third) == record
+    assert sorted(path.stem for path in root.glob("*.json")) == sorted({broken.stem, third})
+
+
+def test_only_the_twenty_latest_copies_are_kept_and_the_latest_is_never_pruned(
+    tmp_path: Path,
+) -> None:
+    base = build_record(
+        inspection_id="ovk-utkast",
+        ovk_object=OvkObject("object-1", "p1", "building-1", "Building"),
+        systems=(VentilationSystemRef("FTX01", "FTX", "System FTX01"),),
+    )
+    root = tmp_path / "projects" / "p1" / "ovk-utkast-sparade" / "ovk-utkast"
+    oldest = replace(base, review=(_decision("äldst"),))
+    first = archive(tmp_path, oldest, "test")
+    # Den första kopian görs äldst, och tjugo nyare läggs till.
+    aged = root / f"20200101T000000Z-{first[-12:]}.json"
+    (root / f"{first}.json").rename(aged)
+    aged.write_text(aged.read_text(encoding="utf-8").replace(first, aged.stem), encoding="utf-8")
+    for index in range(20):
+        copy = root / f"2021010{index % 10}T0000{index:02d}Z-{index:012x}.json"
+        copy.write_text("{}", encoding="utf-8")
+    assert len(list(root.glob("*.json"))) == 21
+
+    # Samma innehåll som den äldsta sparas igen: det är nu det senaste och gallras inte.
+    again = archive(tmp_path, oldest, "test")
+
+    remaining = sorted(path.stem for path in root.glob("*.json"))
+    assert len(remaining) == 20
+    assert again in remaining and aged.stem not in remaining
+    assert load_archived(tmp_path, "p1", "ovk-utkast", again) == oldest
+
+
+def test_record_built_before_this_change_counts_as_work(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    client, headers = _prepared(tmp_path, monkeypatch)
+    assert client.post(f"{BASE}/protokoll-utkast", headers=headers, json={}).status_code == 200
+    # Äldre byggen lämnade ingen notering om hur posten såg ut.
+    (tmp_path / "projects" / "p1" / "ovk-field" / "ovk-utkast" / "draft-built.json").unlink()
+
+    refused = client.post(f"{BASE}/protokoll-utkast", headers=headers, json={})
+
+    assert refused.status_code == 409
+    assert refused.json()["detail"]["code"] == "OVK_DRAFT_REPLACE_CONFIRMATION_REQUIRED"
+    assert refused.json()["detail"]["summary"]["granskningsbeslut"] == 0
+
+
+def test_restore_keeps_current_object_and_systems_and_tells_when_field_data_moved_on(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    client, headers = _prepared(tmp_path, monkeypatch)
+    assert client.post(f"{BASE}/protokoll-utkast", headers=headers, json={}).status_code == 200
+    _decide(tmp_path)
+    saved = client.post(
+        f"{BASE}/protokoll-utkast", headers=headers, json={"confirm_replace": True}
+    ).json()["sparat_utkast"]
+    workflows = OvkWorkflowRepository(tmp_path)
+
+    # Samma fältunderlag: det återställda utkastet stämmer med protokollkällan.
+    same = client.post(f"{SAVED}/{saved}/aterstall")
+    assert same.status_code == 200, same.text
+    assert same.json()["protokollkalla_aktuell"] is True
+
+    # Objektets namn ändras och fältunderlaget synkas om med en anmärkning till.
+    current = workflows.load("p1", "ovk-utkast")
+    renamed = replace(current.inspection.ovk_object, name="Nytt namn")
+    workflows.save(replace(current, inspection=replace(current.inspection, ovk_object=renamed)))
+    snapshot = client.get(f"{BASE}/sync").json()
+    payload = snapshot["payload"]
+    payload["findings"].append(
+        {
+            **payload["findings"][0],
+            "finding_id": "f2",
+            "defect_type": "incorrect_airflow",
+            "description": "Kraftigt avvikande flöde",
+            "severity": "major",
+            "classification": 2,
+        }
+    )
+    resynced = client.put(
+        f"{BASE}/sync", json=payload, headers={"X-OVK-Base-Revision": snapshot["snapshot_sha256"]}
+    )
+    assert resynced.status_code == 200, resynced.text
+    rebuilt = client.post(
+        f"{BASE}/protokoll-utkast",
+        headers={"X-OVK-Base-Revision": resynced.json()["snapshot_sha256"]},
+        json={"confirm_replace": True},
+    )
+    assert rebuilt.status_code == 200, rebuilt.text
+
+    restored = client.post(f"{SAVED}/{saved}/aterstall")
+
+    assert restored.status_code == 200, restored.text
+    # Utkastet byggdes från äldre fältunderlag och måste byggas om före utfärdande.
+    assert restored.json()["protokollkalla_aktuell"] is False
+    back = workflows.load("p1", "ovk-utkast")
+    assert back.inspection.ovk_object.name == "Nytt namn"
+    assert back.review[0].reviewer == "Stoffe"
+
+
+def test_issued_inspection_can_be_neither_rebuilt_nor_restored(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    client, headers = _prepared(tmp_path, monkeypatch)
+    assert client.post(f"{BASE}/protokoll-utkast", headers=headers, json={}).status_code == 200
+    _decide(tmp_path)
+    workflows = OvkWorkflowRepository(tmp_path)
+    record = workflows.load("p1", "ovk-utkast")
+    saved = archive(tmp_path, record, "test")
+    # Ett påbörjat utfärdande spärrar besiktningen på samma sätt som ett utfärdat intyg.
+    manifest = tmp_path / "projects" / "p1" / "ovk-issuance-manifest" / "ovk-utkast.json"
+    manifest.parent.mkdir(parents=True)
+    manifest.write_text("{}", encoding="utf-8")
+
+    for response in (
+        client.post(f"{BASE}/protokoll-utkast", headers=headers, json={"confirm_replace": True}),
+        client.post(f"{SAVED}/{saved}/aterstall"),
+    ):
+        assert response.status_code == 409
+        assert response.json()["detail"]["code"] == "OVK_ISSUANCE_RECOVERY_REQUIRED"
+    assert workflows.load("p1", "ovk-utkast") == record
+    # Läsning är fortfarande tillåten.
+    assert len(client.get(SAVED).json()["sparade"]) == 1

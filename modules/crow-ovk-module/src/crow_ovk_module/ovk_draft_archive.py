@@ -101,28 +101,45 @@ def has_unsaved_work(data_root: Path, record: OvkWorkflowRecord) -> bool:
 
 
 def archive(data_root: Path, record: OvkWorkflowRecord, reason: str) -> str:
-    """Spara undan posten och ge kopians id. Samma innehåll sparas en gång."""
+    """Spara undan posten och ge kopians id.
+
+    Kopian skrivs alltid på nytt, med aktuell tid. En äldre, läsbar kopia med
+    samma innehåll tas bort efteråt, så att samma arbete inte ligger dubbelt
+    och så att gallringen aldrig tar det som senast låg på posten. En äldre
+    kopia som inte går att läsa litas det inte på; den lämnas kvar.
+    """
 
     project_id = record.inspection.ovk_object.project_id
     inspection_id = record.inspection.inspection_id
     root = _archive_root(data_root, project_id, inspection_id)
     digest = _digest(record)
-    for existing in sorted(root.glob(f"*-{digest[:12]}.json")) if root.exists() else []:
-        return existing.stem
-    archive_id = f"{datetime.now(UTC).strftime('%Y%m%dT%H%M%SZ')}-{digest[:12]}"
+    now = datetime.now(UTC)
+    archive_id = f"{now.strftime('%Y%m%dT%H%M%SZ')}-{digest[:12]}"
     _write(
         root / f"{archive_id}.json",
         {
             "archive_id": archive_id,
             "project_id": project_id,
             "inspection_id": inspection_id,
-            "saved_at": datetime.now(UTC).isoformat(timespec="seconds"),
+            "saved_at": now.isoformat(timespec="seconds"),
             "reason": reason,
             "record_sha256": digest,
             "summary": summary(record),
             "record": record_to_payload(record),
         },
     )
+    # Kopian ska gå att läsa tillbaka innan något annat litar på den.
+    # (load_archived kontrollerar identitet och checksumma och kastar annars.)
+    load_archived(data_root, project_id, inspection_id, archive_id)
+    for older in sorted(root.glob(f"*-{digest[:12]}.json")):
+        if older.stem == archive_id:
+            continue
+        try:
+            same = json.loads(older.read_text(encoding="utf-8")).get("record_sha256") == digest
+        except (OSError, ValueError, AttributeError):
+            same = False
+        if same:
+            older.unlink(missing_ok=True)
     # De äldsta gallras, så att upprepade byggen inte fyller disken.
     for old in sorted(root.glob("*.json"))[:-_KEEP]:
         old.unlink(missing_ok=True)
@@ -171,7 +188,7 @@ def load_archived(
     try:
         stored = json.loads(path.read_text(encoding="utf-8"))
         record = record_from_payload(stored["record"])
-    except (KeyError, TypeError) as exc:
+    except (OSError, KeyError, TypeError) as exc:
         raise ValueError("stored draft is unreadable") from exc
     if (
         stored.get("project_id") != project_id

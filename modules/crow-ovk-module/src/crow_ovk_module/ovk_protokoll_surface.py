@@ -17,6 +17,7 @@ from typing import Any
 from fastapi import APIRouter, Depends, HTTPException, Request
 
 from crow_ovk_workflow import (
+    OvkWorkflowRecord,
     OvkWorkflowRepository,
     bridge_inspection_inputs,
     build_protokoll_utkast,
@@ -42,12 +43,20 @@ from .ovk_field_surface import (
 )
 from .ovk_field_workbench import _FieldWorkbenchRepository, _project_photo
 from .ovk_issuance_lock import inspection_mutation_guard
-from .ovk_protocol_source import save_protocol_source
+from .ovk_protocol_source import protocol_source_is_current, save_protocol_source
+from .ovk_scope import current_actor, visible_project_ids
 
 
 def ovk_protokoll_router(data_root: Path) -> APIRouter:
     router = APIRouter(dependencies=[Depends(inspection_mutation_guard(data_root))])
     workflow_repository = OvkWorkflowRepository(data_root)
+
+    def keep(record: OvkWorkflowRecord, reason: str) -> str:
+        """Spara undan posten, eller avbryt innan något har ersatts."""
+        try:
+            return archive(data_root, record, reason)
+        except (OSError, ValueError) as exc:
+            raise HTTPException(status_code=409, detail={"code": "OVK_DRAFT_SAVE_FAILED"}) from exc
 
     @router.post(
         "/api/ovk/projects/{project_id}/field/{inspection_id}/protokoll-utkast",
@@ -169,7 +178,7 @@ def ovk_protokoll_router(data_root: Path) -> APIRouter:
                         "summary": draft_summary(existing),
                     },
                 )
-            saved_draft = archive(data_root, existing, "ersatt av nytt utkast")
+            saved_draft = keep(existing, "ersatt av nytt utkast")
         workflow_repository.save(record)
         record = workflow_repository.load(project_id, inspection_id)
         save_protocol_source(data_root, project_id, inspection_id, record)
@@ -212,13 +221,20 @@ def ovk_protokoll_router(data_root: Path) -> APIRouter:
             ),
         }
 
+    def scoped(request: Request, project_id: str, inspection_id: str) -> None:
+        """Projektet ska höra till det den inloggade får se (ADR-013 punkt 3)."""
+        actor = current_actor(request)
+        _validate_identifier(project_id)
+        _validate_identifier(inspection_id)
+        if project_id not in visible_project_ids(data_root, actor):
+            raise HTTPException(status_code=404, detail={"code": "OVK_PROJECT_NOT_FOUND"})
+
     @router.get(
         "/api/ovk/projects/{project_id}/field/{inspection_id}/protokoll-utkast/sparade",
         response_model=None,
     )
-    def list_saved_drafts(project_id: str, inspection_id: str) -> dict[str, Any]:
-        _validate_identifier(project_id)
-        _validate_identifier(inspection_id)
+    def list_saved_drafts(project_id: str, inspection_id: str, request: Request) -> dict[str, Any]:
+        scoped(request, project_id, inspection_id)
         return {
             "project_id": project_id,
             "inspection_id": inspection_id,
@@ -230,11 +246,21 @@ def ovk_protokoll_router(data_root: Path) -> APIRouter:
         "{archive_id}/aterstall",
         response_model=None,
     )
-    def restore_saved_draft(project_id: str, inspection_id: str, archive_id: str) -> dict[str, Any]:
-        _validate_identifier(project_id)
-        _validate_identifier(inspection_id)
+    def restore_saved_draft(
+        project_id: str, inspection_id: str, archive_id: str, request: Request
+    ) -> dict[str, Any]:
+        scoped(request, project_id, inspection_id)
         try:
             existing = workflow_repository.load(project_id, inspection_id)
+        except FileNotFoundError as exc:
+            raise HTTPException(
+                status_code=404, detail={"code": "OVK_INSPECTION_NOT_FOUND"}
+            ) from exc
+        except ValueError as exc:
+            raise HTTPException(
+                status_code=409, detail={"code": "OVK_INSPECTION_UNREADABLE"}
+            ) from exc
+        try:
             saved = load_archived(data_root, project_id, inspection_id, archive_id)
         except FileNotFoundError as exc:
             raise HTTPException(
@@ -244,19 +270,39 @@ def ovk_protokoll_router(data_root: Path) -> APIRouter:
             raise HTTPException(
                 status_code=409, detail={"code": "OVK_SAVED_DRAFT_UNREADABLE"}
             ) from exc
+        # Objekt, system och planering är besiktningens nuvarande, som när ett
+        # utkast byggs; den sparade kopian kan vara äldre.
+        try:
+            restored = replace(
+                saved,
+                planning=existing.planning,
+                inspection=replace(
+                    saved.inspection,
+                    ovk_object=existing.inspection.ovk_object,
+                    systems=existing.inspection.systems,
+                ),
+            )
+        except ValueError as exc:
+            raise HTTPException(
+                status_code=409, detail={"code": "OVK_SAVED_DRAFT_INCOMPATIBLE"}
+            ) from exc
         # Det som ligger i posten nu sparas undan på samma sätt, så att
         # återställningen själv går att ångra.
         replaced = (
-            archive(data_root, existing, "ersatt vid återställning")
+            keep(existing, "ersatt vid återställning")
             if has_unsaved_work(data_root, existing)
             else None
         )
-        # Planeringen är besiktningens nuvarande; den sparade kopian kan vara äldre.
-        workflow_repository.save(replace(saved, planning=existing.planning))
+        workflow_repository.save(restored)
         record = workflow_repository.load(project_id, inspection_id)
         return {
             "aterstallt": archive_id,
             "sparat_utkast": replaced,
+            # Falskt när fältunderlaget har ändrats sedan kopian byggdes: posten
+            # går då att läsa, men ett nytt utkast måste byggas före utfärdande.
+            "protokollkalla_aktuell": protocol_source_is_current(
+                data_root, project_id, inspection_id, record
+            ),
             "record": record_to_payload(record),
         }
 

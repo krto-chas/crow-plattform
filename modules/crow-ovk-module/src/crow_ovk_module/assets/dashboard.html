@@ -136,7 +136,13 @@
           OVK_FIELD_SNAPSHOT_NOT_FOUND:'Besiktningen har inget synkat fältunderlag ännu.',
           OVK_INSPECTION_NOT_FOUND:'Besiktningen finns inte längre i projektet. Ladda om sidan.',
           OVK_MIGRATION_REQUIRED:'Besiktningens fältunderlag är i ett äldre format och måste flyttas över innan utkast kan byggas.',
-          OVK_FIELD_PROJECT_CONFLICT:'Fältunderlaget hör till ett annat projekt.'
+          OVK_FIELD_PROJECT_CONFLICT:'Fältunderlaget hör till ett annat projekt.',
+          OVK_DRAFT_SAVE_FAILED:'Det nuvarande utkastet kunde inte sparas undan. Inget har ändrats.',
+          OVK_SAVED_DRAFT_NOT_FOUND:'Det sparade utkastet finns inte längre.',
+          OVK_SAVED_DRAFT_UNREADABLE:'Det sparade utkastet går inte att läsa och kan inte återställas.',
+          OVK_SAVED_DRAFT_INCOMPATIBLE:'Det sparade utkastet passar inte längre besiktningens system och kan inte återställas.',
+          OVK_PROJECT_NOT_FOUND:'Projektet finns inte längre. Ladda om sidan.',
+          OVK_INSPECTION_UNREADABLE:'Besiktningens post går inte att läsa.'
         };
         const code=typeof detail==='string'?detail:detail&&typeof detail==='object'?detail.code:null;
         if(code&&Object.hasOwn(known,code))return known[code];
@@ -152,18 +158,20 @@
       function draftContents(summary){
         const words=[['granskningsbeslut','granskningsbeslut','granskningsbeslut'],['kontrollpunkter','kontrollpunkt','kontrollpunkter'],['anmarkningar','anmärkning','anmärkningar'],['matningar','mätning','mätningar'],['atgarder','åtgärd','åtgärder']];
         const parts=words.filter(([key])=>Number(summary?.[key])>0).map(([key,one,many])=>summary[key]+' '+(Number(summary[key])===1?one:many));
-        return parts.length?parts.join(', '):'täckningsuppgifter';
+        return parts.length?parts.join(', '):'ändrade uppgifter';
       }
       const draftTime=value=>{const date=new Date(value);return Number.isNaN(date.getTime())?String(value):date.toLocaleString('sv-SE',{dateStyle:'short',timeStyle:'short'})};
       // Ett utkast som har ändrats sedan det byggdes ersätts inte utan fråga.
       function askDraftReplace(out,summary){
         out.replaceChildren();
-        const box=document.createElement('div');box.className='status warn';box.id='pbConfirm';box.setAttribute('role','alertdialog');box.setAttribute('aria-labelledby','pbConfirmTitle');
+        const box=document.createElement('div');box.className='status warn';box.id='pbConfirm';box.setAttribute('role','alertdialog');box.setAttribute('aria-labelledby','pbConfirmTitle');box.setAttribute('aria-describedby','pbConfirmText');
         const title=document.createElement('strong');title.id='pbConfirmTitle';title.textContent='Besiktningen har redan ett utkast som har ändrats.';
-        const text=document.createElement('p');text.textContent='Det innehåller '+draftContents(summary)+'. Ett nytt utkast från fältdata ersätter det. Det nuvarande sparas undan först och går att återställa.';
+        const text=document.createElement('p');text.id='pbConfirmText';text.textContent='Det innehåller '+draftContents(summary)+'. Ett nytt utkast från fältdata ersätter det. Det nuvarande sparas undan först och går att återställa.';
         const yes=document.createElement('button');yes.type='button';yes.className='button';yes.id='pbConfirmYes';yes.textContent='Spara undan och bygg nytt';yes.onclick=()=>buildDraft(true);
         const no=document.createElement('button');no.type='button';no.className='button secondary';no.id='pbConfirmNo';no.textContent='Avbryt';no.onclick=()=>{pbRequest++;out.textContent='Inget ändrades.';void showSavedDrafts(out)};
-        box.append(title,text,yes,document.createTextNode(' '),no);out.append(box);yes.focus();
+        // Avbryt är förvalt och nås med Escape: det ofarliga valet ska vara närmast.
+        box.addEventListener('keydown',event=>{if(event.key==='Escape'){event.preventDefault();no.click()}});
+        box.append(title,text,yes,document.createTextNode(' '),no);out.append(box);no.focus();
       }
       // Sparade utkast för vald besiktning, med möjlighet att ta tillbaka ett.
       async function showSavedDrafts(out){
@@ -193,9 +201,9 @@
               const result=await draftJson(response);
               if(token!==pbRequest||revision!==loadRevision)return;
               if(!response.ok||!result){out.textContent='Utkastet kunde inte återställas: '+draftError(result?.detail);return}
-              out.textContent='Utkastet från '+draftTime(item.saved_at)+' är återställt.'+(result.sparat_utkast?' Det som låg på besiktningen är sparat undan.':'');
+              out.textContent='Utkastet från '+draftTime(item.saved_at)+' är återställt.'+(result.sparat_utkast?' Det som låg på besiktningen är sparat undan.':'')+(result.protokollkalla_aktuell===false?' Fältunderlaget har ändrats sedan utkastet byggdes: det återställda utkastet går att läsa, men ett nytt utkast måste byggas innan intyg kan utfärdas.':'');
               await showSavedDrafts(out);
-            }catch(error){if(token===pbRequest)out.textContent='Utkastet kunde inte återställas: '+(error.message||error)}
+            }catch(error){if(token===pbRequest&&revision===loadRevision)out.textContent='Utkastet kunde inte återställas: '+(error.message||error)}
           };
           row.append(label,restore);section.append(row);
         }
